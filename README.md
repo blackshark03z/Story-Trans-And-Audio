@@ -1,0 +1,61 @@
+# Story Audio MVP
+
+Ứng dụng cục bộ chuyển EPUB thành audio theo chương bằng VieNeu-TTS, có Gemini punctuation repair, revision và checkpoint cấp segment.
+
+## Chạy
+
+```powershell
+.\run_app.ps1
+```
+
+Sau đó mở `http://127.0.0.1:8766`.
+
+## Quy trình sử dụng
+
+1. Nhập EPUB trong phần **Thư viện**.
+2. Chọn sách và kiểm tra nội dung chương.
+3. Chọn khoảng **Từ chương → Đến chương**.
+4. Tải danh sách giọng VieNeu và chọn giọng.
+5. Chọn chế độ Gemini, định dạng rồi bấm **Kiểm tra phạm vi**.
+6. Thêm vào hàng đợi; có 10 giây để hủy nếu chọn nhầm.
+7. Theo dõi checkpoint, pause/resume hoặc retry phần lỗi.
+
+## API key
+
+Ứng dụng ưu tiên biến môi trường `GEMINI_API_KEY`, sau đó tìm:
+
+```text
+secrets/gemini_api_key.txt
+gemini_api_key.txt
+```
+
+Các đường dẫn này đã bị Git bỏ qua. Key không được lưu vào SQLite hoặc trả về UI.
+
+## Dữ liệu
+
+```text
+data/app.db            SQLite metadata/checkpoint
+data/blobs/text/       Text bất biến theo SHA-256
+data/work/             Segment WAV đang xử lý
+data/output/           Master WAV, M4A/MP3 và timeline
+```
+
+Text chương không được lưu đầy đủ trong SQLite. DB chỉ lưu revision metadata và đường dẫn blob.
+
+## Tài liệu điều hành
+
+- [Trạng thái hiện tại](PROJECT_STATUS.md)
+- [Roadmap](ROADMAP.md)
+- [Quyết định kiến trúc](docs/DECISIONS.md)
+- [Data model](docs/DATA_MODEL.md)
+- [Testing strategy](docs/TESTING.md)
+- [Chính sách kiểm soát chi phí](docs/COST_CONTROL.md)
+- [Runbook vận hành và sửa lỗi](docs/RUNBOOK.md)
+- [Hướng dẫn cho phiên làm việc tiếp theo](AGENTS.md)
+- [Changelog](CHANGELOG.md)
+
+Chẩn đoán read-only:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\doctor.py
+```

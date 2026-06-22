@@ -1,0 +1,63 @@
+from __future__ import annotations
+
+import os
+from dataclasses import dataclass
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+@dataclass(frozen=True)
+class Settings:
+    root: Path = ROOT
+    data_dir: Path = ROOT / "data"
+    db_path: Path = ROOT / "data" / "app.db"
+    blobs_dir: Path = ROOT / "data" / "blobs"
+    output_dir: Path = ROOT / "data" / "output"
+    work_dir: Path = ROOT / "data" / "work"
+    log_dir: Path = ROOT / "logs"
+    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    gemini_prompt_version: str = "punctuation-v1"
+    tts_mode: str = "v3turbo"
+    tts_sample_rate: int = 48_000
+    tts_max_chars: int = 256
+    tts_target_chars: int = 230
+    tts_temperature: float = 0.8
+    tts_top_k: int = 25
+    tts_silence_seconds: float = 0.15
+    undo_seconds: int = 10
+    worker_poll_seconds: float = 0.75
+    minimum_free_gb: float = 2.0
+    successful_segment_retention_hours: int = 24
+
+    def ensure_dirs(self) -> None:
+        for path in (
+            self.data_dir,
+            self.blobs_dir,
+            self.output_dir,
+            self.work_dir,
+            self.log_dir,
+            self.root / "secrets",
+        ):
+            path.mkdir(parents=True, exist_ok=True)
+
+    def gemini_key(self) -> str | None:
+        value = os.getenv("GEMINI_API_KEY", "").strip()
+        if value:
+            return value
+        candidates = (
+            self.root / "secrets" / "gemini_api_key.txt",
+            self.root / "gemini_api_key.txt",  # backward-compatible local file
+        )
+        for path in candidates:
+            if not path.exists():
+                continue
+            for line in path.read_text(encoding="utf-8-sig").splitlines():
+                value = line.strip()
+                if value and not value.startswith("#"):
+                    return value
+        return None
+
+
+settings = Settings()

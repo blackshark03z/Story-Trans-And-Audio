@@ -1,0 +1,16 @@
+.env
+.env.*
+secrets/
+gemini_api_key.txt
+*.key
+*.epub
+*.wav
+*.m4a
+*.mp3
+*.mp4
+*.log
+data/
+logs/
+__pycache__/
+*.pyc
+.pytest_cache/

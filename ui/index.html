@@ -1,0 +1,109 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Story Audio</title>
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">EPUB → VieNeu-TTS</p>
+      <h1>Story Audio</h1>
+    </div>
+    <div id="health" class="health">Đang kết nối…</div>
+  </header>
+
+  <main>
+    <section class="panel import-panel">
+      <div>
+        <h2>Thư viện</h2>
+        <p class="muted">Nhập EPUB trong thư mục ứng dụng. Sách đã nhập sẽ không bị nhân đôi.</p>
+      </div>
+      <div class="row import-row">
+        <select id="epubPath"></select>
+        <button id="importBtn" class="secondary">Nhập EPUB</button>
+      </div>
+      <div id="books" class="book-grid"></div>
+    </section>
+
+    <section id="workspace" class="workspace hidden">
+      <aside class="panel chapter-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Đang chọn</p>
+            <h2 id="bookTitle">—</h2>
+          </div>
+          <span id="chapterCount" class="pill"></span>
+        </div>
+        <div class="row filter-row">
+          <input id="chapterQuery" placeholder="Tìm số hoặc tên chương">
+          <button id="searchBtn" class="ghost">Tìm</button>
+        </div>
+        <div id="chapterList" class="chapter-list"></div>
+        <div class="pager">
+          <button id="prevPage" class="ghost">← Trước</button>
+          <span id="pageInfo"></span>
+          <button id="nextPage" class="ghost">Sau →</button>
+        </div>
+      </aside>
+
+      <section class="panel job-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Tạo audio</p>
+            <h2>Chọn khoảng chương</h2>
+          </div>
+        </div>
+        <div class="form-grid">
+          <label>Từ chương<input id="fromChapter" type="number" min="1" value="1"></label>
+          <label>Đến chương<input id="toChapter" type="number" min="1" value="1"></label>
+          <label class="wide">Giọng đọc
+            <div class="inline-control">
+              <select id="voiceSelect"><option value="">Chưa tải danh sách giọng</option></select>
+              <button id="loadVoices" class="ghost">Tải giọng</button>
+            </div>
+          </label>
+          <label>Gemini
+            <select id="repairMode">
+              <option value="all_selected">Sửa dấu câu toàn bộ</option>
+              <option value="qa_only">Chỉ đoạn QA cảnh báo</option>
+              <option value="off">Không dùng Gemini</option>
+            </select>
+          </label>
+          <label>Định dạng
+            <select id="outputFormat"><option value="m4a">M4A</option><option value="mp3">MP3</option></select>
+          </label>
+          <label class="check wide"><input id="skipCompleted" type="checkbox" checked> Bỏ qua chương đã có audio</label>
+        </div>
+        <button id="previewBtn" class="secondary full">Kiểm tra phạm vi</button>
+        <div id="preview" class="preview empty">Chưa kiểm tra phạm vi.</div>
+        <button id="runBtn" class="primary full" disabled>Thêm vào hàng đợi</button>
+        <p class="hint">Sau khi tạo job, bạn có 10 giây để hoàn tác. Job chỉ dừng tại ranh giới segment an toàn.</p>
+      </section>
+    </section>
+
+    <section class="panel queue-panel">
+      <div class="section-head">
+        <div><p class="eyebrow">Checkpoint bền vững</p><h2>Hàng đợi</h2></div>
+        <button id="refreshJobs" class="ghost">Làm mới</button>
+      </div>
+      <div id="jobs" class="jobs"><p class="muted">Chưa có job.</p></div>
+    </section>
+  </main>
+
+  <dialog id="textDialog">
+    <div class="dialog-head"><h2 id="dialogTitle">Nội dung chương</h2><button id="closeDialog" class="ghost">Đóng</button></div>
+    <div id="qaIssues"></div>
+    <div id="audioBox" class="audio-box hidden">
+      <audio id="chapterAudio" controls preload="metadata"></audio>
+      <a id="audioFileLink" target="_blank">Mở file audio</a>
+    </div>
+    <div class="tabs"><button data-tab="reflowed" class="active">Reflowed</button><button data-tab="repaired">Gemini</button><button data-tab="raw">Raw</button></div>
+    <pre id="chapterText"></pre>
+  </dialog>
+  <div id="toast" class="toast hidden"></div>
+  <script src="/assets/app.js"></script>
+</body>
+</html>
