@@ -40,7 +40,7 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ### Changed
 
-- Documented ADR-013 and the planned Personal Edition three-voice profile; this is an architecture decision only, not an implemented feature.
+- Documented ADR-013 and synchronized README, architecture, runbook, testing and cost-control guidance for the planned Personal Edition three-voice profile; this is an architecture decision only, not an implemented feature.
 - Gemini API chỉ được gọi sau khi job checkpoint, approved repaired TextRevision và shared cache đều không reuse được; cache hỏng trở thành safe miss.
 - Audit phân biệt `gemini_cache_hit`, `gemini_cache_miss`, `gemini_cache_invalid`, `gemini_api_call` và `gemini_checkpoint_reuse` mà không lưu source text/API key.
 - Audio assembly dùng thư mục `render_<generation>` để retry không ghi đè artifact verified cũ.
@@ -49,7 +49,7 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ### Verified
 
-- 60 offline tests đạt; JavaScript syntax đạt.
+- 67 offline tests đạt; JavaScript syntax đạt.
 - Live diff API trên chapter 18.649 ký tự hoàn thành khoảng 330 ms và không trả internal path.
 - VieNeu v3 Turbo multi-voice smoke: job 3, 3 preset voices, 8 utterance/segment, M4A 22.810 ms.
 - Controlled retry render lại một segment trong 2,47 giây và reuse nguyên hash/mtime của 7 segment còn lại.

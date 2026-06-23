@@ -1,6 +1,8 @@
-# Story Audio MVP
+# Story Audio Personal Edition
 
-Ứng dụng cục bộ chuyển EPUB thành audio theo chương bằng VieNeu-TTS, có Gemini punctuation repair, revision và checkpoint cấp segment.
+Ứng dụng cục bộ chuyển EPUB thành audio theo chương bằng VieNeu-TTS, có Gemini punctuation repair, immutable revision, manual/multi-voice casting và checkpoint cấp segment. Story Audio kết thúc ở audio + speech timing + YouTube Auto Handoff; image/video/metadata thuộc repository YouTube Auto.
+
+Kiến trúc voice Personal Edition đã chốt theo hướng ba voice mặc định cấp book (narrator, male dialogue, female dialogue) cùng optional character override. Đây là kiến trúc mục tiêu; Book Voice Profile chưa được triển khai trong schema v2 hiện tại.
 
 ## Chạy
 
@@ -15,7 +17,7 @@ Sau đó mở `http://127.0.0.1:8766`.
 1. Nhập EPUB trong phần **Thư viện**.
 2. Chọn sách và kiểm tra nội dung chương.
 3. Chọn khoảng **Từ chương → Đến chương**.
-4. Tải danh sách giọng VieNeu và chọn giọng.
+4. Tải danh sách giọng VieNeu và chọn giọng; manual casting hiện tại vẫn dùng voice riêng đã gán cho character.
 5. Chọn chế độ Gemini, định dạng rồi bấm **Kiểm tra phạm vi**.
 6. Thêm vào hàng đợi; có 10 giây để hủy nếu chọn nhầm.
 7. Theo dõi checkpoint, pause/resume hoặc retry phần lỗi.
@@ -38,9 +40,10 @@ data/app.db            SQLite metadata/checkpoint
 data/blobs/text/       Text bất biến theo SHA-256
 data/work/             Segment WAV đang xử lý
 data/output/           Master WAV, M4A/MP3 và timeline
+data/exports/youtube_auto/  Immutable Handoff V1 bundles
 ```
 
-Text chương không được lưu đầy đủ trong SQLite. DB chỉ lưu revision metadata và đường dẫn blob.
+Text chương không được lưu đầy đủ trong SQLite. DB chỉ lưu revision metadata và đường dẫn blob. Resolved voice của job/casting cũ là snapshot bất biến và không được resolve lại khi cấu hình mặc định thay đổi.
 
 ## Tài liệu điều hành
 
@@ -62,7 +65,7 @@ Chẩn đoán read-only:
 
 ## Backup và restore
 
-Nên pause job trước khi backup. Mặc định backup gồm DB, text blobs, output và WAV checkpoint:
+Nên pause job trước khi backup. Mặc định backup gồm DB, text blobs, output, YouTube Auto exports và WAV checkpoint:
 
 ```powershell
 & 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\backup.py backups\my-backup

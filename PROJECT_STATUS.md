@@ -101,9 +101,8 @@ Audio casting mặc định sẽ dùng ba nhóm voice cấp book: narrator, male
 - [x] Voice preview 10–20 giây.
 - [x] Text diff raw → reflowed → repaired.
 - [x] Gemini cache dùng chung theo source hash + model + prompt version.
-- [ ] Disk estimate chính xác và cleanup dry-run.
-- [ ] Usage ledger, daily batch cap và Gemini soft budget cảnh báo.
-- [ ] Export SRT/VTT từ segment timeline.
+
+Các hạng mục vận hành/quota và alignment không cấp thiết được tập trung trong `ROADMAP.md` thay vì lặp backlog tại đây.
 
 ### P2 — Personal Edition voice
 

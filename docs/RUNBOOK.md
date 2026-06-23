@@ -52,6 +52,14 @@ Không copy log ra ngoài trước khi kiểm tra secret/path/text nhạy cảm.
 - Không sửa voice giữa job đang chạy; tạo job revision mới.
 - API hiện validate voice trước khi tạo job.
 
+### Voice casting và backward compatibility
+
+- Schema v2 hiện dùng `characters.default_voice_id` bắt buộc; coi đây là legacy character override, không xóa hoặc đổi hàng loạt.
+- CastingPlan/job đã tạo giữ nguyên `resolved_voice_id`. Retry phải dùng snapshot cũ.
+- Three-Voice Profile là task tiếp theo, chưa có trong UI/runtime hiện tại.
+- Khi profile được triển khai, đổi narrator/male/female/unknown fallback hoặc character override chỉ áp dụng cho casting/job mới.
+- Utterance-level voice override hiện chưa tồn tại; không hướng dẫn người vận hành sửa JSON/DB để giả lập.
+
 ### Job bị interrupted
 
 - Startup chuyển job đang chạy thành `interrupted`.
@@ -107,7 +115,7 @@ Thu thập tối thiểu:
 - Error message trong job/chapter.
 - Model/voice/prompt version, không gửi API key.
 - Danh sách file liên quan và kích thước, không cần gửi toàn bộ audio/text trước.
-# YouTube Auto handoff
+## YouTube Auto handoff
 
 Export một completed chapter bằng đúng job snapshot:
 
