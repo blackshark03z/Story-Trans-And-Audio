@@ -35,6 +35,10 @@
 - Cache hit luôn verify manifest/key/blob/hash/count và lexical tokens; entry hỏng/mất là safe miss.
 - Manifest nằm trong `data/cache/gemini_repairs/`; repaired payload dùng text blob bất biến. Cleanup TTL/quota chỉ xóa manifest và mặc định dry-run.
 
+## Quyết định voice casting Personal Edition
+
+Audio casting mặc định sẽ dùng ba nhóm voice cấp book: narrator, male dialogue và female dialogue; unknown fallback mặc định về narrator. Character identity tách khỏi voice identity và chỉ nhân vật quan trọng mới có optional voice override. Quyết định này đã được chốt trong ADR, nhưng Book Voice Profile và resolver chưa triển khai.
+
 ## Chức năng đã hoàn thành
 
 - [x] Import EPUB và SHA deduplication.
@@ -73,6 +77,8 @@
 - Text diff giới hạn 500.000 ký tự kết hợp; payload trên 50.000 ký tự có warning và collapse mặc định.
 - Cleanup chưa có dry-run/quota dashboard trên UI.
 - Manual casting chưa có AI speaker detection, emotion control hoặc voice cloning theo đúng phạm vi MVP.
+- Book-level Three-Voice Profile chưa triển khai; `characters.default_voice_id` hiện tại vẫn là voice bắt buộc và sau này phải được bảo toàn như legacy override.
+- Automatic speaker/gender assignment và unknown `needs_review` chưa triển khai.
 - Loudness giữa preset có chênh nhẹ (smoke đo tối đa 3,2 dB mean); chưa normalization theo đúng phạm vi.
 - Backup là full snapshot, chưa incremental/compress và có thể lớn khi thư viện tăng.
 - Restore remap artifact/work paths trong data root nhưng không đóng gói EPUB nguồn nằm ngoài `data/`.
@@ -99,10 +105,12 @@
 - [ ] Usage ledger, daily batch cap và Gemini soft budget cảnh báo.
 - [ ] Export SRT/VTT từ segment timeline.
 
-### P2 — Personal Edition bridge
+### P2 — Personal Edition voice
 
 - [x] YouTube Auto Handoff V1.
-- [ ] Character Bible import cơ bản ở YouTube Auto.
+- [ ] Three-Voice Profile Core.
+- [ ] Three-Voice Profile UI and Casting Integration.
+- [ ] Book-level Character Bible Import.
 - [ ] Gemini speaker assignment draft khi thực sự cần.
 - [ ] Real end-to-end chapter video review.
 

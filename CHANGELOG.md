@@ -40,6 +40,7 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ### Changed
 
+- Documented ADR-013 and the planned Personal Edition three-voice profile; this is an architecture decision only, not an implemented feature.
 - Gemini API chỉ được gọi sau khi job checkpoint, approved repaired TextRevision và shared cache đều không reuse được; cache hỏng trở thành safe miss.
 - Audit phân biệt `gemini_cache_hit`, `gemini_cache_miss`, `gemini_cache_invalid`, `gemini_api_call` và `gemini_checkpoint_reuse` mà không lưu source text/API key.
 - Audio assembly dùng thư mục `render_<generation>` để retry không ghi đè artifact verified cũ.

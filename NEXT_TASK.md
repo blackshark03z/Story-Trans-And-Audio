@@ -1,24 +1,28 @@
 # Next Task
 
 Current Sprint:
-Personal Edition Bridge
+Personal Edition Voice Simplification
 
 Current Task:
-Character Bible import cơ bản
+Three-Voice Profile Core
 
 Status:
-Ready for specification. Story Audio → YouTube Auto Handoff V1 completed on 2026-06-23.
+Ready for specification
 
 Definition of Done:
-- Import character identity/alias/gender/role seed into YouTube Auto visual bible workflow.
-- Keep Story Audio seed advisory and untrusted; YouTube Auto owns visual descriptions.
-- No database coupling and no whole-book automatic character generation.
-- Offline fake-provider tests pass.
+- Có Book Voice Profile gồm narrator, male dialogue, female dialogue và unknown fallback.
+- Character voice hiện có được giữ như optional override.
+- Có deterministic voice resolver.
+- Job tiếp tục snapshot resolved voice.
+- Casting/job cũ không thay đổi.
+- Offline tests và Doctor đạt.
 
 Do Not Work On:
-- Voice cloning
-- AI speaker detection
-- Emotion/loudness normalization
-- SRT/VTT
-- Image Pipeline
-- Video Pipeline
+- UI redesign.
+- Character Bible import.
+- Gemini speaker assignment.
+- Voice cloning.
+- Emotion control.
+- Image/video pipeline.
+- Multi-user.
+- Quota dashboard.

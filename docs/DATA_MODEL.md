@@ -32,7 +32,7 @@ SchemaMigration
 - `Artifact`: file đã verify như master WAV, timeline hoặc M4A/MP3.
 - `Job/JobChapter`: orchestration state, không phải nội dung nguồn.
 - `SchemaMigration`: lịch sử schema bất biến; checksum ngăn sửa migration đã phát hành.
-- `Character`: nhân vật thuộc một book, trỏ tới preset voice mặc định cho plan mới.
+- `Character` hiện tại: nhân vật thuộc một book với `display_name` và `default_voice_id` bắt buộc; field voice đang được resolve như voice riêng khi tạo plan.
 - `CastingPlanRevision`: JSON blob bất biến pin TextRevision và offset utterance; SQLite chỉ giữ metadata/hash/path.
 - `JobChapter.voice_snapshot_json`: snapshot narrator/character voices và utterance assignment tại lúc tạo job.
 - `Segment`: với multi-voice còn pin utterance, role, character, resolved voice và synthesis hash.
@@ -49,8 +49,65 @@ Approved TextRevision
 
 - Casting plan không sao chép full chapter text; utterance dùng offsets và text hash trỏ vào TextRevision.
 - Approved plan không được ghi đè. Chỉnh casting tạo `plan_revision` mới.
-- Default character voice chỉ ảnh hưởng plan mới; plan/job cũ giữ `resolved_voice_id` snapshot.
+- Voice character hiện tại chỉ ảnh hưởng plan mới; plan/job cũ giữ `resolved_voice_id` snapshot.
 - Không segment nào chứa text từ hai speaker. Một utterance có thể sinh nhiều segment cùng voice.
+
+## Three-Voice Profile — current state và proposed state
+
+### Đã tồn tại trong schema v2
+
+- `characters.default_voice_id TEXT NOT NULL`: voice riêng bắt buộc cho mỗi character. Khi chuyển model, giá trị hiện có phải được bảo toàn và diễn giải như legacy character override.
+- `casting_plans.narrator_voice_id`: narrator voice pin trong immutable CastingPlanRevision.
+- `jobs.voice_name`: narrator/single-voice lựa chọn tại lúc tạo job.
+- `job_chapters.voice_snapshot_json` và `jobs.casting_snapshot_json`: resolved narrator/character voices của job multi-voice.
+- `segments.resolved_voice_id`: voice cuối cùng dùng để tổng hợp; retry reuse giá trị này.
+- Chưa có book-level settings storage, gender/alias/role, optional override hoặc `needs_review` cho unknown speaker.
+
+### Model dự kiến cho Three-Voice Profile Core
+
+```text
+BookVoiceProfile
+├── book_id
+├── narrator_voice_id
+├── male_dialogue_voice_id
+├── female_dialogue_voice_id
+└── unknown_fallback          # mặc định kế thừa narrator
+
+Character
+├── external_key
+├── canonical_name
+├── aliases
+├── gender                    # male | female | unknown
+├── role
+└── voice_override_id?        # optional
+```
+
+`default_voice_id` hiện tại có thể được migrate/reused làm `voice_override_id` cho dữ liệu cũ, nhưng vì column đang `NOT NULL` nên chưa thể mô tả inheritance như đã triển khai. BookVoiceProfile cũng chưa có nơi lưu; task tiếp theo có khả năng cần migration version mới sau khi chốt compatibility strategy.
+
+### Voice resolution dự kiến
+
+```text
+utterance override (nếu tương lai có)
+→ character voice override
+→ narrator profile voice
+→ male/female dialogue profile voice
+→ unknown fallback
+```
+
+- `character_id=null, gender=male` → male dialogue voice.
+- Character đã biết, gender unknown, không override → unknown fallback.
+- Không biết character và gender → unknown fallback + `needs_review=true`.
+- Hệ thống hiện chưa có utterance-level voice override; không được giả định field này tồn tại.
+
+Resolver tạo resolved voice trước khi tạo job/segment và ghi vào immutable snapshot. Profile/override thay đổi không invalidates hoặc resolve lại plan/job cũ.
+
+### Book-level Character Bible dự kiến
+
+Required identity fields: `external_key`, `canonical_name`, `aliases`, `gender`, `role`.
+
+Optional content fields: `age_group`, `description`, `speech_style`, `visual_notes`, `notes`, `voice_override_id`.
+
+Character Bible không yêu cầu `default_voice_id` hoặc voice hint chi tiết cho mọi character. Nhân vật phụ mặc định kế thừa voice theo gender. Đây là book-level identity source; `character_seed.json` trong Handoff V1 hiện chỉ là per-chapter export seed cho YouTube Auto và không thay thế model này.
 
 ## State contract
 
@@ -148,7 +205,7 @@ Startup flow:
 
 Trước thay đổi schema tiếp theo phải:
 
-1. Thêm file `story_audio/migrations/0002_<name>.sql`; không sửa `0001_initial.sql`.
+1. Thêm file migration kế tiếp, hiện là `story_audio/migrations/0003_<name>.sql`; không sửa migration đã phát hành.
 2. Migration tăng dần, contiguous, idempotent và transaction-safe.
 3. Backup DB trước migration.
 4. Test upgrade từ fixture version trước.

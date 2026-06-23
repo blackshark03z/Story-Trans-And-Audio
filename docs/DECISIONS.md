@@ -86,6 +86,29 @@ Mỗi quyết định có ID ổn định. Khi thay đổi, thêm quyết địn
 **Why:** Giữ Audio MVP dễ bảo trì và phục hồi trong khi tái sử dụng visual pipeline đã tồn tại, không tạo DB/runtime coupling.
 **Consequence:** V1 chỉ export một chapter/audio artifact, mặc định copy để bundle sống độc lập với cleanup nguồn. Character seed chỉ là identity/content hint; YouTube Auto vẫn tạo visual bible. Không dùng absolute path làm export identity.
 
+## ADR-013 — Hybrid Three-Voice Profile With Optional Character Overrides
+
+**Status:** Accepted as target architecture; implementation pending.
+
+**Decision:** Mỗi book có một `BookVoiceProfile` gồm narrator, male dialogue, female dialogue và unknown fallback. Character identity tách khỏi voice identity; phần lớn nhân vật kế thừa voice theo gender, chỉ nhân vật quan trọng mới có optional `voice_override_id`. Không gán một voice riêng cho hàng trăm nhân vật phụ.
+
+Thứ tự resolve dự kiến:
+
+1. Utterance-level explicit voice override, nếu một phiên bản tương lai hỗ trợ; hiện chưa tồn tại.
+2. Character `voice_override_id`, nếu có.
+3. Narrator dùng book narrator voice.
+4. Dialogue gender `male` dùng book male dialogue voice.
+5. Dialogue gender `female` dùng book female dialogue voice.
+6. Các trường hợp còn lại dùng book unknown fallback.
+
+Không biết character nhưng biết gender vẫn dùng male/female dialogue voice. Biết character nhưng gender unknown và không override dùng unknown fallback. Không biết cả character lẫn gender dùng unknown fallback và `needs_review=true`. Unknown fallback mặc định là narrator nhưng có thể cấu hình theo book.
+
+**Why:** Character Bible cần identity đầy đủ để xác định người nói, theo dõi alias, tạo visual seed và hỗ trợ subtitle/timeline; điều đó không có nghĩa mọi character cần voice riêng. Ba voice cấp book giảm mạnh công sức casting mà vẫn cho phép ngoại lệ có chủ đích.
+
+**Backward compatibility:** `characters.default_voice_id` hiện có được coi là legacy voice override và không bị xóa hoặc tự đổi. CastingPlan và job snapshot cũ giữ nguyên. Retry dùng `resolved_voice_id` đã snapshot. Đổi Book Voice Profile hoặc character override chỉ ảnh hưởng casting/job mới; không resolve lại âm thầm job đã tạo.
+
+**Consequence:** Voice resolver phải deterministic và snapshot kết quả khi tạo casting/job. Book-level Character Bible vẫn giữ canonical identity, aliases, gender và role cho speaker tracking/visual pipeline. Cần task triển khai riêng; ADR này không tuyên bố schema hoặc resolver đã tồn tại.
+
 ## Khi nào cần ADR mới
 
 - Đổi engine/storage/database/queue.
