@@ -7,6 +7,8 @@ Source of truth cho schema thực thi hiện nằm trong `story_audio/db.py`. Fi
 ```text
 Book
 ├── Character
+│   └── CharacterAlias
+├── CharacterBibleImport
 └── Chapter
     ├── TextRevision (raw → reflowed → repaired)
     ├── CastingPlanRevision → CastingPlanCharacter
@@ -34,6 +36,8 @@ SchemaMigration
 - `SchemaMigration`: lịch sử schema bất biến; checksum ngăn sửa migration đã phát hành.
 - `BookVoiceProfile`: tối đa một profile active cho mỗi book, chứa ba preset mặc định và unknown fallback policy.
 - `Character`: nhân vật thuộc một book với optional `gender` và `voice_override_id`; `default_voice_id` chỉ còn là compatibility field cho schema v2/API cũ.
+- `CharacterAlias`: alias queryable theo book/character, dùng cho matching Character Bible và speaker assignment sau này.
+- `CharacterBibleImport`: provenance tối thiểu cho lần import đã áp dụng, không lưu full JSON.
 - `CastingPlanRevision`: JSON blob bất biến pin TextRevision và offset utterance; SQLite chỉ giữ metadata/hash/path.
 - `JobChapter.voice_snapshot_json`: snapshot narrator/character voices và utterance assignment tại lúc tạo job.
 - `Segment`: với multi-voice còn pin utterance, role, character, resolved voice và synthesis hash.
@@ -53,7 +57,7 @@ Approved TextRevision
 - Voice character hiện tại chỉ ảnh hưởng plan mới; plan/job cũ giữ `resolved_voice_id` snapshot.
 - Không segment nào chứa text từ hai speaker. Một utterance có thể sinh nhiều segment cùng voice.
 
-## Three-Voice Profile — schema v3
+## Three-Voice Profile and Character Bible — schema v4
 
 ### Storage thực tế
 
@@ -61,6 +65,12 @@ Approved TextRevision
 - `characters.voice_override_id`: nullable; `NULL` nghĩa là dùng Book Voice Profile.
 - `characters.gender`: nullable/manual `male | female | unknown`; resolver không tự ghi inferred gender trở lại.
 - `characters.default_voice_id TEXT NOT NULL`: legacy compatibility field. Migration v3 giữ nguyên và copy giá trị không rỗng sang `voice_override_id`.
+- `characters.external_key` + `external_key_normalized`: imported identity, unique per book when present.
+- `characters.canonical_name` + `canonical_name_normalized`: display identity used for matching; legacy rows are backfilled from `display_name`.
+- `characters.role`, `age_group`, `description`, `speech_style`, `visual_notes`, `notes`: Character Bible metadata. Role is queryable; metadata is plain text only and not rendered as HTML.
+- `characters.bible_schema`, `bible_source_sha256`, `bible_source_label`, `bible_imported_at`, `bible_last_imported_at`: per-character provenance for applied imports.
+- `character_aliases`: queryable alias rows with normalized alias and source hash; aliases are not silently generated from generic pronouns.
+- `character_bible_imports`: applied import summaries by book/source hash.
 - `casting_plans.narrator_voice_id`: narrator voice pin trong immutable CastingPlanRevision.
 - `jobs.voice_name`: narrator/single-voice lựa chọn tại lúc tạo job.
 - `job_chapters.voice_snapshot_json` và `jobs.casting_snapshot_json`: resolved narrator/character voices của job multi-voice.
@@ -105,11 +115,22 @@ utterance override (nếu tương lai có)
 
 Resolver tạo resolved voice trước khi tạo casting/job và ghi vào immutable snapshot. Profile/override thay đổi không invalidates hoặc resolve lại plan/job cũ. Utterance-level override chưa tồn tại; priority hiện bắt đầu từ character override.
 
-### Book-level Character Bible dự kiến
+### Book-level Character Bible — schema v4
 
 Required identity fields: `external_key`, `canonical_name`, `aliases`, `gender`, `role`.
 
 Optional content fields: `age_group`, `description`, `speech_style`, `visual_notes`, `notes`, `voice_override_id`.
+
+Import dùng JSON schema `story-audio-character-bible/v1`, có dry-run không ghi DB và apply idempotent. Matching priority trong một book:
+
+```text
+1. Existing imported external_key.
+2. Exact normalized canonical name.
+3. Unique normalized alias match.
+4. No match -> create.
+```
+
+Conflict không tự merge. Re-import cùng nội dung không tạo duplicate character/alias và không cập nhật timestamp khi không có thay đổi. UI/Handoff integration đầy đủ thuộc task tiếp theo.
 
 Character Bible không yêu cầu `default_voice_id` hoặc voice hint chi tiết cho mọi character. Nhân vật phụ mặc định kế thừa voice theo gender. Đây là book-level identity source; `character_seed.json` trong Handoff V1 hiện chỉ là per-chapter export seed cho YouTube Auto và không thay thế model này.
 
@@ -197,7 +218,7 @@ Không lưu absolute path trong API contract công khai. DB hiện giữ absolut
 
 ## Schema evolution rule
 
-Schema hiện tại: **version 3**, migrations `0001_initial.sql`, `0002_character_voice.sql` và `0003_three_voice_profile.sql`.
+Schema hiện tại: **version 4**, migrations `0001_initial.sql`, `0002_character_voice.sql`, `0003_three_voice_profile.sql` và `0004_character_bible.sql`.
 
 Startup flow:
 
@@ -209,7 +230,7 @@ Startup flow:
 
 Trước thay đổi schema tiếp theo phải:
 
-1. Thêm file migration kế tiếp, hiện là `story_audio/migrations/0004_<name>.sql`; không sửa migration đã phát hành.
+1. Thêm file migration kế tiếp, hiện là `story_audio/migrations/0005_<name>.sql`; không sửa migration đã phát hành.
 2. Migration tăng dần, contiguous, idempotent và transaction-safe.
 3. Backup DB trước migration.
 4. Test upgrade từ fixture version trước.

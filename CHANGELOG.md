@@ -6,6 +6,11 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ### Added
 
+- Character Bible JSON importer for `story-audio-character-bible/v1` with CLI dry-run/apply and structured backend dry-run/apply API.
+- Migration `0004_character_bible` adds queryable character identity fields, aliases, role/age metadata and import provenance without storing full JSON in SQLite.
+- Deterministic matching by external key, canonical name and unique alias, with conflict detection and idempotent re-import.
+- Doctor checks for duplicate external keys, orphan aliases, alias/book mismatch and invalid Character Bible enums.
+
 - Book Voice Profile với narrator, male dialogue, female dialogue và configurable unknown fallback.
 - Optional character voice override, manual gender metadata và deterministic voice resolver có resolution source/needs-review.
 - Minimal profile/override/resolve API để chuẩn bị cho UI task tiếp theo.
@@ -20,6 +25,10 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 - Segment timeline mới mang resolution source, resolved gender, needs-review và profile ID/version từ immutable job snapshot.
 
 ### Verified
+
+- 92 offline tests pass; schema v4; SQLite quick check and Doctor deep `critical_errors=0`.
+- Character Bible smoke on isolated book 5: dry-run creates 3, first apply creates 3/2 aliases, second apply matches 3 with no writes; API character read and voice resolution verified.
+- Jobs #3/#4/#5 casting snapshot hashes stayed unchanged after Character Bible import.
 
 - 78 offline tests, JavaScript syntax check, schema v3, SQLite quick check và Doctor deep `critical_errors=0`.
 - Real VieNeu smoke jobs 4–5: profile v1/v2, five resolution paths, controlled retry reuse 7/8 segment và verified M4A/timeline.

@@ -49,7 +49,7 @@ def check_data_integrity(config: Settings, *, deep: bool = False) -> list[Findin
     counts = {}
     for table in (
         "books", "chapters", "text_revisions", "book_voice_profiles", "characters",
-        "casting_plans", "jobs", "segments", "artifacts",
+        "character_aliases", "character_bible_imports", "casting_plans", "jobs", "segments", "artifacts",
     ):
         try:
             counts[table] = int(
@@ -64,6 +64,34 @@ def check_data_integrity(config: Settings, *, deep: bool = False) -> list[Findin
             " ".join(f"{key}={value}" for key, value in counts.items()),
         )
     )
+
+    duplicate_external = database.fetch_all(
+        """SELECT book_id,external_key_normalized,COUNT(*) AS count FROM characters
+           WHERE external_key_normalized IS NOT NULL
+           GROUP BY book_id,external_key_normalized HAVING COUNT(*)>1"""
+    )
+    orphan_aliases = int(database.fetch_one(
+        """SELECT COUNT(*) AS count FROM character_aliases a
+           LEFT JOIN characters c ON c.id=a.character_id WHERE c.id IS NULL"""
+    )["count"])
+    alias_book_mismatch = int(database.fetch_one(
+        """SELECT COUNT(*) AS count FROM character_aliases a
+           JOIN characters c ON c.id=a.character_id WHERE a.book_id<>c.book_id"""
+    )["count"])
+    invalid_character_enums = int(database.fetch_one(
+        """SELECT COUNT(*) AS count FROM characters
+           WHERE (gender IS NOT NULL AND gender NOT IN ('male','female','unknown'))
+              OR role NOT IN ('main','supporting','minor','unknown')
+              OR (age_group IS NOT NULL AND age_group NOT IN
+                 ('child','teen','young_adult','adult','elder','unknown'))"""
+    )["count"])
+    identity_errors = len(duplicate_external) + orphan_aliases + alias_book_mismatch + invalid_character_enums
+    findings.append(Finding(
+        "OK" if identity_errors == 0 else "ERROR",
+        "character_bible_integrity",
+        f"duplicate_external_keys={len(duplicate_external)} orphan_aliases={orphan_aliases} "
+        f"alias_book_mismatch={alias_book_mismatch} invalid_enums={invalid_character_enums}",
+    ))
 
     cache_report = GeminiRepairCache(ContentStore(config), config).inspect(deep=deep)
     if cache_report.get("root_missing"):

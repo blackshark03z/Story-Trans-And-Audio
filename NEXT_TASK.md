@@ -4,23 +4,25 @@ Current Sprint:
 Personal Edition Character Identity
 
 Current Task:
-Book-level Character Bible Import
+Character Bible UI and Handoff Integration
 
 Status:
 Ready
 
 Definition of Done:
-- JSON import và dry-run trước khi ghi.
-- Identity, alias, gender và role theo book.
-- Optional voice override tương thích Three-Voice Profile.
-- Conflict detection và handoff character-seed integration.
-- Offline tests và Doctor đạt.
+- Upload/preview/import trong Character Manager.
+- Hien thi alias, role va metadata.
+- Handoff seed dung Character Bible.
+- XSS-safe rendering.
+- Tests va Doctor dat.
 
 Do Not Work On:
-- UI redesign.
 - Gemini speaker assignment.
+- CSV import.
+- NotebookLM API integration.
 - Voice cloning.
 - Emotion control.
-- Image/video pipeline.
+- Image/video generation.
 - Multi-user.
 - Quota dashboard.
+- Hard-delete character.

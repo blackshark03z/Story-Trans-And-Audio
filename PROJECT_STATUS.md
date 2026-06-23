@@ -1,6 +1,6 @@
 # Trạng thái dự án
 
-**Cập nhật:** 2026-06-23 (Asia/Saigon)
+**Cập nhật:** 2026-06-24 (Asia/Saigon)
 **Milestone:** Audio MVP + Gemini punctuation repair
 **Trạng thái:** Hoạt động cục bộ tại `http://127.0.0.1:8766`
 
@@ -15,8 +15,8 @@
 - Gemini key: được nhận diện; không lưu trong DB/log.
 - VieNeu: v3 Turbo CPU/ONNX, 10 preset voice.
 - FFmpeg/FFprobe: hoạt động.
-- Schema migration: version 3 (`0003_three_voice_profile`), checksum-locked.
-- Offline tests: 78 test đạt.
+- Schema migration: version 4 (`0004_character_bible`), checksum-locked.
+- Offline tests: 92 test đạt.
 - End-to-end smoke: chương 858, giọng Ngọc Lan, Gemini `all_selected`.
 - Kết quả smoke: 10/10 segment, M4A dài 118.710 ms, artifact active.
 - Multi-voice real-TTS smoke: isolated book 3 / chapter 1982, casting plan 2, job 3.
@@ -30,6 +30,9 @@
 - Three-Voice UI smoke: isolated book 4/chapter 1983, jobs 4–5, 8 utterance; profile v1→v2 và controlled retry giữ snapshot cũ.
 - Preview thật: Ngọc Lan 14,16s, Gia Bảo 14,48s, Mỹ Duyên 15,12s; fallback reuse Ngọc Lan cache.
 - Three-Voice real-TTS: job 4 dài 24.650 ms, job 5 dài 26.090 ms; narrator/male/female/unknown/override và timeline resolution metadata đều đạt.
+- Character Bible Import Core: JSON V1 dry-run/apply CLI + backend API, schema v4, alias/external-key/role/metadata/provenance storage, idempotent re-import.
+- Character Bible smoke: isolated book 5, dry-run create 3, first apply create 3 + 2 aliases, second apply match 3/no writes; API read and voice resolution verified.
+- Doctor deep after schema v4: SQLite quick check OK, `critical_errors=0`; jobs #3/#4/#5 casting snapshot hashes unchanged.
 
 ## Shared Gemini cache contract
 
@@ -73,6 +76,7 @@ Audio casting mặc định dùng ba nhóm voice cấp book: narrator, male dial
 - [x] Story Audio → YouTube Auto Handoff V1 một chương, manifest SHA-256, speech timing và character seed.
 - [x] Three-Voice Profile Core: book profile, optional character override, gender-aware resolver và immutable job snapshot.
 - [x] Three-Voice Profile UI and Casting Integration: profile/preview, default/custom character voice và effective resolution trong Manual Casting.
+- [x] Book-level Character Bible Import Core: JSON schema V1, dry-run/apply, deterministic matching/conflict detection, idempotency, CLI/API and Doctor checks.
 
 ## Hạn chế hiện tại
 
@@ -83,7 +87,7 @@ Audio casting mặc định dùng ba nhóm voice cấp book: narrator, male dial
 - Cleanup chưa có dry-run/quota dashboard trên UI.
 - Manual casting chưa có AI speaker detection, emotion control hoặc voice cloning theo đúng phạm vi MVP.
 - Automatic speaker/gender assignment chưa triển khai; gender hiện là dữ liệu manual, unknown được đánh dấu `needs_review` trong resolution metadata.
-- Chưa có Book-level Character Bible import, Gemini speaker assignment hoặc reference voice asset/voice cloning.
+- Character Bible Import Core chưa có UI upload/import và chưa có Gemini speaker assignment; task này chỉ import JSON core.
 - Loudness giữa preset có chênh nhẹ (smoke đo tối đa 3,2 dB mean); chưa normalization theo đúng phạm vi.
 - Backup là full snapshot, chưa incremental/compress và có thể lớn khi thư viện tăng.
 - Restore remap artifact/work paths trong data root nhưng không đóng gói EPUB nguồn nằm ngoài `data/`.
@@ -114,7 +118,8 @@ Các hạng mục vận hành/quota và alignment không cấp thiết được 
 - [x] YouTube Auto Handoff V1.
 - [x] Three-Voice Profile Core.
 - [x] Three-Voice Profile UI and Casting Integration.
-- [ ] Book-level Character Bible Import.
+- [x] Book-level Character Bible Import.
+- [ ] Character Bible UI and Handoff Integration.
 - [ ] Gemini speaker assignment draft khi thực sự cần.
 - [ ] Real end-to-end chapter video review.
 
@@ -143,3 +148,4 @@ Các hạng mục vận hành/quota và alignment không cấp thiết được 
 | 2026-06-23 | Text Revision Diff | Structured read-only API; Inline/Side-by-side; 50 tests; chapter 18.649 chars ≈330 ms live API |
 | 2026-06-23 | Shared Gemini repair cache | Filesystem manifest + text blob; lexical revalidation; corrupt-as-miss; cleanup/doctor; 60 tests |
 | 2026-06-23 | YouTube Auto Handoff V1 | Job 3/chapter 1982; 22.810s M4A; 8 timing items; 2 character seeds; imported/composed final 22.826s |
+| 2026-06-24 | Character Bible Import Core | Schema v4; 92 offline tests; smoke book 5 dry-run/apply/apply-lại; Doctor deep critical_errors=0 |

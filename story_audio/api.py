@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -22,6 +22,12 @@ from .casting import (
     list_characters,
     update_character,
     validate_approved_plan,
+)
+from .character_bible import (
+    CharacterBibleError,
+    apply_character_bible_import,
+    parse_character_bible,
+    plan_character_bible_import,
 )
 from .db import Database, utcnow
 from .diagnostics import (
@@ -111,6 +117,12 @@ class VoiceResolveRequest(BaseModel):
     voice_override_id: str | None = Field(default=None, max_length=200)
 
 
+class CharacterBibleImportRequest(BaseModel):
+    payload: dict[str, Any]
+    source_label: str = Field(default="api-character-bible.json", max_length=255)
+    update_existing: bool = False
+
+
 class CastingAssignment(BaseModel):
     utterance_id: str
     role: str
@@ -136,6 +148,23 @@ app = FastAPI(title="Story Audio", version="0.1.0", lifespan=lifespan)
 
 def as_dict(row) -> dict[str, Any]:
     return dict(row) if row is not None else {}
+
+
+def _character_bible_plan(book_id: int, request: CharacterBibleImportRequest) -> dict[str, Any]:
+    raw = json.dumps(request.payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    parsed = parse_character_bible(raw, source_label=request.source_label)
+    requested_voices = {
+        record.get("voice_override_id") for record in parsed.records
+        if record.get("voice_override_id")
+    }
+    allowed_voices = _preset_voice_ids() if requested_voices else None
+    return plan_character_bible_import(
+        db,
+        book_id,
+        parsed,
+        allowed_voice_ids=allowed_voices,
+        update_existing=request.update_existing,
+    )
 
 
 @app.get("/api/config")
@@ -265,6 +294,30 @@ def _preset_voice_ids() -> set[str]:
 @app.get("/api/books/{book_id}/characters")
 def book_characters(book_id: int) -> list[dict[str, Any]]:
     return list_characters(db, book_id)
+
+
+@app.post("/api/books/{book_id}/character-bible/dry-run")
+def dry_run_character_bible(
+    book_id: int,
+    request: CharacterBibleImportRequest = Body(...),
+) -> dict[str, Any]:
+    try:
+        return _character_bible_plan(book_id, request)
+    except CharacterBibleError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/books/{book_id}/character-bible/apply")
+def apply_character_bible(
+    book_id: int,
+    request: CharacterBibleImportRequest = Body(...),
+) -> dict[str, Any]:
+    try:
+        plan = _character_bible_plan(book_id, request)
+        result = apply_character_bible_import(db, plan)
+        return {"plan": plan, "result": result}
+    except CharacterBibleError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/api/books/{book_id}/characters")

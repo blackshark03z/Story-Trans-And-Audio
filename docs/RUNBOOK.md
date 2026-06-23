@@ -73,6 +73,28 @@ Create Book Voice Profile
 
 Profile/override edit chỉ áp dụng cho casting plan và job mới. Book chưa có profile hiển thị empty state và không được tự tạo mặc định; legacy override chỉ bị clear khi người dùng chủ động chọn **Use book default** rồi lưu.
 
+### Character Bible import
+
+Chạy dry-run trước khi ghi dữ liệu:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\import_character_bible.py `
+  --book-id 1 `
+  --file character_bible.json `
+  --dry-run
+```
+
+Apply chỉ khi dry-run không có invalid/conflict:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\import_character_bible.py `
+  --book-id 1 `
+  --file character_bible.json `
+  --apply
+```
+
+Dùng `--json` để lấy structured plan, và `--update-existing` khi muốn cập nhật các field metadata được phép. Import không nhận path từ nội dung JSON, không lưu full JSON trong SQLite, không đổi Book Voice Profile, không tạo casting plan/job và không resolve lại job cũ. `null` trong `voice_override_id` không clear override hiện có.
+
 ### Job bị interrupted
 
 - Startup chuyển job đang chạy thành `interrupted`.
