@@ -127,7 +127,7 @@ def create_backup(
     try:
         files_root.mkdir(parents=True)
         _backup_sqlite(config.db_path, files_root / "app.db")
-        roots = [config.blobs_dir, config.output_dir]
+        roots = [config.blobs_dir, config.output_dir, config.youtube_export_dir]
         if include_work:
             roots.append(config.work_dir)
         for source_root in roots:
@@ -162,6 +162,7 @@ def create_backup(
                 "database": True,
                 "blobs": True,
                 "output": True,
+                "youtube_exports": True,
                 "work": include_work,
             },
             "file_count": len(file_entries),

@@ -100,6 +100,12 @@ data/app.db
 data/blobs/text/<sha-prefix>/<sha>.txt
 data/blobs/casting/<sha-prefix>/<sha>.json
 data/cache/gemini_repairs/<key-prefix>/<cache-key>.json
+data/exports/youtube_auto/<export-id>/
+  handoff.json
+  content.md
+  audio/narration.<ext>
+  speech_timeline.json
+  character_seed.json
 data/work/job_<id>/chapter_<number>/segments/*.wav
 data/output/<book-id>-<slug>/chapter_<number>/job_<id>/render_<generation>/
   chapter_master.wav
@@ -117,6 +123,14 @@ Cache là lớp tăng tốc có thể xóa hoàn toàn, không phải entity ngu
 Lookup chỉ hit sau khi xác minh lại manifest/key, path nằm trong blob store, cả payload tồn tại đúng hash/count và lexical tokens không đổi. Manifest hỏng/mất trở thành miss; Gemini output hợp lệ được ghi atomically. TextRevision repaired vẫn pin parent reflowed revision và giữ nguyên invariant bất biến.
 
 Cleanup dùng mtime như last-access gần đúng, mặc định TTL 180 ngày, tối đa 10.000 manifest và 256 MiB manifest. Cleanup không xóa `data/blobs/text`; backup cũng không phụ thuộc cache vì DB + blobs mới là aggregate cần phục hồi.
+
+## YouTube Auto Handoff V1
+
+`handoff.json` dùng schema `story-audio-youtube-handoff/v1`. Export identity pin chapter/job, TextRevision hash, optional CastingPlan hash, audio hash, speech timeline và character seed; mọi artifact dùng relative path và có size/SHA-256. Bundle là immutable derived export, không có foreign key trong SQLite và có thể verify độc lập.
+
+`speech_timeline.json` dùng `story-audio-speech-timeline/v1`, integer milliseconds và segment-level speaker/character/voice/source-offset metadata. `character_seed.json` dùng `story-character-seed/v1`; không phải visual bible. Exporter luôn dùng TextRevision pin bởi audio artifact/job chapter, không dùng active revision mới nhất ngầm định.
+
+Bundle được copy vào backup cùng `data/exports`; cleanup segment/cache không xóa bundle.
 
 Không lưu absolute path trong API contract công khai. DB hiện giữ absolute artifact paths; nếu cần di chuyển project, M1 nên migration sang relative paths.
 

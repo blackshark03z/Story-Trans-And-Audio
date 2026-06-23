@@ -1,20 +1,19 @@
 # Next Task
 
 Current Sprint:
-P1 Audio Quality
+Personal Edition Bridge
 
 Current Task:
-Disk estimate chính xác và cleanup dry-run
+Character Bible import cơ bản
 
 Status:
-Ready for specification. Shared Gemini repair cache completed on 2026-06-23.
+Ready for specification. Story Audio → YouTube Auto Handoff V1 completed on 2026-06-23.
 
 Definition of Done:
-- Ước lượng dung lượng trước khi tạo job theo khoảng chương và output profile.
-- Cleanup có dry-run rõ file/byte sẽ giải phóng trước khi apply.
-- Không xóa verified artifact, active revision hoặc text blob còn được tham chiếu.
-- Có offline tests cho estimate và cleanup safety.
-- Doctor và toàn bộ offline tests đạt.
+- Import character identity/alias/gender/role seed into YouTube Auto visual bible workflow.
+- Keep Story Audio seed advisory and untrusted; YouTube Auto owns visual descriptions.
+- No database coupling and no whole-book automatic character generation.
+- Offline fake-provider tests pass.
 
 Do Not Work On:
 - Voice cloning

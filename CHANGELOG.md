@@ -9,6 +9,9 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ### Added
 
+- Story Audio → YouTube Auto Handoff V1 exporter/verifier cho một completed chapter.
+- Bundle bất biến gồm pinned `content.md`, copied narration audio, integer-ms speech timeline, character identity seed và SHA-256 manifest.
+- Doctor kiểm tra export bundle; backup bao gồm `data/exports/youtube_auto`; 7 offline exporter tests.
 - Shared Gemini punctuation-repair cache tại `data/cache/gemini_repairs/`, khóa canonical theo source hash, model, prompt, repair contract, block strategy, lexical validator và output settings.
 - Cache manifest atomic trỏ tới content-addressed text blobs; cache hit xác minh schema/key/hash/character count và chạy lại lexical validation.
 - Cleanup cache mặc định dry-run (`scripts/cleanup_gemini_cache.py`), TTL 180 ngày, giới hạn 10.000 manifest/256 MiB và không xóa text blob.

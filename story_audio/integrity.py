@@ -9,6 +9,7 @@ from .files import sha256_file
 from .gemini_cache import GeminiRepairCache
 from .migrations import LATEST_SCHEMA_VERSION, SchemaMigrationError
 from .storage import ContentStore
+from .youtube_handoff import HandoffError, verify_handoff
 
 
 @dataclass(frozen=True)
@@ -172,6 +173,20 @@ def check_data_integrity(config: Settings, *, deep: bool = False) -> list[Findin
         )["count"]
     )
     findings.append(Finding("INFO", "active_jobs", str(active_jobs)))
+    export_manifests = list(config.youtube_export_dir.glob("*/handoff.json")) if config.youtube_export_dir.exists() else []
+    invalid_exports = 0
+    for manifest in export_manifests:
+        try:
+            verify_handoff(manifest.parent)
+        except HandoffError:
+            invalid_exports += 1
+    findings.append(
+        Finding(
+            "OK" if invalid_exports == 0 else "WARN",
+            "youtube_handoff_exports",
+            f"bundles={len(export_manifests)} invalid={invalid_exports}",
+        )
+    )
     return findings
 
 

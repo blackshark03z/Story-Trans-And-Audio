@@ -79,6 +79,13 @@ Mỗi quyết định có ID ổn định. Khi thay đổi, thêm quyết địn
 **Why:** Hai job có cùng repair contract không nên trả phí/gọi mạng lặp lại, nhưng TextRevision và job checkpoint vẫn phải là nguồn sự thật có thể phục hồi khi cache bị xóa.
 **Consequence:** Mọi cache hit phải verify manifest/key/blob/hash/character count và chạy lại lexical validation. Entry hỏng là safe miss; cleanup chỉ xóa manifest, không xóa blob. Không cần schema migration.
 
+## ADR-012 — Story Audio và YouTube Auto giao tiếp bằng handoff filesystem có version
+
+**Status:** Accepted
+**Decision:** Hai codebase giữ độc lập. Story Audio là source of truth cho approved text, resolved speaker/voice, audio và speech timing; YouTube Auto là source of truth cho visual timeline, visual character bible, image, subtitle render, final video, metadata và thumbnail. Giao tiếp bằng `story-audio-youtube-handoff/v1` với relative paths và SHA-256; importer chỉ đọc, không sửa bundle.
+**Why:** Giữ Audio MVP dễ bảo trì và phục hồi trong khi tái sử dụng visual pipeline đã tồn tại, không tạo DB/runtime coupling.
+**Consequence:** V1 chỉ export một chapter/audio artifact, mặc định copy để bundle sống độc lập với cleanup nguồn. Character seed chỉ là identity/content hint; YouTube Auto vẫn tạo visual bible. Không dùng absolute path làm export identity.
+
 ## Khi nào cần ADR mới
 
 - Đổi engine/storage/database/queue.

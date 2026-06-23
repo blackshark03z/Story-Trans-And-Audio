@@ -44,28 +44,27 @@ Hạng mục:
 - SRT/VTT từ segment timeline.
 - Đánh giá audio heuristic và sample review workflow.
 
-## M3 — Alignment và subtitle
+## M3 — Speech timing và YouTube Auto Handoff
 
 - Segment-level subtitle chuẩn hóa.
 - Forced alignment provider interface.
 - Word timestamps tùy chọn.
-- Subtitle style/export profile.
-- Invalidation đúng khi post-process speed thay đổi.
+- Versioned one-chapter filesystem handoff gồm approved text, resolved casting, audio, speech timing và character seed.
+- Import verification/smoke contract với `D:\Youtube\Youtube Auto`.
 
-## M4 — Visual pipeline
+## M4 — YouTube Auto Handoff
 
-- Book-level character/location bible.
-- Scene plan 12–30 giây/ảnh.
-- Visual profile cho tiên hiệp.
-- Image provider adapters và perceptual duplicate check.
-- Reuse timeline/prompt/composer từ `D:\Youtube\Youtube Auto`.
+- Story Audio kết thúc tại immutable handoff manifest.
+- YouTube Auto sở hữu visual scene timeline, visual character bible, prompt, image, subtitle render, compose, metadata và thumbnail.
+- Hai codebase độc lập; không có DB coupling hoặc runtime dependency bắt buộc.
 
-## M5 — Video và vận hành dài hạn
+## Deferred / Only when needed
 
-- FFmpeg compose, subtitle burn-in và final verification.
-- Metadata/thumbnail.
-- Remote worker hoặc resource scheduler khi thật sự cần.
-- Batch scheduling theo ngày và notification.
+- Generic image provider framework hoặc video composer trong Story Audio.
+- Metadata/thumbnail pipeline trong Story Audio.
+- Multi-user/SaaS, remote worker, distributed locking và generic plugin system.
+- Word alignment bắt buộc.
+- Usage ledger/dashboard phức tạp.
 
 ## Không làm sớm
 

@@ -107,3 +107,12 @@ Thu thập tối thiểu:
 - Error message trong job/chapter.
 - Model/voice/prompt version, không gửi API key.
 - Danh sách file liên quan và kích thước, không cần gửi toàn bộ audio/text trước.
+# YouTube Auto handoff
+
+Export một completed chapter bằng đúng job snapshot:
+
+```powershell
+python scripts\export_youtube_handoff.py --chapter-id 1982 --job-id 3
+```
+
+Bundle mặc định nằm trong `data\exports\youtube_auto\`. Chạy lại cùng identity sẽ verify và reuse; `--overwrite` phải được nêu rõ. Exporter copy audio, không symlink và không sửa source artifact.

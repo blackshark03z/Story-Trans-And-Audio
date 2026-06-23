@@ -16,7 +16,7 @@
 - VieNeu: v3 Turbo CPU/ONNX, 10 preset voice.
 - FFmpeg/FFprobe: hoạt động.
 - Schema migration: version 2 (`0002_character_voice`), checksum-locked.
-- Offline tests: 60 test đạt.
+- Offline tests: 67 test đạt.
 - End-to-end smoke: chương 858, giọng Ngọc Lan, Gemini `all_selected`.
 - Kết quả smoke: 10/10 segment, M4A dài 118.710 ms, artifact active.
 - Multi-voice real-TTS smoke: isolated book 3 / chapter 1982, casting plan 2, job 3.
@@ -63,6 +63,7 @@
 - [x] Real VieNeu multi-voice smoke và controlled retry/reuse verification.
 - [x] Text Revision Diff raw/reflowed/repaired với Inline và Side-by-side UI.
 - [x] Shared Gemini repair cache theo source/model/prompt/repair contract, có lexical revalidation và cleanup dry-run.
+- [x] Story Audio → YouTube Auto Handoff V1 một chương, manifest SHA-256, speech timing và character seed.
 
 ## Hạn chế hiện tại
 
@@ -76,7 +77,8 @@
 - Backup là full snapshot, chưa incremental/compress và có thể lớn khi thư viện tăng.
 - Restore remap artifact/work paths trong data root nhưng không đóng gói EPUB nguồn nằm ngoài `data/`.
 - Recovery test dùng fake TTS và startup state transition; chưa có OS-level kill-process harness.
-- Chưa có SRT/VTT, forced alignment, image hoặc video trong MVP.
+- Story Audio không tự xây image/video/metadata/thumbnail; các bước này thuộc YouTube Auto qua handoff bundle.
+- Handoff V1 chỉ hỗ trợ một chapter và segment-level timing; chưa có forced word alignment.
 - Worker là một thread trong API process; chưa tách service/process riêng.
 
 ## Ưu tiên tiếp theo
@@ -97,12 +99,12 @@
 - [ ] Usage ledger, daily batch cap và Gemini soft budget cảnh báo.
 - [ ] Export SRT/VTT từ segment timeline.
 
-### P2 — Sau khi Audio MVP ổn định
+### P2 — Personal Edition bridge
 
-- [ ] Word alignment tùy chọn.
-- [ ] Scene planning và visual bible.
-- [ ] Image provider adapter.
-- [ ] Video composition từ các phần tái sử dụng của `Youtube Auto`.
+- [x] YouTube Auto Handoff V1.
+- [ ] Character Bible import cơ bản ở YouTube Auto.
+- [ ] Gemini speaker assignment draft khi thực sự cần.
+- [ ] Real end-to-end chapter video review.
 
 ## Quy tắc cập nhật tiến độ
 
@@ -126,3 +128,4 @@
 | 2026-06-23 | Multi-voice real-TTS smoke | Job 3; 3 voices; 8/8 segment; retry 1 segment và reuse 7; M4A 22.810 ms |
 | 2026-06-23 | Text Revision Diff | Structured read-only API; Inline/Side-by-side; 50 tests; chapter 18.649 chars ≈330 ms live API |
 | 2026-06-23 | Shared Gemini repair cache | Filesystem manifest + text blob; lexical revalidation; corrupt-as-miss; cleanup/doctor; 60 tests |
+| 2026-06-23 | YouTube Auto Handoff V1 | Job 3/chapter 1982; 22.810s M4A; 8 timing items; 2 character seeds; imported/composed final 22.826s |

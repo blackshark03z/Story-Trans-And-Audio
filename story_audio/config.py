@@ -44,6 +44,10 @@ class Settings:
     def gemini_cache_dir(self) -> Path:
         return self.data_dir / "cache" / "gemini_repairs"
 
+    @property
+    def youtube_export_dir(self) -> Path:
+        return self.data_dir / "exports" / "youtube_auto"
+
     def ensure_dirs(self) -> None:
         for path in (
             self.data_dir,
@@ -52,6 +56,7 @@ class Settings:
             self.work_dir,
             self.preview_cache_dir,
             self.gemini_cache_dir,
+            self.youtube_export_dir,
             self.log_dir,
             self.root / "secrets",
         ):

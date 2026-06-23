@@ -19,6 +19,7 @@ story_audio/epub.py      EPUB parser và import revision
 story_audio/text.py      Reflow, QA, lexical validation, chunking
 story_audio/gemini.py    Gemini punctuation repair contract
 story_audio/gemini_cache.py Shared repair cache, integrity và manifest cleanup
+story_audio/youtube_handoff.py Immutable one-chapter handoff exporter/verifier for YouTube Auto
 story_audio/tts.py       VieNeu adapter
 story_audio/db.py        SQLite schema và connection policy
 story_audio/storage.py   Content-addressed text blobs

@@ -163,3 +163,4 @@ CREATE INDEX IF NOT EXISTS idx_jobs_status ON jobs(status, scheduled_at);
 CREATE INDEX IF NOT EXISTS idx_job_chapters_job_status ON job_chapters(job_id, status);
 CREATE INDEX IF NOT EXISTS idx_segments_job_chapter ON segments(job_chapter_id, segment_index);
 CREATE INDEX IF NOT EXISTS idx_artifacts_chapter_type ON artifacts(chapter_id, artifact_type, status);
+
