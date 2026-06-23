@@ -18,9 +18,15 @@ story_audio/pipeline.py  Job orchestration, checkpoint, assemble/export
 story_audio/epub.py      EPUB parser và import revision
 story_audio/text.py      Reflow, QA, lexical validation, chunking
 story_audio/gemini.py    Gemini punctuation repair contract
+story_audio/gemini_cache.py Shared repair cache, integrity và manifest cleanup
 story_audio/tts.py       VieNeu adapter
 story_audio/db.py        SQLite schema và connection policy
 story_audio/storage.py   Content-addressed text blobs
+story_audio/casting.py   Character, immutable casting plan và deterministic utterance
+story_audio/text_diff.py Read-only TextRevision block/token diff engine
+story_audio/migrations/  Forward-only SQL migrations
+story_audio/backup.py    Backup/verify/restore core
+story_audio/integrity.py Shared integrity diagnostics
 ui/                      UI HTML/CSS/JavaScript
 tests/                   Offline unit tests
 ```
@@ -47,6 +53,11 @@ $env:PYTHONUTF8='1'
 
 # Chẩn đoán read-only
 & 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\doctor.py
+
+# Backup / verify / restore
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\backup.py backups\my-backup
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\restore.py backups\my-backup --verify-only
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\restore.py backups\my-backup D:\restore\data
 
 # Chạy ứng dụng
 .\run_app.ps1

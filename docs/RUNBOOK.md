@@ -77,16 +77,26 @@ Không copy log ra ngoài trước khi kiểm tra secret/path/text nhạy cảm.
 - Đánh dấu artifact stale/failed qua repair tool tương lai; hiện không chỉnh DB thủ công nếu chưa backup.
 - Re-export từ master nếu master còn; nếu không, resume từ segment.
 
-## Backup tạm thời trước khi có backup command
+## Backup và restore
 
-Phương án an toàn nhất hiện tại:
+Pause job trước; backup mặc định từ chối khi có job active:
 
-1. Pause/cancel queue và dừng app.
-2. Copy toàn bộ `data/` sang vị trí backup cùng filesystem hoặc ổ khác.
-3. Copy `ARCHITECTURE.md`, `PROJECT_STATUS.md` và cấu hình không chứa secret.
-4. Chạy doctor trên bản gốc sau khi mở lại.
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\backup.py backups\my-backup
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\restore.py backups\my-backup --verify-only
+```
 
-Không backup riêng `app.db` mà bỏ `data/blobs`, vì revision sẽ mất nội dung.
+Restore sang thư mục mới:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\restore.py `
+  backups\my-backup D:\StoryAudio-Restore\data
+```
+
+- Không dùng `--exclude-work` nếu cần bảo toàn checkpoint WAV.
+- Không dùng `--allow-active` trừ khi chấp nhận work snapshot có thể không đồng nhất.
+- `--overwrite` không xóa destination cũ; nó chuyển thư mục cũ sang `pre-restore-*`.
+- EPUB nguồn ngoài `data/` chưa nằm trong backup version 1.
 
 ## Khi cần báo lỗi
 

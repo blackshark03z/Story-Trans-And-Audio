@@ -59,3 +59,15 @@ Chẩn đoán read-only:
 ```powershell
 & 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\doctor.py
 ```
+
+## Backup và restore
+
+Nên pause job trước khi backup. Mặc định backup gồm DB, text blobs, output và WAV checkpoint:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\backup.py backups\my-backup
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\restore.py backups\my-backup --verify-only
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\restore.py backups\my-backup D:\StoryAudio-Restore\data
+```
+
+Restore không ghi đè destination hiện hữu. Dùng `--overwrite` chỉ khi có chủ ý; destination cũ vẫn được giữ dưới tên `pre-restore-*`.

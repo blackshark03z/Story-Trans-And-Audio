@@ -51,6 +51,34 @@ Mỗi quyết định có ID ổn định. Khi thay đổi, thêm quyết địn
 **Why:** Thu nhỏ bề mặt lỗi và xác minh checkpoint trước khi thêm dịch vụ ngoài.
 **Consequence:** Timeline segment được lưu từ đầu để tránh làm lại nền móng.
 
+## ADR-008 — Forward-only checksum migrations
+
+**Status:** Accepted
+**Decision:** Schema thay đổi bằng migration SQL tăng dần; migration đã apply được khóa bằng SHA-256 và không được sửa.
+**Why:** DB local chứa checkpoint/artifact thật, nên startup phải deterministic và fail-safe khi code/DB lệch version.
+**Consequence:** Không có downgrade tự động; cần backup trước migration và file migration mới cho mọi thay đổi.
+
+## ADR-009 — Verified full backup và staging restore
+
+**Status:** Accepted
+**Decision:** Backup dùng SQLite Online Backup và manifest SHA-256; restore verify trước, dựng staging rồi atomic rename. `--overwrite` giữ destination cũ dưới tên `pre-restore-*`.
+**Why:** DB và filesystem artifacts là một aggregate; copy riêng DB không thể phục hồi revision/checkpoint.
+**Consequence:** Full backup tốn dung lượng; incremental/compression để sau khi có nhu cầu thực tế.
+
+## ADR-010 — Casting revision và resolved voice snapshot
+
+**Status:** Accepted
+**Decision:** Character Voice nằm trong một CastingPlanRevision content-addressed riêng, pin approved TextRevision bằng offsets. Job snapshot toàn bộ resolved voices; segment bị giới hạn trong một speaker.
+**Why:** Giữ TextRevision bất biến, ngăn default voice/casting edit làm đổi job đang chạy và tránh reuse audio nhầm voice.
+**Consequence:** Mỗi thay đổi speaker tạo plan revision/job mới; schema v2 thêm character, casting plan và speaker metadata trên segment.
+
+## ADR-011 — Shared Gemini repair cache không phải nguồn sự thật
+
+**Status:** Accepted
+**Decision:** Gemini punctuation output được cache bằng filesystem manifest content-addressed. Identity pin source hash, normalized model, prompt version, repair contract, block strategy, lexical validator và mọi generation setting ảnh hưởng output. Payload dùng chung content-addressed text blob.
+**Why:** Hai job có cùng repair contract không nên trả phí/gọi mạng lặp lại, nhưng TextRevision và job checkpoint vẫn phải là nguồn sự thật có thể phục hồi khi cache bị xóa.
+**Consequence:** Mọi cache hit phải verify manifest/key/blob/hash/character count và chạy lại lexical validation. Entry hỏng là safe miss; cleanup chỉ xóa manifest, không xóa blob. Không cần schema migration.
+
 ## Khi nào cần ADR mới
 
 - Đổi engine/storage/database/queue.

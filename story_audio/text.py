@@ -13,6 +13,8 @@ AD_PATTERNS = (
     re.compile(r"(?i)truyenfull\.?vn"),
     re.compile(r"(?i)bach\s*[,._-]?\s*ngoc\s*[,._-]?\s*sach"),
 )
+REPAIR_BLOCK_STRATEGY_VERSION = "repair-block-v1-target1900-max2500"
+LEXICAL_VALIDATOR_VERSION = "lexical-token-v1"
 
 
 @dataclass(frozen=True)

@@ -63,6 +63,11 @@
             <div class="inline-control">
               <select id="voiceSelect"><option value="">Chưa tải danh sách giọng</option></select>
               <button id="loadVoices" class="ghost">Tải giọng</button>
+              <button id="previewVoice" class="secondary" disabled>▶ Preview 10–20s</button>
+            </div>
+            <div id="voicePreviewBox" class="voice-preview hidden">
+              <audio id="voicePreviewAudio" controls preload="metadata"></audio>
+              <span id="voicePreviewStatus" class="muted"></span>
             </div>
           </label>
           <label>Gemini
@@ -100,8 +105,74 @@
       <audio id="chapterAudio" controls preload="metadata"></audio>
       <a id="audioFileLink" target="_blank">Mở file audio</a>
     </div>
-    <div class="tabs"><button data-tab="reflowed" class="active">Reflowed</button><button data-tab="repaired">Gemini</button><button data-tab="raw">Raw</button></div>
+    <div class="tabs"><button data-tab="reflowed" class="active">Reflowed</button><button data-tab="repaired">Gemini</button><button data-tab="raw">Raw</button><button data-tab="diff">Text Diff</button><button data-tab="casting">Character Voices</button></div>
     <pre id="chapterText"></pre>
+    <div id="castingPanel" class="casting-panel hidden">
+      <div class="casting-toolbar">
+        <label>Giọng narrator<select id="castingNarratorVoice"></select></label>
+        <div><span id="castingPlanStatus" class="pill">Chưa có plan</span></div>
+      </div>
+      <h3>Nhân vật</h3>
+      <div class="character-add row">
+        <input id="newCharacterName" placeholder="Tên nhân vật">
+        <select id="newCharacterVoice"></select>
+        <button id="addCharacterBtn" class="secondary">Thêm nhân vật</button>
+      </div>
+      <div id="characterList" class="character-list"></div>
+      <div class="casting-section-head"><h3>Utterances</h3><span id="utteranceCount" class="muted"></span></div>
+      <div id="utteranceList" class="utterance-list"></div>
+      <div class="casting-actions">
+        <button id="saveCastingDraft" class="secondary">Save Draft</button>
+        <button id="approveCastingPlan" class="secondary" disabled>Approve Casting Plan</button>
+        <button id="renderCastingPlan" class="primary" disabled>Render with Character Voices</button>
+      </div>
+    </div>
+    <div id="textDiffPanel" class="text-diff-panel hidden">
+      <div class="diff-selectors">
+        <label>Revision A<select id="diffRevisionA"></select></label>
+        <span class="diff-arrow">→</span>
+        <label>Revision B<select id="diffRevisionB"></select></label>
+        <button id="loadTextDiff" class="secondary">So sánh</button>
+      </div>
+      <div class="diff-presets">
+        <button data-diff-preset="raw,reflowed">Raw → Reflowed</button>
+        <button data-diff-preset="reflowed,repaired">Reflowed → Repaired</button>
+        <button data-diff-preset="raw,repaired">Raw → Repaired</button>
+      </div>
+      <div class="diff-options">
+        <div class="tabs compact"><button id="diffInlineMode" class="active">Inline</button><button id="diffSideMode">Side-by-side</button></div>
+        <label class="check"><input id="diffShowWhitespace" type="checkbox"> Hiện whitespace</label>
+        <label class="check"><input id="diffShowUnchanged" type="checkbox"> Hiện toàn bộ phần không đổi</label>
+      </div>
+      <div id="diffRevisionMeta" class="diff-revision-meta"></div>
+      <div id="diffSummary" class="diag-summary"></div>
+      <div id="diffWarnings"></div>
+      <div id="diffContent" class="diff-content"><p class="muted">Chọn hai revision để so sánh.</p></div>
+    </div>
+  </dialog>
+
+  <dialog id="jobDiagnosticsDialog" class="diagnostic-dialog">
+    <div class="dialog-head">
+      <div><p class="eyebrow">Chẩn đoán job</p><h2 id="jobDiagnosticTitle">Job</h2></div>
+      <button data-close="jobDiagnosticsDialog" class="ghost">Đóng</button>
+    </div>
+    <div id="jobDiagnosticBody" class="diagnostic-body"></div>
+  </dialog>
+
+  <dialog id="chapterDiagnosticsDialog" class="diagnostic-dialog">
+    <div class="dialog-head">
+      <div><p class="eyebrow">Chẩn đoán chương</p><h2 id="chapterDiagnosticTitle">Chương</h2></div>
+      <div class="row"><button id="backToJobDiagnostic" class="ghost">← Job</button><button data-close="chapterDiagnosticsDialog" class="ghost">Đóng</button></div>
+    </div>
+    <div id="chapterDiagnosticBody" class="diagnostic-body"></div>
+  </dialog>
+
+  <dialog id="segmentDiagnosticsDialog" class="diagnostic-dialog">
+    <div class="dialog-head">
+      <div><p class="eyebrow">Chẩn đoán segment</p><h2 id="segmentDiagnosticTitle">Segment</h2></div>
+      <div class="row"><button id="backToChapterDiagnostic" class="ghost">← Chương</button><button data-close="segmentDiagnosticsDialog" class="ghost">Đóng</button></div>
+    </div>
+    <div id="segmentDiagnosticBody" class="diagnostic-body"></div>
   </dialog>
   <div id="toast" class="toast hidden"></div>
   <script src="/assets/app.js"></script>

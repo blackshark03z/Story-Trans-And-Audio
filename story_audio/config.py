@@ -30,6 +30,19 @@ class Settings:
     worker_poll_seconds: float = 0.75
     minimum_free_gb: float = 2.0
     successful_segment_retention_hours: int = 24
+    preview_cache_retention_days: int = 30
+    preview_cache_max_entries: int = 100
+    gemini_cache_retention_days: int = 180
+    gemini_cache_max_entries: int = 10_000
+    gemini_cache_max_bytes: int = 256 * 1024 * 1024
+
+    @property
+    def preview_cache_dir(self) -> Path:
+        return self.data_dir / "cache" / "previews"
+
+    @property
+    def gemini_cache_dir(self) -> Path:
+        return self.data_dir / "cache" / "gemini_repairs"
 
     def ensure_dirs(self) -> None:
         for path in (
@@ -37,6 +50,8 @@ class Settings:
             self.blobs_dir,
             self.output_dir,
             self.work_dir,
+            self.preview_cache_dir,
+            self.gemini_cache_dir,
             self.log_dir,
             self.root / "secrets",
         ):

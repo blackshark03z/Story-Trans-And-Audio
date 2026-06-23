@@ -10,9 +10,11 @@ from pathlib import Path
 from typing import Any
 
 from .config import Settings
+from .casting import CHUNKER_VERSION, validate_approved_plan
 from .db import Database, utcnow
 from .files import atomic_write_json, safe_slug, sha256_file, sha256_text
 from .gemini import GeminiRepairError, repair_punctuation
+from .gemini_cache import GeminiRepairCache
 from .storage import ContentStore
 from .text import lexical_sha256, qa_text, split_repair_blocks, split_tts_segments, validate_lexical_identity
 from .tts import TtsService
@@ -41,6 +43,8 @@ def create_job(
     repair_mode: str,
     output_format: str,
     skip_completed: bool,
+    casting_plan_id: int | None = None,
+    store: ContentStore | None = None,
 ) -> dict[str, Any]:
     if from_chapter > to_chapter:
         raise ValueError("Chương bắt đầu phải nhỏ hơn hoặc bằng chương kết thúc.")
@@ -74,13 +78,45 @@ def create_job(
         "silence_seconds": config.tts_silence_seconds,
         "gemini_model": config.gemini_model,
         "gemini_prompt_version": config.gemini_prompt_version,
+        "engine_version": f"vieneu:{config.tts_mode}",
+        "chunker_version": CHUNKER_VERSION if casting_plan_id else "tts-segment-v1",
     }
+    casting_row = None
+    casting_plan = None
+    casting_snapshot = None
+    if casting_plan_id is not None:
+        if store is None:
+            raise ValueError("ContentStore is required for a multi-voice job")
+        casting_row, casting_plan = validate_approved_plan(db, store, casting_plan_id)
+        matching = [row for row in chapters if int(row["id"]) == int(casting_row["chapter_id"])]
+        if len(chapters) != 1 or len(matching) != 1:
+            raise ValueError("A manual casting job must target exactly its casting-plan chapter")
+        if repair_mode != "off":
+            raise ValueError("A manual casting job must use its pinned approved TextRevision")
+        selected = chapters
+        voice_name = str(casting_plan["narrator_voice_id"])
+        casting_snapshot = {
+            "casting_plan_id": casting_plan_id,
+            "casting_plan_sha256": casting_row["plan_sha256"],
+            "text_revision_id": casting_row["text_revision_id"],
+            "narrator_voice_id": casting_plan["narrator_voice_id"],
+            "utterances": casting_plan["utterances"],
+            "resolved_character_voices": {
+                str(item["character_id"]): item["resolved_voice_id"]
+                for item in casting_plan["utterances"]
+                if item["role"] == "character"
+            },
+            "engine_version": settings_snapshot["engine_version"],
+            "tts_settings": settings_snapshot,
+            "chunker_version": CHUNKER_VERSION,
+        }
     with db.transaction() as connection:
         cursor = connection.execute(
             """INSERT INTO jobs(
                 book_id,status,from_chapter,to_chapter,voice_name,repair_mode,output_format,
-                settings_json,skip_completed,total_chapters,scheduled_at,created_at,updated_at
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                settings_json,skip_completed,total_chapters,scheduled_at,created_at,updated_at,
+                casting_plan_id,casting_snapshot_json
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 book_id,
                 "scheduled" if selected else "completed",
@@ -95,14 +131,29 @@ def create_job(
                 scheduled.isoformat(),
                 now.isoformat(),
                 now.isoformat(),
+                casting_plan_id,
+                json.dumps(casting_snapshot, ensure_ascii=False, sort_keys=True) if casting_snapshot else None,
             ),
         )
         job_id = int(cursor.lastrowid)
         for sequence, chapter in enumerate(selected, start=1):
-            connection.execute(
-                "INSERT INTO job_chapters(job_id,chapter_id,sequence,status) VALUES(?,?,?,'pending')",
-                (job_id, chapter["id"], sequence),
-            )
+            if casting_plan_id and int(chapter["id"]) == int(casting_row["chapter_id"]):
+                connection.execute(
+                    """INSERT INTO job_chapters(
+                        job_id,chapter_id,sequence,status,text_revision_id,casting_plan_id,
+                        casting_plan_sha256,voice_snapshot_json
+                    ) VALUES(?,?,?,'pending',?,?,?,?)""",
+                    (
+                        job_id, chapter["id"], sequence, casting_row["text_revision_id"],
+                        casting_plan_id, casting_row["plan_sha256"],
+                        json.dumps(casting_snapshot, ensure_ascii=False, sort_keys=True),
+                    ),
+                )
+            else:
+                connection.execute(
+                    "INSERT INTO job_chapters(job_id,chapter_id,sequence,status) VALUES(?,?,?,'pending')",
+                    (job_id, chapter["id"], sequence),
+                )
     db.audit(
         "job_created",
         job_id=job_id,
@@ -113,6 +164,7 @@ def create_job(
             "skipped": len(chapters) - len(selected),
             "voice": voice_name,
             "repair_mode": repair_mode,
+            "casting_plan_id": casting_plan_id,
         },
     )
     return {
@@ -129,6 +181,7 @@ class PipelineWorker:
         self.store = store
         self.tts = tts
         self.config = config
+        self.repair_cache = GeminiRepairCache(store, config)
         self._stop = threading.Event()
         self._wake = threading.Event()
         self._thread: threading.Thread | None = None
@@ -311,7 +364,14 @@ class PipelineWorker:
         text_revision_id, text = self._prepare_text(job, chapter)
         self._control(job_id)
         settings_snapshot = json.loads(job["settings_json"])
-        segments = self._prepare_segments(job_chapter_id, text_revision_id, text, settings_snapshot)
+        segments = self._prepare_segments(
+            job_chapter_id,
+            text_revision_id,
+            text,
+            settings_snapshot,
+            chapter=chapter,
+            fallback_voice=str(job["voice_name"]),
+        )
         self._set_job(job_id, "synthesizing", "tts", current_chapter_number=chapter["chapter_number"])
         chapter_work = self.config.work_dir / f"job_{job_id}" / f"chapter_{int(chapter['chapter_number']):04d}"
         segment_dir = chapter_work / "segments"
@@ -333,7 +393,7 @@ class PipelineWorker:
                         )
                     duration_ms, _sample_rate = self.tts.synthesize(
                         text=text_value,
-                        voice=str(job["voice_name"]),
+                        voice=str(segment.get("resolved_voice_id") or job["voice_name"]),
                         temperature=float(settings_snapshot["temperature"]),
                         top_k=int(settings_snapshot["top_k"]),
                         max_chars=int(settings_snapshot["max_chars"]),
@@ -395,9 +455,46 @@ class PipelineWorker:
             issues = qa_text(source_text)
             if not any(issue.code == "missing_punctuation" for issue in issues):
                 return int(source_revision["id"]), source_text
-        api_key = self.config.gemini_key()
-        if not api_key:
-            raise ChapterNeedsReview("Chưa cấu hình GEMINI_API_KEY hoặc file key.")
+        job_settings = json.loads(job["settings_json"])
+        repair_model = str(job_settings.get("gemini_model") or self.config.gemini_model)
+        repair_prompt_version = str(
+            job_settings.get("gemini_prompt_version") or self.config.gemini_prompt_version
+        )
+        contract_fingerprint = self.repair_cache.contract_fingerprint(
+            model=repair_model, prompt_version=repair_prompt_version
+        )
+        processor_version = f"gemini-repair:{contract_fingerprint}"
+        checkpoint_prompt_version = f"{repair_prompt_version}:{contract_fingerprint}"
+        legacy_processor_version = f"{repair_model}:{repair_prompt_version}"
+        legacy_compatible = self.repair_cache.legacy_checkpoint_is_compatible()
+        reusable = self.db.fetch_all(
+            """SELECT * FROM text_revisions
+               WHERE chapter_id=? AND parent_revision_id=? AND kind='repaired'
+                 AND processor_version IN (?,?) AND status='approved'
+               ORDER BY id DESC""",
+            (
+                chapter_id, source_revision["id"], processor_version,
+                legacy_processor_version if legacy_compatible else processor_version,
+            ),
+        )
+        for revision in reusable:
+            try:
+                repaired = self.store.read_text(revision["content_path"])
+                valid, _reason = validate_lexical_identity(source_text, repaired)
+                if sha256_text(repaired) != revision["content_sha256"] or not valid:
+                    continue
+                with self.db.connect() as connection:
+                    connection.execute(
+                        "UPDATE chapters SET active_text_revision_id=?,updated_at=? WHERE id=?",
+                        (revision["id"], utcnow(), chapter_id),
+                    )
+                self.db.audit(
+                    "gemini_checkpoint_reuse", job_id=job_id, chapter_id=chapter_id,
+                    details={"scope": "text_revision", "revision_id": int(revision["id"])},
+                )
+                return int(revision["id"]), repaired
+            except (OSError, UnicodeError, ValueError):
+                continue
         self._set_job(job_id, "repairing", "gemini", current_chapter_number=chapter["chapter_number"])
         blocks = split_repair_blocks(source_text)
         existing = self.db.fetch_all(
@@ -419,8 +516,8 @@ class PipelineWorker:
                             source_path,
                             source_sha,
                             lexical_sha256(block),
-                            self.config.gemini_model,
-                            self.config.gemini_prompt_version,
+                            repair_model,
+                            checkpoint_prompt_version,
                         ),
                     )
             existing = self.db.fetch_all(
@@ -432,25 +529,96 @@ class PipelineWorker:
             self._control(job_id)
             source = self.store.read_text(row["source_path"])
             if row["status"] == "verified" and row["repaired_path"]:
-                repaired_blocks.append(self.store.read_text(row["repaired_path"]))
+                try:
+                    checkpoint_text = self.store.read_text(row["repaired_path"])
+                    valid, _reason = validate_lexical_identity(source, checkpoint_text)
+                    if (
+                        sha256_text(source) == row["source_sha256"]
+                        and row["model_id"] == repair_model
+                        and (
+                            row["prompt_version"] == checkpoint_prompt_version
+                            or (legacy_compatible and row["prompt_version"] == repair_prompt_version)
+                        )
+                        and valid
+                    ):
+                        if row["prompt_version"] != checkpoint_prompt_version:
+                            with self.db.connect() as connection:
+                                connection.execute(
+                                    "UPDATE repair_blocks SET prompt_version=? WHERE id=?",
+                                    (checkpoint_prompt_version, row["id"]),
+                                )
+                        repaired_blocks.append(checkpoint_text)
+                        self.db.audit(
+                            "gemini_checkpoint_reuse", job_id=job_id, chapter_id=chapter_id,
+                            details={"scope": "repair_block", "block_index": int(row["block_index"])},
+                        )
+                        continue
+                except (OSError, UnicodeError, ValueError):
+                    pass
+
+            lookup = self.repair_cache.lookup(
+                source=source,
+                model=repair_model,
+                prompt_version=repair_prompt_version,
+            )
+            self.db.audit(
+                f"gemini_cache_{lookup.status}", job_id=job_id, chapter_id=chapter_id,
+                details={
+                    "block_index": int(row["block_index"]),
+                    "cache_key": lookup.cache_key,
+                    "reason": lookup.reason if lookup.status == "invalid" else None,
+                    "lookup_ms": round(lookup.lookup_ms, 3),
+                    "validation_ms": round(lookup.validation_ms, 3),
+                },
+            )
+            if lookup.status == "hit" and lookup.repaired_text and lookup.repaired_blob_path:
+                with self.db.connect() as connection:
+                    connection.execute(
+                        "UPDATE repair_blocks SET status='verified',repaired_path=?,model_id=?,prompt_version=?,verified_at=?,error_message=NULL WHERE id=?",
+                        (lookup.repaired_blob_path, repair_model, checkpoint_prompt_version, utcnow(), row["id"]),
+                    )
+                repaired_blocks.append(lookup.repaired_text)
                 continue
             try:
+                api_key = self.config.gemini_key()
+                if not api_key:
+                    raise ChapterNeedsReview("Chưa cấu hình GEMINI_API_KEY hoặc file key.")
                 with self.db.connect() as connection:
                     connection.execute(
                         "UPDATE repair_blocks SET status='running',attempt_count=attempt_count+1,error_message=NULL WHERE id=?",
                         (row["id"],),
                     )
+                self.db.audit(
+                    "gemini_api_call", job_id=job_id, chapter_id=chapter_id,
+                    details={"block_index": int(row["block_index"]), "cache_key": lookup.cache_key},
+                )
                 result = repair_punctuation(
                     api_key=api_key,
-                    model=self.config.gemini_model,
+                    model=repair_model,
                     block_id=f"jc{job_chapter_id}-b{row['block_index']}",
                     text=source,
                 )
                 repaired_path, _ = self.store.put_text(result.text)
+                try:
+                    manifest = self.repair_cache.store_result(
+                        source=source,
+                        repaired=result.text,
+                        model=repair_model,
+                        prompt_version=repair_prompt_version,
+                    )
+                    repaired_path = str(manifest["repaired_blob_path"])
+                except (OSError, UnicodeError, ValueError, TypeError) as cache_exc:
+                    self.db.audit(
+                        "gemini_cache_write_failed", job_id=job_id, chapter_id=chapter_id,
+                        details={
+                            "block_index": int(row["block_index"]),
+                            "error_type": type(cache_exc).__name__,
+                        },
+                    )
                 with self.db.connect() as connection:
                     connection.execute(
-                        "UPDATE repair_blocks SET status='verified',repaired_path=?,verified_at=? WHERE id=?",
-                        (repaired_path, utcnow(), row["id"]),
+                        "UPDATE repair_blocks SET status='verified',repaired_path=?,model_id=?,prompt_version=?,verified_at=? WHERE id=?",
+                        (repaired_path, repair_model, checkpoint_prompt_version, utcnow(), row["id"]),
                     )
                 repaired_blocks.append(result.text)
             except GeminiRepairError as exc:
@@ -465,6 +633,20 @@ class PipelineWorker:
         if not valid:
             raise ChapterNeedsReview(f"Gemini thay đổi nội dung chương: {reason}")
         content_path, content_sha = self.store.put_text(repaired_text)
+        duplicate = self.db.fetch_one(
+            """SELECT * FROM text_revisions
+               WHERE chapter_id=? AND parent_revision_id=? AND kind='repaired'
+                 AND content_sha256=? AND processor_version=? AND status='approved'
+               ORDER BY id DESC LIMIT 1""",
+            (chapter_id, source_revision["id"], content_sha, processor_version),
+        )
+        if duplicate:
+            with self.db.connect() as connection:
+                connection.execute(
+                    "UPDATE chapters SET active_text_revision_id=?,updated_at=? WHERE id=?",
+                    (duplicate["id"], utcnow(), chapter_id),
+                )
+            return int(duplicate["id"]), repaired_text
         now = utcnow()
         with self.db.transaction() as connection:
             cursor = connection.execute(
@@ -480,7 +662,7 @@ class PipelineWorker:
                     content_sha,
                     lexical_sha256(repaired_text),
                     len(repaired_text),
-                    f"{self.config.gemini_model}:{self.config.gemini_prompt_version}",
+                    processor_version,
                     "approved",
                     now,
                 ),
@@ -493,31 +675,103 @@ class PipelineWorker:
         return revision_id, repaired_text
 
     def _prepare_segments(
-        self, job_chapter_id: int, text_revision_id: int, text: str, settings_snapshot: dict[str, Any]
+        self,
+        job_chapter_id: int,
+        text_revision_id: int,
+        text: str,
+        settings_snapshot: dict[str, Any],
+        *,
+        chapter: dict[str, Any] | None = None,
+        fallback_voice: str = "",
     ) -> list[dict[str, Any]]:
         existing = self.db.fetch_all(
             "SELECT * FROM segments WHERE job_chapter_id=? ORDER BY segment_index", (job_chapter_id,)
         )
         if existing:
             return [dict(row) for row in existing]
-        values = split_tts_segments(
-            text,
-            maximum=int(settings_snapshot["max_chars"]),
-            target=int(settings_snapshot["target_chars"]),
-        )
-        if not values:
+
+        specs: list[dict[str, Any]] = []
+        snapshot = json.loads(chapter["voice_snapshot_json"]) if chapter and chapter.get("voice_snapshot_json") else None
+        if snapshot:
+            if int(snapshot["text_revision_id"]) != text_revision_id:
+                raise RuntimeError("Casting snapshot does not match the pinned TextRevision")
+            for utterance in snapshot["utterances"]:
+                start, end = int(utterance["start_offset"]), int(utterance["end_offset"])
+                utterance_text = text[start:end]
+                if sha256_text(utterance_text) != utterance["text_sha256"]:
+                    raise RuntimeError("Casting utterance offset/hash does not match TextRevision")
+                for chunk in split_tts_segments(
+                    utterance_text,
+                    maximum=int(settings_snapshot["max_chars"]),
+                    target=int(settings_snapshot["target_chars"]),
+                ):
+                    specs.append(
+                        {
+                            "text": chunk,
+                            "utterance_sequence": int(utterance["sequence"]),
+                            "speaker_role": utterance["role"],
+                            "character_id": utterance.get("character_id"),
+                            "resolved_voice_id": utterance["resolved_voice_id"],
+                        }
+                    )
+        else:
+            for chunk in split_tts_segments(
+                text,
+                maximum=int(settings_snapshot["max_chars"]),
+                target=int(settings_snapshot["target_chars"]),
+            ):
+                specs.append(
+                    {
+                        "text": chunk,
+                        "utterance_sequence": None,
+                        "speaker_role": "narrator",
+                        "character_id": None,
+                        "resolved_voice_id": fallback_voice,
+                    }
+                )
+        if not specs:
             raise RuntimeError("Không tạo được TTS segment.")
+
         now = utcnow()
         with self.db.transaction() as connection:
             connection.execute(
                 "UPDATE job_chapters SET text_revision_id=? WHERE id=?",
                 (text_revision_id, job_chapter_id),
             )
-            for index, value in enumerate(values, start=1):
-                text_path, digest = self.store.put_text(value)
+            for index, spec in enumerate(specs, start=1):
+                text_path, digest = self.store.put_text(spec["text"])
+                synthesis_hash = sha256_text(
+                    json.dumps(
+                        {
+                            "text_sha256": digest,
+                            "voice_id": spec["resolved_voice_id"],
+                            "engine_version": settings_snapshot.get(
+                                "engine_version", f"vieneu:{self.config.tts_mode}"
+                            ),
+                            "settings": settings_snapshot,
+                        },
+                        sort_keys=True,
+                        ensure_ascii=False,
+                    )
+                )
                 connection.execute(
-                    "INSERT INTO segments(job_chapter_id,segment_index,text_path,text_sha256,status,created_at) VALUES(?,?,?,?,?,?)",
-                    (job_chapter_id, index, text_path, digest, "pending", now),
+                    """INSERT INTO segments(
+                        job_chapter_id,segment_index,text_path,text_sha256,status,created_at,
+                        utterance_sequence,speaker_role,character_id,resolved_voice_id,synthesis_hash
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        job_chapter_id,
+                        index,
+                        text_path,
+                        digest,
+                        "pending",
+                        now,
+                        spec["utterance_sequence"],
+                        spec["speaker_role"],
+                        spec["character_id"],
+                        spec["resolved_voice_id"],
+                        synthesis_hash,
+                    ),
                 )
         return [
             dict(row)
@@ -533,16 +787,27 @@ class PipelineWorker:
         job_chapter_id = int(chapter["id"])
         chapter_id = int(chapter["chapter_id"])
         rows = self.db.fetch_all(
-            "SELECT * FROM segments WHERE job_chapter_id=? ORDER BY segment_index", (job_chapter_id,)
+            """SELECT s.*,ch.display_name AS character_name
+               FROM segments s LEFT JOIN characters ch ON ch.id=s.character_id
+               WHERE s.job_chapter_id=? ORDER BY s.segment_index""",
+            (job_chapter_id,),
         )
         if not rows or any(row["status"] != "verified" or not row["wav_path"] for row in rows):
             raise RuntimeError("Chưa đủ segment hợp lệ để ghép chương.")
-        output_dir = (
+        job_output_dir = (
             self.config.output_dir
             / f"{int(chapter['book_id'])}-{safe_slug(str(chapter['book_title']), 'book')}"
             / f"chapter_{int(chapter['chapter_number']):04d}"
             / f"job_{job_id}"
         )
+        previous_renders = int(
+            self.db.fetch_one(
+                """SELECT COUNT(*) AS count FROM artifacts
+                   WHERE job_chapter_id=? AND artifact_type='chapter_master_wav'""",
+                (job_chapter_id,),
+            )["count"]
+        )
+        output_dir = job_output_dir / f"render_{previous_renders + 1:04d}"
         output_dir.mkdir(parents=True, exist_ok=True)
         concat_path = chapter_work / "concat.txt"
         concat_path.parent.mkdir(parents=True, exist_ok=True)
@@ -563,6 +828,7 @@ class PipelineWorker:
                 {
                     "text_revision_id": text_revision_id,
                     "voice": job["voice_name"],
+                    "casting_plan_sha256": chapter.get("casting_plan_sha256"),
                     "settings": json.loads(job["settings_json"]),
                 },
                 sort_keys=True,
@@ -590,6 +856,12 @@ class PipelineWorker:
                     "end_ms": cursor_ms + duration,
                     "duration_ms": duration,
                     "segment_sha256": row["audio_sha256"],
+                    "utterance_sequence": row["utterance_sequence"],
+                    "speaker_role": row["speaker_role"] or "narrator",
+                    "character_id": row["character_id"],
+                    "character_name": row["character_name"],
+                    "voice_id": row["resolved_voice_id"] or job["voice_name"],
+                    "synthesis_hash": row["synthesis_hash"],
                 }
             )
             cursor_ms += duration
@@ -597,7 +869,7 @@ class PipelineWorker:
         atomic_write_json(
             timeline_path,
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "chapter_id": chapter_id,
                 "text_revision_id": text_revision_id,
                 "sample_rate": self.config.tts_sample_rate,

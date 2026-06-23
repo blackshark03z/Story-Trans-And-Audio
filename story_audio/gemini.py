@@ -25,6 +25,9 @@ TUYỆT ĐỐI KHÔNG ĐƯỢC:
 
 Giữ chính xác toàn bộ chuỗi từ theo đúng thứ tự. Trả về JSON object đúng schema, không markdown."""
 
+REPAIR_CONTRACT_VERSION = "punctuation-only-v1"
+GENERATION_SETTINGS = {"temperature": 0, "response_mime_type": "application/json"}
+
 
 @dataclass(frozen=True)
 class RepairResult:

@@ -15,9 +15,25 @@
 - Gemini key: được nhận diện; không lưu trong DB/log.
 - VieNeu: v3 Turbo CPU/ONNX, 10 preset voice.
 - FFmpeg/FFprobe: hoạt động.
-- Offline tests: 8 test đạt.
+- Schema migration: version 2 (`0002_character_voice`), checksum-locked.
+- Offline tests: 60 test đạt.
 - End-to-end smoke: chương 858, giọng Ngọc Lan, Gemini `all_selected`.
 - Kết quả smoke: 10/10 segment, M4A dài 118.710 ms, artifact active.
+- Multi-voice real-TTS smoke: isolated book 3 / chapter 1982, casting plan 2, job 3.
+- Kết quả multi-voice: Ngọc Lan + Gia Bảo + Thái Sơn; 8 utterance/8 segment; M4A sau retry 22.810 ms.
+- Controlled retry: render lại đúng segment 20 trong 2,47 giây; 7 segment còn lại giữ nguyên hash/mtime.
+- Audio signal check: không có silence trên 0,8 giây ở -45 dB; mean volume ba voice lệch tối đa 3,2 dB.
+- Backup smoke: 3.989 file, 60.216.155 byte, manifest/hash/SQLite verify đạt.
+- Restore smoke: sang data root mới, 13 đường dẫn được remap, deep integrity đạt.
+- Shared Gemini cache benchmark local: chapter 858/784/363 (1.958/6.198/18.641 ký tự) hit + hash + lexical validation lần lượt khoảng 22/44/121 ms; không gọi mạng.
+- Fake pipeline một block: miss + lưu revision khoảng 66 ms; job/chapter thứ hai shared-cache hit khoảng 54 ms; fake Gemini chỉ được gọi một lần.
+
+## Shared Gemini cache contract
+
+- Key pin source SHA-256, model, prompt version, punctuation-only contract, block splitter, lexical validator và generation settings.
+- Thứ tự reuse: approved repaired TextRevision → job repair-block checkpoint → shared cache → Gemini API.
+- Cache hit luôn verify manifest/key/blob/hash/count và lexical tokens; entry hỏng/mất là safe miss.
+- Manifest nằm trong `data/cache/gemini_repairs/`; repaired payload dùng text blob bất biến. Cleanup TTL/quota chỉ xóa manifest và mặc định dry-run.
 
 ## Chức năng đã hoàn thành
 
@@ -37,16 +53,29 @@
 - [x] Artifact/revision và dependency cơ bản.
 - [x] Audio player trong chapter dialog.
 - [x] Cleanup segment sau retention 24 giờ.
+- [x] Schema version và migration runner tự động khi startup.
+- [x] Fail-safe khi DB mới hơn code hoặc checksum migration bị đổi.
+- [x] Backup/verify/restore có manifest và SQLite snapshot nhất quán.
+- [x] Recovery tests offline cho restart, retry, cancel và artifact corruption.
+- [x] Diagnostic UI ba cấp cho job, chapter và segment; retry riêng phần lỗi.
+- [x] Voice preview preset 10–20 giây với file cache độc lập, không tạo job/artifact.
+- [x] Character Voice MVP: character manager, manual casting revision và multi-voice render.
+- [x] Real VieNeu multi-voice smoke và controlled retry/reuse verification.
+- [x] Text Revision Diff raw/reflowed/repaired với Inline và Side-by-side UI.
+- [x] Shared Gemini repair cache theo source/model/prompt/repair contract, có lexical revalidation và cleanup dry-run.
 
 ## Hạn chế hiện tại
 
 - Gemini và TTS chạy tuần tự trong một orchestration worker; chưa prefetch 2–5 chương.
-- Gemini cache hiện gắn với `job_chapter`; chưa reuse theo content hash giữa hai job khác nhau.
-- Chưa có schema migration framework/version table. Đây là rủi ro lớn nhất trước khi đổi DB.
-- Chưa có backup/restore command được kiểm thử.
-- UI chưa có voice preview audio, diff trực quan hoặc màn hình chi tiết lỗi theo block/segment.
+- Shared Gemini cache vẫn chạy tuần tự; hai process có thể cùng gọi Gemini trước khi atomic write cùng một key (kết quả cuối vẫn hợp lệ).
+- Cleanup cache hiện có CLI dry-run/apply nhưng chưa có quota/dashboard UI; text blob không bị xóa theo cache manifest.
+- Text diff giới hạn 500.000 ký tự kết hợp; payload trên 50.000 ký tự có warning và collapse mặc định.
 - Cleanup chưa có dry-run/quota dashboard trên UI.
-- Chưa có integration test tự động cho kill/restart/pause/cancel.
+- Manual casting chưa có AI speaker detection, emotion control hoặc voice cloning theo đúng phạm vi MVP.
+- Loudness giữa preset có chênh nhẹ (smoke đo tối đa 3,2 dB mean); chưa normalization theo đúng phạm vi.
+- Backup là full snapshot, chưa incremental/compress và có thể lớn khi thư viện tăng.
+- Restore remap artifact/work paths trong data root nhưng không đóng gói EPUB nguồn nằm ngoài `data/`.
+- Recovery test dùng fake TTS và startup state transition; chưa có OS-level kill-process harness.
 - Chưa có SRT/VTT, forced alignment, image hoặc video trong MVP.
 - Worker là một thread trong API process; chưa tách service/process riêng.
 
@@ -54,16 +83,16 @@
 
 ### P0 — Trước khi thêm tính năng lớn
 
-- [ ] Thêm database schema version và migration runner.
-- [ ] Thêm backup/restore có manifest và integrity verification.
-- [ ] Thêm integration tests cho restart, retry, cancel và artifact corruption.
-- [ ] Thêm job/chapter diagnostic UI để người dùng thấy lỗi cụ thể.
+- [x] Thêm database schema version và migration runner.
+- [x] Thêm backup/restore có manifest và integrity verification.
+- [x] Thêm integration tests cho restart, retry, cancel và artifact corruption.
+- [x] Thêm job/chapter/segment diagnostic UI để người dùng thấy lỗi cụ thể và retry an toàn.
 
 ### P1 — Hoàn thiện Audio MVP
 
-- [ ] Voice preview 10–20 giây.
-- [ ] Text diff raw → reflowed → repaired.
-- [ ] Gemini cache dùng chung theo source hash + model + prompt version.
+- [x] Voice preview 10–20 giây.
+- [x] Text diff raw → reflowed → repaired.
+- [x] Gemini cache dùng chung theo source hash + model + prompt version.
 - [ ] Disk estimate chính xác và cleanup dry-run.
 - [ ] Usage ledger, daily batch cap và Gemini soft budget cảnh báo.
 - [ ] Export SRT/VTT từ segment timeline.
@@ -90,3 +119,10 @@
 | 2026-06-23 | Audio MVP đầu tiên | Import 1.980 chương; job #1 completed |
 | 2026-06-23 | Gemini contract smoke | Sửa punctuation, token nguồn được bảo toàn |
 | 2026-06-23 | Resume theo segment | Reuse 9/10 segment và chỉ tạo lại segment lỗi |
+| 2026-06-23 | P0 hardening | Schema v1; backup/restore thật và 18 test offline đạt |
+| 2026-06-23 | M2 Diagnostic UI | Job/chapter/segment diagnostics; retry giữ nguyên verified segment; 23 test offline đạt |
+| 2026-06-23 | M2 Voice Preview | Preset preview cache theo voice/text/settings/engine; fake TTS; 28 test offline đạt |
+| 2026-06-23 | M2 Character Voice MVP | Schema v2; manual casting; multi-voice snapshot/segments/timeline; 38 test offline đạt |
+| 2026-06-23 | Multi-voice real-TTS smoke | Job 3; 3 voices; 8/8 segment; retry 1 segment và reuse 7; M4A 22.810 ms |
+| 2026-06-23 | Text Revision Diff | Structured read-only API; Inline/Side-by-side; 50 tests; chapter 18.649 chars ≈330 ms live API |
+| 2026-06-23 | Shared Gemini repair cache | Filesystem manifest + text blob; lexical revalidation; corrupt-as-miss; cleanup/doctor; 60 tests |

@@ -14,3 +14,6 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]
 include = ["story_audio*"]
+
+[tool.setuptools.package-data]
+"story_audio.migrations" = ["*.sql"]

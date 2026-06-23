@@ -12,17 +12,40 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from .config import settings
+from .casting import (
+    CastingError,
+    approve_plan,
+    casting_context,
+    create_casting_draft,
+    create_character,
+    deactivate_character,
+    list_characters,
+    update_character,
+    validate_approved_plan,
+)
 from .db import Database, utcnow
+from .diagnostics import (
+    DiagnosticNotFound,
+    RetryConflict,
+    get_job_chapter_diagnostics,
+    get_job_diagnostics,
+    get_segment_diagnostics,
+    retry_job_chapter,
+    retry_segment,
+)
 from .epub import import_epub
 from .pipeline import PipelineWorker, create_job
 from .storage import ContentStore
 from .tts import tts_service
+from .text_diff import TextDiffError, build_revision_diff, list_revision_metadata
+from .voice_preview import VoicePreviewService
 
 
 settings.ensure_dirs()
 db = Database(settings.db_path)
 store = ContentStore(settings)
 worker = PipelineWorker(db, store, tts_service, settings)
+voice_previews = VoicePreviewService(tts_service, settings)
 
 
 class ImportRequest(BaseModel):
@@ -37,6 +60,33 @@ class JobRequest(BaseModel):
     repair_mode: str = "all_selected"
     output_format: str = "m4a"
     skip_completed: bool = True
+    casting_plan_id: int | None = None
+
+
+class VoicePreviewRequest(BaseModel):
+    voice_id: str = Field(min_length=1, max_length=200)
+
+
+class CharacterCreateRequest(BaseModel):
+    display_name: str = Field(min_length=1, max_length=120)
+    default_voice_id: str = Field(min_length=1, max_length=200)
+
+
+class CharacterUpdateRequest(BaseModel):
+    display_name: str | None = Field(default=None, min_length=1, max_length=120)
+    default_voice_id: str | None = Field(default=None, min_length=1, max_length=200)
+
+
+class CastingAssignment(BaseModel):
+    utterance_id: str
+    role: str
+    character_id: int | None = None
+
+
+class CastingDraftRequest(BaseModel):
+    text_revision_id: int
+    narrator_voice_id: str
+    assignments: list[CastingAssignment] = Field(default_factory=list)
 
 
 @asynccontextmanager
@@ -146,12 +196,136 @@ def chapter_detail(chapter_id: int) -> dict[str, Any]:
     }
 
 
+@app.get("/api/chapters/{chapter_id}/revisions")
+def chapter_revisions(chapter_id: int) -> dict[str, Any]:
+    try:
+        return {"chapter_id": chapter_id, "items": list_revision_metadata(db, chapter_id)}
+    except TextDiffError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@app.get("/api/chapters/{chapter_id}/diff")
+def chapter_revision_diff(
+    chapter_id: int,
+    revision_a: int = Query(..., ge=1),
+    revision_b: int = Query(..., ge=1),
+) -> dict[str, Any]:
+    try:
+        return build_revision_diff(db, store, chapter_id, revision_a, revision_b)
+    except TextDiffError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
 @app.get("/api/voices")
 def list_voices() -> dict[str, Any]:
     try:
         return {"items": tts_service.voices(), "status": tts_service.status}
     except Exception as exc:
         raise HTTPException(503, f"Không tải được VieNeu: {exc}") from exc
+
+
+def _preset_voice_ids() -> set[str]:
+    return {item["id"] for item in tts_service.voices()}
+
+
+@app.get("/api/books/{book_id}/characters")
+def book_characters(book_id: int) -> list[dict[str, Any]]:
+    return list_characters(db, book_id)
+
+
+@app.post("/api/books/{book_id}/characters")
+def add_character(book_id: int, request: CharacterCreateRequest) -> dict[str, Any]:
+    try:
+        if request.default_voice_id not in _preset_voice_ids():
+            raise CastingError("Preset voice does not exist")
+        return create_character(db, book_id, request.display_name, request.default_voice_id)
+    except CastingError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.patch("/api/characters/{character_id}")
+def edit_character(character_id: int, request: CharacterUpdateRequest) -> dict[str, Any]:
+    try:
+        if request.default_voice_id is not None and request.default_voice_id not in _preset_voice_ids():
+            raise CastingError("Preset voice does not exist")
+        return update_character(
+            db,
+            character_id,
+            display_name=request.display_name,
+            voice_id=request.default_voice_id,
+        )
+    except CastingError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.delete("/api/characters/{character_id}")
+def remove_character(character_id: int) -> dict[str, bool]:
+    try:
+        deactivate_character(db, character_id)
+        return {"ok": True}
+    except CastingError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@app.get("/api/chapters/{chapter_id}/casting")
+def chapter_casting(chapter_id: int) -> dict[str, Any]:
+    try:
+        return casting_context(db, store, chapter_id)
+    except CastingError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/chapters/{chapter_id}/casting/draft")
+def save_casting_draft(chapter_id: int, request: CastingDraftRequest) -> dict[str, Any]:
+    try:
+        return create_casting_draft(
+            db,
+            store,
+            chapter_id=chapter_id,
+            text_revision_id=request.text_revision_id,
+            narrator_voice_id=request.narrator_voice_id,
+            assignments=[item.model_dump() for item in request.assignments],
+            allowed_voice_ids=_preset_voice_ids(),
+            maximum=settings.tts_max_chars,
+        )
+    except CastingError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/casting/{casting_plan_id}/approve")
+def approve_casting(casting_plan_id: int) -> dict[str, Any]:
+    try:
+        result = approve_plan(db, store, casting_plan_id)
+        validate_approved_plan(db, store, casting_plan_id, _preset_voice_ids())
+        return result
+    except CastingError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/voice-previews")
+def create_voice_preview(request: VoicePreviewRequest) -> dict[str, Any]:
+    try:
+        valid_voices = {item["id"] for item in tts_service.voices()}
+        if request.voice_id not in valid_voices:
+            raise ValueError(f"Giọng '{request.voice_id}' không tồn tại trong VieNeu.")
+        result = voice_previews.create(request.voice_id)
+        result["audio_url"] = f"/api/voice-previews/{result['cache_key']}/file"
+        return result
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(503, f"Không tạo được voice preview: {exc}") from exc
+
+
+@app.get("/api/voice-previews/{cache_key}/file")
+def voice_preview_file(cache_key: str):
+    try:
+        path = voice_previews.audio_path(cache_key)
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except FileNotFoundError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    return FileResponse(path, media_type="audio/wav", filename=path.name)
 
 
 @app.get("/api/jobs/preview")
@@ -186,10 +360,12 @@ def submit_job(request: JobRequest) -> dict[str, Any]:
     try:
         payload = request.model_dump()
         payload["voice_name"] = unicodedata.normalize("NFC", payload["voice_name"]).strip()
-        valid_voices = {item["id"] for item in tts_service.voices()}
+        valid_voices = _preset_voice_ids()
         if payload["voice_name"] not in valid_voices:
             raise ValueError(f"Giọng '{payload['voice_name']}' không tồn tại trong VieNeu.")
-        result = create_job(db, settings, **payload)
+        if payload.get("casting_plan_id") is not None:
+            validate_approved_plan(db, store, int(payload["casting_plan_id"]), valid_voices)
+        result = create_job(db, settings, store=store, **payload)
         worker.wake()
         return result
     except Exception as exc:
@@ -224,6 +400,58 @@ def job_detail(job_id: int) -> dict[str, Any]:
         (job_id,),
     )
     return {"job": dict(job), "chapters": [dict(row) for row in chapters]}
+
+
+def _diagnostic_error(exc: Exception) -> HTTPException:
+    if isinstance(exc, DiagnosticNotFound):
+        return HTTPException(404, str(exc))
+    if isinstance(exc, RetryConflict):
+        return HTTPException(409, str(exc))
+    return HTTPException(400, str(exc))
+
+
+@app.get("/api/diagnostics/jobs/{job_id}")
+def job_diagnostics(job_id: int) -> dict[str, Any]:
+    try:
+        return get_job_diagnostics(db, job_id)
+    except (DiagnosticNotFound, RetryConflict) as exc:
+        raise _diagnostic_error(exc) from exc
+
+
+@app.get("/api/diagnostics/job-chapters/{job_chapter_id}")
+def job_chapter_diagnostics(job_chapter_id: int) -> dict[str, Any]:
+    try:
+        return get_job_chapter_diagnostics(db, store, job_chapter_id)
+    except (DiagnosticNotFound, RetryConflict) as exc:
+        raise _diagnostic_error(exc) from exc
+
+
+@app.get("/api/diagnostics/segments/{segment_id}")
+def segment_diagnostics(segment_id: int) -> dict[str, Any]:
+    try:
+        return get_segment_diagnostics(db, store, segment_id)
+    except (DiagnosticNotFound, RetryConflict) as exc:
+        raise _diagnostic_error(exc) from exc
+
+
+@app.post("/api/job-chapters/{job_chapter_id}/retry")
+def retry_chapter(job_chapter_id: int) -> dict[str, Any]:
+    try:
+        result = retry_job_chapter(db, job_chapter_id)
+    except (DiagnosticNotFound, RetryConflict) as exc:
+        raise _diagnostic_error(exc) from exc
+    worker.wake()
+    return {"ok": True, **result}
+
+
+@app.post("/api/segments/{segment_id}/retry")
+def retry_failed_segment(segment_id: int) -> dict[str, Any]:
+    try:
+        result = retry_segment(db, segment_id)
+    except (DiagnosticNotFound, RetryConflict) as exc:
+        raise _diagnostic_error(exc) from exc
+    worker.wake()
+    return {"ok": True, **result}
 
 
 @app.post("/api/jobs/{job_id}/{action}")
@@ -286,6 +514,11 @@ def artifact_file(artifact_id: int):
 @app.post("/api/maintenance/cleanup")
 def cleanup_segments() -> dict[str, int]:
     return worker.cleanup_expired_segments()
+
+
+@app.post("/api/maintenance/preview-cache")
+def cleanup_preview_cache() -> dict[str, int]:
+    return voice_previews.cleanup()
 
 
 UI_DIR = settings.root / "ui"

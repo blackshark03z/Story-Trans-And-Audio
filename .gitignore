@@ -11,6 +11,7 @@ gemini_api_key.txt
 *.log
 data/
 logs/
+backups/
 __pycache__/
 *.pyc
 .pytest_cache/

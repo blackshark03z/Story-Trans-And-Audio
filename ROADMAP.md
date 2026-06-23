@@ -12,6 +12,12 @@ Roadmap mô tả thứ tự đầu tư, không phải cam kết thời gian. Ưu
 
 ## M1 — Hardening
 
+Đã hoàn thành trong P0:
+
+- Schema migration/versioning baseline v1.
+- Full backup/verify/restore có manifest.
+- Offline recovery tests cho restart/retry/cancel/corruption.
+
 Điều kiện hoàn thành:
 
 - DB cũ nâng cấp qua migration, không mất dữ liệu.
