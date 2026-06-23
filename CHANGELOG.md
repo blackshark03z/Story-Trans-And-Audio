@@ -9,15 +9,20 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 - Book Voice Profile với narrator, male dialogue, female dialogue và configurable unknown fallback.
 - Optional character voice override, manual gender metadata và deterministic voice resolver có resolution source/needs-review.
 - Minimal profile/override/resolve API để chuẩn bị cho UI task tiếp theo.
+- Book Voice Profile UI với empty/invalid state, bốn preview slot, fallback policy và profile version.
+- Character Manager hỗ trợ gender, Use book default/Use custom voice, effective voice và resolution source.
+- Manual Casting hiển thị resolved voice, gender và needs-review; preview resolution read-only không tạo plan/job.
 
 ### Changed
 
 - Casting plan/job mới snapshot resolved preset, resolution source và Book Voice Profile ID/version; retry tiếp tục dùng snapshot cũ.
 - Migration `0003_three_voice_profile` bảo toàn `characters.default_voice_id` và sao chép giá trị cũ thành legacy override.
+- Segment timeline mới mang resolution source, resolved gender, needs-review và profile ID/version từ immutable job snapshot.
 
 ### Verified
 
-- 73 offline tests, JavaScript syntax check, schema v2→v3 migration, SQLite quick check và Doctor deep `critical_errors=0`.
+- 78 offline tests, JavaScript syntax check, schema v3, SQLite quick check và Doctor deep `critical_errors=0`.
+- Real VieNeu smoke jobs 4–5: profile v1/v2, five resolution paths, controlled retry reuse 7/8 segment và verified M4A/timeline.
 
 - Thêm bộ tài liệu điều hành, testing, data model và runbook.
 - Thêm công cụ chẩn đoán read-only `scripts/doctor.py`.

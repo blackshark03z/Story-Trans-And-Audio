@@ -53,7 +53,9 @@ Fixture mặc định:
 - Không chạy toàn bộ sách.
 - Ghi model/prompt/voice/version vào test report, không ghi key.
 
-Baseline hiện tại: 73 test offline; chương 858 đã hoàn thành 10 segment và M4A 118.710 ms. Handoff smoke job 3/chapter 1982 đã tạo video YouTube Auto 22,826 giây từ audio 22,810 giây.
+Baseline hiện tại: 78 test offline; chương 858 đã hoàn thành 10 segment và M4A 118.710 ms. Handoff smoke job 3/chapter 1982 đã tạo video YouTube Auto 22,826 giây từ audio 22,810 giây.
+
+Three-Voice UI smoke dùng isolated book 4/chapter 1983: preview Ngọc Lan/Gia Bảo/Mỹ Duyên đạt 14,16–15,12 giây; jobs 4–5 đạt 24.650/26.090 ms với narrator, male, female, unknown fallback và character override. Controlled retry job 4 render lại đúng segment Gia Bảo và reuse 7 segment verified; timeline mới chứa resolution metadata. Chưa đánh giá cảm nhận bằng tai trong smoke tự động.
 
 ## Release gate
 
@@ -76,3 +78,4 @@ Baseline hiện tại: 73 test offline; chương 858 đã hoàn thành 10 segmen
 - FFmpeg lỗi không được gọi lại VieNeu cho segment hợp lệ.
 - Casting/job cũ không đổi voice khi character override hoặc Book Voice Profile thay đổi.
 - Resolver Three-Voice phải deterministic cho narrator, male, female, explicit override và unknown/needs-review.
+- UI không tự clear legacy override, không duplicate resolver JavaScript và không tạo plan/job khi chỉ xem effective voice.

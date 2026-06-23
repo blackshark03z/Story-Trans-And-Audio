@@ -293,6 +293,8 @@ class CastingTests(unittest.TestCase):
             self.assertEqual(payload["schema_version"], 2)
             self.assertEqual([item["voice_id"] for item in payload["items"]], ["narrator", "voice-a", "narrator", "voice-b"])
             self.assertEqual(payload["items"][1]["character_name"], "An")
+            self.assertIn("resolution_source", payload["items"][1])
+            self.assertIn("needs_review", payload["items"][1])
 
 
 if __name__ == "__main__":

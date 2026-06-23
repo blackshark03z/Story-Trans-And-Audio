@@ -846,9 +846,19 @@ class PipelineWorker:
             synthesis_hash=synthesis_hash,
         )
         timeline_items = []
+        voice_snapshot = (
+            json.loads(chapter["voice_snapshot_json"])
+            if chapter.get("voice_snapshot_json")
+            else None
+        )
+        utterance_metadata = {
+            int(item["sequence"]): item
+            for item in (voice_snapshot or {}).get("utterances", [])
+        }
         cursor_ms = 0
         for row in rows:
             duration = int(row["duration_ms"])
+            resolution = utterance_metadata.get(int(row["utterance_sequence"])) if row["utterance_sequence"] is not None else None
             timeline_items.append(
                 {
                     "index": int(row["segment_index"]),
@@ -862,6 +872,11 @@ class PipelineWorker:
                     "character_id": row["character_id"],
                     "character_name": row["character_name"],
                     "voice_id": row["resolved_voice_id"] or job["voice_name"],
+                    "resolution_source": resolution.get("resolution_source") if resolution else None,
+                    "resolved_gender": resolution.get("resolved_gender") if resolution else None,
+                    "needs_review": bool(resolution.get("needs_review")) if resolution else False,
+                    "voice_profile_id": resolution.get("voice_profile_id") if resolution else None,
+                    "voice_profile_version": resolution.get("voice_profile_version") if resolution else None,
                     "synthesis_hash": row["synthesis_hash"],
                 }
             )

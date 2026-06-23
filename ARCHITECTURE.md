@@ -9,7 +9,7 @@ Story Audio: EPUB → approved text → resolved casting → audio → speech ti
 YouTube Auto: Handoff V1 → visual timeline/bible → image → subtitle render → video → metadata/thumbnail
 ```
 
-ADR-013 được triển khai ở schema v3: Book Voice Profile ba nhóm (narrator/male/female), unknown fallback và optional character override. UI tích hợp đầy đủ vẫn là bước tiếp theo.
+ADR-013 được triển khai ở schema v3: Book Voice Profile ba nhóm (narrator/male/female), unknown fallback, optional character override và UI Manual Casting hiển thị effective resolution.
 
 ## 1. Mục tiêu
 
@@ -216,7 +216,7 @@ Danh sách 1.980 chương phải dùng virtual scrolling, phân trang phía back
 
 - Danh sách preset lấy từ VieNeu.
 - Hiện có voice preview và Character Manager/manual casting.
-- Bước kế tiếp là UI cấu hình profile/override và hiển thị resolution source trong casting.
+- UI cấu hình profile/override và hiển thị resolution source/needs-review trong casting đã hoàn thành.
 - Không sửa voice của CastingPlan/job cũ; thay profile/override chỉ ảnh hưởng plan/job mới.
 - Voice cloning nằm ngoài phạm vi Personal Edition hiện tại.
 
@@ -286,8 +286,8 @@ GET    /api/diagnostics
 
 Thứ tự Personal Edition tiếp theo:
 
-1. Three-Voice Profile UI and Casting Integration.
-2. Book-level Character Bible Import.
+1. Book-level Character Bible Import.
+2. Gemini speaker assignment draft khi thực sự cần.
 3. Book-level Character Bible Import.
 4. Gemini Speaker Assignment Draft.
 5. Real chapter workflow review.
@@ -570,7 +570,7 @@ EPUB
 - Word-level forced alignment.
 - SRT/VTT hoàn chỉnh trên UI.
 - Book-level Character Bible và automatic speaker assignment.
-- Book Voice Profile ba nhóm/unknown resolver (core đã có; UI integration đang chờ).
+- Book Voice Profile ba nhóm/unknown resolver và UI integration.
 - Scene planning, image generation, video composition và metadata/thumbnail trong Story Audio; các phần này thuộc YouTube Auto.
 - Nhiều TTS worker hoặc remote worker.
 

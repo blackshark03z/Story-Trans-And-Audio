@@ -78,7 +78,9 @@ class VoicePreviewRequest(BaseModel):
 
 class CharacterCreateRequest(BaseModel):
     display_name: str = Field(min_length=1, max_length=120)
-    default_voice_id: str = Field(min_length=1, max_length=200)
+    default_voice_id: str | None = Field(default=None, max_length=200)
+    voice_override_id: str | None = Field(default=None, max_length=200)
+    gender: str | None = None
 
 
 class CharacterUpdateRequest(BaseModel):
@@ -104,6 +106,9 @@ class VoiceResolveRequest(BaseModel):
     speaker_type: str
     character_id: int | None = None
     inferred_gender: str | None = None
+    gender: str | None = None
+    use_character_override: bool = True
+    voice_override_id: str | None = Field(default=None, max_length=200)
 
 
 class CastingAssignment(BaseModel):
@@ -265,9 +270,12 @@ def book_characters(book_id: int) -> list[dict[str, Any]]:
 @app.post("/api/books/{book_id}/characters")
 def add_character(book_id: int, request: CharacterCreateRequest) -> dict[str, Any]:
     try:
-        if request.default_voice_id not in _preset_voice_ids():
+        voice_id = request.voice_override_id or request.default_voice_id
+        if voice_id is not None and voice_id not in _preset_voice_ids():
             raise CastingError("Preset voice does not exist")
-        return create_character(db, book_id, request.display_name, request.default_voice_id)
+        return create_character(
+            db, book_id, request.display_name, voice_id, gender=request.gender
+        )
     except CastingError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -290,10 +298,17 @@ def edit_character(character_id: int, request: CharacterUpdateRequest) -> dict[s
 
 @app.get("/api/books/{book_id}/voice-profile")
 def read_book_voice_profile(book_id: int) -> dict[str, Any]:
+    if not db.fetch_one("SELECT id FROM books WHERE id=?", (book_id,)):
+        raise HTTPException(404, "Book not found")
     profile = get_book_voice_profile(db, book_id)
     if not profile:
-        raise HTTPException(404, "Book voice profile not found")
-    return {**profile, **profile_validation(profile, _preset_voice_ids())}
+        return {"configured": False, "profile": None, "valid": False, "missing_preset_ids": []}
+    return {
+        "configured": True,
+        "profile": profile,
+        **profile,
+        **profile_validation(profile, _preset_voice_ids()),
+    }
 
 
 @app.put("/api/books/{book_id}/voice-profile")
@@ -311,11 +326,16 @@ def write_character_voice_override(
     character_id: int, request: CharacterOverrideRequest
 ) -> dict[str, Any]:
     try:
+        if request.gender is not None and request.gender not in {"male", "female", "unknown"}:
+            raise VoiceProfileError("Character gender is invalid")
+        valid_voices = _preset_voice_ids()
+        if request.voice_override_id is not None and request.voice_override_id not in valid_voices:
+            raise VoiceProfileError("Character override is not an available preset voice")
         result = set_character_voice_override(
             db,
             character_id,
             request.voice_override_id,
-            allowed_voice_ids=_preset_voice_ids(),
+            allowed_voice_ids=valid_voices,
         )
         if request.gender is not None:
             result = set_character_gender(db, character_id, request.gender)
@@ -339,12 +359,25 @@ def resolve_voice_preview(book_id: int, request: VoiceResolveRequest) -> dict[st
             if not row:
                 raise VoiceProfileError("Character not found in this book")
             character = dict(row)
-        return resolve_voice(
+            if request.gender is not None:
+                if request.gender not in {"male", "female", "unknown"}:
+                    raise VoiceProfileError("Character gender is invalid")
+                character["gender"] = request.gender
+        if request.voice_override_id is not None and request.voice_override_id not in _preset_voice_ids():
+            raise VoiceProfileError("Preview override is not an available preset voice")
+        preview_override = (
+            request.voice_override_id
+            if request.voice_override_id is not None
+            else (None if request.use_character_override else "")
+        )
+        result = resolve_voice(
             speaker_type=request.speaker_type,
             book_voice_profile=profile,
             character=character,
             inferred_gender=request.inferred_gender,
+            optional_override=preview_override,
         )
+        return {**result, "resolved_voice": result["voice"]}
     except VoiceProfileError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -361,7 +394,7 @@ def remove_character(character_id: int) -> dict[str, bool]:
 @app.get("/api/chapters/{chapter_id}/casting")
 def chapter_casting(chapter_id: int) -> dict[str, Any]:
     try:
-        return casting_context(db, store, chapter_id)
+        return casting_context(db, store, chapter_id, _preset_voice_ids())
     except CastingError as exc:
         raise HTTPException(400, str(exc)) from exc
 

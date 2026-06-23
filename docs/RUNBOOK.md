@@ -56,9 +56,22 @@ Không copy log ra ngoài trước khi kiểm tra secret/path/text nhạy cảm.
 
 - Schema v3 dùng `voice_override_id` optional; `default_voice_id` vẫn là legacy compatibility field, không xóa hoặc đổi hàng loạt.
 - CastingPlan/job đã tạo giữ nguyên `resolved_voice_id`. Retry phải dùng snapshot cũ.
-- Three-Voice Profile core đã có trong runtime/API; UI cấu hình đầy đủ là task tiếp theo.
+- Three-Voice Profile core và UI casting đã có trong runtime.
 - Khi profile được triển khai, đổi narrator/male/female/unknown fallback hoặc character override chỉ áp dụng cho casting/job mới.
 - Utterance-level voice override hiện chưa tồn tại; không hướng dẫn người vận hành sửa JSON/DB để giả lập.
+
+### Three-Voice workflow
+
+```text
+Create Book Voice Profile
+→ preview narrator/male/female/fallback
+→ configure character book-default/custom override
+→ review effective voice/source/needs-review
+→ save and approve casting
+→ create job
+```
+
+Profile/override edit chỉ áp dụng cho casting plan và job mới. Book chưa có profile hiển thị empty state và không được tự tạo mặc định; legacy override chỉ bị clear khi người dùng chủ động chọn **Use book default** rồi lưu.
 
 ### Job bị interrupted
 

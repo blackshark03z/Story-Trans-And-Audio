@@ -65,7 +65,7 @@ Approved TextRevision
 - `jobs.voice_name`: narrator/single-voice lựa chọn tại lúc tạo job.
 - `job_chapters.voice_snapshot_json` và `jobs.casting_snapshot_json`: resolved narrator/character voices của job multi-voice.
 - `segments.resolved_voice_id`: voice cuối cùng dùng để tổng hợp; retry reuse giá trị này.
-- Resolution metadata (`resolution_source`, gender, `needs_review`, profile ID/version và preset ref) nằm trong immutable casting JSON/job snapshot, không phụ thuộc profile mutable khi retry.
+- Resolution metadata (`resolution_source`, gender, `needs_review`, profile ID/version và preset ref) nằm trong immutable casting JSON/job snapshot, không phụ thuộc profile mutable khi retry. Timeline artifact mới sao chép metadata này từ snapshot; timeline/artifact cũ không bị rewrite.
 
 ### Model runtime
 

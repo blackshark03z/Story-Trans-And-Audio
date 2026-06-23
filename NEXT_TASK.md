@@ -1,24 +1,23 @@
 # Next Task
 
 Current Sprint:
-Personal Edition Voice Simplification
+Personal Edition Character Identity
 
 Current Task:
-Three-Voice Profile UI and Casting Integration
+Book-level Character Bible Import
 
 Status:
 Ready
 
 Definition of Done:
-- Cấu hình Book Voice Profile trong UI.
-- Character Manager có Use book default/Custom voice và gender manual.
-- Casting hiển thị resolved voice cùng resolution source/needs-review.
-- Voice preview và real-TTS smoke ngắn cho narrator/male/female.
+- JSON import và dry-run trước khi ghi.
+- Identity, alias, gender và role theo book.
+- Optional voice override tương thích Three-Voice Profile.
+- Conflict detection và handoff character-seed integration.
 - Offline tests và Doctor đạt.
 
 Do Not Work On:
 - UI redesign.
-- Character Bible import.
 - Gemini speaker assignment.
 - Voice cloning.
 - Emotion control.

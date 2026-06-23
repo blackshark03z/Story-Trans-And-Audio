@@ -8,7 +8,7 @@ from typing import Any, Iterable
 from .db import Database, utcnow
 from .files import sha256_text
 from .storage import ContentStore
-from .voice_profile import get_book_voice_profile, resolve_voice
+from .voice_profile import get_book_voice_profile, preset_ref, profile_validation, resolve_voice
 
 
 CASTING_SCHEMA_VERSION = 1
@@ -233,6 +233,10 @@ def create_casting_draft(
     chapter = db.fetch_one("SELECT id,book_id FROM chapters WHERE id=?", (chapter_id,))
     profile = get_book_voice_profile(db, int(chapter["book_id"]))
     if profile:
+        validation = profile_validation(profile, allowed_voice_ids)
+        if not validation["valid"]:
+            missing = ", ".join(validation["missing_preset_ids"])
+            raise CastingError(f"Book Voice Profile contains unavailable preset(s): {missing}")
         narrator_result = resolve_voice(
             speaker_type="narrator", book_voice_profile=profile
         )
@@ -280,8 +284,12 @@ def create_casting_draft(
             )
             resolved_voice_id = resolution["resolved_voice_id"]
         else:
-            resolved_voice_id = str(character["voice_override_id"] or character["default_voice_id"])
+            resolved_voice_id = str(character["voice_override_id"] or "")
             resolution = None
+            if not resolved_voice_id:
+                raise CastingError(
+                    "Create a Book Voice Profile before using book-default character voices"
+                )
         if resolved_voice_id not in allowed_voice_ids:
             raise CastingError("Character voice is not an available preset")
         target.update(
@@ -376,7 +384,12 @@ def get_plan(db: Database, store: ContentStore, plan_id: int, include_text: bool
     return result
 
 
-def casting_context(db: Database, store: ContentStore, chapter_id: int) -> dict[str, Any]:
+def casting_context(
+    db: Database,
+    store: ContentStore,
+    chapter_id: int,
+    allowed_voice_ids: set[str] | None = None,
+) -> dict[str, Any]:
     chapter = db.fetch_one("SELECT * FROM chapters WHERE id=?", (chapter_id,))
     if not chapter:
         raise CastingError("Chapter not found")
@@ -401,9 +414,45 @@ def casting_context(db: Database, store: ContentStore, chapter_id: int) -> dict[
             "narrator_voice_id": "",
             "plan": {"utterances": utterances},
         }
+    profile = get_book_voice_profile(db, int(chapter["book_id"]))
+    characters = list_characters(db, int(chapter["book_id"]))
+    for character in characters:
+        if profile:
+            character["effective_resolution"] = resolve_voice(
+                speaker_type="dialogue",
+                book_voice_profile=profile,
+                character=character,
+            )
+        elif character.get("voice_override_id"):
+            legacy_voice = str(character["voice_override_id"])
+            character["effective_resolution"] = {
+                "voice": preset_ref(legacy_voice),
+                "resolved_voice_id": legacy_voice,
+                "resolution_source": "character_override",
+                "character_id": int(character["id"]),
+                "gender": character.get("gender") or "unknown",
+                "profile_id": None,
+                "profile_version": None,
+                "needs_review": False,
+            }
+        else:
+            character["effective_resolution"] = None
+    profile_state: dict[str, Any] = {
+        "configured": bool(profile),
+        "profile": profile,
+        "validation": None,
+        "narrator_resolution": None,
+    }
+    if profile:
+        profile_state["narrator_resolution"] = resolve_voice(
+            speaker_type="narrator", book_voice_profile=profile
+        )
+        if allowed_voice_ids is not None:
+            profile_state["validation"] = profile_validation(profile, allowed_voice_ids)
     return {
         "chapter": {"id": chapter_id, "book_id": chapter["book_id"], "title": chapter["title"]},
-        "characters": list_characters(db, int(chapter["book_id"])),
+        "characters": characters,
+        "voice_profile": profile_state,
         "casting": plan,
     }
 

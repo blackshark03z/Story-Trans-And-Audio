@@ -108,13 +108,49 @@
     <div class="tabs"><button data-tab="reflowed" class="active">Reflowed</button><button data-tab="repaired">Gemini</button><button data-tab="raw">Raw</button><button data-tab="diff">Text Diff</button><button data-tab="casting">Character Voices</button></div>
     <pre id="chapterText"></pre>
     <div id="castingPanel" class="casting-panel hidden">
+      <section class="voice-profile-card">
+        <div class="section-head">
+          <div><p class="eyebrow">Book settings</p><h3>Book Voice Profile</h3></div>
+          <span id="voiceProfileMeta" class="pill">Not configured</span>
+        </div>
+        <div id="voiceProfileEmpty" class="profile-empty">
+          <strong>No Book Voice Profile configured.</strong>
+          <span>Create one before using automatic three-voice resolution.</span>
+        </div>
+        <div class="profile-grid">
+          <label>Narrator voice<select id="profileNarratorVoice"></select><button class="ghost profile-preview" data-profile-preview="narrator">▶ Preview Narrator</button></label>
+          <label>Default male dialogue<select id="profileMaleVoice"></select><button class="ghost profile-preview" data-profile-preview="male">▶ Preview Male</button></label>
+          <label>Default female dialogue<select id="profileFemaleVoice"></select><button class="ghost profile-preview" data-profile-preview="female">▶ Preview Female</button></label>
+          <label>Unknown fallback
+            <select id="profileUnknownFallback">
+              <option value="narrator">Narrator</option>
+              <option value="male_dialogue">Male dialogue</option>
+              <option value="female_dialogue">Female dialogue</option>
+              <option value="explicit_voice">Explicit voice</option>
+            </select>
+            <button class="ghost profile-preview" data-profile-preview="fallback">▶ Preview Fallback</button>
+          </label>
+          <label id="profileExplicitVoiceLabel" class="hidden">Explicit fallback voice<select id="profileExplicitVoice"></select></label>
+        </div>
+        <div id="profileValidation" class="profile-validation muted"></div>
+        <div id="profilePreviewBox" class="voice-preview hidden">
+          <audio id="profilePreviewAudio" controls preload="metadata"></audio>
+          <span id="profilePreviewStatus" class="muted"></span>
+        </div>
+        <div class="profile-actions">
+          <span class="muted">Changes apply only to new casting plans and jobs.</span>
+          <button id="saveVoiceProfile" class="secondary">Create Voice Profile</button>
+        </div>
+      </section>
       <div class="casting-toolbar">
-        <label>Giọng narrator<select id="castingNarratorVoice"></select></label>
+        <label>Giọng narrator<select id="castingNarratorVoice"></select><small id="castingNarratorSource" class="muted"></small></label>
         <div><span id="castingPlanStatus" class="pill">Chưa có plan</span></div>
       </div>
       <h3>Nhân vật</h3>
       <div class="character-add row">
         <input id="newCharacterName" placeholder="Tên nhân vật">
+        <select id="newCharacterGender"><option value="unknown">Unknown</option><option value="male">Male</option><option value="female">Female</option></select>
+        <select id="newCharacterAssignment"><option value="default">Use book default</option><option value="custom">Use custom voice</option></select>
         <select id="newCharacterVoice"></select>
         <button id="addCharacterBtn" class="secondary">Thêm nhân vật</button>
       </div>
