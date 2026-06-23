@@ -32,7 +32,8 @@ SchemaMigration
 - `Artifact`: file đã verify như master WAV, timeline hoặc M4A/MP3.
 - `Job/JobChapter`: orchestration state, không phải nội dung nguồn.
 - `SchemaMigration`: lịch sử schema bất biến; checksum ngăn sửa migration đã phát hành.
-- `Character` hiện tại: nhân vật thuộc một book với `display_name` và `default_voice_id` bắt buộc; field voice đang được resolve như voice riêng khi tạo plan.
+- `BookVoiceProfile`: tối đa một profile active cho mỗi book, chứa ba preset mặc định và unknown fallback policy.
+- `Character`: nhân vật thuộc một book với optional `gender` và `voice_override_id`; `default_voice_id` chỉ còn là compatibility field cho schema v2/API cũ.
 - `CastingPlanRevision`: JSON blob bất biến pin TextRevision và offset utterance; SQLite chỉ giữ metadata/hash/path.
 - `JobChapter.voice_snapshot_json`: snapshot narrator/character voices và utterance assignment tại lúc tạo job.
 - `Segment`: với multi-voice còn pin utterance, role, character, resolved voice và synthesis hash.
@@ -52,18 +53,21 @@ Approved TextRevision
 - Voice character hiện tại chỉ ảnh hưởng plan mới; plan/job cũ giữ `resolved_voice_id` snapshot.
 - Không segment nào chứa text từ hai speaker. Một utterance có thể sinh nhiều segment cùng voice.
 
-## Three-Voice Profile — current state và proposed state
+## Three-Voice Profile — schema v3
 
-### Đã tồn tại trong schema v2
+### Storage thực tế
 
-- `characters.default_voice_id TEXT NOT NULL`: voice riêng bắt buộc cho mỗi character. Khi chuyển model, giá trị hiện có phải được bảo toàn và diễn giải như legacy character override.
+- `book_voice_profiles`: một row/book với narrator, male dialogue, female dialogue, unknown policy, optional explicit unknown voice, `config_version` và timestamps.
+- `characters.voice_override_id`: nullable; `NULL` nghĩa là dùng Book Voice Profile.
+- `characters.gender`: nullable/manual `male | female | unknown`; resolver không tự ghi inferred gender trở lại.
+- `characters.default_voice_id TEXT NOT NULL`: legacy compatibility field. Migration v3 giữ nguyên và copy giá trị không rỗng sang `voice_override_id`.
 - `casting_plans.narrator_voice_id`: narrator voice pin trong immutable CastingPlanRevision.
 - `jobs.voice_name`: narrator/single-voice lựa chọn tại lúc tạo job.
 - `job_chapters.voice_snapshot_json` và `jobs.casting_snapshot_json`: resolved narrator/character voices của job multi-voice.
 - `segments.resolved_voice_id`: voice cuối cùng dùng để tổng hợp; retry reuse giá trị này.
-- Chưa có book-level settings storage, gender/alias/role, optional override hoặc `needs_review` cho unknown speaker.
+- Resolution metadata (`resolution_source`, gender, `needs_review`, profile ID/version và preset ref) nằm trong immutable casting JSON/job snapshot, không phụ thuộc profile mutable khi retry.
 
-### Model dự kiến cho Three-Voice Profile Core
+### Model runtime
 
 ```text
 BookVoiceProfile
@@ -71,20 +75,20 @@ BookVoiceProfile
 ├── narrator_voice_id
 ├── male_dialogue_voice_id
 ├── female_dialogue_voice_id
-└── unknown_fallback          # mặc định kế thừa narrator
+├── unknown_fallback          # narrator | male_dialogue | female_dialogue | explicit_voice
+├── unknown_voice_id?         # bắt buộc khi policy=explicit_voice
+└── config_version
 
 Character
-├── external_key
-├── canonical_name
-├── aliases
+├── display_name
 ├── gender                    # male | female | unknown
-├── role
-└── voice_override_id?        # optional
+├── voice_override_id?        # optional
+└── default_voice_id          # legacy compatibility only
 ```
 
-`default_voice_id` hiện tại có thể được migrate/reused làm `voice_override_id` cho dữ liệu cũ, nhưng vì column đang `NOT NULL` nên chưa thể mô tả inheritance như đã triển khai. BookVoiceProfile cũng chưa có nơi lưu; task tiếp theo có khả năng cần migration version mới sau khi chốt compatibility strategy.
+Profile được sửa in-place và tăng `config_version`, nhưng chỉ ảnh hưởng casting/job mới. Missing preset trong dữ liệu cũ được báo bằng validation metadata; đọc profile không làm app crash và không tự fallback sang voice khác.
 
-### Voice resolution dự kiến
+### Voice resolution đã triển khai
 
 ```text
 utterance override (nếu tương lai có)
@@ -99,7 +103,7 @@ utterance override (nếu tương lai có)
 - Không biết character và gender → unknown fallback + `needs_review=true`.
 - Hệ thống hiện chưa có utterance-level voice override; không được giả định field này tồn tại.
 
-Resolver tạo resolved voice trước khi tạo job/segment và ghi vào immutable snapshot. Profile/override thay đổi không invalidates hoặc resolve lại plan/job cũ.
+Resolver tạo resolved voice trước khi tạo casting/job và ghi vào immutable snapshot. Profile/override thay đổi không invalidates hoặc resolve lại plan/job cũ. Utterance-level override chưa tồn tại; priority hiện bắt đầu từ character override.
 
 ### Book-level Character Bible dự kiến
 
@@ -193,7 +197,7 @@ Không lưu absolute path trong API contract công khai. DB hiện giữ absolut
 
 ## Schema evolution rule
 
-Schema hiện tại: **version 2**, migrations `0001_initial.sql` và `0002_character_voice.sql`.
+Schema hiện tại: **version 3**, migrations `0001_initial.sql`, `0002_character_voice.sql` và `0003_three_voice_profile.sql`.
 
 Startup flow:
 
@@ -205,7 +209,7 @@ Startup flow:
 
 Trước thay đổi schema tiếp theo phải:
 
-1. Thêm file migration kế tiếp, hiện là `story_audio/migrations/0003_<name>.sql`; không sửa migration đã phát hành.
+1. Thêm file migration kế tiếp, hiện là `story_audio/migrations/0004_<name>.sql`; không sửa migration đã phát hành.
 2. Migration tăng dần, contiguous, idempotent và transaction-safe.
 3. Backup DB trước migration.
 4. Test upgrade từ fixture version trước.

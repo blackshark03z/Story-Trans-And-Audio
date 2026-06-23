@@ -100,6 +100,7 @@ def create_job(
             "casting_plan_sha256": casting_row["plan_sha256"],
             "text_revision_id": casting_row["text_revision_id"],
             "narrator_voice_id": casting_plan["narrator_voice_id"],
+            "book_voice_profile": casting_plan.get("book_voice_profile"),
             "utterances": casting_plan["utterances"],
             "resolved_character_voices": {
                 str(item["character_id"]): item["resolved_voice_id"]

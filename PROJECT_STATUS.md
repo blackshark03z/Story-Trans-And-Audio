@@ -15,8 +15,8 @@
 - Gemini key: được nhận diện; không lưu trong DB/log.
 - VieNeu: v3 Turbo CPU/ONNX, 10 preset voice.
 - FFmpeg/FFprobe: hoạt động.
-- Schema migration: version 2 (`0002_character_voice`), checksum-locked.
-- Offline tests: 67 test đạt.
+- Schema migration: version 3 (`0003_three_voice_profile`), checksum-locked.
+- Offline tests: 73 test đạt.
 - End-to-end smoke: chương 858, giọng Ngọc Lan, Gemini `all_selected`.
 - Kết quả smoke: 10/10 segment, M4A dài 118.710 ms, artifact active.
 - Multi-voice real-TTS smoke: isolated book 3 / chapter 1982, casting plan 2, job 3.
@@ -37,7 +37,7 @@
 
 ## Quyết định voice casting Personal Edition
 
-Audio casting mặc định sẽ dùng ba nhóm voice cấp book: narrator, male dialogue và female dialogue; unknown fallback mặc định về narrator. Character identity tách khỏi voice identity và chỉ nhân vật quan trọng mới có optional voice override. Quyết định này đã được chốt trong ADR, nhưng Book Voice Profile và resolver chưa triển khai.
+Audio casting mặc định dùng ba nhóm voice cấp book: narrator, male dialogue và female dialogue; unknown fallback mặc định về narrator. Character identity tách khỏi voice identity và chỉ nhân vật quan trọng mới có optional voice override. Resolver deterministic và snapshot profile/version/source vào casting/job mới; plan/job cũ không bị resolve lại.
 
 ## Chức năng đã hoàn thành
 
@@ -68,6 +68,7 @@ Audio casting mặc định sẽ dùng ba nhóm voice cấp book: narrator, male
 - [x] Text Revision Diff raw/reflowed/repaired với Inline và Side-by-side UI.
 - [x] Shared Gemini repair cache theo source/model/prompt/repair contract, có lexical revalidation và cleanup dry-run.
 - [x] Story Audio → YouTube Auto Handoff V1 một chương, manifest SHA-256, speech timing và character seed.
+- [x] Three-Voice Profile Core: book profile, optional character override, gender-aware resolver và immutable job snapshot.
 
 ## Hạn chế hiện tại
 
@@ -77,8 +78,8 @@ Audio casting mặc định sẽ dùng ba nhóm voice cấp book: narrator, male
 - Text diff giới hạn 500.000 ký tự kết hợp; payload trên 50.000 ký tự có warning và collapse mặc định.
 - Cleanup chưa có dry-run/quota dashboard trên UI.
 - Manual casting chưa có AI speaker detection, emotion control hoặc voice cloning theo đúng phạm vi MVP.
-- Book-level Three-Voice Profile chưa triển khai; `characters.default_voice_id` hiện tại vẫn là voice bắt buộc và sau này phải được bảo toàn như legacy override.
-- Automatic speaker/gender assignment và unknown `needs_review` chưa triển khai.
+- Three-Voice Profile chưa có UI đầy đủ; hiện cấu hình qua API/service nội bộ và casting mới.
+- Automatic speaker/gender assignment chưa triển khai; gender hiện là dữ liệu manual, unknown được đánh dấu `needs_review` trong resolution metadata.
 - Loudness giữa preset có chênh nhẹ (smoke đo tối đa 3,2 dB mean); chưa normalization theo đúng phạm vi.
 - Backup là full snapshot, chưa incremental/compress và có thể lớn khi thư viện tăng.
 - Restore remap artifact/work paths trong data root nhưng không đóng gói EPUB nguồn nằm ngoài `data/`.
@@ -107,7 +108,7 @@ Các hạng mục vận hành/quota và alignment không cấp thiết được 
 ### P2 — Personal Edition voice
 
 - [x] YouTube Auto Handoff V1.
-- [ ] Three-Voice Profile Core.
+- [x] Three-Voice Profile Core.
 - [ ] Three-Voice Profile UI and Casting Integration.
 - [ ] Book-level Character Bible Import.
 - [ ] Gemini speaker assignment draft khi thực sự cần.
@@ -132,6 +133,7 @@ Các hạng mục vận hành/quota và alignment không cấp thiết được 
 | 2026-06-23 | M2 Diagnostic UI | Job/chapter/segment diagnostics; retry giữ nguyên verified segment; 23 test offline đạt |
 | 2026-06-23 | M2 Voice Preview | Preset preview cache theo voice/text/settings/engine; fake TTS; 28 test offline đạt |
 | 2026-06-23 | M2 Character Voice MVP | Schema v2; manual casting; multi-voice snapshot/segments/timeline; 38 test offline đạt |
+| 2026-06-23 | Three-Voice Profile Core | Schema v3; profile/override/resolver/snapshot; 73 test offline và Doctor deep đạt |
 | 2026-06-23 | Multi-voice real-TTS smoke | Job 3; 3 voices; 8/8 segment; retry 1 segment và reuse 7; M4A 22.810 ms |
 | 2026-06-23 | Text Revision Diff | Structured read-only API; Inline/Side-by-side; 50 tests; chapter 18.649 chars ≈330 ms live API |
 | 2026-06-23 | Shared Gemini repair cache | Filesystem manifest + text blob; lexical revalidation; corrupt-as-miss; cleanup/doctor; 60 tests |

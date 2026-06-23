@@ -88,7 +88,7 @@ Mỗi quyết định có ID ổn định. Khi thay đổi, thêm quyết địn
 
 ## ADR-013 — Hybrid Three-Voice Profile With Optional Character Overrides
 
-**Status:** Accepted as target architecture; implementation pending.
+**Status:** Accepted and implemented in schema v3 (core); UI integration pending.
 
 **Decision:** Mỗi book có một `BookVoiceProfile` gồm narrator, male dialogue, female dialogue và unknown fallback. Character identity tách khỏi voice identity; phần lớn nhân vật kế thừa voice theo gender, chỉ nhân vật quan trọng mới có optional `voice_override_id`. Không gán một voice riêng cho hàng trăm nhân vật phụ.
 
@@ -107,7 +107,7 @@ Không biết character nhưng biết gender vẫn dùng male/female dialogue vo
 
 **Backward compatibility:** `characters.default_voice_id` hiện có được coi là legacy voice override và không bị xóa hoặc tự đổi. CastingPlan và job snapshot cũ giữ nguyên. Retry dùng `resolved_voice_id` đã snapshot. Đổi Book Voice Profile hoặc character override chỉ ảnh hưởng casting/job mới; không resolve lại âm thầm job đã tạo.
 
-**Consequence:** Voice resolver phải deterministic và snapshot kết quả khi tạo casting/job. Book-level Character Bible vẫn giữ canonical identity, aliases, gender và role cho speaker tracking/visual pipeline. Cần task triển khai riêng; ADR này không tuyên bố schema hoặc resolver đã tồn tại.
+**Consequence:** Voice resolver deterministic snapshot kết quả, resolution source và profile ID/version khi tạo casting/job. Schema v3 thêm `book_voice_profiles`, `characters.gender` và optional `voice_override_id`; `default_voice_id` được giữ làm compatibility field. Book-level Character Bible vẫn là task riêng; UI profile/casting chưa nằm trong core này.
 
 ## Khi nào cần ADR mới
 

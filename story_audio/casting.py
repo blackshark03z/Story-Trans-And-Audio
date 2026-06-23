@@ -8,6 +8,7 @@ from typing import Any, Iterable
 from .db import Database, utcnow
 from .files import sha256_text
 from .storage import ContentStore
+from .voice_profile import get_book_voice_profile, resolve_voice
 
 
 CASTING_SCHEMA_VERSION = 1
@@ -144,11 +145,20 @@ def list_characters(db: Database, book_id: int, include_inactive: bool = False) 
     ]
 
 
-def create_character(db: Database, book_id: int, display_name: str, voice_id: str) -> dict[str, Any]:
+def create_character(
+    db: Database,
+    book_id: int,
+    display_name: str,
+    voice_id: str | None = None,
+    *,
+    gender: str | None = None,
+) -> dict[str, Any]:
     name = display_name.strip()
-    voice_id = voice_id.strip()
-    if not name or not voice_id:
-        raise CastingError("Character name and preset voice are required")
+    voice_id = voice_id.strip() if voice_id else ""
+    if not name:
+        raise CastingError("Character name is required")
+    if gender not in {None, "male", "female", "unknown"}:
+        raise CastingError("Character gender is invalid")
     if not db.fetch_one("SELECT id FROM books WHERE id=?", (book_id,)):
         raise CastingError("Book not found")
     now = utcnow()
@@ -156,8 +166,10 @@ def create_character(db: Database, book_id: int, display_name: str, voice_id: st
         with db.connect() as connection:
             character_id = int(
                 connection.execute(
-                    "INSERT INTO characters(book_id,display_name,default_voice_id,created_at,updated_at) VALUES(?,?,?,?,?)",
-                    (book_id, name, voice_id, now, now),
+                    """INSERT INTO characters(
+                       book_id,display_name,default_voice_id,voice_override_id,gender,created_at,updated_at
+                       ) VALUES(?,?,?,?,?,?,?)""",
+                    (book_id, name, voice_id, voice_id or None, gender, now, now),
                 ).lastrowid
             )
     except sqlite3.IntegrityError as exc:
@@ -166,19 +178,26 @@ def create_character(db: Database, book_id: int, display_name: str, voice_id: st
 
 
 def update_character(
-    db: Database, character_id: int, *, display_name: str | None = None, voice_id: str | None = None
+    db: Database,
+    character_id: int,
+    *,
+    display_name: str | None = None,
+    voice_id: str | None = None,
+    gender: str | None = None,
 ) -> dict[str, Any]:
     row = db.fetch_one("SELECT * FROM characters WHERE id=? AND active=1", (character_id,))
     if not row:
         raise CastingError("Character not found")
     name = display_name.strip() if display_name is not None else row["display_name"]
-    voice = voice_id.strip() if voice_id is not None else row["default_voice_id"]
-    if not name or not voice:
-        raise CastingError("Character name and preset voice are required")
+    voice = voice_id.strip() if voice_id is not None else row["voice_override_id"]
+    resolved_gender = gender if gender is not None else row["gender"]
+    if not name or (resolved_gender is not None and resolved_gender not in {"male", "female", "unknown"}):
+        raise CastingError("Character name or gender is invalid")
     with db.connect() as connection:
         connection.execute(
-            "UPDATE characters SET display_name=?,default_voice_id=?,updated_at=? WHERE id=?",
-            (name, voice, utcnow(), character_id),
+            """UPDATE characters SET display_name=?,default_voice_id=?,voice_override_id=?,
+               gender=?,updated_at=? WHERE id=?""",
+            (name, voice or "", voice or None, resolved_gender, utcnow(), character_id),
         )
     return dict(db.fetch_one("SELECT * FROM characters WHERE id=?", (character_id,)))
 
@@ -210,10 +229,18 @@ def create_casting_draft(
     maximum: int = 256,
 ) -> dict[str, Any]:
     narrator_voice_id = narrator_voice_id.strip()
-    if narrator_voice_id not in allowed_voice_ids:
-        raise CastingError("Narrator voice is not an available preset")
     revision = _revision(db, chapter_id, text_revision_id)
     chapter = db.fetch_one("SELECT id,book_id FROM chapters WHERE id=?", (chapter_id,))
+    profile = get_book_voice_profile(db, int(chapter["book_id"]))
+    if profile:
+        narrator_result = resolve_voice(
+            speaker_type="narrator", book_voice_profile=profile
+        )
+        narrator_voice_id = narrator_result["resolved_voice_id"]
+    else:
+        narrator_result = None
+    if narrator_voice_id not in allowed_voice_ids:
+        raise CastingError("Narrator voice is not an available preset")
     text = store.read_text(revision["content_path"])
     utterances = split_utterances(text, maximum=maximum)
     by_id = {utterance["utterance_id"]: utterance for utterance in utterances}
@@ -228,6 +255,15 @@ def create_casting_draft(
         target = by_id[utterance_id]
         if role == "narrator":
             target["resolved_voice_id"] = narrator_voice_id
+            if narrator_result:
+                target.update(
+                    resolved_voice=narrator_result["voice"],
+                    resolution_source=narrator_result["resolution_source"],
+                    resolved_gender=narrator_result["gender"],
+                    voice_profile_id=narrator_result["profile_id"],
+                    voice_profile_version=narrator_result["profile_version"],
+                    needs_review=narrator_result["needs_review"],
+                )
             continue
         if role != "character" or assignment.get("character_id") is None:
             raise CastingError("Speaker must be narrator or a character")
@@ -238,17 +274,43 @@ def create_casting_draft(
         )
         if not character:
             raise CastingError("Character does not belong to this book")
-        if character["default_voice_id"] not in allowed_voice_ids:
+        if profile:
+            resolution = resolve_voice(
+                speaker_type="dialogue", book_voice_profile=profile, character=character
+            )
+            resolved_voice_id = resolution["resolved_voice_id"]
+        else:
+            resolved_voice_id = str(character["voice_override_id"] or character["default_voice_id"])
+            resolution = None
+        if resolved_voice_id not in allowed_voice_ids:
             raise CastingError("Character voice is not an available preset")
         target.update(
             role="character",
             character_id=character_id,
-            resolved_voice_id=character["default_voice_id"],
+            resolved_voice_id=resolved_voice_id,
         )
+        if resolution:
+            target.update(
+                resolved_voice=resolution["voice"],
+                resolution_source=resolution["resolution_source"],
+                resolved_gender=resolution["gender"],
+                voice_profile_id=resolution["profile_id"],
+                voice_profile_version=resolution["profile_version"],
+                needs_review=resolution["needs_review"],
+            )
         used_characters.add(character_id)
     for utterance in utterances:
         if not utterance["resolved_voice_id"]:
             utterance["resolved_voice_id"] = narrator_voice_id
+            if narrator_result:
+                utterance.update(
+                    resolved_voice=narrator_result["voice"],
+                    resolution_source=narrator_result["resolution_source"],
+                    resolved_gender=narrator_result["gender"],
+                    voice_profile_id=narrator_result["profile_id"],
+                    voice_profile_version=narrator_result["profile_version"],
+                    needs_review=narrator_result["needs_review"],
+                )
 
     payload = {
         "schema_version": CASTING_SCHEMA_VERSION,
@@ -256,6 +318,19 @@ def create_casting_draft(
         "chapter_id": chapter_id,
         "text_revision_id": text_revision_id,
         "narrator_voice_id": narrator_voice_id,
+        "book_voice_profile": (
+            {
+                "id": int(profile["id"]),
+                "config_version": int(profile["config_version"]),
+                "narrator_voice_id": profile["narrator_voice_id"],
+                "male_dialogue_voice_id": profile["male_dialogue_voice_id"],
+                "female_dialogue_voice_id": profile["female_dialogue_voice_id"],
+                "unknown_fallback": profile["unknown_fallback"],
+                "unknown_voice_id": profile["unknown_voice_id"],
+            }
+            if profile
+            else None
+        ),
         "utterances": utterances,
     }
     content_path, plan_sha = store.put_json(payload, namespace="casting")

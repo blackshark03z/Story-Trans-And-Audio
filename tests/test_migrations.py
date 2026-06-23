@@ -92,11 +92,45 @@ class MigrationTests(unittest.TestCase):
             finally:
                 connection.close()
             database = Database(path)
-            self.assertEqual(database.initialize(), 2)
+            self.assertEqual(database.initialize(), LATEST_SCHEMA_VERSION)
             self.assertEqual(database.fetch_one("SELECT COUNT(*) AS n FROM books")["n"], 1)
             self.assertEqual(database.fetch_one("SELECT COUNT(*) AS n FROM chapters")["n"], 1)
             columns = {row["name"] for row in database.fetch_all("PRAGMA table_info(segments)")}
             self.assertIn("resolved_voice_id", columns)
+
+    def test_version_two_migrates_existing_character_voice_to_override(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "v2.db"
+            connection = sqlite3.connect(path)
+            try:
+                connection.executescript(MIGRATIONS[0].sql)
+                connection.executescript(MIGRATIONS[1].sql)
+                now = utcnow()
+                book_id = connection.execute(
+                    "INSERT INTO books(title,source_path,source_sha256,created_at,updated_at) VALUES(?,?,?,?,?)",
+                    ("Book", "book.epub", "v2-sha", now, now),
+                ).lastrowid
+                connection.execute(
+                    "INSERT INTO characters(book_id,display_name,default_voice_id,created_at,updated_at) VALUES(?,?,?,?,?)",
+                    (book_id, "Legacy", "legacy-voice", now, now),
+                )
+                connection.execute(
+                    "CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,name TEXT,checksum TEXT,applied_at TEXT)"
+                )
+                for migration in MIGRATIONS[:2]:
+                    connection.execute(
+                        "INSERT INTO schema_migrations VALUES(?,?,?,?)",
+                        (migration.version, migration.name, migration.checksum, now),
+                    )
+                connection.commit()
+            finally:
+                connection.close()
+            database = Database(path)
+            self.assertEqual(database.initialize(), LATEST_SCHEMA_VERSION)
+            character = database.fetch_one("SELECT * FROM characters")
+            self.assertEqual(character["default_voice_id"], "legacy-voice")
+            self.assertEqual(character["voice_override_id"], "legacy-voice")
+            self.assertIsNone(character["gender"])
 
     def test_initialize_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

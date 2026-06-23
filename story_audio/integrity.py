@@ -47,7 +47,10 @@ def check_data_integrity(config: Settings, *, deep: bool = False) -> list[Findin
         findings.append(Finding("ERROR", "schema_version", str(exc)))
 
     counts = {}
-    for table in ("books", "chapters", "text_revisions", "jobs", "segments", "artifacts"):
+    for table in (
+        "books", "chapters", "text_revisions", "book_voice_profiles", "characters",
+        "casting_plans", "jobs", "segments", "artifacts",
+    ):
         try:
             counts[table] = int(
                 database.fetch_one(f"SELECT COUNT(*) AS count FROM {table}")["count"]

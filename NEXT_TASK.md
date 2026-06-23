@@ -4,17 +4,16 @@ Current Sprint:
 Personal Edition Voice Simplification
 
 Current Task:
-Three-Voice Profile Core
+Three-Voice Profile UI and Casting Integration
 
 Status:
-Ready for specification
+Ready
 
 Definition of Done:
-- Có Book Voice Profile gồm narrator, male dialogue, female dialogue và unknown fallback.
-- Character voice hiện có được giữ như optional override.
-- Có deterministic voice resolver.
-- Job tiếp tục snapshot resolved voice.
-- Casting/job cũ không thay đổi.
+- Cấu hình Book Voice Profile trong UI.
+- Character Manager có Use book default/Custom voice và gender manual.
+- Casting hiển thị resolved voice cùng resolution source/needs-review.
+- Voice preview và real-TTS smoke ngắn cho narrator/male/female.
 - Offline tests và Doctor đạt.
 
 Do Not Work On:

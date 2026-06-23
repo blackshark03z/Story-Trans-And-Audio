@@ -54,9 +54,9 @@ Không copy log ra ngoài trước khi kiểm tra secret/path/text nhạy cảm.
 
 ### Voice casting và backward compatibility
 
-- Schema v2 hiện dùng `characters.default_voice_id` bắt buộc; coi đây là legacy character override, không xóa hoặc đổi hàng loạt.
+- Schema v3 dùng `voice_override_id` optional; `default_voice_id` vẫn là legacy compatibility field, không xóa hoặc đổi hàng loạt.
 - CastingPlan/job đã tạo giữ nguyên `resolved_voice_id`. Retry phải dùng snapshot cũ.
-- Three-Voice Profile là task tiếp theo, chưa có trong UI/runtime hiện tại.
+- Three-Voice Profile core đã có trong runtime/API; UI cấu hình đầy đủ là task tiếp theo.
 - Khi profile được triển khai, đổi narrator/male/female/unknown fallback hoặc character override chỉ áp dụng cho casting/job mới.
 - Utterance-level voice override hiện chưa tồn tại; không hướng dẫn người vận hành sửa JSON/DB để giả lập.
 

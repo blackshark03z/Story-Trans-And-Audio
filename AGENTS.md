@@ -24,6 +24,7 @@ story_audio/tts.py       VieNeu adapter
 story_audio/db.py        SQLite schema và connection policy
 story_audio/storage.py   Content-addressed text blobs
 story_audio/casting.py   Character, immutable casting plan và deterministic utterance
+story_audio/voice_profile.py Book Voice Profile, override validation và deterministic resolver
 story_audio/text_diff.py Read-only TextRevision block/token diff engine
 story_audio/migrations/  Forward-only SQL migrations
 story_audio/backup.py    Backup/verify/restore core
@@ -37,8 +38,8 @@ tests/                   Offline unit tests
 - Không lưu full chapter text trong SQLite. Text nằm trong `data/blobs/text/<prefix>/<sha>.txt`.
 - Text revision và artifact đã verify là bất biến; thay đổi tạo revision mới.
 - Job pin text/config/voice snapshot; không đổi âm thầm giữa lúc chạy.
-- Schema v2 hiện có `characters.default_voice_id` bắt buộc. ADR-013 coi giá trị này là legacy override; Book Voice Profile/optional override/resolver chưa triển khai.
-- Task kế tiếp là Three-Voice Profile Core. Migration kế tiếp nếu cần phải là `0003_*`; không sửa migration v1/v2.
+- Schema v3 có `book_voice_profiles`, `characters.gender` và optional `voice_override_id`; `default_voice_id` vẫn được giữ làm legacy compatibility field.
+- Task kế tiếp là Three-Voice Profile UI and Casting Integration. Migration kế tiếp nếu cần phải là `0004_*`; không sửa migration v1/v2/v3.
 - Character identity tách khỏi voice identity; không thiết kế Character Bible theo giả định mỗi nhân vật cần voice riêng.
 - Ứng dụng sở hữu TTS segment, tối đa 256 ký tự với VieNeu v3 Turbo hiện tại.
 - Gemini chỉ sửa punctuation/whitespace. Sau sửa, token nguồn phải được khôi phục và lexical validator phải đạt.

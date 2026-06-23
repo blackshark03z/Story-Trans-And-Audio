@@ -39,6 +39,15 @@ from .storage import ContentStore
 from .tts import tts_service
 from .text_diff import TextDiffError, build_revision_diff, list_revision_metadata
 from .voice_preview import VoicePreviewService
+from .voice_profile import (
+    VoiceProfileError,
+    get_book_voice_profile,
+    profile_validation,
+    resolve_voice,
+    set_book_voice_profile,
+    set_character_gender,
+    set_character_voice_override,
+)
 
 
 settings.ensure_dirs()
@@ -75,6 +84,26 @@ class CharacterCreateRequest(BaseModel):
 class CharacterUpdateRequest(BaseModel):
     display_name: str | None = Field(default=None, min_length=1, max_length=120)
     default_voice_id: str | None = Field(default=None, min_length=1, max_length=200)
+    gender: str | None = None
+
+
+class BookVoiceProfileRequest(BaseModel):
+    narrator_voice_id: str = Field(min_length=1, max_length=200)
+    male_dialogue_voice_id: str = Field(min_length=1, max_length=200)
+    female_dialogue_voice_id: str = Field(min_length=1, max_length=200)
+    unknown_fallback: str = "narrator"
+    unknown_voice_id: str | None = Field(default=None, max_length=200)
+
+
+class CharacterOverrideRequest(BaseModel):
+    voice_override_id: str | None = Field(default=None, max_length=200)
+    gender: str | None = None
+
+
+class VoiceResolveRequest(BaseModel):
+    speaker_type: str
+    character_id: int | None = None
+    inferred_gender: str | None = None
 
 
 class CastingAssignment(BaseModel):
@@ -253,8 +282,70 @@ def edit_character(character_id: int, request: CharacterUpdateRequest) -> dict[s
             character_id,
             display_name=request.display_name,
             voice_id=request.default_voice_id,
+            gender=request.gender,
         )
     except CastingError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/books/{book_id}/voice-profile")
+def read_book_voice_profile(book_id: int) -> dict[str, Any]:
+    profile = get_book_voice_profile(db, book_id)
+    if not profile:
+        raise HTTPException(404, "Book voice profile not found")
+    return {**profile, **profile_validation(profile, _preset_voice_ids())}
+
+
+@app.put("/api/books/{book_id}/voice-profile")
+def write_book_voice_profile(book_id: int, request: BookVoiceProfileRequest) -> dict[str, Any]:
+    try:
+        return set_book_voice_profile(
+            db, book_id, allowed_voice_ids=_preset_voice_ids(), **request.model_dump()
+        )
+    except VoiceProfileError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.put("/api/characters/{character_id}/voice-override")
+def write_character_voice_override(
+    character_id: int, request: CharacterOverrideRequest
+) -> dict[str, Any]:
+    try:
+        result = set_character_voice_override(
+            db,
+            character_id,
+            request.voice_override_id,
+            allowed_voice_ids=_preset_voice_ids(),
+        )
+        if request.gender is not None:
+            result = set_character_gender(db, character_id, request.gender)
+        return result
+    except VoiceProfileError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/books/{book_id}/voice-profile/resolve")
+def resolve_voice_preview(book_id: int, request: VoiceResolveRequest) -> dict[str, Any]:
+    try:
+        profile = get_book_voice_profile(db, book_id)
+        if not profile:
+            raise VoiceProfileError("Book voice profile not found")
+        character = None
+        if request.character_id is not None:
+            row = db.fetch_one(
+                "SELECT * FROM characters WHERE id=? AND book_id=? AND active=1",
+                (request.character_id, book_id),
+            )
+            if not row:
+                raise VoiceProfileError("Character not found in this book")
+            character = dict(row)
+        return resolve_voice(
+            speaker_type=request.speaker_type,
+            book_voice_profile=profile,
+            character=character,
+            inferred_gender=request.inferred_gender,
+        )
+    except VoiceProfileError as exc:
         raise HTTPException(400, str(exc)) from exc
 
 
