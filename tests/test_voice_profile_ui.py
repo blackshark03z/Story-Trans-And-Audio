@@ -118,6 +118,10 @@ class VoiceProfileApiUiTests(unittest.TestCase):
         context = casting_context(self.db, self.store, self.chapter, ALL_VOICES)
         self.assertTrue(context["voice_profile"]["configured"])
         self.assertTrue(context["voice_profile"]["validation"]["valid"])
+        self.assertEqual(
+            context["voice_profile"]["unknown_resolution"]["resolution_source"],
+            "unknown_fallback",
+        )
         effective = next(
             item["effective_resolution"]
             for item in context["characters"]

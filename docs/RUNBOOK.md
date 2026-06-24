@@ -95,6 +95,30 @@ Apply chỉ khi dry-run không có invalid/conflict:
 
 Dùng `--json` để lấy structured plan, và `--update-existing` khi muốn cập nhật các field metadata được phép. Import không nhận path từ nội dung JSON, không lưu full JSON trong SQLite, không đổi Book Voice Profile, không tạo casting plan/job và không resolve lại job cũ. `null` trong `voice_override_id` không clear override hiện có.
 
+### Gemini Speaker Assignment Draft
+
+```text
+Prepare Character Bible
+→ generate speaker draft
+→ filter và inspect confidence/context
+→ chọn suggestion, alternative hoặc manual speaker
+→ preview effective voice
+→ approve reviewed decisions thành Casting Plan revision
+→ review phần còn lại trên đúng base plan
+→ tạo job thủ công sau khi casting đã đúng
+```
+
+Smoke một utterance, không tự apply vào casting:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\speaker_assignment_draft.py `
+  --chapter-id 1982 --mode reanalyze --utterance-id u0001-a99461c9571c
+```
+
+`unassigned-only` bỏ qua utterance đã confirmed; **Regenerate Draft** dùng `reanalyze` để xem lại toàn chương. Mọi kết quả Gemini vẫn cần review. Approval chỉ tạo Casting Plan revision, không tạo job/audio và không sửa Character Bible hay Book Voice Profile.
+
+Approve từng phần phải tiếp tục từ current approved base plan. Draft stale do TextRevision, Character Bible hoặc external Casting Plan change vẫn xem được nhưng nút approve bị khóa. Exact repeat cùng decision set là idempotent; muốn sửa quyết định đã approve, chọn lại trên current base để tạo revision mới, không sửa blob cũ.
+
 ### Job bị interrupted
 
 - Startup chuyển job đang chạy thành `interrupted`.

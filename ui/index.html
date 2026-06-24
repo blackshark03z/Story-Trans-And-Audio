@@ -146,7 +146,63 @@
         <label>Giọng narrator<select id="castingNarratorVoice"></select><small id="castingNarratorSource" class="muted"></small></label>
         <div><span id="castingPlanStatus" class="pill">Chưa có plan</span></div>
       </div>
+      <section class="speaker-review-panel">
+        <div class="section-head">
+          <div><p class="eyebrow">AI Speaker Review</p><h3>Speaker Assignment Draft</h3></div>
+          <span id="speakerReviewStatus" class="pill">No draft</span>
+        </div>
+        <div class="speaker-review-controls">
+          <label>Draft<select id="speakerDraftSelect"></select></label>
+          <button id="generateSpeakerDraft" class="primary">Generate Draft</button>
+          <button id="regenerateSpeakerDraft" class="secondary" disabled>Regenerate Draft</button>
+          <button id="refreshSpeakerDrafts" class="ghost">Refresh Draft List</button>
+        </div>
+        <div id="speakerReviewEmpty" class="profile-empty">
+          <strong>No speaker-assignment draft exists for this chapter.</strong>
+          <span>Generate a draft to begin review.</span>
+        </div>
+        <div id="speakerReviewMeta" class="speaker-review-meta"></div>
+        <div id="speakerReviewStale" class="issue error hidden"></div>
+        <div id="speakerReviewWorkspace" class="hidden">
+          <div class="speaker-review-toolbar">
+            <label>Filter<select id="speakerReviewFilter">
+              <option value="all">All</option><option value="unreviewed">Unreviewed</option>
+              <option value="high">High confidence</option><option value="medium">Medium confidence</option>
+              <option value="low">Low confidence</option><option value="invalid">Invalid</option>
+              <option value="needs_review">Needs review</option>
+            </select></label>
+            <div class="speaker-review-bulk">
+              <button id="reviewSelectVisible" class="ghost">Select visible</button>
+              <button id="reviewAcceptSuggestions" class="ghost">Accept selected suggestions</button>
+              <button id="reviewMarkNarrator" class="ghost">Mark selected as narrator</button>
+              <button id="reviewMarkUnknown" class="ghost">Mark selected as unknown</button>
+              <button id="reviewClearSelection" class="ghost">Clear selection</button>
+            </div>
+          </div>
+          <div id="speakerReviewRows" class="speaker-review-list"></div>
+          <div class="speaker-review-approve">
+            <span id="speakerReviewDecisionCount" class="muted">0 reviewed</span>
+            <button id="approveSpeakerReview" class="primary" disabled>Approve Reviewed Decisions</button>
+          </div>
+        </div>
+      </section>
       <h3>Nhân vật</h3>
+      <section class="character-bible-import">
+        <div class="section-head">
+          <div><p class="eyebrow">Character Bible</p><h3>Import JSON</h3></div>
+          <span id="characterBibleState" class="pill">No file selected</span>
+        </div>
+        <div class="character-bible-controls">
+          <input id="characterBibleFile" type="file" accept="application/json,.json">
+          <label class="check"><input id="characterBibleUpdateExisting" type="checkbox"> Update existing metadata</label>
+          <button id="characterBibleDryRun" class="secondary" disabled>Run Dry-Run</button>
+          <button id="characterBibleApply" class="primary" disabled>Apply Import</button>
+          <button id="characterBibleClear" class="ghost" disabled>Clear</button>
+        </div>
+        <div id="characterBibleFileInfo" class="muted">No file selected.</div>
+        <div id="characterBibleSummary" class="import-summary"></div>
+        <div id="characterBiblePlan" class="import-plan"></div>
+      </section>
       <div class="character-add row">
         <input id="newCharacterName" placeholder="Tên nhân vật">
         <select id="newCharacterGender"><option value="unknown">Unknown</option><option value="male">Male</option><option value="female">Female</option></select>
@@ -211,6 +267,6 @@
     <div id="segmentDiagnosticBody" class="diagnostic-body"></div>
   </dialog>
   <div id="toast" class="toast hidden"></div>
-  <script src="/assets/app.js"></script>
+  <script src="/assets/app.js?v=20260624-speaker-review"></script>
 </body>
 </html>

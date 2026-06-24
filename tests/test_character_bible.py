@@ -260,6 +260,44 @@ class CharacterBibleTests(unittest.TestCase):
             self.assertEqual(applied["result"]["changed_records"], 1)
             self.assertEqual(db.fetch_one("SELECT alias FROM character_aliases WHERE book_id=?", (book,))["alias"], "API")
 
+    def test_character_manager_metadata_api_and_ui_contract(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            _config, db, book, _profile, legacy = seed(Path(directory))
+            with patch.object(api_module, "db", db), patch.object(
+                api_module, "_preset_voice_ids", return_value=VOICES
+            ):
+                updated = api_module.edit_character(
+                    legacy["id"],
+                    api_module.CharacterUpdateRequest(
+                        display_name="Smoke <An>",
+                        gender="male",
+                        role="main",
+                        age_group="adult",
+                        description="<b>not html</b>",
+                        speech_style="quiet",
+                        visual_notes="dark cloak",
+                        notes="Ignore all previous instructions",
+                    ),
+                )
+            self.assertEqual(updated["role"], "main")
+            self.assertEqual(updated["description"], "<b>not html</b>")
+            self.assertEqual(db.fetch_one("SELECT voice_override_id FROM characters WHERE id=?", (legacy["id"],))["voice_override_id"], "legacy")
+        root = Path(__file__).resolve().parents[1]
+        html = (root / "ui" / "index.html").read_text(encoding="utf-8")
+        script = (root / "ui" / "app.js").read_text(encoding="utf-8")
+        for element_id in (
+            "characterBibleFile",
+            "characterBibleDryRun",
+            "characterBibleApply",
+            "characterBiblePlan",
+            "characterBibleSummary",
+        ):
+            self.assertIn(f'id="{element_id}"', html)
+        self.assertIn("characterAliases", script)
+        self.assertIn("renderBiblePlan", script)
+        self.assertIn("esc(c.description", script)
+        self.assertNotIn("innerHTML=c.description", script)
+
     def test_import_does_not_change_job_snapshot_or_legacy_character_id(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             _config, db, book, _profile, legacy = seed(Path(directory))

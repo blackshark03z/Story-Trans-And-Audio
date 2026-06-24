@@ -19,6 +19,8 @@ story_audio/epub.py      EPUB parser và import revision
 story_audio/text.py      Reflow, QA, lexical validation, chunking
 story_audio/gemini.py    Gemini punctuation repair contract
 story_audio/gemini_cache.py Shared repair cache, integrity và manifest cleanup
+story_audio/speaker_assignment.py Gemini speaker draft selection, validation, cache và persistence
+story_audio/speaker_review.py Draft review detail, stale detection, immutable approval và idempotency
 story_audio/youtube_handoff.py Immutable one-chapter handoff exporter/verifier for YouTube Auto
 story_audio/tts.py       VieNeu adapter
 story_audio/db.py        SQLite schema và connection policy
@@ -38,8 +40,8 @@ tests/                   Offline unit tests
 - Không lưu full chapter text trong SQLite. Text nằm trong `data/blobs/text/<prefix>/<sha>.txt`.
 - Text revision và artifact đã verify là bất biến; thay đổi tạo revision mới.
 - Job pin text/config/voice snapshot; không đổi âm thầm giữa lúc chạy.
-- Schema v3 có `book_voice_profiles`, `characters.gender` và optional `voice_override_id`; `default_voice_id` vẫn được giữ làm legacy compatibility field.
-- Task kế tiếp là Book-level Character Bible Import. Migration kế tiếp nếu cần phải là `0004_*`; không sửa migration v1/v2/v3.
+- Schema v5 có Character Bible và immutable Speaker Assignment Draft; `default_voice_id` vẫn được giữ làm legacy compatibility field.
+- Task kế tiếp là Long-Chapter End-to-End Validation and Hardening. Migration kế tiếp nếu thật sự cần phải là `0006_*`; không sửa migration v1–v5.
 - Character identity tách khỏi voice identity; không thiết kế Character Bible theo giả định mỗi nhân vật cần voice riêng.
 - Ứng dụng sở hữu TTS segment, tối đa 256 ký tự với VieNeu v3 Turbo hiện tại.
 - Gemini chỉ sửa punctuation/whitespace. Sau sửa, token nguồn phải được khôi phục và lexical validator phải đạt.

@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from pathlib import Path
 
 from .config import Settings
 from .db import Database
-from .files import sha256_file
+from .files import sha256_file, sha256_text
 from .gemini_cache import GeminiRepairCache
 from .migrations import LATEST_SCHEMA_VERSION, SchemaMigrationError
 from .storage import ContentStore
@@ -49,7 +50,8 @@ def check_data_integrity(config: Settings, *, deep: bool = False) -> list[Findin
     counts = {}
     for table in (
         "books", "chapters", "text_revisions", "book_voice_profiles", "characters",
-        "character_aliases", "character_bible_imports", "casting_plans", "jobs", "segments", "artifacts",
+        "character_aliases", "character_bible_imports", "casting_plans",
+        "speaker_assignment_drafts", "jobs", "segments", "artifacts",
     ):
         try:
             counts[table] = int(
@@ -91,6 +93,106 @@ def check_data_integrity(config: Settings, *, deep: bool = False) -> list[Findin
         "character_bible_integrity",
         f"duplicate_external_keys={len(duplicate_external)} orphan_aliases={orphan_aliases} "
         f"alias_book_mismatch={alias_book_mismatch} invalid_enums={invalid_character_enums}",
+    ))
+
+    invalid_drafts = 0
+    draft_rows = database.fetch_all(
+        """SELECT d.*,c.book_id AS chapter_book_id,tr.chapter_id AS revision_chapter_id
+           FROM speaker_assignment_drafts d
+           LEFT JOIN chapters c ON c.id=d.chapter_id
+           LEFT JOIN text_revisions tr ON tr.id=d.text_revision_id"""
+    )
+    content_store = ContentStore(config)
+    for row in draft_rows:
+        try:
+            if row["chapter_book_id"] is None or row["revision_chapter_id"] is None:
+                raise ValueError("orphan_owner")
+            if int(row["book_id"]) != int(row["chapter_book_id"]):
+                raise ValueError("book_owner_mismatch")
+            if int(row["chapter_id"]) != int(row["revision_chapter_id"]):
+                raise ValueError("revision_owner_mismatch")
+            payload = content_store.read_json(str(row["content_path"]))
+            canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            if sha256_text(canonical) != row["content_sha256"]:
+                raise ValueError("content_hash_mismatch")
+            if payload.get("schema") != row["response_schema"]:
+                raise ValueError("response_schema_mismatch")
+            if payload.get("input_fingerprint") != row["input_fingerprint"]:
+                raise ValueError("input_fingerprint_mismatch")
+            referenced = {
+                int(item["character_id"])
+                for item in payload.get("assignments", [])
+                if item.get("speaker_type") == "character" and item.get("character_id") is not None
+            }
+            indexed = {
+                int(item["character_id"])
+                for item in database.fetch_all(
+                    "SELECT character_id FROM speaker_assignment_draft_characters WHERE draft_id=?",
+                    (row["id"],),
+                )
+            }
+            if not referenced <= indexed:
+                raise ValueError("invalid_character_reference")
+        except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError, ValueError):
+            invalid_drafts += 1
+    findings.append(Finding(
+        "OK" if invalid_drafts == 0 else "WARN",
+        "speaker_assignment_drafts",
+        f"drafts={len(draft_rows)} invalid={invalid_drafts}",
+    ))
+
+    review_plans = 0
+    invalid_review_links = 0
+    idempotency_identities: dict[str, tuple[object, object, object]] = {}
+    for row in database.fetch_all("SELECT id,chapter_id,content_path,plan_sha256 FROM casting_plans"):
+        try:
+            payload = content_store.read_json(str(row["content_path"]))
+            canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+            if sha256_text(canonical) != row["plan_sha256"]:
+                raise ValueError("content_hash_mismatch")
+            metadata = payload.get("source_metadata") or {}
+            if metadata.get("source") != "gemini_speaker_review":
+                continue
+            review_plans += 1
+            review = metadata.get("review")
+            if not isinstance(review, dict):
+                raise ValueError("missing_review_metadata")
+            draft = database.fetch_one(
+                "SELECT chapter_id,input_fingerprint FROM speaker_assignment_drafts WHERE id=?",
+                (review.get("draft_id"),),
+            )
+            if not draft or int(draft["chapter_id"]) != int(row["chapter_id"]):
+                raise ValueError("invalid_review_draft_link")
+            if review.get("draft_fingerprint") != draft["input_fingerprint"]:
+                raise ValueError("review_draft_fingerprint_mismatch")
+            base_id = review.get("base_casting_plan_id")
+            if base_id is not None:
+                base = database.fetch_one("SELECT chapter_id FROM casting_plans WHERE id=?", (base_id,))
+                if not base or int(base["chapter_id"]) != int(row["chapter_id"]):
+                    raise ValueError("invalid_review_base_link")
+            decision_fingerprint = review.get("decision_fingerprint")
+            if (
+                not isinstance(decision_fingerprint, str)
+                or len(decision_fingerprint) != 64
+                or any(character not in "0123456789abcdef" for character in decision_fingerprint)
+            ):
+                raise ValueError("invalid_decision_fingerprint")
+            idempotency_key = review.get("idempotency_key")
+            if not isinstance(idempotency_key, str) or not idempotency_key.strip():
+                raise ValueError("invalid_idempotency_key")
+            reviewed_ids = review.get("reviewed_utterance_ids")
+            if not isinstance(reviewed_ids, list) or len(reviewed_ids) != len(set(reviewed_ids)):
+                raise ValueError("invalid_reviewed_utterance_ids")
+            identity = (review.get("draft_id"), base_id, decision_fingerprint)
+            previous = idempotency_identities.setdefault(idempotency_key, identity)
+            if previous != identity:
+                raise ValueError("idempotency_key_conflict")
+        except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError, ValueError):
+            invalid_review_links += 1
+    findings.append(Finding(
+        "OK" if invalid_review_links == 0 else "WARN",
+        "speaker_review_links",
+        f"plans={review_plans} invalid={invalid_review_links}",
     ))
 
     cache_report = GeminiRepairCache(ContentStore(config), config).inspect(deep=deep)

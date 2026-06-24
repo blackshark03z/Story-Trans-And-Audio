@@ -1,7 +1,7 @@
 # Trạng thái dự án
 
 **Cập nhật:** 2026-06-24 (Asia/Saigon)
-**Milestone:** Audio MVP + Gemini punctuation repair
+**Milestone:** Speaker Assignment Review and Approval UI
 **Trạng thái:** Hoạt động cục bộ tại `http://127.0.0.1:8766`
 
 Đây là nguồn sự thật ngắn gọn về tiến độ. Sau mỗi thay đổi đáng kể, cập nhật file này thay vì buộc người tiếp theo đọc lịch sử chat hoặc toàn bộ kiến trúc.
@@ -15,8 +15,8 @@
 - Gemini key: được nhận diện; không lưu trong DB/log.
 - VieNeu: v3 Turbo CPU/ONNX, 10 preset voice.
 - FFmpeg/FFprobe: hoạt động.
-- Schema migration: version 4 (`0004_character_bible`), checksum-locked.
-- Offline tests: 92 test đạt.
+- Schema migration: version 5 (`0005_speaker_assignment_drafts`), checksum-locked.
+- Offline tests: 119 test đạt.
 - End-to-end smoke: chương 858, giọng Ngọc Lan, Gemini `all_selected`.
 - Kết quả smoke: 10/10 segment, M4A dài 118.710 ms, artifact active.
 - Multi-voice real-TTS smoke: isolated book 3 / chapter 1982, casting plan 2, job 3.
@@ -32,7 +32,14 @@
 - Three-Voice real-TTS: job 4 dài 24.650 ms, job 5 dài 26.090 ms; narrator/male/female/unknown/override và timeline resolution metadata đều đạt.
 - Character Bible Import Core: JSON V1 dry-run/apply CLI + backend API, schema v4, alias/external-key/role/metadata/provenance storage, idempotent re-import.
 - Character Bible smoke: isolated book 5, dry-run create 3, first apply create 3 + 2 aliases, second apply match 3/no writes; API read and voice resolution verified.
-- Doctor deep after schema v4: SQLite quick check OK, `critical_errors=0`; jobs #3/#4/#5 casting snapshot hashes unchanged.
+- Character Bible UI + Handoff Integration: UI JSON dry-run/apply, metadata editor/aliases/provenance display, and YouTube Auto `character_seed.json` exports canonical metadata/aliases/notes.
+- Gemini Speaker Assignment Draft Core: deterministic target/context, Character Bible candidates, structured V1 response, strict validation, Shared Gemini Cache, immutable schema-v5 draft persistence và API/CLI.
+- Real Gemini speaker smoke: chapter 1982, one target, draft #1 valid 1/1 với `needs_review=true`; lần hai cache hit/reuse cùng fingerprint/content.
+- Speaker Review real smoke: isolated book 7/chapter 1985, 15 utterance; Draft #3 valid 15/15 với 7 high, 8 medium và alternatives cho các dòng hội thoại.
+- Review smoke đã chọn suggestion, Gemini alternative, manual character và unknown correction; partial approval tạo plan #5, final approval tạo plan #6, exact repeat reuse plan #6.
+- Approval không tạo job/audio; jobs #1–#5, Book Voice Profile, Character Bible và immutable draft hash giữ nguyên.
+- Handoff regression thật: bundle mới export hai lần cùng reuse identity `3255141aa34f`; bundle cũ `93ff2e0a367a` và bundle metadata mới đều verify/import lại trong YouTube Auto với `Reused: True`.
+- Doctor deep after schema v5: SQLite quick check OK, draft/cache/blob integrity OK, `critical_errors=0`; Character/Casting/Job/Segment/Artifact/TextRevision rows giống backup v4 trước migration.
 
 ## Shared Gemini cache contract
 
@@ -77,6 +84,8 @@ Audio casting mặc định dùng ba nhóm voice cấp book: narrator, male dial
 - [x] Three-Voice Profile Core: book profile, optional character override, gender-aware resolver và immutable job snapshot.
 - [x] Three-Voice Profile UI and Casting Integration: profile/preview, default/custom character voice và effective resolution trong Manual Casting.
 - [x] Book-level Character Bible Import Core: JSON schema V1, dry-run/apply, deterministic matching/conflict detection, idempotency, CLI/API and Doctor checks.
+- [x] Gemini Speaker Assignment Draft Core: immutable draft, cache, strict candidates/confidence/alternatives và no auto-apply.
+- [x] Speaker Assignment Review and Approval UI: filter/bulk review, alternatives/manual correction, effective voice preview, partial immutable approval, stale protection và idempotency.
 
 ## Hạn chế hiện tại
 
@@ -85,9 +94,8 @@ Audio casting mặc định dùng ba nhóm voice cấp book: narrator, male dial
 - Cleanup cache hiện có CLI dry-run/apply nhưng chưa có quota/dashboard UI; text blob không bị xóa theo cache manifest.
 - Text diff giới hạn 500.000 ký tự kết hợp; payload trên 50.000 ký tự có warning và collapse mặc định.
 - Cleanup chưa có dry-run/quota dashboard trên UI.
-- Manual casting chưa có AI speaker detection, emotion control hoặc voice cloning theo đúng phạm vi MVP.
-- Automatic speaker/gender assignment chưa triển khai; gender hiện là dữ liệu manual, unknown được đánh dấu `needs_review` trong resolution metadata.
-- Character Bible Import Core chưa có UI upload/import và chưa có Gemini speaker assignment; task này chỉ import JSON core.
+- Review/Approval chưa có undo cho Casting Plan đã approve; sửa quyết định bằng một revision mới. Draft stale vẫn xem được để audit nhưng không approve được.
+- Gender vẫn là dữ liệu manual; Gemini speaker draft không tự tạo/sửa character hoặc gender.
 - Loudness giữa preset có chênh nhẹ (smoke đo tối đa 3,2 dB mean); chưa normalization theo đúng phạm vi.
 - Backup là full snapshot, chưa incremental/compress và có thể lớn khi thư viện tăng.
 - Restore remap artifact/work paths trong data root nhưng không đóng gói EPUB nguồn nằm ngoài `data/`.
@@ -119,9 +127,10 @@ Các hạng mục vận hành/quota và alignment không cấp thiết được 
 - [x] Three-Voice Profile Core.
 - [x] Three-Voice Profile UI and Casting Integration.
 - [x] Book-level Character Bible Import.
-- [ ] Character Bible UI and Handoff Integration.
-- [ ] Gemini speaker assignment draft khi thực sự cần.
-- [ ] Real end-to-end chapter video review.
+- [x] Character Bible UI and Handoff Integration.
+- [x] Gemini Speaker Assignment Draft Core.
+- [x] Speaker Assignment Review and Approval UI.
+- [ ] Long-Chapter End-to-End Validation and Hardening.
 
 ## Quy tắc cập nhật tiến độ
 
@@ -149,3 +158,6 @@ Các hạng mục vận hành/quota và alignment không cấp thiết được 
 | 2026-06-23 | Shared Gemini repair cache | Filesystem manifest + text blob; lexical revalidation; corrupt-as-miss; cleanup/doctor; 60 tests |
 | 2026-06-23 | YouTube Auto Handoff V1 | Job 3/chapter 1982; 22.810s M4A; 8 timing items; 2 character seeds; imported/composed final 22.826s |
 | 2026-06-24 | Character Bible Import Core | Schema v4; 92 offline tests; smoke book 5 dry-run/apply/apply-lại; Doctor deep critical_errors=0 |
+| 2026-06-24 | Character Bible UI + Handoff Integration | UI dry-run/apply + metadata editor; Handoff seed exports canonical metadata; 94 offline tests + JS syntax check |
+| 2026-06-24 | Gemini Speaker Assignment Draft Core | Schema v5; 101 offline tests; real Gemini draft #1 + cache hit/reuse; Doctor deep critical_errors=0 |
+| 2026-06-24 | Speaker Assignment Review and Approval UI | 119 offline tests; Draft #3, 15 utterance; partial plans #5–#6; exact approval repeat reused #6; no job/audio mutation |

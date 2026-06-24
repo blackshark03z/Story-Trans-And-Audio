@@ -109,6 +109,16 @@ Không biết character nhưng biết gender vẫn dùng male/female dialogue vo
 
 **Consequence:** Voice resolver deterministic snapshot kết quả, resolution source và profile ID/version khi tạo casting/job. Schema v3 thêm `book_voice_profiles`, `characters.gender` và optional `voice_override_id`; `default_voice_id` được giữ làm compatibility field. Book-level Character Bible vẫn là task riêng; UI profile/casting chưa nằm trong core này.
 
+## ADR-014 — AI speaker assignments are immutable drafts
+
+**Status:** Accepted and implemented in schema v5.
+
+**Decision:** Gemini chỉ đề xuất `narrator`, `unknown` hoặc một stable character ID đã có trong Character Bible. Kết quả được validate, cache và lưu thành immutable SpeakerAssignmentDraft pin TextRevision/Character Bible/confirmed context. Mọi item luôn cần review; core không auto-approve và không ghi vào CastingPlan, Character, Voice Profile hoặc Job.
+
+**Why:** Speaker inference có độ bất định và chapter/metadata là untrusted prompt data. Tách draft khỏi CastingPlan giữ audit rõ ràng, chống model tự tạo identity và bảo toàn job snapshot cũ.
+
+**Consequence:** Review/Approve UI phải tạo Casting Plan Revision mới có chủ đích. Input đổi tạo fingerprint mới; draft cũ vẫn tồn tại để audit. Shared Gemini Cache chỉ là lớp tăng tốc và không thay thế draft persistence.
+
 ## Khi nào cần ADR mới
 
 - Đổi engine/storage/database/queue.

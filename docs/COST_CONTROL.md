@@ -22,6 +22,16 @@ source_sha256 + model_id + prompt_version + repair_mode
 
 Shared cache đã triển khai và còn pin repair contract, generation settings, block strategy cùng lexical validator version. Cache hit luôn verify hash và lexical identity.
 
+### Gemini speaker assignment
+
+```text
+task_kind + text revision/hash + utterance/context hashes
++ Character Bible fingerprint + confirmed assignment context hash
++ prompt/model/settings/response schema
+```
+
+Chỉ gửi utterance cần hỗ trợ, context mặc định 3 trước/sau và batch tối đa 20 target. Approved casting bị bỏ qua trong `unassigned_only`. Cache hit phải validate lại structured response; payload hỏng là safe miss. Không chạy whole-book hoặc tự retry vô hạn.
+
 ### TTS synthesis
 
 ```text

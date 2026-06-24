@@ -288,6 +288,10 @@ def _character_seed(db: Database, source: dict[str, Any], speech: dict[str, Any]
     ids = sorted(
         {int(item["character_id"]) for item in speech["items"] if item.get("character_id") is not None}
     )
+    voice_by_character: dict[int, str] = {}
+    for item in speech["items"]:
+        if item.get("character_id") is not None and item.get("voice_id"):
+            voice_by_character.setdefault(int(item["character_id"]), str(item["voice_id"]))
     characters: list[dict[str, Any]] = []
     for character_id in ids:
         row = db.fetch_one(
@@ -296,17 +300,28 @@ def _character_seed(db: Database, source: dict[str, Any], speech: dict[str, Any]
         )
         if not row:
             raise HandoffError(f"Character {character_id} referenced by timeline is missing")
+        aliases = [
+            str(alias["alias"])
+            for alias in db.fetch_all(
+                "SELECT alias FROM character_aliases WHERE character_id=? ORDER BY alias,id",
+                (character_id,),
+            )
+        ]
+        voice_id = voice_by_character.get(character_id) or str(row["voice_override_id"] or row["default_voice_id"] or "")
         characters.append(
             {
                 "character_id": str(character_id),
-                "canonical_name": str(row["display_name"]),
-                "aliases": [],
-                "gender": "unknown",
-                "role": "unknown",
-                "description": "",
-                "speech_style": "",
-                "voice_id": str(row["default_voice_id"]),
-                "visual_notes": None,
+                "canonical_name": str(row["canonical_name"] or row["display_name"]),
+                "aliases": aliases,
+                "gender": str(row["gender"] or "unknown"),
+                "role": str(row["role"] or "unknown"),
+                "age_group": row["age_group"],
+                "description": str(row["description"] or ""),
+                "speech_style": str(row["speech_style"] or ""),
+                "voice_id": voice_id,
+                "voice": {"preset_id": voice_id} if voice_id else None,
+                "visual_notes": row["visual_notes"],
+                "notes": str(row["notes"] or ""),
             }
         )
     return {"schema": CHARACTER_SEED_SCHEMA, "characters": characters}

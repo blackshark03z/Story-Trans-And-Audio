@@ -167,6 +167,39 @@ class MigrationTests(unittest.TestCase):
             self.assertEqual(character["voice_override_id"], "legacy")
             self.assertEqual(database.fetch_one("SELECT narrator_voice_id FROM book_voice_profiles")["narrator_voice_id"], "narrator")
 
+    def test_version_four_upgrades_to_speaker_drafts_without_data_loss(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "v4.db"
+            connection = sqlite3.connect(path)
+            try:
+                for migration in MIGRATIONS[:4]:
+                    connection.executescript(migration.sql)
+                now = utcnow()
+                book_id = connection.execute(
+                    "INSERT INTO books(title,source_path,source_sha256,created_at,updated_at) VALUES(?,?,?,?,?)",
+                    ("Book", "book.epub", "v4-sha", now, now),
+                ).lastrowid
+                connection.execute(
+                    "INSERT INTO characters(book_id,display_name,default_voice_id,canonical_name,canonical_name_normalized,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                    (book_id, "An", "", "An", "an", now, now),
+                )
+                connection.execute(
+                    "CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,name TEXT,checksum TEXT,applied_at TEXT)"
+                )
+                for migration in MIGRATIONS[:4]:
+                    connection.execute(
+                        "INSERT INTO schema_migrations VALUES(?,?,?,?)",
+                        (migration.version, migration.name, migration.checksum, now),
+                    )
+                connection.commit()
+            finally:
+                connection.close()
+            database = Database(path)
+            self.assertEqual(database.initialize(), LATEST_SCHEMA_VERSION)
+            self.assertEqual(database.fetch_one("SELECT COUNT(*) AS n FROM characters")["n"], 1)
+            tables = {row["name"] for row in database.fetch_all("SELECT name FROM sqlite_master WHERE type='table'")}
+            self.assertIn("speaker_assignment_drafts", tables)
+
     def test_initialize_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             database = Database(Path(directory) / "app.db")

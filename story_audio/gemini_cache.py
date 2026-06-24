@@ -34,6 +34,14 @@ class CacheLookup:
     validation_ms: float = 0.0
 
 
+@dataclass(frozen=True)
+class JsonCacheLookup:
+    status: str
+    cache_key: str
+    payload: dict[str, Any] | None = None
+    reason: str | None = None
+
+
 def canonical_json(value: Any) -> str:
     return json.dumps(value, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
 
@@ -62,6 +70,74 @@ class GeminiRepairCache:
             source_hash="0" * 64, model=model, prompt_version=prompt_version
         )
         return self.cache_key(identity)
+
+    def json_identity(
+        self,
+        *,
+        task_kind: str,
+        input_fingerprint: str,
+        model: str,
+        prompt_version: str,
+        response_schema: str,
+        settings: dict[str, Any],
+    ) -> dict[str, Any]:
+        return {
+            "task_kind": task_kind,
+            "input_fingerprint": input_fingerprint,
+            "model": model.strip(),
+            "prompt_version": prompt_version.strip(),
+            "response_schema": response_schema,
+            "settings": settings,
+        }
+
+    def lookup_json(self, identity: dict[str, Any]) -> JsonCacheLookup:
+        cache_key = self.cache_key(identity)
+        path = self._manifest_path(cache_key)
+        if not path.is_file() or path.is_symlink():
+            return JsonCacheLookup("miss", cache_key)
+        try:
+            manifest = json.loads(path.read_text(encoding="utf-8"))
+            if manifest.get("schema_version") != CACHE_SCHEMA_VERSION:
+                raise ValueError("unsupported cache schema")
+            if manifest.get("task_kind") != identity.get("task_kind"):
+                raise ValueError("task kind mismatch")
+            if manifest.get("cache_key") != cache_key or manifest.get("identity") != identity:
+                raise ValueError("cache identity mismatch")
+            relative = str(manifest["payload_blob_path"])
+            payload_path = self._safe_blob_path(relative)
+            if not payload_path.is_file():
+                raise ValueError("payload blob missing")
+            raw = payload_path.read_text(encoding="utf-8")
+            if sha256_text(raw) != manifest.get("payload_sha256"):
+                raise ValueError("payload hash mismatch")
+            payload = json.loads(raw)
+            if not isinstance(payload, dict):
+                raise ValueError("payload is not an object")
+            os.utime(path, None)
+            return JsonCacheLookup("hit", cache_key, payload=payload)
+        except (KeyError, OSError, UnicodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+            return JsonCacheLookup("invalid", cache_key, reason=str(exc) or type(exc).__name__)
+
+    def store_json(self, identity: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+        cache_key = self.cache_key(identity)
+        relative, digest = self.store.put_json(payload, namespace="gemini")
+        payload_path = self.store.absolute(relative)
+        canonical = canonical_json(payload)
+        if not payload_path.is_file() or sha256_file(payload_path) != digest:
+            atomic_write_text(payload_path, canonical)
+        manifest = {
+            "schema_version": CACHE_SCHEMA_VERSION,
+            "task_kind": identity["task_kind"],
+            "cache_key": cache_key,
+            "identity": identity,
+            "payload_blob_path": relative,
+            "payload_sha256": digest,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+        path = self._manifest_path(cache_key)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        atomic_write_json(path, manifest)
+        return manifest
 
     def legacy_checkpoint_is_compatible(self) -> bool:
         """Allow adoption of checkpoints made by the pre-cache implementation.
@@ -284,6 +360,19 @@ class GeminiRepairCache:
                     raise ValueError("unsupported_cache_schema")
                 if path.stem != cache_key or self.cache_key(identity) != cache_key:
                     raise ValueError("cache_key_mismatch")
+                if manifest.get("task_kind"):
+                    for field in ("payload_blob_path", "payload_sha256", "created_at"):
+                        if field not in manifest:
+                            raise ValueError("required_manifest_metadata_missing")
+                    if deep:
+                        payload_path = self._safe_blob_path(str(manifest["payload_blob_path"]))
+                        raw = payload_path.read_text(encoding="utf-8")
+                        if sha256_text(raw) != manifest["payload_sha256"]:
+                            raise ValueError("payload_hash_mismatch")
+                        if not isinstance(json.loads(raw), dict):
+                            raise ValueError("payload_is_not_object")
+                    checked += 1
+                    continue
                 for field in (
                     "source_blob_path", "repaired_blob_path", "repaired_hash",
                     "source_char_count", "repaired_char_count", "lexical_validated", "created_at",

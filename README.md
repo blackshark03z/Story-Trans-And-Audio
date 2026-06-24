@@ -17,10 +17,12 @@ Sau đó mở `http://127.0.0.1:8766`.
 1. Nhập EPUB trong phần **Thư viện**.
 2. Chọn sách và kiểm tra nội dung chương.
 3. Chọn khoảng **Từ chương → Đến chương**.
-4. Trong tab **Character Voices**, tạo Book Voice Profile, preview từng slot và chọn nhân vật dùng book default hoặc custom override.
-5. Chọn chế độ Gemini, định dạng rồi bấm **Kiểm tra phạm vi**.
-6. Thêm vào hàng đợi; có 10 giây để hủy nếu chọn nhầm.
-7. Theo dõi checkpoint, pause/resume hoặc retry phần lỗi.
+4. Trong tab **Character Voices**, import Character Bible JSON nếu có, review dry-run/apply, tạo Book Voice Profile, preview từng slot và chọn nhân vật dùng book default hoặc custom override.
+5. Khi cần hỗ trợ xác định người nói, tạo Gemini Speaker Assignment Draft trong **Character Voices**, review confidence/alternatives, preview effective voice rồi approve các quyết định đã chọn thành Casting Plan revision mới.
+6. Approval không tự tạo job hoặc audio. Sau khi Casting Plan đúng, người dùng chủ động tạo job như bình thường.
+6. Chọn chế độ Gemini punctuation, định dạng rồi bấm **Kiểm tra phạm vi**.
+7. Thêm vào hàng đợi; có 10 giây để hủy nếu chọn nhầm.
+8. Theo dõi checkpoint, pause/resume hoặc retry phần lỗi.
 
 ## API key
 
@@ -38,6 +40,7 @@ Các đường dẫn này đã bị Git bỏ qua. Key không được lưu vào 
 ```text
 data/app.db            SQLite metadata/checkpoint
 data/blobs/text/       Text bất biến theo SHA-256
+data/blobs/speaker_assignment/  Speaker draft JSON bất biến theo SHA-256
 data/work/             Segment WAV đang xử lý
 data/output/           Master WAV, M4A/MP3 và timeline
 data/exports/youtube_auto/  Immutable Handoff V1 bundles

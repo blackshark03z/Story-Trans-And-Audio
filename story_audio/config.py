@@ -19,6 +19,9 @@ class Settings:
     log_dir: Path = ROOT / "logs"
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     gemini_prompt_version: str = "punctuation-v1"
+    speaker_assignment_prompt_version: str = "speaker-assignment-v2"
+    speaker_assignment_batch_size: int = 20
+    speaker_assignment_context_size: int = 3
     tts_mode: str = "v3turbo"
     tts_sample_rate: int = 48_000
     tts_max_chars: int = 256

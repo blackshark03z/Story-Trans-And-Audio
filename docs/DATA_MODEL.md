@@ -130,9 +130,9 @@ Import dùng JSON schema `story-audio-character-bible/v1`, có dry-run không gh
 4. No match -> create.
 ```
 
-Conflict không tự merge. Re-import cùng nội dung không tạo duplicate character/alias và không cập nhật timestamp khi không có thay đổi. UI/Handoff integration đầy đủ thuộc task tiếp theo.
+Conflict không tự merge. Re-import cùng nội dung không tạo duplicate character/alias và không cập nhật timestamp khi không có thay đổi. UI hỗ trợ chọn JSON, dry-run, apply, xem summary/conflict và sửa metadata nhân vật.
 
-Character Bible không yêu cầu `default_voice_id` hoặc voice hint chi tiết cho mọi character. Nhân vật phụ mặc định kế thừa voice theo gender. Đây là book-level identity source; `character_seed.json` trong Handoff V1 hiện chỉ là per-chapter export seed cho YouTube Auto và không thay thế model này.
+Character Bible không yêu cầu `default_voice_id` hoặc voice hint chi tiết cho mọi character. Nhân vật phụ mặc định kế thừa voice theo gender. Đây là book-level identity source; `character_seed.json` trong Handoff V1 là per-chapter export seed cho YouTube Auto, có sao chép canonical metadata/aliases/notes của nhân vật xuất hiện trong timeline nhưng không thay thế model này.
 
 ## State contract
 
@@ -198,11 +198,25 @@ data/output/<book-id>-<slug>/chapter_<number>/job_<id>/render_<generation>/
 Mỗi lần assemble/retry tạo `render_<generation>` mới. Artifact verified cũ không bị ghi đè;
 active pointer chỉ chuyển sang export generation mới sau khi verify.
 
-## Shared Gemini repair cache
+## Speaker Assignment Draft — schema v5
 
-Cache là lớp tăng tốc có thể xóa hoàn toàn, không phải entity nguồn sự thật trong SQLite. Mỗi manifest schema v1 chứa canonical identity, cache-key SHA-256, source/repaired blob path và hash, character count, thời điểm tạo và trạng thái lexical validation. Identity gồm source hash, Gemini model, prompt version, repair contract version, block strategy version, lexical validator version và generation settings.
+`speaker_assignment_drafts` là index cho draft bất biến, pin `book_id`, `chapter_id`, approved `text_revision_id/hash`, Character Bible fingerprint, confirmed assignment context, model, prompt version, generation settings và response schema. Structured payload dùng `story-audio-speaker-assignment-draft/v1` tại `data/blobs/speaker_assignment/`; SQLite chỉ giữ path/hash, summary và trạng thái.
 
-Lookup chỉ hit sau khi xác minh lại manifest/key, path nằm trong blob store, cả payload tồn tại đúng hash/count và lexical tokens không đổi. Manifest hỏng/mất trở thành miss; Gemini output hợp lệ được ghi atomically. TextRevision repaired vẫn pin parent reflowed revision và giữ nguyên invariant bất biến.
+`speaker_assignment_draft_characters` giữ character references để Doctor kiểm tra ownership. Draft chỉ có các trạng thái `generated`, `partially_invalid`, `failed`, `superseded`; không có `approved/applied`. Mọi assignment luôn `needs_review=true` và không tự tạo/sửa Character, CastingPlan, BookVoiceProfile hoặc Job.
+
+TextRevision hoặc Character Bible đổi làm input fingerprint đổi. Draft cũ vẫn đọc được để audit nhưng không còn current cho input mới. Cùng input và cùng validated provider payload reuse content hash/draft hiện có.
+
+### Review và approval trên schema v5
+
+Review không cần bảng mutable mới. Mỗi approval tạo một immutable `casting_plans` JSON mới và ghi provenance trong `source_metadata.source = "gemini_speaker_review"`: draft ID/fingerprint, base Casting Plan ID, canonical decision fingerprint, idempotency key, reviewed utterance IDs và remaining count.
+
+Partial approval dùng plan approved hiện tại làm base và chỉ overlay các utterance đã quyết định; assignment, offsets, text hash và resolved voice ngoài phạm vi được giữ nguyên. Exact repeat cùng draft/base/decision fingerprint trả lại plan đã có. TextRevision, Character Bible hoặc base plan thay đổi làm approval bị conflict; draft vẫn đọc được để audit. SQLite schema vì vậy vẫn là version 5.
+
+## Shared Gemini cache
+
+Cache là lớp tăng tốc có thể xóa hoàn toàn, không phải entity nguồn sự thật trong SQLite. Repair manifest pin source/repaired blob và lexical contract. Speaker-assignment manifest dùng cùng subsystem/root, pin task kind, request fingerprint, model, prompt, response schema và generation settings rồi trỏ tới validated JSON blob.
+
+Lookup chỉ hit sau khi xác minh manifest/key/path/hash và validation riêng của task. Manifest hoặc payload speaker hỏng/sai schema trở thành safe miss rồi mới được gọi Gemini lại. TextRevision repaired và SpeakerAssignmentDraft vẫn là nguồn audit bất biến độc lập với cache.
 
 Cleanup dùng mtime như last-access gần đúng, mặc định TTL 180 ngày, tối đa 10.000 manifest và 256 MiB manifest. Cleanup không xóa `data/blobs/text`; backup cũng không phụ thuộc cache vì DB + blobs mới là aggregate cần phục hồi.
 
@@ -210,7 +224,7 @@ Cleanup dùng mtime như last-access gần đúng, mặc định TTL 180 ngày, 
 
 `handoff.json` dùng schema `story-audio-youtube-handoff/v1`. Export identity pin chapter/job, TextRevision hash, optional CastingPlan hash, audio hash, speech timeline và character seed; mọi artifact dùng relative path và có size/SHA-256. Bundle là immutable derived export, không có foreign key trong SQLite và có thể verify độc lập.
 
-`speech_timeline.json` dùng `story-audio-speech-timeline/v1`, integer milliseconds và segment-level speaker/character/voice/source-offset metadata. `character_seed.json` dùng `story-character-seed/v1`; không phải visual bible. Exporter luôn dùng TextRevision pin bởi audio artifact/job chapter, không dùng active revision mới nhất ngầm định.
+`speech_timeline.json` dùng `story-audio-speech-timeline/v1`, integer milliseconds và segment-level speaker/character/voice/source-offset metadata. `character_seed.json` dùng `story-character-seed/v1`; không phải visual bible, nhưng có canonical name, aliases, gender, role, age group, description, speech style, visual notes, notes và resolved preset hint cho những nhân vật xuất hiện trong timeline. Exporter luôn dùng TextRevision pin bởi audio artifact/job chapter, không dùng active revision mới nhất ngầm định; Character Bible metadata đổi sẽ tạo export identity mới và không sửa bundle cũ.
 
 Bundle được copy vào backup cùng `data/exports`; cleanup segment/cache không xóa bundle.
 
@@ -218,7 +232,7 @@ Không lưu absolute path trong API contract công khai. DB hiện giữ absolut
 
 ## Schema evolution rule
 
-Schema hiện tại: **version 4**, migrations `0001_initial.sql`, `0002_character_voice.sql`, `0003_three_voice_profile.sql` và `0004_character_bible.sql`.
+Schema hiện tại: **version 5**, migrations `0001_initial.sql` đến `0005_speaker_assignment_drafts.sql`.
 
 Startup flow:
 
@@ -230,7 +244,7 @@ Startup flow:
 
 Trước thay đổi schema tiếp theo phải:
 
-1. Thêm file migration kế tiếp, hiện là `story_audio/migrations/0005_<name>.sql`; không sửa migration đã phát hành.
+1. Thêm file migration kế tiếp, hiện là `story_audio/migrations/0006_<name>.sql`; không sửa migration đã phát hành.
 2. Migration tăng dần, contiguous, idempotent và transaction-safe.
 3. Backup DB trước migration.
 4. Test upgrade từ fixture version trước.

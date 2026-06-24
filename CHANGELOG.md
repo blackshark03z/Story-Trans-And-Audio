@@ -6,7 +6,21 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ### Added
 
+- Speaker Assignment Review UI trong Character Voices với draft selector, confidence/needs-review filters, bulk actions, Gemini alternatives, manual character/narrator/unknown decisions và effective voice preview.
+- Immutable partial approval tạo Casting Plan revision mới, giữ nguyên assignment ngoài phạm vi đã review, hỗ trợ base-plan compare-and-swap và deterministic decision fingerprint.
+- Approval idempotency theo draft/base/decision identity; exact repeat trả lại plan cũ, còn key trùng với quyết định khác bị từ chối.
+- Stale protection cho TextRevision, Character Bible fingerprint và confirmed Casting Plan context; draft cũ vẫn đọc được để audit.
+- Doctor kiểm tra review metadata liên kết đúng draft/chapter/base plan, fingerprint và idempotency identity.
+- Gemini Speaker Assignment Draft Core với deterministic utterance selection, context trước/sau, Character Bible candidates và confirmed casting context.
+- Structured response `story-audio-speaker-assignment-draft/v1` gồm candidate, confidence, alternatives, concise reason, confidence level và `needs_review=true`.
+- Migration `0005_speaker_assignment_drafts` lưu immutable draft index; payload nằm trong content-addressed JSON blob, không nằm trong Casting Plan.
+- Shared Gemini Cache hỗ trợ task `speaker_assignment`, validate payload ở cả miss/hit và coi cache hỏng là safe miss.
+- API POST/GET và CLI `scripts/speaker_assignment_draft.py`; Doctor kiểm tra ownership, schema, hash, fingerprint và character references.
+- Prompt boundary tách system instruction khỏi untrusted chapter/alias/Character Bible data và cấm tạo character mới hoặc suy luận từ voice.
+
 - Character Bible JSON importer for `story-audio-character-bible/v1` with CLI dry-run/apply and structured backend dry-run/apply API.
+- Character Bible UI in the casting panel with JSON file selection, dry-run plan preview, apply action, conflict blocking and import summary.
+- Character Manager metadata editor for canonical identity, aliases, gender, role, age group, description, speech style, visual notes, notes and import provenance display.
 - Migration `0004_character_bible` adds queryable character identity fields, aliases, role/age metadata and import provenance without storing full JSON in SQLite.
 - Deterministic matching by external key, canonical name and unique alias, with conflict detection and idempotent re-import.
 - Doctor checks for duplicate external keys, orphan aliases, alias/book mismatch and invalid Character Bible enums.
@@ -20,14 +34,25 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ### Changed
 
+- Speaker assignment prompt tăng lên `speaker-assignment-v2` và yêu cầu alternatives khi còn candidate hợp lệ; cache identity thay đổi theo prompt version.
+- Manual Casting hỗ trợ explicit `Unknown`; approval không tự tạo job, audio hoặc sửa Book Voice Profile/Character Bible.
 - Casting plan/job mới snapshot resolved preset, resolution source và Book Voice Profile ID/version; retry tiếp tục dùng snapshot cũ.
 - Migration `0003_three_voice_profile` bảo toàn `characters.default_voice_id` và sao chép giá trị cũ thành legacy override.
 - Segment timeline mới mang resolution source, resolved gender, needs-review và profile ID/version từ immutable job snapshot.
+- YouTube Auto `character_seed.json` now exports Character Bible canonical metadata, aliases, notes and resolved preset hints; metadata changes produce a new immutable bundle without mutating old exports.
 
 ### Verified
 
-- 92 offline tests pass; schema v4; SQLite quick check and Doctor deep `critical_errors=0`.
+- Real Gemini/UI smoke trên book 7/chapter 1985: Draft #3 valid 15/15, 7 high + 8 medium; suggestion, alternative, manual correction, unknown và skipped rows được review qua hai approval revision.
+- Plan #5 partial và plan #6 final; exact repeat reuse plan #6 với cùng decision fingerprint. Job count giữ nguyên 5 và không có audio mới.
+- Handoff mới export hai lần cùng identity/reuse; bundle cũ và bundle giàu metadata đều verify/import thật lại vào `D:\Youtube\Youtube Auto`.
+- 119 offline tests, JavaScript syntax check, schema v5, SQLite quick check và Doctor deep `critical_errors=0`.
+- Real Gemini smoke chapter 1982/utterance `u0001-a99461c9571c`: draft #1 generated, valid 1/1, model `gemini-2.5-flash`; lần hai cache hit và reuse cùng fingerprint/content.
+- Backup thật trước migration v5: 4.060 file / 76.112.399 byte, schema v4. Character, casting, job, segment, artifact và TextRevision tables không đổi sau smoke.
+
+- 94 offline tests pass; schema v4; JavaScript syntax check passes; SQLite quick check and Doctor deep `critical_errors=0`.
 - Character Bible smoke on isolated book 5: dry-run creates 3, first apply creates 3/2 aliases, second apply matches 3 with no writes; API character read and voice resolution verified.
+- UI contract covers safe metadata rendering for Character Bible import and character cards; handoff regression verifies old bundles stay immutable when metadata changes.
 - Jobs #3/#4/#5 casting snapshot hashes stayed unchanged after Character Bible import.
 
 - 78 offline tests, JavaScript syntax check, schema v3, SQLite quick check và Doctor deep `critical_errors=0`.

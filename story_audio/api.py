@@ -40,8 +40,21 @@ from .diagnostics import (
     retry_segment,
 )
 from .epub import import_epub
+from .gemini import GeminiSpeakerAssignmentError
 from .pipeline import PipelineWorker, create_job
 from .storage import ContentStore
+from .speaker_assignment import (
+    SpeakerAssignmentError,
+    generate_speaker_assignment_draft,
+    get_speaker_assignment_draft,
+)
+from .speaker_review import (
+    SpeakerReviewConflict,
+    SpeakerReviewError,
+    approve_speaker_review,
+    get_speaker_review_draft,
+    list_speaker_review_drafts,
+)
 from .tts import tts_service
 from .text_diff import TextDiffError, build_revision_diff, list_revision_metadata
 from .voice_preview import VoicePreviewService
@@ -93,6 +106,12 @@ class CharacterUpdateRequest(BaseModel):
     display_name: str | None = Field(default=None, min_length=1, max_length=120)
     default_voice_id: str | None = Field(default=None, min_length=1, max_length=200)
     gender: str | None = None
+    role: str | None = None
+    age_group: str | None = None
+    description: str | None = Field(default=None, max_length=4000)
+    speech_style: str | None = Field(default=None, max_length=4000)
+    visual_notes: str | None = Field(default=None, max_length=4000)
+    notes: str | None = Field(default=None, max_length=4000)
 
 
 class BookVoiceProfileRequest(BaseModel):
@@ -133,6 +152,27 @@ class CastingDraftRequest(BaseModel):
     text_revision_id: int
     narrator_voice_id: str
     assignments: list[CastingAssignment] = Field(default_factory=list)
+
+
+class SpeakerAssignmentDraftRequest(BaseModel):
+    mode: str = "unassigned_only"
+    utterance_ids: list[str] | None = None
+    force_refresh: bool = False
+
+
+class SpeakerReviewDecision(BaseModel):
+    utterance_id: str = Field(min_length=1, max_length=100)
+    speaker_type: str
+    character_id: int | None = None
+    decision_source: str
+
+
+class SpeakerReviewApprovalRequest(BaseModel):
+    base_casting_plan_revision_id: int | None = None
+    expected_draft_fingerprint: str = Field(min_length=64, max_length=64)
+    expected_text_revision_id: int
+    decisions: list[SpeakerReviewDecision] = Field(min_length=1)
+    idempotency_key: str = Field(min_length=1, max_length=200)
 
 
 @asynccontextmanager
@@ -344,6 +384,12 @@ def edit_character(character_id: int, request: CharacterUpdateRequest) -> dict[s
             display_name=request.display_name,
             voice_id=request.default_voice_id,
             gender=request.gender,
+            role=request.role,
+            age_group=request.age_group,
+            description=request.description,
+            speech_style=request.speech_style,
+            visual_notes=request.visual_notes,
+            notes=request.notes,
         )
     except CastingError as exc:
         raise HTTPException(400, str(exc)) from exc
@@ -466,6 +512,68 @@ def save_casting_draft(chapter_id: int, request: CastingDraftRequest) -> dict[st
             maximum=settings.tts_max_chars,
         )
     except CastingError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/chapters/{chapter_id}/speaker-assignment/draft")
+def create_speaker_assignment_draft(
+    chapter_id: int, request: SpeakerAssignmentDraftRequest
+) -> dict[str, Any]:
+    try:
+        return generate_speaker_assignment_draft(
+            db,
+            store,
+            settings,
+            chapter_id=chapter_id,
+            mode=request.mode,
+            utterance_ids=request.utterance_ids,
+            force_refresh=request.force_refresh,
+        )
+    except SpeakerAssignmentError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    except GeminiSpeakerAssignmentError as exc:
+        raise HTTPException(503, str(exc)) from exc
+
+
+@app.get("/api/chapters/{chapter_id}/speaker-assignment/drafts/{draft_id}")
+def read_speaker_assignment_draft(chapter_id: int, draft_id: int) -> dict[str, Any]:
+    try:
+        return get_speaker_review_draft(
+            db, store, settings, chapter_id=chapter_id, draft_id=draft_id
+        )
+    except (SpeakerAssignmentError, SpeakerReviewError, OSError) as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@app.get("/api/chapters/{chapter_id}/speaker-assignment/drafts")
+def read_speaker_assignment_drafts(chapter_id: int) -> dict[str, Any]:
+    try:
+        return list_speaker_review_drafts(db, store, settings, chapter_id=chapter_id)
+    except SpeakerReviewError as exc:
+        raise HTTPException(404, str(exc)) from exc
+
+
+@app.post("/api/chapters/{chapter_id}/speaker-assignment/drafts/{draft_id}/approve")
+def approve_speaker_assignment_review(
+    chapter_id: int, draft_id: int, request: SpeakerReviewApprovalRequest
+) -> dict[str, Any]:
+    try:
+        return approve_speaker_review(
+            db,
+            store,
+            settings,
+            chapter_id=chapter_id,
+            draft_id=draft_id,
+            base_casting_plan_revision_id=request.base_casting_plan_revision_id,
+            expected_draft_fingerprint=request.expected_draft_fingerprint,
+            expected_text_revision_id=request.expected_text_revision_id,
+            decisions=[item.model_dump() for item in request.decisions],
+            idempotency_key=request.idempotency_key,
+            allowed_voice_ids=_preset_voice_ids(),
+        )
+    except SpeakerReviewConflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except (SpeakerReviewError, CastingError, SpeakerAssignmentError) as exc:
         raise HTTPException(400, str(exc)) from exc
 
 
