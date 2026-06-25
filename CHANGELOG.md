@@ -4,6 +4,10 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Documentation
+
+- Đồng bộ README, AGENTS, ROADMAP, NEXT_TASK và ARCHITECTURE sau khi Long-Chapter Validation hoàn tất; sửa đánh số quy trình README và gắn nhãn các ghi chú kiến trúc lịch sử chưa/không triển khai.
+
 ### Added
 
 - Speaker Assignment Review UI trong Character Voices với draft selector, confidence/needs-review filters, bulk actions, Gemini alternatives, manual character/narrator/unknown decisions và effective voice preview.

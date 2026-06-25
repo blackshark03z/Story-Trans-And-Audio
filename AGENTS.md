@@ -41,7 +41,7 @@ tests/                   Offline unit tests
 - Text revision và artifact đã verify là bất biến; thay đổi tạo revision mới.
 - Job pin text/config/voice snapshot; không đổi âm thầm giữa lúc chạy.
 - Schema v5 có Character Bible và immutable Speaker Assignment Draft; `default_voice_id` vẫn được giữ làm legacy compatibility field.
-- Task kế tiếp là Long-Chapter End-to-End Validation and Hardening. Migration kế tiếp nếu thật sự cần phải là `0006_*`; không sửa migration v1–v5.
+- Long-Chapter End-to-End Validation and Hardening đã hoàn tất. Migration kế tiếp nếu thật sự cần phải là `0006_*`; không sửa migration v1–v5.
 - Character identity tách khỏi voice identity; không thiết kế Character Bible theo giả định mỗi nhân vật cần voice riêng.
 - Ứng dụng sở hữu TTS segment, tối đa 256 ký tự với VieNeu v3 Turbo hiện tại.
 - Gemini chỉ sửa punctuation/whitespace. Sau sửa, token nguồn phải được khôi phục và lexical validator phải đạt.

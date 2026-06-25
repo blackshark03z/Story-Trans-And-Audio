@@ -1,19 +1,19 @@
 # Next Task
 
 Current Sprint:
-Personal Edition Validation
+Controlled Maintenance
 
 Current Task:
-Ready for planning
+Documentation sync and one safe maintainability cleanup
 
 Status:
-Completed
+In Progress
 
 Previous Task Summary:
 Long-Chapter Validation Phase 3 đã hoàn tất. Bundle identity `050ac2f2a73bda7b84beb7c1e9bd5b06d9fd3a00773214fa91616c451e8f9280` export deterministic, legacy bundles verify/import đạt, Story Audio 119 tests pass, YouTube Auto 96 tests pass, Doctor critical_errors=0.
 
 Next Steps:
-Ready for planning. ROADMAP.md không có một P2/P3 tiếp theo đủ rõ để tự chọn; chờ user chọn task kế tiếp.
+Đồng bộ tài liệu sau Long-Chapter Validation, audit read-only một cơ hội bảo trì nhỏ, chọn đúng một cleanup an toàn nếu có thể verify offline, rồi cập nhật lại roadmap/status sau khi hoàn tất.
 
 Do Not Work On:
 - Auto-approve hoặc auto-render audio.

@@ -237,7 +237,6 @@ GET    /api/books/{book_id}/chapters?offset=&limit=&status=&query=
 GET    /api/chapters/{chapter_id}
 
 GET    /api/voices
-POST   /api/voices/clone
 POST   /api/voices/{voice_id}/preview
 DELETE /api/voices/{voice_id}
 
@@ -256,6 +255,8 @@ GET    /api/diagnostics
 ```
 
 `POST /api/jobs` nhận `chapter_ids`, `voice_id`, tùy chọn audio và thiết lập TTS. Backend xác thực tất cả chương thuộc cùng sách và chụp snapshot cấu hình trước khi trả về.
+
+Ghi chú lịch sử: các bản thiết kế sớm có nhắc voice cloning, nhưng voice cloning không được triển khai trong Personal Edition hiện tại.
 
 ## 11. Quy tắc để dễ bảo trì
 
@@ -285,10 +286,10 @@ GET    /api/diagnostics
 
 Đã hoàn thành: Audio MVP, hardening/backup, manual multi-voice casting, Text Diff, shared Gemini cache, YouTube Auto Handoff V1, Character Bible, Gemini Speaker Assignment Draft Core và Speaker Assignment Review/Approval UI.
 
-Thứ tự Personal Edition tiếp theo:
+Thứ tự Personal Edition:
 
-1. Long-Chapter End-to-End Validation and Hardening.
-2. Real chapter workflow review.
+1. Long-Chapter End-to-End Validation and Hardening. (đã hoàn tất)
+2. Real chapter workflow review. (chỉ thực hiện khi có nhu cầu sản xuất mới)
 
 Voice clone, remote worker, distributed locking, generic plugin framework, usage/quota dashboard, incremental backup và mandatory word alignment chỉ làm khi có nhu cầu thực tế. Image/video/metadata/thumbnail thuộc YouTube Auto.
 
@@ -381,7 +382,7 @@ Chế độ chạy Gemini:
 - `qa_only`: chỉ sửa block bị QA cảnh báo — mặc định.
 - `all_selected`: sửa toàn bộ chapter đã chọn.
 
-Gemini có thể chuẩn bị trước TTS 2–5 chương. Nếu hàng đợi repair đầy hoặc API bị lỗi, TTS hoàn tất các chương đã sẵn sàng rồi chuyển sang `waiting_for_text`, không thất bại cả job.
+Ghi chú lịch sử/planned: bản thiết kế sớm từng đề xuất Gemini chuẩn bị trước TTS 2–5 chương. Triển khai hiện tại vẫn chạy tuần tự như mô tả trong `PROJECT_STATUS.md`; prefetch chỉ nên làm khi có nhu cầu sản xuất rõ ràng.
 
 ### 15.6 EPUB và Text QA edge cases
 
@@ -562,15 +563,15 @@ EPUB
 - Artifact/revision, stale propagation, soft-delete và cleanup WAV tạm.
 - UI hàng đợi, tiến độ, lỗi cần review và trình phát audio.
 
-### 16.3 Chưa có trong MVP
+### 16.3 Chưa có trong MVP / ghi chú lịch sử
 
 - Voice cloning.
 - Word-level forced alignment.
 - SRT/VTT hoàn chỉnh trên UI.
-- Book-level Character Bible và automatic speaker assignment.
-- Book Voice Profile ba nhóm/unknown resolver và UI integration.
 - Scene planning, image generation, video composition và metadata/thumbnail trong Story Audio; các phần này thuộc YouTube Auto.
 - Nhiều TTS worker hoặc remote worker.
+
+Ghi chú lịch sử: Book-level Character Bible, Book Voice Profile ba nhóm/unknown resolver, Gemini Speaker Assignment Draft và review/approval UI đã được triển khai sau bản MVP ban đầu; xem `PROJECT_STATUS.md` để biết trạng thái hiện tại.
 
 ### 16.4 Gemini repair contract
 
@@ -611,8 +612,8 @@ Nếu validator thất bại, kết quả được giữ làm diagnostic nhưng 
 
 ### 16.5 Gemini scheduling
 
-- Gemini worker là network worker riêng, không chiếm TTS resource slot.
-- Chuẩn bị trước VieNeu 2–5 chương để tạo pipeline liên tục.
+- Ghi chú lịch sử/planned: Gemini worker network riêng chưa phải triển khai hiện tại; `PROJECT_STATUS.md` mới là nguồn sự thật về orchestration đang chạy tuần tự.
+- Ghi chú lịch sử/planned: chuẩn bị trước VieNeu 2–5 chương là hướng tối ưu tương lai, không phải hành vi hiện tại.
 - Cache theo `source_sha256 + model_id + prompt_version + repair_mode`.
 - Retry có exponential backoff và jitter cho timeout/rate limit.
 - Hết quota chuyển task sang `waiting_for_quota`, không đánh dấu chapter failed.

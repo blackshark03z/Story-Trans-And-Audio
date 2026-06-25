@@ -15,9 +15,9 @@ Roadmap mô tả thứ tự đầu tư, không phải cam kết thời gian. Ưu
 - Speaker Assignment Review and Approval UI: confidence/alternatives/manual choice, effective voice preview, partial immutable approval, stale protection và idempotency.
 - Long-Chapter End-to-End Validation and Hardening: Phase 1 preflight/draft/review/approval, Phase 2 VieNeu render/retry/audio QA, Phase 3 Handoff export/import/downstream compatibility.
 
-## Next — Ready for Planning
+## Next — In Progress
 
-Long-Chapter Validation hoàn tất. Chọn task tiếp theo từ danh sách dưới hoặc từ user request.
+Controlled Maintenance Sprint: đồng bộ tài liệu sau Long-Chapter Validation và thực hiện tối đa một cleanup nhỏ không đổi hành vi nếu audit tìm được phạm vi an toàn.
 
 
 ## Ownership Boundary

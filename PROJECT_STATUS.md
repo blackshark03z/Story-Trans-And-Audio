@@ -1,8 +1,8 @@
 # Trạng thái dự án
 
 **Cập nhật:** 2026-06-25T15:25 (Asia/Saigon)
-**Milestone:** Long-Chapter Validation Complete
-**Trạng thái:** Idle; chạy `.\run_app.ps1` để mở lại `http://127.0.0.1:8766`
+**Milestone:** Controlled Maintenance Sprint
+**Trạng thái:** In Progress; chạy `.\run_app.ps1` để mở lại `http://127.0.0.1:8766`
 
 Đây là nguồn sự thật ngắn gọn về tiến độ. Sau mỗi thay đổi đáng kể, cập nhật file này thay vì buộc người tiếp theo đọc lịch sử chat hoặc toàn bộ kiến trúc.
 
