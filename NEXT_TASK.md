@@ -4,19 +4,19 @@ Current Sprint:
 Personal Edition Validation
 
 Current Task:
-Long-Chapter End-to-End Validation and Hardening
+Long-Chapter Validation — Phase 3: Handoff Export/Import and Downstream Compatibility
 
 Status:
 Ready
 
 Definition of Done:
-- Chọn một chương dài có narrator, nhiều nhân vật, hội thoại xen kẽ và ít nhất một trường hợp mơ hồ.
-- Hoàn thành Generate → Review → Partial Approval → Final Approval bằng UI.
-- Tạo job thủ công từ Casting Plan đã duyệt; approval không tự tạo job.
-- Chạy VieNeu thật và kiểm tra speaker/voice/timing bằng nghe mẫu và metadata.
-- Retry một segment có kiểm soát, chứng minh các segment verified còn lại được reuse.
-- Export Handoff V1, verify và import thật vào YouTube Auto.
-- Doctor deep, full offline tests và manual accuracy report đạt.
+- Dùng completed job #6 / job_chapter #6 / artifact #30 từ Phase 2.
+- Export Handoff V1 một lần từ active artifact hiện tại, verify manifest/hash/timing/character seed.
+- Export lại cùng input để chứng minh deterministic reuse hoặc identity không đổi theo contract.
+- Import bundle vào `D:\Youtube\Youtube Auto` bằng workflow hiện có, xác nhận verify/import pass.
+- Kiểm tra bundle cũ vẫn verify/import được sau khi có bundle mới.
+- Không rerun Gemini speaker assignment, không sửa TextRevision #112, Casting Plan #8 hoặc audio artifact cũ.
+- Doctor deep, full offline tests và cross-project compatibility report đạt.
 
 Do Not Work On:
 - Auto-approve hoặc auto-render audio.

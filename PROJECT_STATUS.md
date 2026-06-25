@@ -1,8 +1,8 @@
 # Trạng thái dự án
 
-**Cập nhật:** 2026-06-24 (Asia/Saigon)
-**Milestone:** Speaker Assignment Review and Approval UI
-**Trạng thái:** Hoạt động cục bộ tại `http://127.0.0.1:8766`
+**Cập nhật:** 2026-06-25 (Asia/Saigon)
+**Milestone:** Long-Chapter Validation Phase 2
+**Trạng thái:** Idle; chạy `.\run_app.ps1` để mở lại `http://127.0.0.1:8766`
 
 Đây là nguồn sự thật ngắn gọn về tiến độ. Sau mỗi thay đổi đáng kể, cập nhật file này thay vì buộc người tiếp theo đọc lịch sử chat hoặc toàn bộ kiến trúc.
 
@@ -39,6 +39,15 @@
 - Review smoke đã chọn suggestion, Gemini alternative, manual character và unknown correction; partial approval tạo plan #5, final approval tạo plan #6, exact repeat reuse plan #6.
 - Approval không tạo job/audio; jobs #1–#5, Book Voice Profile, Character Bible và immutable draft hash giữ nguyên.
 - Handoff regression thật: bundle mới export hai lần cùng reuse identity `3255141aa34f`; bundle cũ `93ff2e0a367a` và bundle metadata mới đều verify/import lại trong YouTube Auto với `Reused: True`.
+- Long-Chapter Validation Phase 1: chọn `Quang Âm Chi Ngoại` chapter 56, TextRevision #112, 210 utterance, 101 speaker-review targets.
+- Preflight Phase 1 thêm Character Bible tối thiểu cho Đỗ Nhược (#21) và Cảnh Minh (#22), Book Voice Profile v1 Ngọc Lan/Đức Trí/Mỹ Duyên; hai character import lỗi mã hóa (#19/#20) đã bị deactivate và không tham gia candidate.
+- Gemini draft #4 dùng `gemini-2.5-flash`, prompt `speaker-assignment-v2`, 6 batch, 101/101 valid, 0 invalid, content hash `ed43ff4e...`, input fingerprint `df56fd73...`.
+- Review UI thật: partial approval tạo plan #7 với 15 decision; final approval tạo plan #8 với 86 decision còn lại, 0 remaining; exact repeat reuse plan #8.
+- Accuracy smoke Phase 1: 40/40 mẫu thủ công đúng, gồm 29 dialogue/target và 11 narrator/background; TextRevision hash, Character Bible fingerprint, draft hash giữ nguyên; job/segment/artifact vẫn 5/42/24, không render audio.
+- Long-Chapter Validation Phase 2: tạo job #6 thủ công từ Casting Plan #8, render VieNeu thật chapter 56 với 210/210 segment verified, final M4A render_0002 dài 752.310 ms.
+- Phase 2 voice distribution đúng snapshot: Ngọc Lan 110 segment, Đức Trí 56 segment, Mỹ Duyên 44 segment; sequence 1-210 liên tục, không thiếu/duplicate.
+- Phase 2 controlled retry dùng `retry_segment` cho segment #247; 4 segment đối chứng giữ nguyên hash/mtime, segment retry đổi hash/mtime, render_0001 vẫn còn và final cũ chuyển `stale`, render_0002 là `active`.
+- Phase 2 validation: TextRevision #112 hash match, Casting Plan #8 hash match, speaker draft/casting plan không tăng, Doctor `critical_errors=0`, 119 offline tests và JS syntax check đạt.
 - Doctor deep after schema v5: SQLite quick check OK, draft/cache/blob integrity OK, `critical_errors=0`; Character/Casting/Job/Segment/Artifact/TextRevision rows giống backup v4 trước migration.
 
 ## Shared Gemini cache contract
@@ -131,6 +140,9 @@ Các hạng mục vận hành/quota và alignment không cấp thiết được 
 - [x] Gemini Speaker Assignment Draft Core.
 - [x] Speaker Assignment Review and Approval UI.
 - [ ] Long-Chapter End-to-End Validation and Hardening.
+  - [x] Phase 1: preflight, real long-chapter Gemini draft, review, partial/final approval.
+  - [x] Phase 2: VieNeu render, recovery/retry, audio QA.
+  - [ ] Phase 3: Handoff export/import and downstream compatibility smoke.
 
 ## Quy tắc cập nhật tiến độ
 
@@ -161,3 +173,5 @@ Các hạng mục vận hành/quota và alignment không cấp thiết được 
 | 2026-06-24 | Character Bible UI + Handoff Integration | UI dry-run/apply + metadata editor; Handoff seed exports canonical metadata; 94 offline tests + JS syntax check |
 | 2026-06-24 | Gemini Speaker Assignment Draft Core | Schema v5; 101 offline tests; real Gemini draft #1 + cache hit/reuse; Doctor deep critical_errors=0 |
 | 2026-06-24 | Speaker Assignment Review and Approval UI | 119 offline tests; Draft #3, 15 utterance; partial plans #5–#6; exact approval repeat reused #6; no job/audio mutation |
+| 2026-06-25 | Long-Chapter Validation Phase 1 | Chapter 56; Draft #4 101/101 valid; UI plans #7–#8; idempotent repeat reused #8; 40/40 accuracy smoke; no job/audio mutation |
+| 2026-06-25 | Long-Chapter Validation Phase 2 | Job #6 from plan #8; 210/210 real VieNeu segments; M4A render_0002 752.310s; retry segment #247 reused verified peers; Doctor/tests pass |

@@ -16,11 +16,12 @@ Roadmap mô tả thứ tự đầu tư, không phải cam kết thời gian. Ưu
 
 ## Next — Long-Chapter End-to-End Validation and Hardening
 
-1. Chọn một chương dài, nhiều nhân vật và hội thoại xen kẽ.
-2. Generate → review → partial approve → complete approve → tạo job thủ công.
-3. Chạy VieNeu thật, kiểm tra speaker/voice/timing, retry và verified-segment reuse.
-4. Export Handoff V1 và import vào YouTube Auto; kiểm tra invalidation downstream.
-5. Ghi manual listening/accuracy report và đóng các lỗi vận hành tìm thấy.
+1. [x] Chọn một chương dài, nhiều nhân vật và hội thoại xen kẽ.
+2. [x] Generate → review → partial approve → complete approve qua UI.
+3. [x] Tạo job thủ công từ Casting Plan đã duyệt.
+4. [x] Chạy VieNeu thật, kiểm tra speaker/voice/timing, retry và verified-segment reuse.
+5. [ ] Export Handoff V1 và import vào YouTube Auto; kiểm tra invalidation downstream.
+6. [ ] Ghi manual listening/accuracy report và đóng các lỗi vận hành tìm thấy.
 
 ## Ownership Boundary
 

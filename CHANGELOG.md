@@ -43,6 +43,13 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ### Verified
 
+- Long-Chapter Validation Phase 2 trên job #6/chapter 56: Casting Plan #8 tạo job thủ công, VieNeu thật render 210/210 segment verified, final M4A render_0002 dài 752.310 ms.
+- Phase 2 voice/timing QA: Ngọc Lan 110, Đức Trí 56, Mỹ Duyên 44; 210 utterance sequence liên tục, final AAC mono 48 kHz, audio sample RMS/peak dương.
+- Phase 2 retry/reuse: `retry_segment` cho segment #247 tạo render_0002, 4 segment đối chứng giữ nguyên hash/mtime, render_0001 vẫn tồn tại và final cũ chuyển `stale`.
+- Phase 2 immutability: TextRevision #112 hash match, Casting Plan #8 hash match, speaker draft/casting plan không tăng, YouTube Auto không bị ghi trong Phase 2.
+- Long-Chapter Validation Phase 1 trên `Quang Âm Chi Ngoại` chapter 56: Draft #4 generated 101/101 valid bằng Gemini thật, 6 batch, prompt `speaker-assignment-v2`.
+- Review UI thật tạo plan #7 partial 15 decision và plan #8 final 86 decision; exact repeat reused plan #8 với cùng decision fingerprint, không tạo job/audio.
+- Accuracy smoke Phase 1 đạt 40/40 mẫu thủ công; TextRevision #112, Character Bible fingerprint, draft payload hash giữ nguyên; jobs/segments/artifacts vẫn 5/42/24.
 - Real Gemini/UI smoke trên book 7/chapter 1985: Draft #3 valid 15/15, 7 high + 8 medium; suggestion, alternative, manual correction, unknown và skipped rows được review qua hai approval revision.
 - Plan #5 partial và plan #6 final; exact repeat reuse plan #6 với cùng decision fingerprint. Job count giữ nguyên 5 và không có audio mới.
 - Handoff mới export hai lần cùng identity/reuse; bundle cũ và bundle giàu metadata đều verify/import thật lại vào `D:\Youtube\Youtube Auto`.
