@@ -4,19 +4,16 @@ Current Sprint:
 Personal Edition Validation
 
 Current Task:
-Long-Chapter Validation — Phase 3: Handoff Export/Import and Downstream Compatibility
+Ready for planning
 
 Status:
-Ready
+Completed
 
-Definition of Done:
-- Dùng completed job #6 / job_chapter #6 / artifact #30 từ Phase 2.
-- Export Handoff V1 một lần từ active artifact hiện tại, verify manifest/hash/timing/character seed.
-- Export lại cùng input để chứng minh deterministic reuse hoặc identity không đổi theo contract.
-- Import bundle vào `D:\Youtube\Youtube Auto` bằng workflow hiện có, xác nhận verify/import pass.
-- Kiểm tra bundle cũ vẫn verify/import được sau khi có bundle mới.
-- Không rerun Gemini speaker assignment, không sửa TextRevision #112, Casting Plan #8 hoặc audio artifact cũ.
-- Doctor deep, full offline tests và cross-project compatibility report đạt.
+Previous Task Summary:
+Long-Chapter Validation Phase 3 đã hoàn tất. Bundle identity `050ac2f2a73bda7b84beb7c1e9bd5b06d9fd3a00773214fa91616c451e8f9280` export deterministic, legacy bundles verify/import đạt, Story Audio 119 tests pass, YouTube Auto 96 tests pass, Doctor critical_errors=0.
+
+Next Steps:
+Ready for planning. ROADMAP.md không có một P2/P3 tiếp theo đủ rõ để tự chọn; chờ user chọn task kế tiếp.
 
 Do Not Work On:
 - Auto-approve hoặc auto-render audio.

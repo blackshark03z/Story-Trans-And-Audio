@@ -13,15 +13,12 @@ Roadmap mô tả thứ tự đầu tư, không phải cam kết thời gian. Ưu
 - Book-level Character Bible Import Core, UI và Handoff integration.
 - Gemini Speaker Assignment Draft Core.
 - Speaker Assignment Review and Approval UI: confidence/alternatives/manual choice, effective voice preview, partial immutable approval, stale protection và idempotency.
+- Long-Chapter End-to-End Validation and Hardening: Phase 1 preflight/draft/review/approval, Phase 2 VieNeu render/retry/audio QA, Phase 3 Handoff export/import/downstream compatibility.
 
-## Next — Long-Chapter End-to-End Validation and Hardening
+## Next — Ready for Planning
 
-1. [x] Chọn một chương dài, nhiều nhân vật và hội thoại xen kẽ.
-2. [x] Generate → review → partial approve → complete approve qua UI.
-3. [x] Tạo job thủ công từ Casting Plan đã duyệt.
-4. [x] Chạy VieNeu thật, kiểm tra speaker/voice/timing, retry và verified-segment reuse.
-5. [ ] Export Handoff V1 và import vào YouTube Auto; kiểm tra invalidation downstream.
-6. [ ] Ghi manual listening/accuracy report và đóng các lỗi vận hành tìm thấy.
+Long-Chapter Validation hoàn tất. Chọn task tiếp theo từ danh sách dưới hoặc từ user request.
+
 
 ## Ownership Boundary
 

@@ -43,7 +43,8 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ### Verified
 
-- Long-Chapter Validation Phase 2 trên job #6/chapter 56: Casting Plan #8 tạo job thủ công, VieNeu thật render 210/210 segment verified, final M4A render_0002 dài 752.310 ms.
+- Long-Chapter Validation Phase 2 trên job #6/chapter 56: Casting Plan #8 tạo job thủ công, VieNeu thật render 210/210 segment verified, final M4A render_0002 dài 752.310 s.
+- Long-Chapter Validation Phase 3 trên job #6/chapter 56/artifact #30: export handoff bundle identity `050ac2f2a73bda7b84beb7c1e9bd5b06d9fd3a00773214fa91616c451e8f9280` lần đầu tạo manifest 752310 ms / 210 utterances / 2 characters; export #2 reused cùng identity; legacy bundles `93ff2e0a367a` và `3255141aa34f` verify/import/reuse đạt; Story Audio 119 offline tests / Doctor deep `critical_errors=0`; YouTube Auto 96 tests / import 7/7 đạt.
 - Phase 2 voice/timing QA: Ngọc Lan 110, Đức Trí 56, Mỹ Duyên 44; 210 utterance sequence liên tục, final AAC mono 48 kHz, audio sample RMS/peak dương.
 - Phase 2 retry/reuse: `retry_segment` cho segment #247 tạo render_0002, 4 segment đối chứng giữ nguyên hash/mtime, render_0001 vẫn tồn tại và final cũ chuyển `stale`.
 - Phase 2 immutability: TextRevision #112 hash match, Casting Plan #8 hash match, speaker draft/casting plan không tăng, YouTube Auto không bị ghi trong Phase 2.
