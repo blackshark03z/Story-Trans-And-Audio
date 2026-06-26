@@ -1,7 +1,8 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import sqlite3
 import tempfile
+import os
 import unittest
 from dataclasses import replace
 from pathlib import Path
@@ -24,6 +25,19 @@ from story_audio.storage import ContentStore
 
 
 class CustomVoiceMigrationTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+    
+    def tearDown(self) -> None:
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
+        super().tearDown()
+
     def test_migration_from_v5_to_v6_creates_custom_voice_tables(self) -> None:
         """Test that migration 0006 creates custom_voices and custom_voice_revisions tables."""
         with tempfile.TemporaryDirectory() as directory:
@@ -205,6 +219,19 @@ class CustomVoiceMigrationTests(unittest.TestCase):
 
 
 class CustomVoiceRepositoryTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+    
+    def tearDown(self) -> None:
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
+        super().tearDown()
+
     def _setup_test_env(self) -> tuple[Database, ContentStore, CustomVoiceRepository]:
         """Helper to set up test database and repository."""
         temp_dir = tempfile.mkdtemp()
@@ -544,6 +571,19 @@ class CustomVoiceRepositoryTests(unittest.TestCase):
 
 
 class ContentStoreAudioTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+    
+    def tearDown(self) -> None:
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
+        super().tearDown()
+
     def test_put_audio_creates_content_addressed_path(self) -> None:
         """Test that put_audio creates proper content-addressed path."""
         with tempfile.TemporaryDirectory() as directory:

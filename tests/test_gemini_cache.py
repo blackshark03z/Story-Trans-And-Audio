@@ -25,6 +25,19 @@ REPAIRED = "Trời đã tối, anh bước về nhà."
 
 
 class GeminiCacheTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+    
+    def tearDown(self) -> None:
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
+        super().tearDown()
+
     def make_cache(self, root: Path, **overrides):
         config = replace(make_config(root), **overrides)
         config.ensure_dirs()
@@ -251,6 +264,19 @@ def seed_shared_pipeline(root: Path, source: str = SOURCE, *, chapter_count: int
 
 
 class SharedPipelineCacheTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+    
+    def tearDown(self) -> None:
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
+        super().tearDown()
+
     def test_pipeline_persists_bounded_orthographic_repair_without_restoring_source(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             source = "con kền kèn chạy qua"

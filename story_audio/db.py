@@ -1,14 +1,15 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
+import os
 import sqlite3
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
+from .config import canonical_production_db_path
 from .migrations import LATEST_SCHEMA_VERSION, MigrationRunner
-
 
 class ClosingConnection(sqlite3.Connection):
     """Commit/rollback and close when used as a context manager."""
@@ -23,10 +24,41 @@ class ClosingConnection(sqlite3.Connection):
             self.close()
         return False
 
-
 def utcnow() -> str:
     return datetime.now(timezone.utc).isoformat()
 
+def _check_live_db_guard(path: Path) -> None:
+    """Fail-closed guard preventing accidental production DB mutations.
+    
+    Raises RuntimeError if attempting to initialize/migrate the canonical
+    production database without explicit opt-in.
+    
+    Test mode (STORY_AUDIO_TESTING=1) always blocks live DB access.
+    Non-test mode requires STORY_AUDIO_ALLOW_LIVE_DB=1 for production DB.
+    """
+    canonical = canonical_production_db_path().resolve()
+    requested = path.resolve()
+    
+    if requested != canonical:
+        # Non-production path, allow
+        return
+    
+    is_testing = os.getenv("STORY_AUDIO_TESTING", "").strip() == "1"
+    allow_live = os.getenv("STORY_AUDIO_ALLOW_LIVE_DB", "").strip() == "1"
+    
+    if is_testing:
+        # Test mode always blocks live DB, even with allow_live
+        raise RuntimeError(
+            f"Test mode (STORY_AUDIO_TESTING=1) attempted to initialize production DB: {canonical}\n"
+            "Tests must use temporary database paths."
+        )
+    
+    if not allow_live:
+        raise RuntimeError(
+            f"Attempted to initialize production database without explicit opt-in: {canonical}\n"
+            "Production launcher must set STORY_AUDIO_ALLOW_LIVE_DB=1 before starting the app.\n"
+            "Tests must use temporary paths and set STORY_AUDIO_TESTING=1."
+        )
 
 class Database:
     def __init__(self, path: Path, migration_runner: MigrationRunner | None = None):
@@ -48,6 +80,7 @@ class Database:
         return connection
 
     def initialize(self) -> int:
+        _check_live_db_guard(self.path)
         with self.connect() as connection:
             version = self.migration_runner.apply(connection, utcnow())
             connection.execute(

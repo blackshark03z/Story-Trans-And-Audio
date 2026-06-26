@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+import os
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -53,6 +54,8 @@ class MockAudioValidator(AudioValidator):
 
 class CustomVoiceApiTests(unittest.TestCase):
     def setUp(self) -> None:
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
         self.temp = tempfile.TemporaryDirectory()
         self.root = Path(self.temp.name)
         self.config = replace(
@@ -84,6 +87,10 @@ class CustomVoiceApiTests(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.temp.cleanup()
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
 
     def test_create_custom_voice_success(self) -> None:
         result = create_custom_voice_handler(self.repo, "Test Voice", "Test description")

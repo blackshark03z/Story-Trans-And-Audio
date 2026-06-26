@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+import os
 import unittest
 from pathlib import Path
 
@@ -23,6 +24,19 @@ ALL_VOICES = VOICES | {"male", "female", "unknown", "override"}
 
 
 class VoiceProfileTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+    
+    def tearDown(self) -> None:
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
+        super().tearDown()
+
     def profile(self, db, book_id, **changes):
         values = {
             "narrator_voice_id": "narrator",

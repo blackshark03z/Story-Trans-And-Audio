@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+import os
 import unittest
 from dataclasses import replace
 from pathlib import Path
@@ -11,6 +12,19 @@ from story_audio.storage import ContentStore
 
 
 class StorageDatabaseTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+    
+    def tearDown(self) -> None:
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
+        super().tearDown()
+
     def test_content_store_is_addressed_by_hash(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

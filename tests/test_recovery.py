@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+import os
 import unittest
 from dataclasses import replace
 from pathlib import Path
@@ -130,6 +131,19 @@ def seed_recovery(config):
 
 
 class RecoveryTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+    
+    def tearDown(self) -> None:
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
+        super().tearDown()
+
     def test_retry_reuses_verified_segment_and_renders_only_pending(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             config = make_config(Path(directory))
