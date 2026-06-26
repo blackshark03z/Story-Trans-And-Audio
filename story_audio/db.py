@@ -57,6 +57,7 @@ def _check_live_db_guard(path: Path) -> None:
         raise RuntimeError(
             f"Attempted to initialize production database without explicit opt-in: {canonical}\n"
             "Production launcher must set STORY_AUDIO_ALLOW_LIVE_DB=1 before starting the app.\n"
+            "If this is an operational script, you must pass the --allow-live-db flag.\n"
             "Tests must use temporary paths and set STORY_AUDIO_TESTING=1."
         )
 
