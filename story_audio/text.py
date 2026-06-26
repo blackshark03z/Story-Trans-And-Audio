@@ -4,6 +4,7 @@ import hashlib
 import re
 import unicodedata
 from dataclasses import dataclass
+from difflib import SequenceMatcher
 
 
 TERMINAL = re.compile(r"[.!?…][\"”’')\]]*$")
@@ -23,6 +24,28 @@ class QaIssue:
     severity: str
     message: str
     details: dict
+
+
+@dataclass(frozen=True)
+class OrthographicChangeCluster:
+    source_token_range: tuple[int, int]
+    candidate_token_range: tuple[int, int]
+    source_tokens: tuple[str, ...]
+    candidate_tokens: tuple[str, ...]
+    source_skeleton: str
+    candidate_skeleton: str
+    skeletons_match: bool
+
+
+@dataclass(frozen=True)
+class OrthographicComparisonResult:
+    qualifies: bool
+    reason_code: str | None
+    reason: str | None
+    changed_cluster_count: int
+    total_changed_source_tokens: int
+    total_changed_candidate_tokens: int
+    clusters: tuple[OrthographicChangeCluster, ...]
 
 
 def normalize_space(text: str) -> str:
@@ -55,6 +78,13 @@ def reflow_paragraphs(paragraphs: list[str], chapter_title: str) -> tuple[str, l
 
 
 LEXICAL_TOKEN_RE = re.compile(r"[^\W_]+(?:['’][^\W_]+)?", flags=re.UNICODE)
+URL_RE = re.compile(r"(?i)\b(?:https?://|www\.)[^\s<>'\"]+")
+NUMBER_RE = re.compile(r"(?<![^\W_])\d+(?:[.,]\d+)*(?![^\W_])", flags=re.UNICODE)
+PROTECTED_STRUCTURAL_MARKER_RE = re.compile(
+    r"<!--.*?-->|</?[^>\s]+(?:\s+[^<>]*?)?>|\{\{[^{}]*\}\}|\[[A-Z0-9_][A-Z0-9_ .:-]*\]|"
+    r"^\s*(?:#{1,6}\s+|[-*_]{3,}\s*$)",
+    flags=re.MULTILINE,
+)
 
 
 def lexical_tokens(text: str) -> list[str]:
@@ -64,6 +94,181 @@ def lexical_tokens(text: str) -> list[str]:
 def lexical_sha256(text: str) -> str:
     payload = "\u001f".join(lexical_tokens(text)).encode("utf-8")
     return hashlib.sha256(payload).hexdigest()
+
+
+def orthographic_skeleton(text: str) -> str:
+    skeleton: list[str] = []
+    normalized = unicodedata.normalize("NFD", text.casefold())
+    for char in normalized:
+        category = unicodedata.category(char)
+        if category.startswith("M"):
+            continue
+        if category.startswith("L") or category == "Nd":
+            skeleton.append(char)
+    return "".join(skeleton)
+
+
+def _extract_urls(text: str) -> tuple[str, ...]:
+    normalized = unicodedata.normalize("NFC", text)
+    trailing = ".,;:!?)]}”’\"'"
+    return tuple(match.group(0).rstrip(trailing) for match in URL_RE.finditer(normalized))
+
+
+def _extract_numbers(text: str) -> tuple[str, ...]:
+    return tuple(match.group(0) for match in NUMBER_RE.finditer(unicodedata.normalize("NFC", text)))
+
+
+def _extract_protected_structural_markers(text: str) -> tuple[str, ...]:
+    return tuple(match.group(0) for match in PROTECTED_STRUCTURAL_MARKER_RE.finditer(unicodedata.normalize("NFC", text)))
+
+
+def compare_bounded_orthographic_changes(source: str, candidate: str) -> OrthographicComparisonResult:
+    source_urls = _extract_urls(source)
+    candidate_urls = _extract_urls(candidate)
+    if source_urls != candidate_urls:
+        return OrthographicComparisonResult(
+            False,
+            "urls_changed",
+            "URLs changed.",
+            0,
+            0,
+            0,
+            (),
+        )
+
+    source_numbers = _extract_numbers(source)
+    candidate_numbers = _extract_numbers(candidate)
+    if source_numbers != candidate_numbers:
+        return OrthographicComparisonResult(
+            False,
+            "numbers_changed",
+            "Numbers changed.",
+            0,
+            0,
+            0,
+            (),
+        )
+
+    source_markers = _extract_protected_structural_markers(source)
+    candidate_markers = _extract_protected_structural_markers(candidate)
+    if source_markers != candidate_markers:
+        return OrthographicComparisonResult(
+            False,
+            "protected_structural_markers_changed",
+            "Protected structural markers changed.",
+            0,
+            0,
+            0,
+            (),
+        )
+
+    source_tokens = lexical_tokens(source)
+    candidate_tokens = lexical_tokens(candidate)
+    clusters: list[OrthographicChangeCluster] = []
+    matcher = SequenceMatcher(None, source_tokens, candidate_tokens, autojunk=False)
+    for tag, source_start, source_end, candidate_start, candidate_end in matcher.get_opcodes():
+        if tag == "equal":
+            continue
+        changed_source = tuple(source_tokens[source_start:source_end])
+        changed_candidate = tuple(candidate_tokens[candidate_start:candidate_end])
+        source_skeleton = orthographic_skeleton("".join(changed_source))
+        candidate_skeleton = orthographic_skeleton("".join(changed_candidate))
+        clusters.append(
+            OrthographicChangeCluster(
+                source_token_range=(source_start, source_end),
+                candidate_token_range=(candidate_start, candidate_end),
+                source_tokens=changed_source,
+                candidate_tokens=changed_candidate,
+                source_skeleton=source_skeleton,
+                candidate_skeleton=candidate_skeleton,
+                skeletons_match=source_skeleton == candidate_skeleton,
+            )
+        )
+
+    changed_cluster_count = len(clusters)
+    total_source = sum(len(cluster.source_tokens) for cluster in clusters)
+    total_candidate = sum(len(cluster.candidate_tokens) for cluster in clusters)
+
+    for cluster in clusters:
+        if len(cluster.source_tokens) > 3:
+            return OrthographicComparisonResult(
+                False,
+                "cluster_source_token_limit_exceeded",
+                "A changed cluster has more than 3 source tokens.",
+                changed_cluster_count,
+                total_source,
+                total_candidate,
+                tuple(clusters),
+            )
+        if len(cluster.candidate_tokens) > 3:
+            return OrthographicComparisonResult(
+                False,
+                "cluster_candidate_token_limit_exceeded",
+                "A changed cluster has more than 3 candidate tokens.",
+                changed_cluster_count,
+                total_source,
+                total_candidate,
+                tuple(clusters),
+            )
+
+    if changed_cluster_count > 2:
+        return OrthographicComparisonResult(
+            False,
+            "changed_cluster_limit_exceeded",
+            "More than 2 changed clusters.",
+            changed_cluster_count,
+            total_source,
+            total_candidate,
+            tuple(clusters),
+        )
+    if total_source > 4:
+        return OrthographicComparisonResult(
+            False,
+            "total_source_token_limit_exceeded",
+            "More than 4 total changed source tokens.",
+            changed_cluster_count,
+            total_source,
+            total_candidate,
+            tuple(clusters),
+        )
+    if total_candidate > 4:
+        return OrthographicComparisonResult(
+            False,
+            "total_candidate_token_limit_exceeded",
+            "More than 4 total changed candidate tokens.",
+            changed_cluster_count,
+            total_source,
+            total_candidate,
+            tuple(clusters),
+        )
+
+    for cluster in clusters:
+        if not cluster.skeletons_match:
+            if not cluster.source_tokens or not cluster.candidate_tokens:
+                reason_code = "semantic_insertion_or_deletion"
+                reason = "Semantic insertion or deletion changed the cluster skeleton."
+            else:
+                reason_code = "skeleton_mismatch"
+                reason = "A changed cluster has different source and candidate skeletons."
+            return OrthographicComparisonResult(
+                False,
+                reason_code,
+                reason,
+                changed_cluster_count,
+                total_source,
+                total_candidate,
+                tuple(clusters),
+            )
+
+    return OrthographicComparisonResult(
+        True,
+        None,
+        None,
+        changed_cluster_count,
+        total_source,
+        total_candidate,
+        tuple(clusters),
+    )
 
 
 def validate_lexical_identity(source: str, repaired: str) -> tuple[bool, str | None]:
