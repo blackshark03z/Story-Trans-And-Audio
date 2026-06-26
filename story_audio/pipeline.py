@@ -16,7 +16,14 @@ from .files import atomic_write_json, safe_slug, sha256_file, sha256_text
 from .gemini import GeminiRepairError, repair_punctuation
 from .gemini_cache import GeminiRepairCache
 from .storage import ContentStore
-from .text import lexical_sha256, qa_text, split_repair_blocks, split_tts_segments, validate_lexical_identity
+from .text import (
+    lexical_sha256,
+    qa_text,
+    split_repair_blocks,
+    split_tts_segments,
+    validate_lexical_identity,
+    validate_repair_candidate,
+)
 from .tts import TtsService
 
 
@@ -30,6 +37,10 @@ class JobPaused(RuntimeError):
 
 class ChapterNeedsReview(RuntimeError):
     pass
+
+
+def _repair_validation_error(block_index: int, reason: str) -> ChapterNeedsReview:
+    return ChapterNeedsReview(f"Gemini block {block_index} changed content: {reason}")
 
 
 def create_job(
@@ -525,36 +536,43 @@ class PipelineWorker:
                 "SELECT * FROM repair_blocks WHERE job_chapter_id=? ORDER BY block_index",
                 (job_chapter_id,),
             )
-        repaired_blocks: list[str] = []
+        expected_blocks = {index: block for index, block in enumerate(blocks, start=1)}
+        self._validate_repair_block_structure(existing, expected_blocks)
+        repaired_blocks: dict[int, str] = {}
         for row in existing:
             self._control(job_id)
-            source = self.store.read_text(row["source_path"])
+            block_index = int(row["block_index"])
+            source = expected_blocks[block_index]
+            source_sha = sha256_text(source)
             if row["status"] == "verified" and row["repaired_path"]:
                 try:
                     checkpoint_text = self.store.read_text(row["repaired_path"])
-                    valid, _reason = validate_lexical_identity(source, checkpoint_text)
                     if (
-                        sha256_text(source) == row["source_sha256"]
+                        source_sha == row["source_sha256"]
                         and row["model_id"] == repair_model
                         and (
                             row["prompt_version"] == checkpoint_prompt_version
                             or (legacy_compatible and row["prompt_version"] == repair_prompt_version)
                         )
-                        and valid
                     ):
+                        accepted = self._validate_repaired_block(
+                            block_index=block_index,
+                            source=source,
+                            repaired=checkpoint_text,
+                        )
                         if row["prompt_version"] != checkpoint_prompt_version:
                             with self.db.connect() as connection:
                                 connection.execute(
                                     "UPDATE repair_blocks SET prompt_version=? WHERE id=?",
                                     (checkpoint_prompt_version, row["id"]),
                                 )
-                        repaired_blocks.append(checkpoint_text)
+                        repaired_blocks[block_index] = accepted
                         self.db.audit(
                             "gemini_checkpoint_reuse", job_id=job_id, chapter_id=chapter_id,
-                            details={"scope": "repair_block", "block_index": int(row["block_index"])},
+                            details={"scope": "repair_block", "block_index": block_index},
                         )
                         continue
-                except (OSError, UnicodeError, ValueError):
+                except (OSError, UnicodeError, ValueError, ChapterNeedsReview):
                     pass
 
             lookup = self.repair_cache.lookup(
@@ -565,7 +583,7 @@ class PipelineWorker:
             self.db.audit(
                 f"gemini_cache_{lookup.status}", job_id=job_id, chapter_id=chapter_id,
                 details={
-                    "block_index": int(row["block_index"]),
+                    "block_index": block_index,
                     "cache_key": lookup.cache_key,
                     "reason": lookup.reason if lookup.status == "invalid" else None,
                     "lookup_ms": round(lookup.lookup_ms, 3),
@@ -573,12 +591,39 @@ class PipelineWorker:
                 },
             )
             if lookup.status == "hit" and lookup.repaired_text and lookup.repaired_blob_path:
+                try:
+                    accepted = self._validate_repaired_block(
+                        block_index=block_index,
+                        source=source,
+                        repaired=lookup.repaired_text,
+                    )
+                except ChapterNeedsReview as exc:
+                    with self.db.connect() as connection:
+                        connection.execute(
+                            "UPDATE repair_blocks SET status='failed',error_message=? WHERE id=?",
+                            (str(exc)[:2000], row["id"]),
+                        )
+                    raise
+                repaired_path = lookup.repaired_blob_path
+                if accepted != lookup.repaired_text:
+                    repaired_path, _ = self.store.put_text(accepted)
                 with self.db.connect() as connection:
                     connection.execute(
-                        "UPDATE repair_blocks SET status='verified',repaired_path=?,model_id=?,prompt_version=?,verified_at=?,error_message=NULL WHERE id=?",
-                        (lookup.repaired_blob_path, repair_model, checkpoint_prompt_version, utcnow(), row["id"]),
+                        """UPDATE repair_blocks
+                           SET status='verified',source_sha256=?,lexical_sha256=?,
+                               repaired_path=?,model_id=?,prompt_version=?,verified_at=?,error_message=NULL
+                           WHERE id=?""",
+                        (
+                            source_sha,
+                            lexical_sha256(source),
+                            repaired_path,
+                            repair_model,
+                            checkpoint_prompt_version,
+                            utcnow(),
+                            row["id"],
+                        ),
                     )
-                repaired_blocks.append(lookup.repaired_text)
+                repaired_blocks[block_index] = accepted
                 continue
             try:
                 api_key = self.config.gemini_key()
@@ -591,19 +636,24 @@ class PipelineWorker:
                     )
                 self.db.audit(
                     "gemini_api_call", job_id=job_id, chapter_id=chapter_id,
-                    details={"block_index": int(row["block_index"]), "cache_key": lookup.cache_key},
+                    details={"block_index": block_index, "cache_key": lookup.cache_key},
                 )
                 result = repair_punctuation(
                     api_key=api_key,
                     model=repair_model,
-                    block_id=f"jc{job_chapter_id}-b{row['block_index']}",
+                    block_id=f"jc{job_chapter_id}-b{block_index}",
                     text=source,
                 )
-                repaired_path, _ = self.store.put_text(result.text)
+                accepted = self._validate_repaired_block(
+                    block_index=block_index,
+                    source=source,
+                    repaired=result.text,
+                )
+                repaired_path, _ = self.store.put_text(accepted)
                 try:
                     manifest = self.repair_cache.store_result(
                         source=source,
-                        repaired=result.text,
+                        repaired=accepted,
                         model=repair_model,
                         prompt_version=repair_prompt_version,
                     )
@@ -612,27 +662,35 @@ class PipelineWorker:
                     self.db.audit(
                         "gemini_cache_write_failed", job_id=job_id, chapter_id=chapter_id,
                         details={
-                            "block_index": int(row["block_index"]),
+                            "block_index": block_index,
                             "error_type": type(cache_exc).__name__,
                         },
                     )
                 with self.db.connect() as connection:
                     connection.execute(
-                        "UPDATE repair_blocks SET status='verified',repaired_path=?,model_id=?,prompt_version=?,verified_at=? WHERE id=?",
-                        (repaired_path, repair_model, checkpoint_prompt_version, utcnow(), row["id"]),
+                        """UPDATE repair_blocks
+                           SET status='verified',source_sha256=?,lexical_sha256=?,
+                               repaired_path=?,model_id=?,prompt_version=?,verified_at=?,error_message=NULL
+                           WHERE id=?""",
+                        (
+                            source_sha,
+                            lexical_sha256(source),
+                            repaired_path,
+                            repair_model,
+                            checkpoint_prompt_version,
+                            utcnow(),
+                            row["id"],
+                        ),
                     )
-                repaired_blocks.append(result.text)
-            except GeminiRepairError as exc:
+                repaired_blocks[block_index] = accepted
+            except (GeminiRepairError, ChapterNeedsReview) as exc:
                 with self.db.connect() as connection:
                     connection.execute(
                         "UPDATE repair_blocks SET status='failed',error_message=? WHERE id=?",
                         (str(exc)[:2000], row["id"]),
                     )
                 raise ChapterNeedsReview(f"Gemini block {row['block_index']} lỗi: {exc}") from exc
-        repaired_text = "\n\n".join(repaired_blocks)
-        valid, reason = validate_lexical_identity(source_text, repaired_text)
-        if not valid:
-            raise ChapterNeedsReview(f"Gemini thay đổi nội dung chương: {reason}")
+        repaired_text = self._assemble_repaired_blocks(repaired_blocks, expected_blocks)
         content_path, content_sha = self.store.put_text(repaired_text)
         duplicate = self.db.fetch_one(
             """SELECT * FROM text_revisions
@@ -674,6 +732,51 @@ class PipelineWorker:
                 (revision_id, now, chapter_id),
             )
         return revision_id, repaired_text
+
+    def _validate_repair_block_structure(
+        self,
+        rows: list[Any],
+        expected_blocks: dict[int, str],
+    ) -> None:
+        expected_indexes = set(expected_blocks)
+        seen: set[int] = set()
+        duplicate: set[int] = set()
+        unexpected: set[int] = set()
+        for row in rows:
+            index = int(row["block_index"])
+            if index in seen:
+                duplicate.add(index)
+            seen.add(index)
+            if index not in expected_indexes:
+                unexpected.add(index)
+        missing = expected_indexes - seen
+        if duplicate:
+            raise ChapterNeedsReview(f"Gemini repair blocks duplicate indexes: {sorted(duplicate)}")
+        if missing:
+            raise ChapterNeedsReview(f"Gemini repair blocks missing indexes: {sorted(missing)}")
+        if unexpected:
+            raise ChapterNeedsReview(f"Gemini repair blocks unexpected indexes: {sorted(unexpected)}")
+
+    def _validate_repaired_block(self, *, block_index: int, source: str, repaired: str) -> str:
+        try:
+            return validate_repair_candidate(source, repaired).accepted_text
+        except ValueError as exc:
+            raise _repair_validation_error(block_index, str(exc)) from exc
+
+    def _assemble_repaired_blocks(
+        self,
+        repaired_blocks: dict[int, str],
+        expected_blocks: dict[int, str],
+    ) -> str:
+        expected_indexes = set(expected_blocks)
+        actual_indexes = set(repaired_blocks)
+        missing = expected_indexes - actual_indexes
+        unexpected = actual_indexes - expected_indexes
+        if missing:
+            raise ChapterNeedsReview(f"Gemini repair blocks not completed: {sorted(missing)}")
+        if unexpected:
+            raise ChapterNeedsReview(f"Gemini repair blocks unexpected repaired indexes: {sorted(unexpected)}")
+        return "\n\n".join(repaired_blocks[index] for index in sorted(expected_blocks))
 
     def _prepare_segments(
         self,
