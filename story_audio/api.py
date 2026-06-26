@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -28,6 +28,17 @@ from .character_bible import (
     apply_character_bible_import,
     parse_character_bible,
     plan_character_bible_import,
+)
+from .custom_voice import CustomVoiceRepository
+from .custom_voice_api import (
+    create_custom_voice_handler,
+    create_custom_voice_revision_handler,
+    deactivate_custom_voice_handler,
+    get_custom_voice_handler,
+    get_custom_voice_revision_handler,
+    list_custom_voice_revisions_handler,
+    list_custom_voices_handler,
+    reactivate_custom_voice_handler,
 )
 from .db import Database, utcnow
 from .diagnostics import (
@@ -72,6 +83,7 @@ from .voice_profile import (
 settings.ensure_dirs()
 db = Database(settings.db_path)
 store = ContentStore(settings)
+custom_voice_repo = CustomVoiceRepository(db, store)
 worker = PipelineWorker(db, store, tts_service, settings)
 voice_previews = VoicePreviewService(tts_service, settings)
 
@@ -804,6 +816,55 @@ def cleanup_segments() -> dict[str, int]:
 @app.post("/api/maintenance/preview-cache")
 def cleanup_preview_cache() -> dict[str, int]:
     return voice_previews.cleanup()
+
+
+# Custom Voice API Endpoints
+
+@app.post("/api/custom-voices")
+def create_custom_voice(
+    display_name: str = Body(..., min_length=1, max_length=120),
+    description: str | None = Body(None),
+) -> dict[str, Any]:
+    return create_custom_voice_handler(custom_voice_repo, display_name, description)
+
+
+@app.get("/api/custom-voices")
+def list_custom_voices(active_only: bool = Query(False)) -> list[dict[str, Any]]:
+    return list_custom_voices_handler(custom_voice_repo, active_only)
+
+
+@app.get("/api/custom-voices/{voice_id}")
+def get_custom_voice(voice_id: int) -> dict[str, Any]:
+    return get_custom_voice_handler(custom_voice_repo, voice_id)
+
+
+@app.patch("/api/custom-voices/{voice_id}/deactivate")
+def deactivate_custom_voice(voice_id: int) -> dict[str, Any]:
+    return deactivate_custom_voice_handler(custom_voice_repo, voice_id)
+
+
+@app.patch("/api/custom-voices/{voice_id}/reactivate")
+def reactivate_custom_voice(voice_id: int) -> dict[str, Any]:
+    return reactivate_custom_voice_handler(custom_voice_repo, voice_id)
+
+
+@app.post("/api/custom-voices/{voice_id}/revisions")
+async def create_custom_voice_revision(
+    voice_id: int,
+    audio: UploadFile = File(...),
+    transcript: str = Form(...),
+) -> dict[str, Any]:
+    return create_custom_voice_revision_handler(custom_voice_repo, voice_id, audio, transcript)
+
+
+@app.get("/api/custom-voices/{voice_id}/revisions")
+def list_custom_voice_revisions(voice_id: int) -> list[dict[str, Any]]:
+    return list_custom_voice_revisions_handler(custom_voice_repo, voice_id)
+
+
+@app.get("/api/custom-voice-revisions/{revision_id}")
+def get_custom_voice_revision(revision_id: int) -> dict[str, Any]:
+    return get_custom_voice_revision_handler(custom_voice_repo, revision_id)
 
 
 UI_DIR = settings.root / "ui"
