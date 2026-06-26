@@ -1,12 +1,11 @@
 from __future__ import annotations
 
 import json
-import unittest
 import unicodedata
 from unittest.mock import patch
 
 from story_audio.gemini import GeminiRepairError, repair_punctuation
-
+from tests.base import IsolatedTestCase
 
 class FakeGeminiResponse:
     def __init__(self, *, block_id: str, repaired_text: str | None = None, raw_text: str | None = None):
@@ -35,8 +34,7 @@ class FakeGeminiResponse:
     def read(self) -> bytes:
         return self.body
 
-
-class GeminiRepairResponseTests(unittest.TestCase):
+class GeminiRepairResponseTests(IsolatedTestCase):
     def repair(self, source: str, candidate: str, *, block_id: str = "b1") -> str:
         with patch(
             "story_audio.gemini.urllib.request.urlopen",
@@ -63,21 +61,21 @@ class GeminiRepairResponseTests(unittest.TestCase):
 
     def test_punctuation_case_change_restores_source_spelling(self) -> None:
         self.assertEqual(
-            self.repair("giÃ³ ná»•i lÃªn trá»i báº¯t Ä‘áº§u mÆ°a", "GiÃ³ ná»•i lÃªn. Trá»i báº¯t Ä‘áº§u mÆ°a."),
-            "giÃ³ ná»•i lÃªn. trá»i báº¯t Ä‘áº§u mÆ°a.",
+            self.repair("gió nổi lên trời bắt đầu mưa", "Gió nổi lên. Trời bắt đầu mưa."),
+            "gió nổi lên. trời bắt đầu mưa.",
         )
 
     def test_repeated_accent_fix_succeeds(self) -> None:
-        self.assertEqual(self.repair("kền kèn", "kền kền"), "kền kền")
+        self.assertEqual(self.repair("kẻn kèn", "kẻn kẻn"), "kẻn kẻn")
 
     def test_single_accent_fix_succeeds(self) -> None:
-        self.assertEqual(self.repair("kèn", "kền"), "kền")
+        self.assertEqual(self.repair("kèn", "kẻn"), "kẻn")
 
     def test_token_merge_succeeds(self) -> None:
         self.assertEqual(self.repair("thiế u", "thiếu"), "thiếu")
 
     def test_nfc_nfd_only_spelling_succeeds(self) -> None:
-        source = "kền"
+        source = "kẻn"
         candidate = unicodedata.normalize("NFD", source)
         self.assertEqual(self.repair(source, candidate), source)
 
@@ -129,8 +127,8 @@ class GeminiRepairResponseTests(unittest.TestCase):
                 )
 
     def test_bounded_candidate_text_is_returned_without_source_spelling_restore(self) -> None:
-        self.assertEqual(self.repair("kền kèn", "kền kền."), "kền kền.")
-
+        self.assertEqual(self.repair("kẻn kèn", "kẻn kẻn."), "kẻn kẻn.")
 
 if __name__ == "__main__":
+    import unittest
     unittest.main()

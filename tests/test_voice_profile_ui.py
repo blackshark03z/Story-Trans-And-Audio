@@ -1,23 +1,20 @@
 from __future__ import annotations
 
 import json
-import tempfile
-import unittest
 from pathlib import Path
 from unittest.mock import patch
 
 import story_audio.api as api_module
 from story_audio.casting import CastingError, casting_context, create_casting_draft, split_utterances
 from story_audio.voice_profile import set_book_voice_profile, set_character_gender, set_character_voice_override
+from tests.base import IsolatedTestCase
 from tests.test_casting import TEXT, VOICES, seed_casting
-
 
 ALL_VOICES = VOICES | {"male", "female"}
 
-
-class VoiceProfileApiUiTests(unittest.TestCase):
+class VoiceProfileApiUiTests(IsolatedTestCase):
     def setUp(self) -> None:
-        self.temp = tempfile.TemporaryDirectory()
+        super().setUp()
         (
             self.config,
             self.db,
@@ -28,10 +25,10 @@ class VoiceProfileApiUiTests(unittest.TestCase):
             self.character,
             _other,
             _plan,
-        ) = seed_casting(Path(self.temp.name))
+        ) = seed_casting(self.temp_root)
 
     def tearDown(self) -> None:
-        self.temp.cleanup()
+        super().tearDown()
 
     def create_profile(self):
         return set_book_voice_profile(
@@ -172,6 +169,6 @@ class VoiceProfileApiUiTests(unittest.TestCase):
         self.assertIn("esc(c.display_name)", script)
         self.assertNotIn("innerHTML=c.display_name", script)
 
-
 if __name__ == "__main__":
+    import unittest
     unittest.main()

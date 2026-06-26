@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import tempfile
-import unittest
 from pathlib import Path
 
 from story_audio.db import utcnow
@@ -14,9 +12,8 @@ from story_audio.diagnostics import (
     retry_segment,
 )
 from story_audio.files import sha256_file
-
+from tests.base import IsolatedTestCase
 from tests.test_recovery import make_config, seed_recovery
-
 
 def seed_diagnostics(root: Path):
     config = make_config(root)
@@ -64,62 +61,56 @@ def seed_diagnostics(root: Path):
         )
     return config, database, store, job, chapter, verified_wav, int(failed_segment["id"]), artifact
 
-
-class DiagnosticTests(unittest.TestCase):
+class DiagnosticTests(IsolatedTestCase):
     def test_job_diagnostics_aggregates_failures(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            _config, database, _store, job, _chapter, *_rest = seed_diagnostics(Path(directory))
-            result = get_job_diagnostics(database, job["id"])
-            self.assertEqual(result["summary"]["chapter_total"], 1)
-            self.assertEqual(result["summary"]["segment_verified"], 1)
-            self.assertEqual(result["summary"]["segment_failed"], 1)
-            self.assertEqual(result["summary"]["repair_failed"], 1)
-            self.assertEqual(result["job"]["settings"]["max_chars"], 256)
+        _config, database, _store, job, _chapter, *_rest = seed_diagnostics(self.temp_root)
+        result = get_job_diagnostics(database, job["id"])
+        self.assertEqual(result["summary"]["chapter_total"], 1)
+        self.assertEqual(result["summary"]["segment_verified"], 1)
+        self.assertEqual(result["summary"]["segment_failed"], 1)
+        self.assertEqual(result["summary"]["repair_failed"], 1)
+        self.assertEqual(result["job"]["settings"]["max_chars"], 256)
 
     def test_chapter_diagnostics_reports_files_without_full_chapter_text(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            _config, database, store, _job, chapter, *_rest = seed_diagnostics(Path(directory))
-            result = get_job_chapter_diagnostics(database, store, chapter["id"])
-            self.assertNotIn("content_path", result["text_revision"])
-            self.assertEqual([item["status"] for item in result["segments"]], ["verified", "failed"])
-            self.assertTrue(result["segments"][0]["file_exists"])
-            self.assertTrue(result["repair_blocks"][0]["source_file_exists"])
-            self.assertTrue(result["artifacts"][0]["hash_matches"])
+        _config, database, store, _job, chapter, *_rest = seed_diagnostics(self.temp_root)
+        result = get_job_chapter_diagnostics(database, store, chapter["id"])
+        self.assertNotIn("content_path", result["text_revision"])
+        self.assertEqual([item["status"] for item in result["segments"]], ["verified", "failed"])
+        self.assertTrue(result["segments"][0]["file_exists"])
+        self.assertTrue(result["repair_blocks"][0]["source_file_exists"])
+        self.assertTrue(result["artifacts"][0]["hash_matches"])
 
     def test_segment_diagnostics_detects_audio_corruption(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            _config, database, store, _job, chapter, verified_wav, *_rest = seed_diagnostics(Path(directory))
-            segment_id = database.fetch_one(
-                "SELECT id FROM segments WHERE job_chapter_id=? AND status='verified'", (chapter["id"],)
-            )["id"]
-            self.assertTrue(get_segment_diagnostics(database, store, segment_id)["audio_file"]["hash_matches"])
-            verified_wav.write_bytes(b"corrupted")
-            self.assertFalse(get_segment_diagnostics(database, store, segment_id)["audio_file"]["hash_matches"])
+        _config, database, store, _job, chapter, verified_wav, *_rest = seed_diagnostics(self.temp_root)
+        segment_id = database.fetch_one(
+            "SELECT id FROM segments WHERE job_chapter_id=? AND status='verified'", (chapter["id"],)
+        )["id"]
+        self.assertTrue(get_segment_diagnostics(database, store, segment_id)["audio_file"]["hash_matches"])
+        verified_wav.write_bytes(b"corrupted")
+        self.assertFalse(get_segment_diagnostics(database, store, segment_id)["audio_file"]["hash_matches"])
 
     def test_chapter_retry_reuses_verified_and_resets_only_failed(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            _config, database, _store, job, chapter, _wav, failed_id, _artifact = seed_diagnostics(Path(directory))
-            result = retry_job_chapter(database, chapter["id"])
-            self.assertEqual(result, {"verified_segments_reused": 1, "segments_reset": 1})
-            statuses = database.fetch_all("SELECT id,status,attempt_count FROM segments ORDER BY segment_index")
-            self.assertEqual(statuses[0]["status"], "verified")
-            self.assertEqual(statuses[1]["id"], failed_id)
-            self.assertEqual((statuses[1]["status"], statuses[1]["attempt_count"]), ("pending", 0))
-            self.assertEqual(database.fetch_one("SELECT status FROM jobs WHERE id=?", (job["id"],))["status"], "queued")
+        _config, database, _store, job, chapter, _wav, failed_id, _artifact = seed_diagnostics(self.temp_root)
+        result = retry_job_chapter(database, chapter["id"])
+        self.assertEqual(result, {"verified_segments_reused": 1, "segments_reset": 1})
+        statuses = database.fetch_all("SELECT id,status,attempt_count FROM segments ORDER BY segment_index")
+        self.assertEqual(statuses[0]["status"], "verified")
+        self.assertEqual(statuses[1]["id"], failed_id)
+        self.assertEqual((statuses[1]["status"], statuses[1]["attempt_count"]), ("pending", 0))
+        self.assertEqual(database.fetch_one("SELECT status FROM jobs WHERE id=?", (job["id"],))["status"], "queued")
 
     def test_segment_retry_rejects_verified_and_requeues_failed(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            _config, database, _store, job, chapter, _wav, failed_id, _artifact = seed_diagnostics(Path(directory))
-            verified_id = database.fetch_one(
-                "SELECT id FROM segments WHERE job_chapter_id=? AND status='verified'", (chapter["id"],)
-            )["id"]
-            with self.assertRaises(RetryConflict):
-                retry_segment(database, verified_id)
-            result = retry_segment(database, failed_id)
-            self.assertEqual(result["segment_id"], failed_id)
-            self.assertEqual(database.fetch_one("SELECT status FROM segments WHERE id=?", (failed_id,))["status"], "pending")
-            self.assertEqual(database.fetch_one("SELECT status FROM jobs WHERE id=?", (job["id"],))["status"], "queued")
-
+        _config, database, _store, job, chapter, _wav, failed_id, _artifact = seed_diagnostics(self.temp_root)
+        verified_id = database.fetch_one(
+            "SELECT id FROM segments WHERE job_chapter_id=? AND status='verified'", (chapter["id"],)
+        )["id"]
+        with self.assertRaises(RetryConflict):
+            retry_segment(database, verified_id)
+        result = retry_segment(database, failed_id)
+        self.assertEqual(result["segment_id"], failed_id)
+        self.assertEqual(database.fetch_one("SELECT status FROM segments WHERE id=?", (failed_id,))["status"], "pending")
+        self.assertEqual(database.fetch_one("SELECT status FROM jobs WHERE id=?", (job["id"],))["status"], "queued")
 
 if __name__ == "__main__":
+    import unittest
     unittest.main()

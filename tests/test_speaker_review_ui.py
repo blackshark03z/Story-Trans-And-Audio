@@ -1,13 +1,12 @@
 from __future__ import annotations
 
-import unittest
 from pathlib import Path
 
+from tests.base import IsolatedTestCase
 
 ROOT = Path(__file__).resolve().parents[1]
 
-
-class SpeakerReviewUiContractTests(unittest.TestCase):
+class SpeakerReviewUiContractTests(IsolatedTestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.html = (ROOT / "ui" / "index.html").read_text(encoding="utf-8")
@@ -65,6 +64,6 @@ class SpeakerReviewUiContractTests(unittest.TestCase):
         self.assertIn("speaker-review-row", self.css)
         self.assertIn("@media(max-width:650px)", self.css)
 
-
 if __name__ == "__main__":
+    import unittest
     unittest.main()
