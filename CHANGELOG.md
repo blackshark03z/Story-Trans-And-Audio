@@ -24,6 +24,7 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 - Character Bible JSON importer for `story-audio-character-bible/v1` with CLI dry-run/apply and structured backend dry-run/apply API.
 - Character Bible UI in the casting panel with JSON file selection, dry-run plan preview, apply action, conflict blocking and import summary.
+- Custom Reference Voice API and Global Repository. Immutable custom voice revisions and atomic content-addressed audio/transcript storage.
 - Character Manager metadata editor for canonical identity, aliases, gender, role, age group, description, speech style, visual notes, notes and import provenance display.
 - Migration `0004_character_bible` adds queryable character identity fields, aliases, role/age metadata and import provenance without storing full JSON in SQLite.
 - Deterministic matching by external key, canonical name and unique alias, with conflict detection and idempotent re-import.
@@ -41,6 +42,7 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 - Speaker assignment prompt tăng lên `speaker-assignment-v2` và yêu cầu alternatives khi còn candidate hợp lệ; cache identity thay đổi theo prompt version.
 - Manual Casting hỗ trợ explicit `Unknown`; approval không tự tạo job, audio hoặc sửa Book Voice Profile/Character Bible.
 - Casting plan/job mới snapshot resolved preset, resolution source và Book Voice Profile ID/version; retry tiếp tục dùng snapshot cũ.
+- Custom voices are now managed at the Global Library level rather than book-level to maximize reusability across projects.
 - Migration `0003_three_voice_profile` bảo toàn `characters.default_voice_id` và sao chép giá trị cũ thành legacy override.
 - Segment timeline mới mang resolution source, resolved gender, needs-review và profile ID/version từ immutable job snapshot.
 - YouTube Auto `character_seed.json` now exports Character Bible canonical metadata, aliases, notes and resolved preset hints; metadata changes produce a new immutable bundle without mutating old exports.
@@ -49,6 +51,7 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 - Long-Chapter Validation Phase 2 trên job #6/chapter 56: Casting Plan #8 tạo job thủ công, VieNeu thật render 210/210 segment verified, final M4A render_0002 dài 752.310 s.
 - Long-Chapter Validation Phase 3 trên job #6/chapter 56/artifact #30: export handoff bundle identity `050ac2f2a73bda7b84beb7c1e9bd5b06d9fd3a00773214fa91616c451e8f9280` lần đầu tạo manifest 752310 ms / 210 utterances / 2 characters; export #2 reused cùng identity; legacy bundles `93ff2e0a367a` và `3255141aa34f` verify/import/reuse đạt; Story Audio 119 offline tests / Doctor deep `critical_errors=0`; YouTube Auto 96 tests / import 7/7 đạt.
+- 28 isolated API offline tests verify strict boundaries for Custom Voice routes. 244 full suite offline tests and Doctor run clean with Schema v6.
 - Phase 2 voice/timing QA: Ngọc Lan 110, Đức Trí 56, Mỹ Duyên 44; 210 utterance sequence liên tục, final AAC mono 48 kHz, audio sample RMS/peak dương.
 - Phase 2 retry/reuse: `retry_segment` cho segment #247 tạo render_0002, 4 segment đối chứng giữ nguyên hash/mtime, render_0001 vẫn tồn tại và final cũ chuyển `stale`.
 - Phase 2 immutability: TextRevision #112 hash match, Casting Plan #8 hash match, speaker draft/casting plan không tăng, YouTube Auto không bị ghi trong Phase 2.

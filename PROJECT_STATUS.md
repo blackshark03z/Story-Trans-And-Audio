@@ -59,7 +59,7 @@
 
 ## Quyết định voice casting Personal Edition
 
-Audio casting mặc định dùng ba nhóm voice cấp book: narrator, male dialogue và female dialogue; unknown fallback mặc định về narrator. Character identity tách khỏi voice identity và chỉ nhân vật quan trọng mới có optional voice override. Resolver deterministic và snapshot profile/version/source vào casting/job mới; plan/job cũ không bị resolve lại.
+Audio casting mặc định dùng ba nhóm voice cấp book: narrator, male dialogue và female dialogue; unknown fallback mặc định về narrator. Character identity tách khỏi voice identity và chỉ nhân vật quan trọng mới có optional voice override. Resolver deterministic và snapshot profile/version/source vào casting/job mới; plan/job cũ không bị resolve lại. Custom voice được quản lý ở cấp Global Library, lưu trữ nguyên bản audio và transcript để clone voice qua VieNeu reference-audio engine.
 
 ## Chức năng đã hoàn thành
 
@@ -95,6 +95,7 @@ Audio casting mặc định dùng ba nhóm voice cấp book: narrator, male dial
 - [x] Book-level Character Bible Import Core: JSON schema V1, dry-run/apply, deterministic matching/conflict detection, idempotency, CLI/API and Doctor checks.
 - [x] Gemini Speaker Assignment Draft Core: immutable draft, cache, strict candidates/confidence/alternatives và no auto-apply.
 - [x] Speaker Assignment Review and Approval UI: filter/bulk review, alternatives/manual correction, effective voice preview, partial immutable approval, stale protection và idempotency.
+- [x] Custom Reference Voice Storage & API: Schema v6, Global custom_voices, immutable revisions, content-addressed audio blob storage, and isolated offline API tests.
 
 ## Hạn chế hiện tại
 
@@ -176,3 +177,4 @@ Các hạng mục vận hành/quota và alignment không cấp thiết được 
 | 2026-06-25 | Long-Chapter Validation Phase 1 | Chapter 56; Draft #4 101/101 valid; UI plans #7–#8; idempotent repeat reused #8; 40/40 accuracy smoke; no job/audio mutation |
 | 2026-06-25 | Long-Chapter Validation Phase 2 | Job #6 from plan #8; 210/210 real VieNeu segments; M4A render_0002 752.310 s; retry segment #247 reused verified peers; Doctor/tests pass |
 | 2026-06-25 | Long-Chapter Validation Phase 3 | Bundle identity `050ac2f2a73bda7b84beb7c1e9bd5b06d9fd3a00773214fa91616c451e8f9280`; export #2 reused identity; 752310 ms / 210 utterances / 2 characters; legacy bundles verify/import; Story Audio 119 tests / Doctor pass; YouTube Auto 96 tests pass |
+| 2026-06-26 | Custom Voice Backend Core | Schema v6; global library, immutable revisions, content-addressed storage, FastAPI routes, and 28 isolated API tests |
