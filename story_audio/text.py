@@ -48,6 +48,14 @@ class OrthographicComparisonResult:
     clusters: tuple[OrthographicChangeCluster, ...]
 
 
+@dataclass(frozen=True)
+class RepairCandidateValidation:
+    accepted_text: str
+    classification: str
+    strict_reason: str | None
+    orthographic_comparison: OrthographicComparisonResult | None = None
+
+
 def normalize_space(text: str) -> str:
     text = unicodedata.normalize("NFC", text)
     text = text.replace("\u00a0", " ").replace("\u200b", "")
@@ -280,6 +288,27 @@ def validate_lexical_identity(source: str, repaired: str) -> tuple[bool, str | N
         if left != right:
             return False, f"Token #{index + 1} changed: {left!r} -> {right!r}"
     return False, f"Token count changed: {len(source_tokens)} -> {len(repaired_tokens)}"
+
+
+def validate_repair_candidate(source: str, candidate: str) -> RepairCandidateValidation:
+    normalized_candidate = unicodedata.normalize("NFC", candidate)
+    valid, strict_reason = validate_lexical_identity(source, normalized_candidate)
+    if valid:
+        return RepairCandidateValidation(
+            accepted_text=normalized_candidate,
+            classification="strict_lexical_identity",
+            strict_reason=None,
+        )
+
+    comparison = compare_bounded_orthographic_changes(source, normalized_candidate)
+    if comparison.qualifies:
+        return RepairCandidateValidation(
+            accepted_text=normalized_candidate,
+            classification="bounded_orthographic_repair",
+            strict_reason=strict_reason,
+            orthographic_comparison=comparison,
+        )
+    raise ValueError(strict_reason or comparison.reason or "Lexical integrity failed.")
 
 
 def restore_source_token_spelling(source: str, repaired: str) -> str:

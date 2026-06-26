@@ -11,12 +11,12 @@ from unittest.mock import patch
 
 from story_audio.db import Database, utcnow
 from story_audio.files import sha256_text
-from story_audio.gemini import RepairResult
+from story_audio.gemini import RepairResult, repair_punctuation
 from story_audio.gemini_cache import GeminiRepairCache
 from story_audio.integrity import check_data_integrity, has_errors
 from story_audio.pipeline import PipelineWorker, create_job
 from story_audio.storage import ContentStore
-from story_audio.text import lexical_sha256
+from story_audio.text import lexical_sha256, validate_repair_candidate
 from tests.test_recovery import FakeTts, make_config
 
 
@@ -31,18 +31,104 @@ class GeminiCacheTests(unittest.TestCase):
         store = ContentStore(config)
         return config, store, GeminiRepairCache(store, config)
 
-    def test_store_hit_revalidates_lexical_identity(self) -> None:
+    def test_store_hit_revalidates_repair_candidate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             _config, _store, cache = self.make_cache(Path(directory))
             cache.store_result(source=SOURCE, repaired=REPAIRED, model="m1", prompt_version="p1")
             with patch(
-                "story_audio.gemini_cache.validate_lexical_identity",
-                wraps=__import__("story_audio.text", fromlist=["validate_lexical_identity"]).validate_lexical_identity,
+                "story_audio.gemini_cache.validate_repair_candidate",
+                wraps=validate_repair_candidate,
             ) as validator:
                 result = cache.lookup(source=SOURCE, model="m1", prompt_version="p1")
             self.assertEqual(result.status, "hit")
             self.assertEqual(result.repaired_text, REPAIRED)
             self.assertGreaterEqual(validator.call_count, 1)
+
+    def test_valid_strict_cache_entry_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            _config, _store, cache = self.make_cache(Path(directory))
+            cache.store_result(source=SOURCE, repaired=REPAIRED, model="m", prompt_version="p")
+            result = cache.lookup(source=SOURCE, model="m", prompt_version="p")
+            self.assertEqual(result.status, "hit")
+            self.assertEqual(result.repaired_text, REPAIRED)
+
+    def test_bounded_orthographic_cache_entry_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            _config, _store, cache = self.make_cache(Path(directory))
+            source = "tiếng kèn vang lên"
+            repaired = "tiếng kền vang lên."
+            manifest = cache.store_result(source=source, repaired=repaired, model="m", prompt_version="p")
+            self.assertEqual(manifest["repair_validation_classification"], "bounded_orthographic_repair")
+            result = cache.lookup(source=source, model="m", prompt_version="p")
+            self.assertEqual(result.status, "hit")
+            self.assertEqual(result.repaired_text, repaired)
+
+    def test_legacy_punctuation_cache_entry_remains_usable(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            _config, _store, cache = self.make_cache(Path(directory))
+            with patch("story_audio.gemini_cache.REPAIR_CONTRACT_VERSION", "punctuation-only-v1"):
+                legacy = cache.store_result(source=SOURCE, repaired=REPAIRED, model="m", prompt_version="p")
+            result = cache.lookup(source=SOURCE, model="m", prompt_version="p")
+            self.assertEqual(result.status, "hit")
+            self.assertEqual(result.cache_key, legacy["cache_key"])
+            self.assertEqual(result.repaired_text, REPAIRED)
+
+    def test_unsafe_semantic_cache_entry_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            _config, store, cache = self.make_cache(Path(directory))
+            source = "con chó chạy nhanh"
+            safe = "con chó chạy nhanh."
+            manifest = cache.store_result(source=source, repaired=safe, model="m", prompt_version="p")
+            unsafe = "con mèo chạy nhanh."
+            unsafe_path, unsafe_hash = store.put_text(unsafe)
+            path = cache._manifest_path(manifest["cache_key"])
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data.update(
+                repaired_blob_path=unsafe_path,
+                repaired_hash=unsafe_hash,
+                repaired_char_count=len(unsafe),
+            )
+            path.write_text(json.dumps(data), encoding="utf-8")
+            result = cache.lookup(source=source, model="m", prompt_version="p")
+            self.assertEqual(result.status, "invalid")
+            self.assertEqual(result.reason, "repair_candidate_validation_failed")
+
+    def test_number_changing_cache_entry_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            _config, store, cache = self.make_cache(Path(directory))
+            source = "Có 12 người tới"
+            safe = "Có 12 người tới."
+            manifest = cache.store_result(source=source, repaired=safe, model="m", prompt_version="p")
+            unsafe = "Có 13 người tới."
+            unsafe_path, unsafe_hash = store.put_text(unsafe)
+            path = cache._manifest_path(manifest["cache_key"])
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data.update(
+                repaired_blob_path=unsafe_path,
+                repaired_hash=unsafe_hash,
+                repaired_char_count=len(unsafe),
+            )
+            path.write_text(json.dumps(data), encoding="utf-8")
+            result = cache.lookup(source=source, model="m", prompt_version="p")
+            self.assertEqual(result.status, "invalid")
+            self.assertEqual(result.reason, "repair_candidate_validation_failed")
+
+    def test_cache_validation_and_live_response_validation_are_consistent(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            _config, _store, cache = self.make_cache(Path(directory))
+            source = "kèn"
+            repaired = "kền"
+            cache.store_result(source=source, repaired=repaired, model="m", prompt_version="p")
+            self.assertEqual(cache.lookup(source=source, model="m", prompt_version="p").repaired_text, repaired)
+            with patch("story_audio.gemini.urllib.request.urlopen", return_value=_FakeGeminiResponse(source, repaired)):
+                result = repair_punctuation(
+                    api_key="fake",
+                    model="m",
+                    block_id="b1",
+                    text=source,
+                    max_attempts=1,
+                )
+            self.assertEqual(result.text, repaired)
 
     def test_every_output_identity_dimension_changes_key(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -260,6 +346,37 @@ class SharedPipelineCacheTests(unittest.TestCase):
                 row["event_code"] == "gemini_cache_invalid"
                 for row in db.fetch_all("SELECT event_code FROM audit_events")
             ))
+
+
+class _FakeGeminiResponse:
+    def __init__(self, source: str, repaired: str):
+        del source
+        payload = {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "text": json.dumps(
+                                    {"block_id": "b1", "repaired_text": repaired},
+                                    ensure_ascii=False,
+                                )
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+        self.body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        return False
+
+    def read(self) -> bytes:
+        return self.body
 
 
 if __name__ == "__main__":

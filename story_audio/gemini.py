@@ -9,7 +9,7 @@ import urllib.request
 from dataclasses import dataclass
 from typing import Any
 
-from .text import restore_source_token_spelling, validate_lexical_identity
+from .text import restore_source_token_spelling, validate_repair_candidate
 
 
 SYSTEM_PROMPT = """Bạn là bộ phục hồi dấu câu tiếng Việt cho văn bản truyện.
@@ -26,7 +26,7 @@ TUYỆT ĐỐI KHÔNG ĐƯỢC:
 
 Giữ chính xác toàn bộ chuỗi từ theo đúng thứ tự. Trả về JSON object đúng schema, không markdown."""
 
-REPAIR_CONTRACT_VERSION = "punctuation-only-v1"
+REPAIR_CONTRACT_VERSION = "punctuation-or-bounded-orthographic-v2"
 GENERATION_SETTINGS = {"temperature": 0, "response_mime_type": "application/json"}
 
 
@@ -114,12 +114,14 @@ def repair_punctuation(
             if not repaired:
                 raise GeminiRepairError("Gemini trả repaired_text rỗng.")
             try:
-                repaired = restore_source_token_spelling(text, repaired)
+                candidate = restore_source_token_spelling(text, repaired)
+            except ValueError:
+                candidate = repaired
+            try:
+                validation = validate_repair_candidate(text, candidate)
             except ValueError as exc:
                 raise GeminiRepairError(f"Lexical integrity failed: {exc}") from exc
-            valid, reason = validate_lexical_identity(text, repaired)
-            if not valid:
-                raise GeminiRepairError(f"Lexical integrity failed: {reason}")
+            repaired = validation.accepted_text
             return RepairResult(repaired, raw_json)
         except urllib.error.HTTPError as exc:
             detail = exc.read().decode("utf-8", errors="replace")
