@@ -1,12 +1,11 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
 
 from .config import Settings
-from .files import atomic_write_text, sha256_text
+from .files import atomic_write_bytes, atomic_write_text, sha256_text
 import json
-
 
 class ContentStore:
     def __init__(self, config: Settings):
@@ -44,3 +43,20 @@ class ContentStore:
 
     def read_json(self, relative_path: str) -> Any:
         return json.loads(self.read_text(relative_path))
+
+    def put_audio(self, audio_bytes: bytes, sha256_hash: str) -> str:
+        """
+        Store audio in content-addressed storage.
+        Returns the relative storage key.
+        Deduplicates identical audio by SHA-256.
+        """
+        relative = Path("audio") / "custom_voices" / sha256_hash[:2] / f"{sha256_hash}.wav"
+        target = self.config.blobs_dir / relative
+        if not target.exists():
+            atomic_write_bytes(target, audio_bytes)
+        return str(relative.as_posix())
+
+    def read_audio(self, relative_path: str) -> bytes:
+        """Read audio bytes from storage."""
+        path = self.absolute(relative_path)
+        return path.read_bytes()
