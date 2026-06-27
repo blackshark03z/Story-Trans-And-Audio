@@ -1,4 +1,4 @@
-﻿# Changelog
+# Changelog
 
 Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contract vÃ  váº­n hÃ nh. KhÃ´ng dÃ¹ng file nÃ y thay cho `PROJECT_STATUS.md`.
 
@@ -125,6 +125,29 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 - Timeline speaker metadata, job voice snapshot, artifact hashes vÃ  duration tolerance 1.000 ms Ä‘á»u Ä‘áº¡t.
 - Backup tháº­t 3.989 file / 60.216.155 byte verify Ä‘áº¡t.
 - Restore sang data root má»›i remap 13 path vÃ  deep integrity Ä‘áº¡t.
+
+## [2026-06-27] Phase 3A: Job/Casting Snapshot Pinning (Migration 0007)
+
+**Commit**: `7705bc3737644037c701ea87533811d7204b1b44`
+**Branch**: `fix/epub-inline-unicode-extraction`
+
+### Added
+- `story_audio/pipeline.py` — `_prepare_segments` now pins 14 snapshot columns (from migration 0007) during segment creation.
+- `tests/test_voice_snapshot.py` — New offline test suite for snapshot logic with 11 focused isolated tests.
+
+### Changed
+- `story_audio/pipeline.py` — Modified `_prepare_segments` to build the full 25-column segments row. Lazily resolves and pins exact custom reference `custom_voice_revision_id`, `reference_audio_sha256`, `reference_audio_storage_key`, `reference_transcript`, and `reference_transcript_sha256`. Also deterministically serializes `synthesis_settings_json`.
+
+### Verified
+- 305/305 offline tests pass, including historical legacy migration tests (v2 test fixture regression fixed).
+- Doctor confirms code supports schema 7.
+- Live database remains schema version 6 and was not migrated (no live DB mutation occurred).
+
+### Notes
+- Snapshot persistence is complete (Phase 3A closed).
+- Retry does NOT yet consume snapshots (planned for Phase 3B).
+- Reference audio is NOT yet passed to VieNeu (planned for Phase 3B).
+- Next task is Phase 3B: TTS + Retry Integration.
 
 ## [2026-06-27] Resolve custom reference voice assignments
 
