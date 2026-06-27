@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 
 import sqlite3
 import tempfile
@@ -108,8 +108,8 @@ class MigrationTests(unittest.TestCase):
                     ("Book", "book.epub", "v2-sha", now, now),
                 ).lastrowid
                 connection.execute(
-                    "INSERT INTO characters(book_id,display_name,default_voice_id,gender,created_at,updated_at) VALUES(?,?,?,?,?,?)",
-                    (book_id, "Legacy", "legacy-voice", "male", now, now),
+                    "INSERT INTO characters(book_id,display_name,default_voice_id,created_at,updated_at) VALUES(?,?,?,?,?)",
+                    (book_id, "Legacy", "legacy-voice", now, now),
                 )
                 connection.execute(
                     "CREATE TABLE schema_migrations(version INTEGER PRIMARY KEY,name TEXT,checksum TEXT,applied_at TEXT)"
