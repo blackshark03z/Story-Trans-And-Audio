@@ -9,7 +9,7 @@ from .db import Database, utcnow
 from .files import sha256_text
 from .storage import ContentStore
 from .voice_profile import get_book_voice_profile, preset_ref, profile_validation, resolve_voice
-
+from .voice_ref import CustomVoiceContext, is_custom_ref
 
 CASTING_SCHEMA_VERSION = 1
 CHUNKER_VERSION = "utterance-v1"
@@ -17,10 +17,8 @@ TERMINALS = ".!?…"
 OPEN_QUOTES = {'"', "“"}
 CLOSE_QUOTES = {'"', "”"}
 
-
 class CastingError(ValueError):
     pass
-
 
 def _trim(text: str, start: int, end: int) -> tuple[int, int] | None:
     while start < end and text[start].isspace():
@@ -28,7 +26,6 @@ def _trim(text: str, start: int, end: int) -> tuple[int, int] | None:
     while end > start and text[end - 1].isspace():
         end -= 1
     return (start, end) if start < end else None
-
 
 def _split_region(text: str, start: int, end: int, maximum: int) -> list[tuple[int, int]]:
     spans: list[tuple[int, int]] = []
@@ -76,7 +73,6 @@ def _split_region(text: str, start: int, end: int, maximum: int) -> list[tuple[i
             safe.append(piece)
     return safe
 
-
 def split_utterances(text: str, maximum: int = 256) -> list[dict[str, Any]]:
     """Split deterministically while preserving offsets into the approved revision."""
     regions: list[tuple[int, int]] = []
@@ -116,7 +112,6 @@ def split_utterances(text: str, maximum: int = 256) -> list[dict[str, Any]]:
         )
     return utterances
 
-
 def _revision(db: Database, chapter_id: int, text_revision_id: int | None = None):
     if text_revision_id is not None:
         row = db.fetch_one(
@@ -134,12 +129,10 @@ def _revision(db: Database, chapter_id: int, text_revision_id: int | None = None
         raise CastingError("Chapter does not have the requested approved TextRevision")
     return row
 
-
 GENDERS = {"male", "female", "unknown"}
 ROLES = {"main", "supporting", "minor", "unknown"}
 AGE_GROUPS = {"child", "teen", "young_adult", "adult", "elder", "unknown"}
 METADATA_FIELDS = ("role", "age_group", "description", "speech_style", "visual_notes", "notes")
-
 
 def _clean_optional_text(value: str | None, maximum: int = 4_000) -> str | None:
     if value is None:
@@ -149,7 +142,6 @@ def _clean_optional_text(value: str | None, maximum: int = 4_000) -> str | None:
         raise CastingError("Character metadata is too long")
     return cleaned
 
-
 def _aliases_by_character(db: Database, book_id: int) -> dict[int, list[str]]:
     aliases: dict[int, list[str]] = {}
     for row in db.fetch_all(
@@ -158,7 +150,6 @@ def _aliases_by_character(db: Database, book_id: int) -> dict[int, list[str]]:
     ):
         aliases.setdefault(int(row["character_id"]), []).append(str(row["alias"]))
     return aliases
-
 
 def list_characters(db: Database, book_id: int, include_inactive: bool = False) -> list[dict[str, Any]]:
     suffix = "" if include_inactive else " AND active=1"
@@ -172,7 +163,6 @@ def list_characters(db: Database, book_id: int, include_inactive: bool = False) 
     for character in characters:
         character["aliases"] = aliases.get(int(character["id"]), [])
     return characters
-
 
 def create_character(
     db: Database,
@@ -204,7 +194,6 @@ def create_character(
     except sqlite3.IntegrityError as exc:
         raise CastingError("Character name already exists in this book") from exc
     return dict(db.fetch_one("SELECT * FROM characters WHERE id=?", (character_id,)))
-
 
 def update_character(
     db: Database,
@@ -261,7 +250,6 @@ def update_character(
     result["aliases"] = _aliases_by_character(db, int(result["book_id"])).get(character_id, [])
     return result
 
-
 def deactivate_character(db: Database, character_id: int) -> None:
     row = db.fetch_one("SELECT id FROM characters WHERE id=? AND active=1", (character_id,))
     if not row:
@@ -276,6 +264,13 @@ def deactivate_character(db: Database, character_id: int) -> None:
             "UPDATE characters SET active=0,updated_at=? WHERE id=?", (utcnow(), character_id)
         )
 
+def _is_allowed_voice(voice_ref: str, allowed_voice_ids: set[str], custom_voice_context: CustomVoiceContext | None) -> bool:
+    """Check if a voice reference is allowed (preset or custom)."""
+    if voice_ref in allowed_voice_ids:
+        return True
+    if custom_voice_context is not None and custom_voice_context.is_available(voice_ref):
+        return True
+    return False
 
 def create_casting_draft(
     db: Database,
@@ -289,24 +284,25 @@ def create_casting_draft(
     maximum: int = 256,
     source_metadata: dict[str, Any] | None = None,
     base_utterances: Iterable[dict[str, Any]] | None = None,
+    custom_voice_context: CustomVoiceContext | None = None,
 ) -> dict[str, Any]:
     narrator_voice_id = narrator_voice_id.strip()
     revision = _revision(db, chapter_id, text_revision_id)
     chapter = db.fetch_one("SELECT id,book_id FROM chapters WHERE id=?", (chapter_id,))
     profile = get_book_voice_profile(db, int(chapter["book_id"]))
     if profile:
-        validation = profile_validation(profile, allowed_voice_ids)
+        validation = profile_validation(profile, allowed_voice_ids, custom_voice_context)
         if not validation["valid"]:
             missing = ", ".join(validation["missing_preset_ids"])
-            raise CastingError(f"Book Voice Profile contains unavailable preset(s): {missing}")
+            raise CastingError(f"Book Voice Profile contains unavailable voice(s): {missing}")
         narrator_result = resolve_voice(
-            speaker_type="narrator", book_voice_profile=profile
+            speaker_type="narrator", book_voice_profile=profile, custom_voice_context=custom_voice_context
         )
         narrator_voice_id = narrator_result["resolved_voice_id"]
     else:
         narrator_result = None
-    if narrator_voice_id not in allowed_voice_ids:
-        raise CastingError("Narrator voice is not an available preset")
+    if not _is_allowed_voice(narrator_voice_id, allowed_voice_ids, custom_voice_context):
+        raise CastingError("Narrator voice is not available")
     text = store.read_text(revision["content_path"])
     utterances = split_utterances(text, maximum=maximum)
     if base_utterances is not None:
@@ -335,6 +331,12 @@ def create_casting_draft(
     for assignment in assignments:
         utterance_id = str(assignment.get("utterance_id", ""))
         if utterance_id not in by_id or utterance_id in seen:
+            import sys
+            print(f"DEBUG: utterance_id={utterance_id!r}", file=sys.stderr)
+            print(f"DEBUG: by_id keys={list(by_id.keys())}", file=sys.stderr)
+            print(f"DEBUG: seen={seen}", file=sys.stderr)
+            print(f"DEBUG: in by_id={utterance_id in by_id}", file=sys.stderr)
+            print(f"DEBUG: in seen={utterance_id in seen}", file=sys.stderr)
             raise CastingError("Casting assignment does not match deterministic utterances")
         seen.add(utterance_id)
         role = assignment.get("role", "narrator")
@@ -363,14 +365,14 @@ def create_casting_draft(
                 raise CastingError("Unknown speaker cannot reference a character")
             if profile:
                 resolution = resolve_voice(
-                    speaker_type="dialogue", book_voice_profile=profile
+                    speaker_type="dialogue", book_voice_profile=profile, custom_voice_context=custom_voice_context
                 )
                 resolved_voice_id = resolution["resolved_voice_id"]
             else:
                 resolution = None
                 resolved_voice_id = narrator_voice_id
-            if resolved_voice_id not in allowed_voice_ids:
-                raise CastingError("Unknown fallback is not an available preset")
+            if not _is_allowed_voice(resolved_voice_id, allowed_voice_ids, custom_voice_context):
+                raise CastingError("Unknown fallback is not available")
             target.update(
                 role="unknown",
                 character_id=None,
@@ -397,7 +399,8 @@ def create_casting_draft(
             raise CastingError("Character does not belong to this book")
         if profile:
             resolution = resolve_voice(
-                speaker_type="dialogue", book_voice_profile=profile, character=character
+                speaker_type="dialogue", book_voice_profile=profile, character=character,
+                custom_voice_context=custom_voice_context
             )
             resolved_voice_id = resolution["resolved_voice_id"]
         else:
@@ -407,8 +410,8 @@ def create_casting_draft(
                 raise CastingError(
                     "Create a Book Voice Profile before using book-default character voices"
                 )
-        if resolved_voice_id not in allowed_voice_ids:
-            raise CastingError("Character voice is not an available preset")
+        if not _is_allowed_voice(resolved_voice_id, allowed_voice_ids, custom_voice_context):
+            raise CastingError("Character voice is not available")
         target.update(
             role="character",
             character_id=character_id,
@@ -485,7 +488,6 @@ def create_casting_draft(
             )
     return get_plan(db, store, plan_id, include_text=True)
 
-
 def get_plan(db: Database, store: ContentStore, plan_id: int, include_text: bool = False) -> dict[str, Any]:
     row = db.fetch_one("SELECT * FROM casting_plans WHERE id=?", (plan_id,))
     if not row:
@@ -502,12 +504,12 @@ def get_plan(db: Database, store: ContentStore, plan_id: int, include_text: bool
             utterance["text"] = text[utterance["start_offset"] : utterance["end_offset"]]
     return result
 
-
 def casting_context(
     db: Database,
     store: ContentStore,
     chapter_id: int,
     allowed_voice_ids: set[str] | None = None,
+    custom_voice_context: CustomVoiceContext | None = None,
 ) -> dict[str, Any]:
     chapter = db.fetch_one("SELECT * FROM chapters WHERE id=?", (chapter_id,))
     if not chapter:
@@ -541,6 +543,7 @@ def casting_context(
                 speaker_type="dialogue",
                 book_voice_profile=profile,
                 character=character,
+                custom_voice_context=custom_voice_context,
             )
         elif character.get("voice_override_id"):
             legacy_voice = str(character["voice_override_id"])
@@ -565,20 +568,19 @@ def casting_context(
     }
     if profile:
         profile_state["narrator_resolution"] = resolve_voice(
-            speaker_type="narrator", book_voice_profile=profile
+            speaker_type="narrator", book_voice_profile=profile, custom_voice_context=custom_voice_context
         )
         profile_state["unknown_resolution"] = resolve_voice(
-            speaker_type="dialogue", book_voice_profile=profile
+            speaker_type="dialogue", book_voice_profile=profile, custom_voice_context=custom_voice_context
         )
         if allowed_voice_ids is not None:
-            profile_state["validation"] = profile_validation(profile, allowed_voice_ids)
+            profile_state["validation"] = profile_validation(profile, allowed_voice_ids, custom_voice_context)
     return {
         "chapter": {"id": chapter_id, "book_id": chapter["book_id"], "title": chapter["title"]},
         "characters": characters,
         "voice_profile": profile_state,
         "casting": plan,
     }
-
 
 def approve_plan(db: Database, store: ContentStore, plan_id: int) -> dict[str, Any]:
     row = db.fetch_one("SELECT * FROM casting_plans WHERE id=?", (plan_id,))
@@ -600,7 +602,6 @@ def approve_plan(db: Database, store: ContentStore, plan_id: int) -> dict[str, A
             (now, plan_id),
         )
     return get_plan(db, store, plan_id, include_text=True)
-
 
 def validate_approved_plan(
     db: Database, store: ContentStore, plan_id: int, allowed_voice_ids: set[str] | None = None
@@ -625,5 +626,5 @@ def validate_approved_plan(
             if not character:
                 raise CastingError("Casting plan references a character from another book")
     if allowed_voice_ids is not None and not voices <= allowed_voice_ids:
-        raise CastingError("Casting plan contains an unavailable preset voice")
+        raise CastingError("Casting plan contains an unavailable voice")
     return dict(row), plan
