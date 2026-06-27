@@ -20,10 +20,16 @@ class FakeTts:
     def __init__(self):
         self.calls: list[str] = []
 
-    def synthesize(self, *, text: str, output_path: Path, **_kwargs):
-        self.calls.append(text)
+    def synthesize(self, *, synth_input=None, text: str = None, output_path: Path, **_kwargs):
+        # Support both snapshot-based and legacy API
+        if synth_input is not None:
+            actual_text = synth_input.text
+        else:
+            actual_text = text
+
+        self.calls.append(actual_text)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_bytes(f"audio:{text}".encode("utf-8"))
+        output_path.write_bytes(f"audio:{actual_text}".encode("utf-8"))
         return 1000, 48_000
 
 
@@ -76,7 +82,14 @@ def seed_recovery(config):
             ).lastrowid
         )
         settings_json = json.dumps(
-            {"temperature": 0.8, "top_k": 25, "max_chars": 256, "target_chars": 230, "silence_seconds": 0.15}
+            {
+                "temperature": 0.8,
+                "top_k": 25,
+                "max_chars": 256,
+                "target_chars": 230,
+                "silence_seconds": 0.15,
+                "engine_version": "vieneu:v3turbo"
+            }
         )
         job_id = int(
             connection.execute(
@@ -96,8 +109,11 @@ def seed_recovery(config):
         connection.execute(
             """INSERT INTO segments(
                 job_chapter_id,segment_index,text_path,text_sha256,status,attempt_count,
-                wav_path,audio_sha256,duration_ms,created_at,verified_at
-            ) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                wav_path,audio_sha256,duration_ms,created_at,verified_at,
+                voice_snapshot_version,voice_source_type,voice_provider,voice_model,
+                logical_voice_ref,effective_voice_ref,synthesis_settings_json,
+                voice_resolution_reason,synthesis_hash
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 job_chapter_id,
                 1,
@@ -110,11 +126,26 @@ def seed_recovery(config):
                 1000,
                 now,
                 now,
+                1,
+                "preset",
+                "vieneu",
+                "v3turbo",
+                "narrator",
+                "Voice",
+                settings_json,
+                "direct",
+                "hash1",
             ),
         )
         connection.execute(
-            "INSERT INTO segments(job_chapter_id,segment_index,text_path,text_sha256,status,created_at) VALUES(?,?,?,?,?,?)",
-            (job_chapter_id, 2, second_path, second_sha, "pending", now),
+            """INSERT INTO segments(
+                job_chapter_id,segment_index,text_path,text_sha256,status,created_at,
+                voice_snapshot_version,voice_source_type,voice_provider,voice_model,
+                logical_voice_ref,effective_voice_ref,synthesis_settings_json,
+                voice_resolution_reason,synthesis_hash
+            ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            (job_chapter_id, 2, second_path, second_sha, "pending", now,
+             1, "preset", "vieneu", "v3turbo", "narrator", "Voice", settings_json, "direct", "hash2"),
         )
     job = dict(database.fetch_one("SELECT * FROM jobs WHERE id=?", (job_id,)))
     chapter = {
@@ -136,7 +167,7 @@ class RecoveryTests(unittest.TestCase):
         super().setUp()
         self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
         os.environ["STORY_AUDIO_TESTING"] = "1"
-    
+
     def tearDown(self) -> None:
         if self._original_testing is None:
             os.environ.pop("STORY_AUDIO_TESTING", None)

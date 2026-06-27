@@ -18,6 +18,10 @@ from .files import atomic_write_json, safe_slug, sha256_file, sha256_text
 from .gemini import GeminiRepairError, repair_punctuation
 from .gemini_cache import GeminiRepairCache
 from .storage import ContentStore
+from .synthesis_snapshot import (
+    SynthesisSnapshotError,
+    load_segment_synthesis_input,
+)
 from .text import (
     lexical_sha256,
     qa_text,
@@ -422,9 +426,28 @@ class PipelineWorker:
         for position, segment in enumerate(segments):
             self._control(job_id)
             segment_path = segment_dir / f"{int(segment['segment_index']):06d}.wav"
+
+            # Skip verified legacy segments with existing WAV
             if segment["status"] == "verified" and segment_path.exists():
                 continue
-            text_value = self.store.read_text(segment["text_path"])
+
+            # Load snapshot once per segment (immutable, reused for all attempts)
+            is_final_segment = (position == len(segments) - 1)
+            try:
+                synth_input = load_segment_synthesis_input(
+                    segment,
+                    self.store,
+                    is_final_segment=is_final_segment,
+                )
+            except SynthesisSnapshotError as exc:
+                # Snapshot failures are non-retryable
+                with self.db.connect() as connection:
+                    connection.execute(
+                        "UPDATE segments SET status='failed',error_message=? WHERE id=?",
+                        (str(exc)[:2000], segment["id"]),
+                    )
+                raise ChapterNeedsReview(f"Segment {segment['segment_index']} snapshot error: {exc}") from exc
+
             attempts = int(segment["attempt_count"] or 0)
             while attempts < 3:
                 self._control(job_id)
@@ -436,12 +459,7 @@ class PipelineWorker:
                             (attempts, segment["id"]),
                         )
                     duration_ms, _sample_rate = self.tts.synthesize(
-                        text=text_value,
-                        voice=str(segment.get("resolved_voice_id") or job["voice_name"]),
-                        temperature=float(settings_snapshot["temperature"]),
-                        top_k=int(settings_snapshot["top_k"]),
-                        max_chars=int(settings_snapshot["max_chars"]),
-                        silence_seconds=(float(settings_snapshot["silence_seconds"]) if position < len(segments) - 1 else 0.0),
+                        synth_input=synth_input,
                         output_path=segment_path,
                     )
                     audio_hash = sha256_file(segment_path)
@@ -458,7 +476,7 @@ class PipelineWorker:
                             (str(exc)[:2000], segment["id"]),
                         )
                     if attempts >= 3:
-                        raise RuntimeError(f"Segment {segment['segment_index']} lá»—i sau 3 láº§n: {exc}") from exc
+                        raise RuntimeError(f"Segment {segment['segment_index']} lỗi sau 3 lần: {exc}") from exc
                     time.sleep(min(2.0, attempts * 0.5))
         self._control(job_id)
         self._set_job(job_id, "assembling", "assemble", current_chapter_number=chapter["chapter_number"])

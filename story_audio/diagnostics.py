@@ -258,7 +258,8 @@ def retry_job_chapter(db: Database, job_chapter_id: int) -> dict[str, int]:
         reset_segments = connection.execute(
             """
             UPDATE segments SET status = 'pending', attempt_count = 0,
-                   error_message = NULL
+                   error_message = NULL,
+                   wav_path = NULL, audio_sha256 = NULL, duration_ms = NULL, verified_at = NULL
             WHERE job_chapter_id = ? AND status IN ('failed', 'pending', 'interrupted')
             """,
             (job_chapter_id,),
@@ -322,7 +323,9 @@ def retry_segment(db: Database, segment_id: int) -> dict[str, int]:
         connection.execute(
             """
             UPDATE segments SET status = 'pending', attempt_count = 0,
-                   error_message = NULL WHERE id = ?
+                   error_message = NULL,
+                   wav_path = NULL, audio_sha256 = NULL, duration_ms = NULL, verified_at = NULL
+            WHERE id = ?
             """,
             (segment_id,),
         )

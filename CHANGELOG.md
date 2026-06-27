@@ -4,6 +4,18 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ## Unreleased
 
+### Added
+
+- **Phase 3B: Immutable voice synthesis snapshots** for preset and custom-reference voices with strict version-1 validation, fail-closed legacy policy, and deterministic retry behavior.
+  - `SegmentSynthesisInput` dataclass with 14 immutable snapshot fields including voice provider/model, synthesis settings JSON, text SHA-256, and custom reference audio/transcript integrity.
+  - `load_segment_synthesis_input()` validates snapshots before TTS, performs SHA-256 integrity checks, and loads managed-storage reference audio without database lookups.
+  - `TtsService.synthesize()` dual API: snapshot-based path (Phase 3B) and temporary legacy path for non-pipeline callers.
+  - Pipeline integration: `_process_chapter` loads snapshots once per segment outside retry loop; retry operations preserve all 14 snapshot fields while resetting only wav_path/audio_sha256/duration_ms/verified_at.
+  - Test coverage: 92 new tests across snapshot validation (preset 23, custom 20), TTS integration (17), pipeline integration (12), plus updated casting/recovery mocks (20 tests modified). Total: 377 tests passing.
+  - Real smoke validation: VieNeu v3turbo preset (1.04s) and custom-reference (4.31s) synthesis in offline mode with integrity failure detection.
+  - E2 waiver: Full pipeline/retry smoke deferred due to temporary DB fixture complexity; accepted residual risk with existing mocked integration coverage.
+  - Live DB remained at schema version 6; code supports schema version 7.
+
 ### Documentation
 
 - Äá»“ng bá»™ README, AGENTS, ROADMAP, NEXT_TASK vÃ  ARCHITECTURE sau khi Long-Chapter Validation hoÃ n táº¥t; sá»­a Ä‘Ã¡nh sá»‘ quy trÃ¬nh README vÃ  gáº¯n nhÃ£n cÃ¡c ghi chÃº kiáº¿n trÃºc lá»‹ch sá»­ chÆ°a/khÃ´ng triá»ƒn khai.
