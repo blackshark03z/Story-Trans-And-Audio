@@ -78,6 +78,7 @@ from .voice_profile import (
     set_character_gender,
     set_character_voice_override,
 )
+from .voice_ref import CustomVoiceContext
 
 
 settings.ensure_dirs()
@@ -88,6 +89,19 @@ worker = PipelineWorker(db, store, tts_service, settings)
 voice_previews = VoicePreviewService(
     tts_service, settings, custom_voice_repo=custom_voice_repo, store=store
 )
+
+
+def _build_custom_voice_context() -> CustomVoiceContext | None:
+    """Build Custom Voice context from the global repository.
+    
+    Returns context with active custom voices that have revisions,
+    or None if no custom voices are available.
+    """
+    try:
+        return CustomVoiceContext.from_repository(custom_voice_repo)
+    except Exception:
+        # If context building fails, return None to allow preset-only operation
+        return None
 
 
 class ImportRequest(BaseModel):
@@ -430,7 +444,11 @@ def read_book_voice_profile(book_id: int) -> dict[str, Any]:
 def write_book_voice_profile(book_id: int, request: BookVoiceProfileRequest) -> dict[str, Any]:
     try:
         return set_book_voice_profile(
-            db, book_id, allowed_voice_ids=_preset_voice_ids(), **request.model_dump()
+            db,
+            book_id,
+            allowed_voice_ids=_preset_voice_ids(),
+            custom_voice_context=_build_custom_voice_context(),
+            **request.model_dump()
         )
     except VoiceProfileError as exc:
         raise HTTPException(400, str(exc)) from exc
@@ -443,14 +461,28 @@ def write_character_voice_override(
     try:
         if request.gender is not None and request.gender not in {"male", "female", "unknown"}:
             raise VoiceProfileError("Character gender is invalid")
+        custom_context = _build_custom_voice_context()
         valid_voices = _preset_voice_ids()
-        if request.voice_override_id is not None and request.voice_override_id not in valid_voices:
-            raise VoiceProfileError("Character override is not an available preset voice")
+        if request.voice_override_id is not None:
+            # Check both preset and custom voices
+            from .voice_ref import is_custom_ref
+            if is_custom_ref(request.voice_override_id):
+                # Validate custom voice through context
+                from .voice_ref import parse_custom_ref
+                try:
+                    custom_id = parse_custom_ref(request.voice_override_id)
+                    if custom_context is None or custom_context.get(custom_id) is None:
+                        raise VoiceProfileError("Character override is not an available custom voice")
+                except Exception as e:
+                    raise VoiceProfileError(f"Character override custom voice is invalid: {e}") from e
+            elif request.voice_override_id not in valid_voices:
+                raise VoiceProfileError("Character override is not an available preset voice")
         result = set_character_voice_override(
             db,
             character_id,
             request.voice_override_id,
             allowed_voice_ids=valid_voices,
+            custom_voice_context=custom_context,
         )
         if request.gender is not None:
             result = set_character_gender(db, character_id, request.gender)
@@ -478,8 +510,23 @@ def resolve_voice_preview(book_id: int, request: VoiceResolveRequest) -> dict[st
                 if request.gender not in {"male", "female", "unknown"}:
                     raise VoiceProfileError("Character gender is invalid")
                 character["gender"] = request.gender
-        if request.voice_override_id is not None and request.voice_override_id not in _preset_voice_ids():
-            raise VoiceProfileError("Preview override is not an available preset voice")
+        
+        # Build custom voice context for resolution
+        custom_context = _build_custom_voice_context()
+        
+        # Validate preview override (preset or custom)
+        if request.voice_override_id is not None:
+            from .voice_ref import is_custom_ref, parse_custom_ref
+            if is_custom_ref(request.voice_override_id):
+                try:
+                    custom_id = parse_custom_ref(request.voice_override_id)
+                    if custom_context is None or custom_context.get(custom_id) is None:
+                        raise VoiceProfileError("Preview override is not an available custom voice")
+                except Exception as e:
+                    raise VoiceProfileError(f"Preview override custom voice is invalid: {e}") from e
+            elif request.voice_override_id not in _preset_voice_ids():
+                raise VoiceProfileError("Preview override is not an available preset voice")
+        
         preview_override = (
             request.voice_override_id
             if request.voice_override_id is not None
@@ -491,6 +538,7 @@ def resolve_voice_preview(book_id: int, request: VoiceResolveRequest) -> dict[st
             character=character,
             inferred_gender=request.inferred_gender,
             optional_override=preview_override,
+            custom_voice_context=custom_context,
         )
         return {**result, "resolved_voice": result["voice"]}
     except VoiceProfileError as exc:
@@ -509,7 +557,9 @@ def remove_character(character_id: int) -> dict[str, bool]:
 @app.get("/api/chapters/{chapter_id}/casting")
 def chapter_casting(chapter_id: int) -> dict[str, Any]:
     try:
-        return casting_context(db, store, chapter_id, _preset_voice_ids())
+        return casting_context(
+            db, store, chapter_id, _preset_voice_ids(), custom_voice_context=_build_custom_voice_context()
+        )
     except CastingError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -526,6 +576,7 @@ def save_casting_draft(chapter_id: int, request: CastingDraftRequest) -> dict[st
             assignments=[item.model_dump() for item in request.assignments],
             allowed_voice_ids=_preset_voice_ids(),
             maximum=settings.tts_max_chars,
+            custom_voice_context=_build_custom_voice_context(),
         )
     except CastingError as exc:
         raise HTTPException(400, str(exc)) from exc
@@ -586,6 +637,7 @@ def approve_speaker_assignment_review(
             decisions=[item.model_dump() for item in request.decisions],
             idempotency_key=request.idempotency_key,
             allowed_voice_ids=_preset_voice_ids(),
+            custom_voice_context=_build_custom_voice_context(),
         )
     except SpeakerReviewConflict as exc:
         raise HTTPException(409, str(exc)) from exc
@@ -597,7 +649,9 @@ def approve_speaker_assignment_review(
 def approve_casting(casting_plan_id: int) -> dict[str, Any]:
     try:
         result = approve_plan(db, store, casting_plan_id)
-        validate_approved_plan(db, store, casting_plan_id, _preset_voice_ids())
+        validate_approved_plan(
+            db, store, casting_plan_id, _preset_voice_ids(), custom_voice_context=_build_custom_voice_context()
+        )
         return result
     except CastingError as exc:
         raise HTTPException(400, str(exc)) from exc
@@ -702,7 +756,13 @@ def submit_job(request: JobRequest) -> dict[str, Any]:
         if payload["voice_name"] not in valid_voices:
             raise ValueError(f"Giọng '{payload['voice_name']}' không tồn tại trong VieNeu.")
         if payload.get("casting_plan_id") is not None:
-            validate_approved_plan(db, store, int(payload["casting_plan_id"]), valid_voices)
+            validate_approved_plan(
+                db,
+                store,
+                int(payload["casting_plan_id"]),
+                valid_voices,
+                custom_voice_context=_build_custom_voice_context(),
+            )
         result = create_job(db, settings, store=store, **payload)
         worker.wake()
         return result
