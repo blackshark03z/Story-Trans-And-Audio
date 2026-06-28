@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import shutil
 import subprocess
@@ -11,13 +12,44 @@ from typing import Any
 
 from .config import Settings
 from .casting import CHUNKER_VERSION, validate_approved_plan
+from .custom_voice import CustomVoiceRepository
 from .db import Database, utcnow
 from .files import atomic_write_json, safe_slug, sha256_file, sha256_text
 from .gemini import GeminiRepairError, repair_punctuation
 from .gemini_cache import GeminiRepairCache
 from .storage import ContentStore
-from .text import lexical_sha256, qa_text, split_repair_blocks, split_tts_segments, validate_lexical_identity
+from .synthesis_snapshot import (
+    SynthesisSnapshotError,
+    load_segment_synthesis_input,
+)
+from .text import (
+    lexical_sha256,
+    qa_text,
+    split_repair_blocks,
+    split_tts_segments,
+    validate_lexical_identity,
+    validate_repair_candidate,
+)
+from .voice_ref import CustomVoiceContext, is_custom_ref, parse_custom_ref, resolve_custom_ref
 from .tts import TtsService
+
+
+
+def _effective_synthesis_settings(settings_snapshot: dict) -> str:
+    """Return canonical JSON of effective synthesis settings for voice snapshot."""
+    _EXCLUDE = frozenset({
+        'db', 'cache', 'store', 'session', 'tmp_dir', 'temp_dir',
+        'work_dir', 'log', 'logger', 'connection', 'conn',
+    })
+    cleaned = {
+        k: v for k, v in settings_snapshot.items()
+        if v is not None
+        and k not in _EXCLUDE
+        and not callable(v)
+        and not hasattr(v, 'cursor')
+        and not hasattr(v, 'execute')
+    }
+    return json.dumps(cleaned, sort_keys=True, separators=(',', ':'), ensure_ascii=False)
 
 
 class JobCancelled(RuntimeError):
@@ -30,6 +62,10 @@ class JobPaused(RuntimeError):
 
 class ChapterNeedsReview(RuntimeError):
     pass
+
+
+def _repair_validation_error(block_index: int, reason: str) -> ChapterNeedsReview:
+    return ChapterNeedsReview(f"Gemini block {block_index} changed content: {reason}")
 
 
 def create_job(
@@ -47,25 +83,25 @@ def create_job(
     store: ContentStore | None = None,
 ) -> dict[str, Any]:
     if from_chapter > to_chapter:
-        raise ValueError("Chương bắt đầu phải nhỏ hơn hoặc bằng chương kết thúc.")
+        raise ValueError("ChÆ°Æ¡ng báº¯t Ä‘áº§u pháº£i nhá» hÆ¡n hoáº·c báº±ng chÆ°Æ¡ng káº¿t thÃºc.")
     if repair_mode not in {"off", "qa_only", "all_selected"}:
-        raise ValueError("Chế độ Gemini không hợp lệ.")
+        raise ValueError("Cháº¿ Ä‘á»™ Gemini khÃ´ng há»£p lá»‡.")
     if output_format not in {"m4a", "mp3"}:
-        raise ValueError("Định dạng đầu ra phải là m4a hoặc mp3.")
+        raise ValueError("Äá»‹nh dáº¡ng Ä‘áº§u ra pháº£i lÃ  m4a hoáº·c mp3.")
     book = db.fetch_one("SELECT * FROM books WHERE id=?", (book_id,))
     if not book:
-        raise ValueError("Không tìm thấy sách.")
+        raise ValueError("KhÃ´ng tÃ¬m tháº¥y sÃ¡ch.")
     chapters = db.fetch_all(
         "SELECT * FROM chapters WHERE book_id=? AND chapter_number BETWEEN ? AND ? ORDER BY chapter_number",
         (book_id, from_chapter, to_chapter),
     )
     if not chapters:
-        raise ValueError("Khoảng được chọn không có chương.")
+        raise ValueError("Khoáº£ng Ä‘Æ°á»£c chá»n khÃ´ng cÃ³ chÆ°Æ¡ng.")
     expected = list(range(from_chapter, to_chapter + 1))
     actual = [int(row["chapter_number"]) for row in chapters]
     missing = sorted(set(expected) - set(actual))
     if missing:
-        raise ValueError(f"Khoảng chương bị thiếu: {missing[:20]}")
+        raise ValueError(f"Khoáº£ng chÆ°Æ¡ng bá»‹ thiáº¿u: {missing[:20]}")
     selected = [row for row in chapters if not (skip_completed and row["active_audio_artifact_id"])]
     now = datetime.now(timezone.utc)
     scheduled = now + timedelta(seconds=config.undo_seconds)
@@ -176,6 +212,17 @@ def create_job(
     }
 
 
+def _effective_synthesis_settings(settings_snapshot: dict) -> str:
+    """Return canonical JSON string of effective synthesis settings for snapshot."""
+    EXCLUDE_KEYS = {"db", "cache", "store", "session", "tmp_dir", "temp_dir",
+                    "work_dir", "log", "logger"}
+    cleaned = {
+        k: v for k, v in settings_snapshot.items()
+        if v is not None and k not in EXCLUDE_KEYS
+        and not callable(v) and not hasattr(v, 'cursor')
+    }
+    return json.dumps(cleaned, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+
 class PipelineWorker:
     def __init__(self, db: Database, store: ContentStore, tts: TtsService, config: Settings):
         self.db = db
@@ -263,11 +310,11 @@ class PipelineWorker:
     def _control(self, job_id: int) -> None:
         row = self.db.fetch_one("SELECT pause_requested,cancel_requested FROM jobs WHERE id=?", (job_id,))
         if not row:
-            raise JobCancelled("Job không còn tồn tại.")
+            raise JobCancelled("Job khÃ´ng cÃ²n tá»“n táº¡i.")
         if row["cancel_requested"]:
-            raise JobCancelled("Đã yêu cầu hủy.")
+            raise JobCancelled("ÄÃ£ yÃªu cáº§u há»§y.")
         if row["pause_requested"]:
-            raise JobPaused("Đã yêu cầu tạm dừng.")
+            raise JobPaused("ÄÃ£ yÃªu cáº§u táº¡m dá»«ng.")
 
     def _set_job(self, job_id: int, status: str, stage: str | None = None, **values: Any) -> None:
         fields = ["status=?", "updated_at=?"]
@@ -379,9 +426,28 @@ class PipelineWorker:
         for position, segment in enumerate(segments):
             self._control(job_id)
             segment_path = segment_dir / f"{int(segment['segment_index']):06d}.wav"
+
+            # Skip verified legacy segments with existing WAV
             if segment["status"] == "verified" and segment_path.exists():
                 continue
-            text_value = self.store.read_text(segment["text_path"])
+
+            # Load snapshot once per segment (immutable, reused for all attempts)
+            is_final_segment = (position == len(segments) - 1)
+            try:
+                synth_input = load_segment_synthesis_input(
+                    segment,
+                    self.store,
+                    is_final_segment=is_final_segment,
+                )
+            except SynthesisSnapshotError as exc:
+                # Snapshot failures are non-retryable
+                with self.db.connect() as connection:
+                    connection.execute(
+                        "UPDATE segments SET status='failed',error_message=? WHERE id=?",
+                        (str(exc)[:2000], segment["id"]),
+                    )
+                raise ChapterNeedsReview(f"Segment {segment['segment_index']} snapshot error: {exc}") from exc
+
             attempts = int(segment["attempt_count"] or 0)
             while attempts < 3:
                 self._control(job_id)
@@ -393,12 +459,7 @@ class PipelineWorker:
                             (attempts, segment["id"]),
                         )
                     duration_ms, _sample_rate = self.tts.synthesize(
-                        text=text_value,
-                        voice=str(segment.get("resolved_voice_id") or job["voice_name"]),
-                        temperature=float(settings_snapshot["temperature"]),
-                        top_k=int(settings_snapshot["top_k"]),
-                        max_chars=int(settings_snapshot["max_chars"]),
-                        silence_seconds=(float(settings_snapshot["silence_seconds"]) if position < len(segments) - 1 else 0.0),
+                        synth_input=synth_input,
                         output_path=segment_path,
                     )
                     audio_hash = sha256_file(segment_path)
@@ -447,7 +508,7 @@ class PipelineWorker:
             (chapter_id,),
         )
         if not source_revision:
-            raise RuntimeError("Chương chưa có reflowed TextRevision.")
+            raise RuntimeError("ChÆ°Æ¡ng chÆ°a cÃ³ reflowed TextRevision.")
         source_text = self.store.read_text(source_revision["content_path"])
         mode = str(job["repair_mode"])
         if mode == "off":
@@ -525,36 +586,43 @@ class PipelineWorker:
                 "SELECT * FROM repair_blocks WHERE job_chapter_id=? ORDER BY block_index",
                 (job_chapter_id,),
             )
-        repaired_blocks: list[str] = []
+        expected_blocks = {index: block for index, block in enumerate(blocks, start=1)}
+        self._validate_repair_block_structure(existing, expected_blocks)
+        repaired_blocks: dict[int, str] = {}
         for row in existing:
             self._control(job_id)
-            source = self.store.read_text(row["source_path"])
+            block_index = int(row["block_index"])
+            source = expected_blocks[block_index]
+            source_sha = sha256_text(source)
             if row["status"] == "verified" and row["repaired_path"]:
                 try:
                     checkpoint_text = self.store.read_text(row["repaired_path"])
-                    valid, _reason = validate_lexical_identity(source, checkpoint_text)
                     if (
-                        sha256_text(source) == row["source_sha256"]
+                        source_sha == row["source_sha256"]
                         and row["model_id"] == repair_model
                         and (
                             row["prompt_version"] == checkpoint_prompt_version
                             or (legacy_compatible and row["prompt_version"] == repair_prompt_version)
                         )
-                        and valid
                     ):
+                        accepted = self._validate_repaired_block(
+                            block_index=block_index,
+                            source=source,
+                            repaired=checkpoint_text,
+                        )
                         if row["prompt_version"] != checkpoint_prompt_version:
                             with self.db.connect() as connection:
                                 connection.execute(
                                     "UPDATE repair_blocks SET prompt_version=? WHERE id=?",
                                     (checkpoint_prompt_version, row["id"]),
                                 )
-                        repaired_blocks.append(checkpoint_text)
+                        repaired_blocks[block_index] = accepted
                         self.db.audit(
                             "gemini_checkpoint_reuse", job_id=job_id, chapter_id=chapter_id,
-                            details={"scope": "repair_block", "block_index": int(row["block_index"])},
+                            details={"scope": "repair_block", "block_index": block_index},
                         )
                         continue
-                except (OSError, UnicodeError, ValueError):
+                except (OSError, UnicodeError, ValueError, ChapterNeedsReview):
                     pass
 
             lookup = self.repair_cache.lookup(
@@ -565,7 +633,7 @@ class PipelineWorker:
             self.db.audit(
                 f"gemini_cache_{lookup.status}", job_id=job_id, chapter_id=chapter_id,
                 details={
-                    "block_index": int(row["block_index"]),
+                    "block_index": block_index,
                     "cache_key": lookup.cache_key,
                     "reason": lookup.reason if lookup.status == "invalid" else None,
                     "lookup_ms": round(lookup.lookup_ms, 3),
@@ -573,17 +641,44 @@ class PipelineWorker:
                 },
             )
             if lookup.status == "hit" and lookup.repaired_text and lookup.repaired_blob_path:
+                try:
+                    accepted = self._validate_repaired_block(
+                        block_index=block_index,
+                        source=source,
+                        repaired=lookup.repaired_text,
+                    )
+                except ChapterNeedsReview as exc:
+                    with self.db.connect() as connection:
+                        connection.execute(
+                            "UPDATE repair_blocks SET status='failed',error_message=? WHERE id=?",
+                            (str(exc)[:2000], row["id"]),
+                        )
+                    raise
+                repaired_path = lookup.repaired_blob_path
+                if accepted != lookup.repaired_text:
+                    repaired_path, _ = self.store.put_text(accepted)
                 with self.db.connect() as connection:
                     connection.execute(
-                        "UPDATE repair_blocks SET status='verified',repaired_path=?,model_id=?,prompt_version=?,verified_at=?,error_message=NULL WHERE id=?",
-                        (lookup.repaired_blob_path, repair_model, checkpoint_prompt_version, utcnow(), row["id"]),
+                        """UPDATE repair_blocks
+                           SET status='verified',source_sha256=?,lexical_sha256=?,
+                               repaired_path=?,model_id=?,prompt_version=?,verified_at=?,error_message=NULL
+                           WHERE id=?""",
+                        (
+                            source_sha,
+                            lexical_sha256(source),
+                            repaired_path,
+                            repair_model,
+                            checkpoint_prompt_version,
+                            utcnow(),
+                            row["id"],
+                        ),
                     )
-                repaired_blocks.append(lookup.repaired_text)
+                repaired_blocks[block_index] = accepted
                 continue
             try:
                 api_key = self.config.gemini_key()
                 if not api_key:
-                    raise ChapterNeedsReview("Chưa cấu hình GEMINI_API_KEY hoặc file key.")
+                    raise ChapterNeedsReview("ChÆ°a cáº¥u hÃ¬nh GEMINI_API_KEY hoáº·c file key.")
                 with self.db.connect() as connection:
                     connection.execute(
                         "UPDATE repair_blocks SET status='running',attempt_count=attempt_count+1,error_message=NULL WHERE id=?",
@@ -591,19 +686,24 @@ class PipelineWorker:
                     )
                 self.db.audit(
                     "gemini_api_call", job_id=job_id, chapter_id=chapter_id,
-                    details={"block_index": int(row["block_index"]), "cache_key": lookup.cache_key},
+                    details={"block_index": block_index, "cache_key": lookup.cache_key},
                 )
                 result = repair_punctuation(
                     api_key=api_key,
                     model=repair_model,
-                    block_id=f"jc{job_chapter_id}-b{row['block_index']}",
+                    block_id=f"jc{job_chapter_id}-b{block_index}",
                     text=source,
                 )
-                repaired_path, _ = self.store.put_text(result.text)
+                accepted = self._validate_repaired_block(
+                    block_index=block_index,
+                    source=source,
+                    repaired=result.text,
+                )
+                repaired_path, _ = self.store.put_text(accepted)
                 try:
                     manifest = self.repair_cache.store_result(
                         source=source,
-                        repaired=result.text,
+                        repaired=accepted,
                         model=repair_model,
                         prompt_version=repair_prompt_version,
                     )
@@ -612,27 +712,35 @@ class PipelineWorker:
                     self.db.audit(
                         "gemini_cache_write_failed", job_id=job_id, chapter_id=chapter_id,
                         details={
-                            "block_index": int(row["block_index"]),
+                            "block_index": block_index,
                             "error_type": type(cache_exc).__name__,
                         },
                     )
                 with self.db.connect() as connection:
                     connection.execute(
-                        "UPDATE repair_blocks SET status='verified',repaired_path=?,model_id=?,prompt_version=?,verified_at=? WHERE id=?",
-                        (repaired_path, repair_model, checkpoint_prompt_version, utcnow(), row["id"]),
+                        """UPDATE repair_blocks
+                           SET status='verified',source_sha256=?,lexical_sha256=?,
+                               repaired_path=?,model_id=?,prompt_version=?,verified_at=?,error_message=NULL
+                           WHERE id=?""",
+                        (
+                            source_sha,
+                            lexical_sha256(source),
+                            repaired_path,
+                            repair_model,
+                            checkpoint_prompt_version,
+                            utcnow(),
+                            row["id"],
+                        ),
                     )
-                repaired_blocks.append(result.text)
-            except GeminiRepairError as exc:
+                repaired_blocks[block_index] = accepted
+            except (GeminiRepairError, ChapterNeedsReview) as exc:
                 with self.db.connect() as connection:
                     connection.execute(
                         "UPDATE repair_blocks SET status='failed',error_message=? WHERE id=?",
                         (str(exc)[:2000], row["id"]),
                     )
-                raise ChapterNeedsReview(f"Gemini block {row['block_index']} lỗi: {exc}") from exc
-        repaired_text = "\n\n".join(repaired_blocks)
-        valid, reason = validate_lexical_identity(source_text, repaired_text)
-        if not valid:
-            raise ChapterNeedsReview(f"Gemini thay đổi nội dung chương: {reason}")
+                raise ChapterNeedsReview(f"Gemini block {row['block_index']} lá»—i: {exc}") from exc
+        repaired_text = self._assemble_repaired_blocks(repaired_blocks, expected_blocks)
         content_path, content_sha = self.store.put_text(repaired_text)
         duplicate = self.db.fetch_one(
             """SELECT * FROM text_revisions
@@ -674,6 +782,51 @@ class PipelineWorker:
                 (revision_id, now, chapter_id),
             )
         return revision_id, repaired_text
+
+    def _validate_repair_block_structure(
+        self,
+        rows: list[Any],
+        expected_blocks: dict[int, str],
+    ) -> None:
+        expected_indexes = set(expected_blocks)
+        seen: set[int] = set()
+        duplicate: set[int] = set()
+        unexpected: set[int] = set()
+        for row in rows:
+            index = int(row["block_index"])
+            if index in seen:
+                duplicate.add(index)
+            seen.add(index)
+            if index not in expected_indexes:
+                unexpected.add(index)
+        missing = expected_indexes - seen
+        if duplicate:
+            raise ChapterNeedsReview(f"Gemini repair blocks duplicate indexes: {sorted(duplicate)}")
+        if missing:
+            raise ChapterNeedsReview(f"Gemini repair blocks missing indexes: {sorted(missing)}")
+        if unexpected:
+            raise ChapterNeedsReview(f"Gemini repair blocks unexpected indexes: {sorted(unexpected)}")
+
+    def _validate_repaired_block(self, *, block_index: int, source: str, repaired: str) -> str:
+        try:
+            return validate_repair_candidate(source, repaired).accepted_text
+        except ValueError as exc:
+            raise _repair_validation_error(block_index, str(exc)) from exc
+
+    def _assemble_repaired_blocks(
+        self,
+        repaired_blocks: dict[int, str],
+        expected_blocks: dict[int, str],
+    ) -> str:
+        expected_indexes = set(expected_blocks)
+        actual_indexes = set(repaired_blocks)
+        missing = expected_indexes - actual_indexes
+        unexpected = actual_indexes - expected_indexes
+        if missing:
+            raise ChapterNeedsReview(f"Gemini repair blocks not completed: {sorted(missing)}")
+        if unexpected:
+            raise ChapterNeedsReview(f"Gemini repair blocks unexpected repaired indexes: {sorted(unexpected)}")
+        return "\n\n".join(repaired_blocks[index] for index in sorted(expected_blocks))
 
     def _prepare_segments(
         self,
@@ -731,7 +884,7 @@ class PipelineWorker:
                     }
                 )
         if not specs:
-            raise RuntimeError("Không tạo được TTS segment.")
+            raise RuntimeError("KhÃ´ng táº¡o Ä‘Æ°á»£c TTS segment.")
 
         now = utcnow()
         with self.db.transaction() as connection:
@@ -755,11 +908,88 @@ class PipelineWorker:
                         ensure_ascii=False,
                     )
                 )
+                # --- Snapshot construction ---
+                voice_id = spec["resolved_voice_id"]
+                engine_str = settings_snapshot.get("engine_version", f"vieneu:{self.config.tts_mode}")
+                # Parse "provider:model" format, e.g., "vieneu:v3turbo"
+                if ":" in engine_str:
+                    snap_provider, snap_model = engine_str.split(":", 1)
+                else:
+                    snap_provider, snap_model = engine_str, self.config.tts_mode
+
+                # Determine source type and refs
+                if is_custom_ref(voice_id):
+                    snap_source_type = "custom_reference"
+                    speaker_role = spec.get("speaker_role", "narrator")
+                    character_id = spec.get("character_id")
+                    if character_id is not None:
+                        snap_logical_ref = voice_id  # direct custom assignment on character
+                    else:
+                        snap_logical_ref = speaker_role  # narrator/unknown/etc.
+
+                    snap_effective_ref = voice_id  # "custom:<id>" - stable, no revision
+
+                    # Resolve custom ref
+                    custom_voice_id = parse_custom_ref(voice_id)
+                    if not hasattr(self, "_custom_ctx_cache"):
+                        repo = CustomVoiceRepository(self.db, self.store)
+                        self._custom_ctx_cache = CustomVoiceContext.from_repository(repo)
+                    resolved = resolve_custom_ref(voice_id, self._custom_ctx_cache)
+
+                    # Validate completeness
+                    if not resolved.get("audio_sha256") or not resolved.get("audio_storage_key"):
+                        raise ValueError(f"Custom reference snapshot for {voice_id} is missing required audio fields")
+                    transcript = resolved.get("reference_transcript") or ""
+                    if not transcript:
+                        raise ValueError(f"Custom reference snapshot for {voice_id} has empty reference_transcript")
+                    transcript_sha = hashlib.sha256(transcript.encode("utf-8")).hexdigest()
+                    if transcript_sha != resolved.get("transcript_sha256"):
+                        raise ValueError(f"Transcript SHA-256 mismatch for {voice_id}")
+
+                    snap_custom_revision_id = resolved["custom_voice_revision_id"]
+                    snap_audio_sha = resolved["audio_sha256"]
+                    snap_audio_key = resolved["audio_storage_key"]
+                    snap_transcript = transcript
+                    snap_transcript_sha = transcript_sha
+                else:
+                    snap_source_type = "preset"
+                    speaker_role = spec.get("speaker_role", "narrator")
+                    character_id = spec.get("character_id")
+                    # Determine logical ref
+                    if speaker_role == "narrator":
+                        snap_logical_ref = "narrator"
+                    elif speaker_role == "unknown":
+                        snap_logical_ref = "unknown"
+                    elif speaker_role == "character" and character_id is not None:
+                        snap_logical_ref = voice_id
+                    else:
+                        snap_logical_ref = speaker_role
+                    snap_effective_ref = voice_id
+                    snap_custom_revision_id = None
+                    snap_audio_sha = None
+                    snap_audio_key = None
+                    snap_transcript = None
+                    snap_transcript_sha = None
+
+                # Casting plan provenance
+                snap_casting_plan_id = spec.get("casting_plan_id")
+
+                # Voice resolution reason
+                snap_resolution_reason = spec.get("voice_resolution_reason", "direct_assignment")
+
+                snap_settings_json = _effective_synthesis_settings(settings_snapshot)
+                snap_version = 1
+
+
                 connection.execute(
                     """INSERT INTO segments(
                         job_chapter_id,segment_index,text_path,text_sha256,status,created_at,
-                        utterance_sequence,speaker_role,character_id,resolved_voice_id,synthesis_hash
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                        utterance_sequence,speaker_role,character_id,resolved_voice_id,synthesis_hash,
+                        voice_source_type,voice_provider,voice_model,logical_voice_ref,effective_voice_ref,
+                        custom_voice_revision_id,reference_audio_sha256,reference_audio_storage_key,
+                        reference_transcript,reference_transcript_sha256,
+                        synthesis_settings_json,casting_plan_id,voice_resolution_reason,voice_snapshot_version
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
                     (
                         job_chapter_id,
                         index,
@@ -772,8 +1002,25 @@ class PipelineWorker:
                         spec["character_id"],
                         spec["resolved_voice_id"],
                         synthesis_hash,
+                        snap_source_type,
+                        snap_provider,
+                        snap_model,
+                        snap_logical_ref,
+                        snap_effective_ref,
+                        snap_custom_revision_id,
+                        snap_audio_sha,
+                        snap_audio_key,
+                        snap_transcript,
+                        snap_transcript_sha,
+                        snap_settings_json,
+                        snap_casting_plan_id,
+                        snap_resolution_reason,
+                        snap_version,
                     ),
                 )
+        # Clear custom voice context cache
+        self.__dict__.pop("_custom_ctx_cache", None)
+
         return [
             dict(row)
             for row in self.db.fetch_all(
@@ -794,7 +1041,7 @@ class PipelineWorker:
             (job_chapter_id,),
         )
         if not rows or any(row["status"] != "verified" or not row["wav_path"] for row in rows):
-            raise RuntimeError("Chưa đủ segment hợp lệ để ghép chương.")
+            raise RuntimeError("ChÆ°a Ä‘á»§ segment há»£p lá»‡ Ä‘á»ƒ ghÃ©p chÆ°Æ¡ng.")
         job_output_dir = (
             self.config.output_dir
             / f"{int(chapter['book_id'])}-{safe_slug(str(chapter['book_title']), 'book')}"
@@ -913,7 +1160,7 @@ class PipelineWorker:
         final_duration = self._ffprobe_ms(final_partial)
         if abs(final_duration - master_duration) > 750:
             raise RuntimeError(
-                f"Audio export lệch duration: master={master_duration}ms, final={final_duration}ms"
+                f"Audio export lá»‡ch duration: master={master_duration}ms, final={final_duration}ms"
             )
         final_partial.replace(final)
         export_hash = sha256_text(json.dumps({"format": output_format, "bitrate": "128k"}, sort_keys=True))
@@ -998,7 +1245,7 @@ class PipelineWorker:
         )
         value = float(result.stdout.strip())
         if value <= 0:
-            raise RuntimeError(f"FFprobe duration không hợp lệ: {path}")
+            raise RuntimeError(f"FFprobe duration khÃ´ng há»£p lá»‡: {path}")
         return int(round(value * 1000))
 
     @staticmethod
@@ -1011,4 +1258,4 @@ class PipelineWorker:
         usage = shutil.disk_usage(self.config.data_dir)
         free_gb = usage.free / (1024 ** 3)
         if free_gb < self.config.minimum_free_gb:
-            raise RuntimeError(f"Ổ đĩa chỉ còn {free_gb:.1f} GB, thấp hơn ngưỡng an toàn.")
+            raise RuntimeError(f"á»” Ä‘Ä©a chá»‰ cÃ²n {free_gb:.1f} GB, tháº¥p hÆ¡n ngÆ°á»¡ng an toÃ n.")

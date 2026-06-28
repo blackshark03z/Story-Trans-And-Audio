@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+import os
 import unittest
 from pathlib import Path
 
@@ -55,6 +56,19 @@ def seed_diff(root: Path):
 
 
 class TextDiffEngineTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+    
+    def tearDown(self) -> None:
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
+        super().tearDown()
+
     def test_identical_text(self) -> None:
         result = diff_texts("Giống nhau.", "Giống nhau.")
         self.assertEqual(result["summary"]["blocks_changed"], 0)
@@ -100,6 +114,19 @@ class TextDiffEngineTests(unittest.TestCase):
 
 
 class RevisionDiffTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+    
+    def tearDown(self) -> None:
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
+        super().tearDown()
+
     def test_structured_diff_metadata_has_no_internal_path_and_preserves_selection(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             _config, db, store, chapter, raw, _reflowed, repaired, _other = seed_diff(Path(directory))

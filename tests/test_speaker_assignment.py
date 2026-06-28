@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+import os
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -95,6 +96,19 @@ def fake_response(request_data: dict, character_id: int | None = None):
 
 
 class SpeakerAssignmentTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+    
+    def tearDown(self) -> None:
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
+        super().tearDown()
+
     def test_request_is_deterministic_pinned_and_injection_is_data(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             config, db, store, _book, chapter, revision, character = seed(Path(directory))
@@ -234,6 +248,19 @@ class SpeakerAssignmentTests(unittest.TestCase):
 
 
 class SpeakerReviewTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+    
+    def tearDown(self) -> None:
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
+        super().tearDown()
+
     voices = {"narrator", "male", "female"}
 
     def generate(self, db, store, config, chapter, character):

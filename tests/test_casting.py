@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+import os
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -30,10 +31,23 @@ class FakeMultiVoiceTts:
     def __init__(self):
         self.calls: list[tuple[str, str]] = []
 
-    def synthesize(self, *, text: str, voice: str, output_path: Path, **_kwargs):
-        self.calls.append((voice, text))
+    def synthesize(self, *, synth_input=None, text: str = None, voice: str = None, output_path: Path, **_kwargs):
+        # Support both snapshot-based and legacy API
+        if synth_input is not None:
+            # Snapshot-based API (Phase 3B3-D)
+            actual_text = synth_input.text
+            if synth_input.voice_source_type == "preset":
+                actual_voice = synth_input.preset_voice_id
+            else:
+                actual_voice = f"custom:{synth_input.custom_voice_revision_id}"
+        else:
+            # Legacy API
+            actual_text = text
+            actual_voice = voice
+
+        self.calls.append((actual_voice, actual_text))
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_bytes(f"{voice}:{text}".encode("utf-8"))
+        output_path.write_bytes(f"{actual_voice}:{actual_text}".encode("utf-8"))
         return 1000, 48_000
 
 
@@ -97,6 +111,19 @@ def seed_casting(root: Path):
 
 
 class CastingTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+
+    def tearDown(self) -> None:
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
+        super().tearDown()
+
     def test_splitter_is_deterministic_and_defaults_to_narrator(self) -> None:
         first = split_utterances(TEXT)
         second = split_utterances(TEXT)

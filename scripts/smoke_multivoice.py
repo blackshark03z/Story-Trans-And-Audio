@@ -109,8 +109,13 @@ def verify(db: Database, store: ContentStore, job: dict, job_chapter: dict) -> d
 
 def main() -> int:
     parser = argparse.ArgumentParser()
+    parser.add_argument("--allow-live-db", action="store_true", help="Opt-in to use the canonical live DB")
     parser.add_argument("--skip-retry", action="store_true")
     args = parser.parse_args()
+
+    if getattr(args, "allow_live_db", False):
+        import os
+        os.environ["STORY_AUDIO_ALLOW_LIVE_DB"] = "1"
     settings.ensure_dirs()
     db, store = Database(settings.db_path), ContentStore(settings)
     db.initialize()

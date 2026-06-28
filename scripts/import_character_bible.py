@@ -17,9 +17,9 @@ from story_audio.character_bible import (  # noqa: E402
 from story_audio.config import settings  # noqa: E402
 from story_audio.db import Database  # noqa: E402
 
-
 def main() -> int:
     parser = argparse.ArgumentParser(description="Import Character Bible JSON V1")
+    parser.add_argument("--allow-live-db", action="store_true", help="Opt-in to use the canonical live DB")
     parser.add_argument("--book-id", type=int, required=True)
     parser.add_argument("--file", type=Path, required=True)
     mode = parser.add_mutually_exclusive_group(required=True)
@@ -28,6 +28,12 @@ def main() -> int:
     parser.add_argument("--update-existing", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
+
+    if getattr(args, "allow_live_db", False):
+        import os
+        os.environ["STORY_AUDIO_ALLOW_LIVE_DB"] = "1"
+    
+    
     try:
         raw = args.file.read_bytes()
         parsed = parse_character_bible(raw, source_label=args.file.name)
@@ -68,7 +74,6 @@ def main() -> int:
     except (OSError, CharacterBibleError) as exc:
         print(f"Character Bible import failed: {exc}", file=sys.stderr)
         return 2
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

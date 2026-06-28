@@ -1,12 +1,18 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import os
 from dataclasses import dataclass
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 
+def canonical_production_db_path() -> Path:
+    """Return the canonical production database path.
+    
+    This is the single source of truth for what constitutes the live production DB.
+    Any code attempting to initialize or migrate this path must have explicit opt-in.
+    """
+    return ROOT / "data" / "app.db"
 
 @dataclass(frozen=True)
 class Settings:
@@ -81,6 +87,5 @@ class Settings:
                 if value and not value.startswith("#"):
                     return value
         return None
-
 
 settings = Settings()

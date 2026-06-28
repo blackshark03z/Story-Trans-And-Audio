@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 import tempfile
+import os
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -91,6 +92,19 @@ def seed(root: Path):
 
 
 class CharacterBibleTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+    
+    def tearDown(self) -> None:
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
+        super().tearDown()
+
     def test_parse_valid_json_preserves_vietnamese_and_normalizes_without_removing_marks(self) -> None:
         parsed = parse_character_bible(bible_bytes([
             record("char_hua", "  Hứa   Thanh ", aliases=["Hứa công tử"], gender="male", role="main")

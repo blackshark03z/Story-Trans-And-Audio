@@ -16,11 +16,15 @@ from .storage import ContentStore
 from .text import (
     LEXICAL_VALIDATOR_VERSION,
     REPAIR_BLOCK_STRATEGY_VERSION,
-    validate_lexical_identity,
+    validate_repair_candidate,
 )
 
 
 CACHE_SCHEMA_VERSION = 1
+LEGACY_REPAIR_CONTRACT_VERSION = "punctuation-only-v1"
+LEGACY_REPAIR_BLOCK_STRATEGY_VERSION = "repair-block-v1-target1900-max2500"
+LEGACY_LEXICAL_VALIDATOR_VERSION = "lexical-token-v1"
+LEGACY_GENERATION_SETTINGS = {"temperature": 0, "response_mime_type": "application/json"}
 
 
 @dataclass(frozen=True)
@@ -52,15 +56,50 @@ class GeminiRepairCache:
         self.config = config
 
     def identity(self, *, source_hash: str, model: str, prompt_version: str) -> dict[str, Any]:
+        return self._identity_for_contract(
+            source_hash=source_hash,
+            model=model,
+            prompt_version=prompt_version,
+            repair_contract_version=REPAIR_CONTRACT_VERSION,
+        )
+
+    def _identity_for_contract(
+        self,
+        *,
+        source_hash: str,
+        model: str,
+        prompt_version: str,
+        repair_contract_version: str,
+    ) -> dict[str, Any]:
         return {
             "source_hash": source_hash,
             "model": model.strip(),
             "prompt_version": prompt_version.strip(),
-            "repair_contract_version": REPAIR_CONTRACT_VERSION,
+            "repair_contract_version": repair_contract_version,
             "block_strategy_version": REPAIR_BLOCK_STRATEGY_VERSION,
             "lexical_validator_version": LEXICAL_VALIDATOR_VERSION,
             "settings": GENERATION_SETTINGS,
         }
+
+    def _lookup_identities(
+        self, *, source_hash: str, model: str, prompt_version: str
+    ) -> list[dict[str, Any]]:
+        identities = [
+            self.identity(source_hash=source_hash, model=model, prompt_version=prompt_version)
+        ]
+        if (
+            REPAIR_CONTRACT_VERSION != LEGACY_REPAIR_CONTRACT_VERSION
+            and self._legacy_repair_cache_is_compatible()
+        ):
+            identities.append(
+                self._identity_for_contract(
+                    source_hash=source_hash,
+                    model=model,
+                    prompt_version=prompt_version,
+                    repair_contract_version=LEGACY_REPAIR_CONTRACT_VERSION,
+                )
+            )
+        return identities
 
     def cache_key(self, identity: dict[str, Any]) -> str:
         return sha256_text(canonical_json(identity))
@@ -142,15 +181,17 @@ class GeminiRepairCache:
     def legacy_checkpoint_is_compatible(self) -> bool:
         """Allow adoption of checkpoints made by the pre-cache implementation.
 
-        This must become false when any legacy repair behavior changes.
+        Pre-cache checkpoints were already strict punctuation-only outputs. They
+        remain a safe subset while the new contract only broadens future output.
         """
         return (
-            REPAIR_CONTRACT_VERSION == "punctuation-only-v1"
-            and REPAIR_BLOCK_STRATEGY_VERSION == "repair-block-v1-target1900-max2500"
-            and LEXICAL_VALIDATOR_VERSION == "lexical-token-v1"
-            and GENERATION_SETTINGS
-            == {"temperature": 0, "response_mime_type": "application/json"}
+            REPAIR_BLOCK_STRATEGY_VERSION == LEGACY_REPAIR_BLOCK_STRATEGY_VERSION
+            and LEXICAL_VALIDATOR_VERSION == LEGACY_LEXICAL_VALIDATOR_VERSION
+            and GENERATION_SETTINGS == LEGACY_GENERATION_SETTINGS
         )
+
+    def _legacy_repair_cache_is_compatible(self) -> bool:
+        return self.legacy_checkpoint_is_compatible()
 
     def _manifest_path(self, cache_key: str) -> Path:
         root = self.config.gemini_cache_dir.resolve()
@@ -174,15 +215,25 @@ class GeminiRepairCache:
     def lookup(self, *, source: str, model: str, prompt_version: str) -> CacheLookup:
         started = time.perf_counter()
         source_hash = sha256_text(source)
-        identity = self.identity(
+        identities = self._lookup_identities(
             source_hash=source_hash, model=model, prompt_version=prompt_version
         )
+        primary_cache_key = self.cache_key(identities[0])
+        for identity in identities:
+            result = self._lookup_one(source=source, identity=identity, started=started)
+            if result.status != "miss":
+                return result
+        return CacheLookup(
+            "miss", primary_cache_key, lookup_ms=(time.perf_counter() - started) * 1000
+        )
+
+    def _lookup_one(
+        self, *, source: str, identity: dict[str, Any], started: float
+    ) -> CacheLookup:
         cache_key = self.cache_key(identity)
         manifest_path = self._manifest_path(cache_key)
         if not manifest_path.is_file() or manifest_path.is_symlink():
-            return CacheLookup(
-                "miss", cache_key, lookup_ms=(time.perf_counter() - started) * 1000
-            )
+            return CacheLookup("miss", cache_key)
         validation_started = time.perf_counter()
         try:
             manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -219,9 +270,10 @@ class GeminiRepairCache:
                 raise ValueError("repaired_blob_hash_mismatch")
             if len(source) != manifest["source_char_count"] or len(repaired) != manifest["repaired_char_count"]:
                 raise ValueError("character_count_mismatch")
-            valid, reason = validate_lexical_identity(source, repaired)
-            if not valid:
-                raise ValueError("lexical_validation_failed")
+            try:
+                validate_repair_candidate(source, repaired)
+            except ValueError as exc:
+                raise ValueError("repair_candidate_validation_failed") from exc
             os.utime(manifest_path, None)
             elapsed = (time.perf_counter() - started) * 1000
             validation_ms = (time.perf_counter() - validation_started) * 1000
@@ -255,9 +307,11 @@ class GeminiRepairCache:
     def store_result(
         self, *, source: str, repaired: str, model: str, prompt_version: str
     ) -> dict[str, Any]:
-        valid, reason = validate_lexical_identity(source, repaired)
-        if not valid:
-            raise ValueError(f"Cannot cache lexically invalid repair: {reason}")
+        try:
+            validation = validate_repair_candidate(source, repaired)
+        except ValueError as exc:
+            raise ValueError(f"Cannot cache invalid repair: {exc}") from exc
+        repaired = validation.accepted_text
         source_blob_path, source_hash = self.store.put_text(source)
         repaired_blob_path, repaired_hash = self.store.put_text(repaired)
         # Content-addressed blobs are immutable. If a prior cache payload was
@@ -282,6 +336,7 @@ class GeminiRepairCache:
             "source_char_count": len(source),
             "repaired_char_count": len(repaired),
             "lexical_validated": True,
+            "repair_validation_classification": validation.classification,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
         path = self._manifest_path(cache_key)
@@ -390,9 +445,10 @@ class GeminiRepairCache:
                         raise ValueError("repaired_blob_hash_mismatch")
                     if len(source) != manifest["source_char_count"] or len(repaired) != manifest["repaired_char_count"]:
                         raise ValueError("character_count_mismatch")
-                    valid, _reason = validate_lexical_identity(source, repaired)
-                    if not valid:
-                        raise ValueError("lexical_validation_failed")
+                    try:
+                        validate_repair_candidate(source, repaired)
+                    except ValueError as exc:
+                        raise ValueError("repair_candidate_validation_failed") from exc
                 checked += 1
             except (KeyError, OSError, UnicodeError, json.JSONDecodeError, ValueError, TypeError) as exc:
                 invalid.append({"entry": path.name, "reason": type(exc).__name__ if not str(exc) else str(exc)})

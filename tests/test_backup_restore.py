@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import tempfile
+import os
 import unittest
 from dataclasses import replace
 from pathlib import Path
@@ -108,6 +109,19 @@ def seed_data(config) -> tuple[Database, Path]:
 
 
 class BackupRestoreTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+    
+    def tearDown(self) -> None:
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
+        super().tearDown()
+
     def test_backup_manifest_and_restore_to_new_directory(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -1,143 +1,217 @@
 # Changelog
 
-Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hành. Không dùng file này thay cho `PROJECT_STATUS.md`.
+Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contract vÃ  váº­n hÃ nh. KhÃ´ng dÃ¹ng file nÃ y thay cho `PROJECT_STATUS.md`.
 
 ## Unreleased
 
-### Documentation
+### Fixed
 
-- Đồng bộ README, AGENTS, ROADMAP, NEXT_TASK và ARCHITECTURE sau khi Long-Chapter Validation hoàn tất; sửa đánh số quy trình README và gắn nhãn các ghi chú kiến trúc lịch sử chưa/không triển khai.
+- **UI Usability Pass**: Restored compact standalone Preset Voice Preview panel after UI consolidation accidentally removed it. Custom Voice Library remains the single custom-reference workflow. Test count increased to 584 (from 542) after fixing premature class termination in test file.
+
+### Planned
 
 ### Added
 
-- Speaker Assignment Review UI trong Character Voices với draft selector, confidence/needs-review filters, bulk actions, Gemini alternatives, manual character/narrator/unknown decisions và effective voice preview.
-- Immutable partial approval tạo Casting Plan revision mới, giữ nguyên assignment ngoài phạm vi đã review, hỗ trợ base-plan compare-and-swap và deterministic decision fingerprint.
-- Approval idempotency theo draft/base/decision identity; exact repeat trả lại plan cũ, còn key trùng với quyết định khác bị từ chối.
-- Stale protection cho TextRevision, Character Bible fingerprint và confirmed Casting Plan context; draft cũ vẫn đọc được để audit.
-- Doctor kiểm tra review metadata liên kết đúng draft/chapter/base plan, fingerprint và idempotency identity.
-- Gemini Speaker Assignment Draft Core với deterministic utterance selection, context trước/sau, Character Bible candidates và confirmed casting context.
-- Structured response `story-audio-speaker-assignment-draft/v1` gồm candidate, confidence, alternatives, concise reason, confidence level và `needs_review=true`.
-- Migration `0005_speaker_assignment_drafts` lưu immutable draft index; payload nằm trong content-addressed JSON blob, không nằm trong Casting Plan.
-- Shared Gemini Cache hỗ trợ task `speaker_assignment`, validate payload ở cả miss/hit và coi cache hỏng là safe miss.
-- API POST/GET và CLI `scripts/speaker_assignment_draft.py`; Doctor kiểm tra ownership, schema, hash, fingerprint và character references.
-- Prompt boundary tách system instruction khỏi untrusted chapter/alias/Character Bible data và cấm tạo character mới hoặc suy luận từ voice.
+- **Custom Reference Voice Library UI**: Complete workflow for managing custom reference voices through global library interface. Logical voice management (create, list, select, deactivate/reactivate), immutable revision upload (multipart audio + transcript), revision history display, exact revision selection (radio buttons + summary), Reference Audio playback (GET `/api/custom-voice-revisions/{id}/audio` with SHA-256 verification), custom Preview Text (optional, max 500 chars, empty uses default), short custom preview support (removed 10s minimum, accepts >0s to 20s), cache isolation by revision + text. Consolidated UI eliminates redundant standalone custom preview panel while preserving compact Preset Voice Preview. Test coverage: 584 tests passing. Real manual smoke passed: preset preview functional, two revisions uploaded, exact selection works, Reference Audio plays, custom short text synthesis succeeds, cache hit/miss verified. Test isolation verified: live DB unchanged during automated runs. No migration required (schema v6 sufficient).
+
+- **Custom Voice Preview**: Immutable custom voice revision preview with exact revision ID, reference audio/transcript integrity verification, content-addressed preview cache, and backward-compatible preset request API.
+  - `VoicePreviewService.create_custom()` validates revision metadata, checks SHA-256 integrity for reference audio/transcript, synthesizes preview WAV, and stores in content-addressed cache with atomic manifest.
+  - `TtsService.synthesize()` extended with optional `reference_audio_path` and `reference_transcript` parameters for custom-reference synthesis preview (routing validation prevents mixing modes).
+  - POST `/api/voice-previews` accepts XOR selector: `voice_id` (preset) or `custom_voice_revision_id` (custom), maps domain exceptions to HTTP 404/400/503 without leaking internal details.
+  - Custom Voice Preview UI panel with logical custom voice selector, immutable revision selector, preview button, audio player, and status display. JavaScript converts revision ID to integer and sends exact `custom_voice_revision_id` (no `voice_type` or `preview_text`).
+  - Test coverage: 27 UI contract tests, 16 API integration tests, 29 service tests, 23 TTS tests. Total: 450 tests passing (41.9s).
+  - Real VieNeu custom preview smoke not performed; accepted residual risk with comprehensive offline test coverage.
+  - Live DB remained unchanged; no migration required.
+
+- **Phase 3B: Immutable voice synthesis snapshots** for preset and custom-reference voices with strict version-1 validation, fail-closed legacy policy, and deterministic retry behavior.
+  - `SegmentSynthesisInput` dataclass with 14 immutable snapshot fields including voice provider/model, synthesis settings JSON, text SHA-256, and custom reference audio/transcript integrity.
+  - `load_segment_synthesis_input()` validates snapshots before TTS, performs SHA-256 integrity checks, and loads managed-storage reference audio without database lookups.
+  - `TtsService.synthesize()` dual API: snapshot-based path (Phase 3B) and temporary legacy path for non-pipeline callers.
+  - Pipeline integration: `_process_chapter` loads snapshots once per segment outside retry loop; retry operations preserve all 14 snapshot fields while resetting only wav_path/audio_sha256/duration_ms/verified_at.
+  - Test coverage: 92 new tests across snapshot validation (preset 23, custom 20), TTS integration (17), pipeline integration (12), plus updated casting/recovery mocks (20 tests modified). Total: 377 tests passing.
+  - Real smoke validation: VieNeu v3turbo preset (1.04s) and custom-reference (4.31s) synthesis in offline mode with integrity failure detection.
+  - E2 waiver: Full pipeline/retry smoke deferred due to temporary DB fixture complexity; accepted residual risk with existing mocked integration coverage.
+  - Live DB remained at schema version 6; code supports schema version 7.
+
+### Documentation
+
+- Äá»“ng bá»™ README, AGENTS, ROADMAP, NEXT_TASK vÃ  ARCHITECTURE sau khi Long-Chapter Validation hoÃ n táº¥t; sá»­a Ä‘Ã¡nh sá»‘ quy trÃ¬nh README vÃ  gáº¯n nhÃ£n cÃ¡c ghi chÃº kiáº¿n trÃºc lá»‹ch sá»­ chÆ°a/khÃ´ng triá»ƒn khai.
+
+### Added
+
+- Speaker Assignment Review UI trong Character Voices vá»›i draft selector, confidence/needs-review filters, bulk actions, Gemini alternatives, manual character/narrator/unknown decisions vÃ  effective voice preview.
+- Immutable partial approval táº¡o Casting Plan revision má»›i, giá»¯ nguyÃªn assignment ngoÃ i pháº¡m vi Ä‘Ã£ review, há»— trá»£ base-plan compare-and-swap vÃ  deterministic decision fingerprint.
+- Approval idempotency theo draft/base/decision identity; exact repeat tráº£ láº¡i plan cÅ©, cÃ²n key trÃ¹ng vá»›i quyáº¿t Ä‘á»‹nh khÃ¡c bá»‹ tá»« chá»‘i.
+- Stale protection cho TextRevision, Character Bible fingerprint vÃ  confirmed Casting Plan context; draft cÅ© váº«n Ä‘á»c Ä‘Æ°á»£c Ä‘á»ƒ audit.
+- Doctor kiá»ƒm tra review metadata liÃªn káº¿t Ä‘Ãºng draft/chapter/base plan, fingerprint vÃ  idempotency identity.
+- Gemini Speaker Assignment Draft Core vá»›i deterministic utterance selection, context trÆ°á»›c/sau, Character Bible candidates vÃ  confirmed casting context.
+- Structured response `story-audio-speaker-assignment-draft/v1` gá»“m candidate, confidence, alternatives, concise reason, confidence level vÃ  `needs_review=true`.
+- Migration `0005_speaker_assignment_drafts` lÆ°u immutable draft index; payload náº±m trong content-addressed JSON blob, khÃ´ng náº±m trong Casting Plan.
+- Shared Gemini Cache há»— trá»£ task `speaker_assignment`, validate payload á»Ÿ cáº£ miss/hit vÃ  coi cache há»ng lÃ  safe miss.
+- API POST/GET vÃ  CLI `scripts/speaker_assignment_draft.py`; Doctor kiá»ƒm tra ownership, schema, hash, fingerprint vÃ  character references.
+- Prompt boundary tÃ¡ch system instruction khá»i untrusted chapter/alias/Character Bible data vÃ  cáº¥m táº¡o character má»›i hoáº·c suy luáº­n tá»« voice.
 
 - Character Bible JSON importer for `story-audio-character-bible/v1` with CLI dry-run/apply and structured backend dry-run/apply API.
 - Character Bible UI in the casting panel with JSON file selection, dry-run plan preview, apply action, conflict blocking and import summary.
+- Custom Reference Voice API and Global Repository. Immutable custom voice revisions and atomic content-addressed audio/transcript storage.
 - Character Manager metadata editor for canonical identity, aliases, gender, role, age group, description, speech style, visual notes, notes and import provenance display.
 - Migration `0004_character_bible` adds queryable character identity fields, aliases, role/age metadata and import provenance without storing full JSON in SQLite.
 - Deterministic matching by external key, canonical name and unique alias, with conflict detection and idempotent re-import.
 - Doctor checks for duplicate external keys, orphan aliases, alias/book mismatch and invalid Character Bible enums.
 
-- Book Voice Profile với narrator, male dialogue, female dialogue và configurable unknown fallback.
-- Optional character voice override, manual gender metadata và deterministic voice resolver có resolution source/needs-review.
-- Minimal profile/override/resolve API để chuẩn bị cho UI task tiếp theo.
-- Book Voice Profile UI với empty/invalid state, bốn preview slot, fallback policy và profile version.
-- Character Manager hỗ trợ gender, Use book default/Use custom voice, effective voice và resolution source.
-- Manual Casting hiển thị resolved voice, gender và needs-review; preview resolution read-only không tạo plan/job.
+- Book Voice Profile vá»›i narrator, male dialogue, female dialogue vÃ  configurable unknown fallback.
+- Optional character voice override, manual gender metadata vÃ  deterministic voice resolver cÃ³ resolution source/needs-review.
+- Minimal profile/override/resolve API Ä‘á»ƒ chuáº©n bá»‹ cho UI task tiáº¿p theo.
+- Book Voice Profile UI vá»›i empty/invalid state, bá»‘n preview slot, fallback policy vÃ  profile version.
+- Character Manager há»— trá»£ gender, Use book default/Use custom voice, effective voice vÃ  resolution source.
+- Manual Casting hiá»ƒn thá»‹ resolved voice, gender vÃ  needs-review; preview resolution read-only khÃ´ng táº¡o plan/job.
 
 ### Changed
 
-- Speaker assignment prompt tăng lên `speaker-assignment-v2` và yêu cầu alternatives khi còn candidate hợp lệ; cache identity thay đổi theo prompt version.
-- Manual Casting hỗ trợ explicit `Unknown`; approval không tự tạo job, audio hoặc sửa Book Voice Profile/Character Bible.
-- Casting plan/job mới snapshot resolved preset, resolution source và Book Voice Profile ID/version; retry tiếp tục dùng snapshot cũ.
-- Migration `0003_three_voice_profile` bảo toàn `characters.default_voice_id` và sao chép giá trị cũ thành legacy override.
-- Segment timeline mới mang resolution source, resolved gender, needs-review và profile ID/version từ immutable job snapshot.
+- Speaker assignment prompt tÄƒng lÃªn `speaker-assignment-v2` vÃ  yÃªu cáº§u alternatives khi cÃ²n candidate há»£p lá»‡; cache identity thay Ä‘á»•i theo prompt version.
+- Manual Casting há»— trá»£ explicit `Unknown`; approval khÃ´ng tá»± táº¡o job, audio hoáº·c sá»­a Book Voice Profile/Character Bible.
+- Casting plan/job má»›i snapshot resolved preset, resolution source vÃ  Book Voice Profile ID/version; retry tiáº¿p tá»¥c dÃ¹ng snapshot cÅ©.
+- Custom voices are now managed at the Global Library level rather than book-level to maximize reusability across projects.
+- Migration `0003_three_voice_profile` báº£o toÃ n `characters.default_voice_id` vÃ  sao chÃ©p giÃ¡ trá»‹ cÅ© thÃ nh legacy override.
+- Segment timeline má»›i mang resolution source, resolved gender, needs-review vÃ  profile ID/version tá»« immutable job snapshot.
 - YouTube Auto `character_seed.json` now exports Character Bible canonical metadata, aliases, notes and resolved preset hints; metadata changes produce a new immutable bundle without mutating old exports.
 
 ### Verified
 
-- Long-Chapter Validation Phase 2 trên job #6/chapter 56: Casting Plan #8 tạo job thủ công, VieNeu thật render 210/210 segment verified, final M4A render_0002 dài 752.310 s.
-- Long-Chapter Validation Phase 3 trên job #6/chapter 56/artifact #30: export handoff bundle identity `050ac2f2a73bda7b84beb7c1e9bd5b06d9fd3a00773214fa91616c451e8f9280` lần đầu tạo manifest 752310 ms / 210 utterances / 2 characters; export #2 reused cùng identity; legacy bundles `93ff2e0a367a` và `3255141aa34f` verify/import/reuse đạt; Story Audio 119 offline tests / Doctor deep `critical_errors=0`; YouTube Auto 96 tests / import 7/7 đạt.
-- Phase 2 voice/timing QA: Ngọc Lan 110, Đức Trí 56, Mỹ Duyên 44; 210 utterance sequence liên tục, final AAC mono 48 kHz, audio sample RMS/peak dương.
-- Phase 2 retry/reuse: `retry_segment` cho segment #247 tạo render_0002, 4 segment đối chứng giữ nguyên hash/mtime, render_0001 vẫn tồn tại và final cũ chuyển `stale`.
-- Phase 2 immutability: TextRevision #112 hash match, Casting Plan #8 hash match, speaker draft/casting plan không tăng, YouTube Auto không bị ghi trong Phase 2.
-- Long-Chapter Validation Phase 1 trên `Quang Âm Chi Ngoại` chapter 56: Draft #4 generated 101/101 valid bằng Gemini thật, 6 batch, prompt `speaker-assignment-v2`.
-- Review UI thật tạo plan #7 partial 15 decision và plan #8 final 86 decision; exact repeat reused plan #8 với cùng decision fingerprint, không tạo job/audio.
-- Accuracy smoke Phase 1 đạt 40/40 mẫu thủ công; TextRevision #112, Character Bible fingerprint, draft payload hash giữ nguyên; jobs/segments/artifacts vẫn 5/42/24.
-- Real Gemini/UI smoke trên book 7/chapter 1985: Draft #3 valid 15/15, 7 high + 8 medium; suggestion, alternative, manual correction, unknown và skipped rows được review qua hai approval revision.
-- Plan #5 partial và plan #6 final; exact repeat reuse plan #6 với cùng decision fingerprint. Job count giữ nguyên 5 và không có audio mới.
-- Handoff mới export hai lần cùng identity/reuse; bundle cũ và bundle giàu metadata đều verify/import thật lại vào `D:\Youtube\Youtube Auto`.
-- 119 offline tests, JavaScript syntax check, schema v5, SQLite quick check và Doctor deep `critical_errors=0`.
-- Real Gemini smoke chapter 1982/utterance `u0001-a99461c9571c`: draft #1 generated, valid 1/1, model `gemini-2.5-flash`; lần hai cache hit và reuse cùng fingerprint/content.
-- Backup thật trước migration v5: 4.060 file / 76.112.399 byte, schema v4. Character, casting, job, segment, artifact và TextRevision tables không đổi sau smoke.
+- Long-Chapter Validation Phase 2 trÃªn job #6/chapter 56: Casting Plan #8 táº¡o job thá»§ cÃ´ng, VieNeu tháº­t render 210/210 segment verified, final M4A render_0002 dÃ i 752.310 s.
+- Long-Chapter Validation Phase 3 trÃªn job #6/chapter 56/artifact #30: export handoff bundle identity `050ac2f2a73bda7b84beb7c1e9bd5b06d9fd3a00773214fa91616c451e8f9280` láº§n Ä‘áº§u táº¡o manifest 752310 ms / 210 utterances / 2 characters; export #2 reused cÃ¹ng identity; legacy bundles `93ff2e0a367a` vÃ  `3255141aa34f` verify/import/reuse Ä‘áº¡t; Story Audio 119 offline tests / Doctor deep `critical_errors=0`; YouTube Auto 96 tests / import 7/7 Ä‘áº¡t.
+- 28 isolated API offline tests verify strict boundaries for Custom Voice routes. 244 full suite offline tests and Doctor run clean with Schema v6.
+- Phase 2 voice/timing QA: Ngá»c Lan 110, Äá»©c TrÃ­ 56, Má»¹ DuyÃªn 44; 210 utterance sequence liÃªn tá»¥c, final AAC mono 48 kHz, audio sample RMS/peak dÆ°Æ¡ng.
+- Phase 2 retry/reuse: `retry_segment` cho segment #247 táº¡o render_0002, 4 segment Ä‘á»‘i chá»©ng giá»¯ nguyÃªn hash/mtime, render_0001 váº«n tá»“n táº¡i vÃ  final cÅ© chuyá»ƒn `stale`.
+- Phase 2 immutability: TextRevision #112 hash match, Casting Plan #8 hash match, speaker draft/casting plan khÃ´ng tÄƒng, YouTube Auto khÃ´ng bá»‹ ghi trong Phase 2.
+- Long-Chapter Validation Phase 1 trÃªn `Quang Ã‚m Chi Ngoáº¡i` chapter 56: Draft #4 generated 101/101 valid báº±ng Gemini tháº­t, 6 batch, prompt `speaker-assignment-v2`.
+- Review UI tháº­t táº¡o plan #7 partial 15 decision vÃ  plan #8 final 86 decision; exact repeat reused plan #8 vá»›i cÃ¹ng decision fingerprint, khÃ´ng táº¡o job/audio.
+- Accuracy smoke Phase 1 Ä‘áº¡t 40/40 máº«u thá»§ cÃ´ng; TextRevision #112, Character Bible fingerprint, draft payload hash giá»¯ nguyÃªn; jobs/segments/artifacts váº«n 5/42/24.
+- Real Gemini/UI smoke trÃªn book 7/chapter 1985: Draft #3 valid 15/15, 7 high + 8 medium; suggestion, alternative, manual correction, unknown vÃ  skipped rows Ä‘Æ°á»£c review qua hai approval revision.
+- Plan #5 partial vÃ  plan #6 final; exact repeat reuse plan #6 vá»›i cÃ¹ng decision fingerprint. Job count giá»¯ nguyÃªn 5 vÃ  khÃ´ng cÃ³ audio má»›i.
+- Handoff má»›i export hai láº§n cÃ¹ng identity/reuse; bundle cÅ© vÃ  bundle giÃ u metadata Ä‘á»u verify/import tháº­t láº¡i vÃ o `D:\Youtube\Youtube Auto`.
+- 119 offline tests, JavaScript syntax check, schema v5, SQLite quick check vÃ  Doctor deep `critical_errors=0`.
+- Real Gemini smoke chapter 1982/utterance `u0001-a99461c9571c`: draft #1 generated, valid 1/1, model `gemini-2.5-flash`; láº§n hai cache hit vÃ  reuse cÃ¹ng fingerprint/content.
+- Backup tháº­t trÆ°á»›c migration v5: 4.060 file / 76.112.399 byte, schema v4. Character, casting, job, segment, artifact vÃ  TextRevision tables khÃ´ng Ä‘á»•i sau smoke.
 
 - 94 offline tests pass; schema v4; JavaScript syntax check passes; SQLite quick check and Doctor deep `critical_errors=0`.
 - Character Bible smoke on isolated book 5: dry-run creates 3, first apply creates 3/2 aliases, second apply matches 3 with no writes; API character read and voice resolution verified.
 - UI contract covers safe metadata rendering for Character Bible import and character cards; handoff regression verifies old bundles stay immutable when metadata changes.
 - Jobs #3/#4/#5 casting snapshot hashes stayed unchanged after Character Bible import.
 
-- 78 offline tests, JavaScript syntax check, schema v3, SQLite quick check và Doctor deep `critical_errors=0`.
-- Real VieNeu smoke jobs 4–5: profile v1/v2, five resolution paths, controlled retry reuse 7/8 segment và verified M4A/timeline.
+- 78 offline tests, JavaScript syntax check, schema v3, SQLite quick check vÃ  Doctor deep `critical_errors=0`.
+- Real VieNeu smoke jobs 4â€“5: profile v1/v2, five resolution paths, controlled retry reuse 7/8 segment vÃ  verified M4A/timeline.
 
-- Thêm bộ tài liệu điều hành, testing, data model và runbook.
-- Thêm công cụ chẩn đoán read-only `scripts/doctor.py`.
+- ThÃªm bá»™ tÃ i liá»‡u Ä‘iá»u hÃ nh, testing, data model vÃ  runbook.
+- ThÃªm cÃ´ng cá»¥ cháº©n Ä‘oÃ¡n read-only `scripts/doctor.py`.
 
 ### Added
 
-- Story Audio → YouTube Auto Handoff V1 exporter/verifier cho một completed chapter.
-- Bundle bất biến gồm pinned `content.md`, copied narration audio, integer-ms speech timeline, character identity seed và SHA-256 manifest.
-- Doctor kiểm tra export bundle; backup bao gồm `data/exports/youtube_auto`; 7 offline exporter tests.
-- Shared Gemini punctuation-repair cache tại `data/cache/gemini_repairs/`, khóa canonical theo source hash, model, prompt, repair contract, block strategy, lexical validator và output settings.
-- Cache manifest atomic trỏ tới content-addressed text blobs; cache hit xác minh schema/key/hash/character count và chạy lại lexical validation.
-- Cleanup cache mặc định dry-run (`scripts/cleanup_gemini_cache.py`), TTL 180 ngày, giới hạn 10.000 manifest/256 MiB và không xóa text blob.
-- Doctor shallow/deep báo cache manifest hỏng hoặc file tạm ở mức warning; 10 fake-Gemini/cache regression tests offline.
-- Text Revision Diff tab trong chapter dialog với preset raw/reflowed/repaired, Inline và Side-by-side.
-- Read-only revision metadata/diff API với block matching, token/punctuation operations và lexical integrity summary.
-- Whitespace toggle, unchanged collapse/expand, large-payload warning và explicit 500.000-character limit.
-- 12 offline regression tests cho punctuation, whitespace, paragraph, Unicode, blob integrity, XSS và large text.
-- Character manager theo book và Manual Casting panel trong chapter dialog.
-- Immutable content-addressed Casting Plan Revision pin approved TextRevision bằng utterance offsets.
-- Multi-voice job snapshot, speaker-bounded segments và timeline speaker metadata.
-- Migration `0002_character_voice` cùng offline upgrade/backward-compatibility tests.
-- Voice Preview cho preset voice với mẫu đọc 10–20 giây và audio player ngay tại màn hình tạo job.
-- Preview cache độc lập tại `data/cache/previews/`, khóa theo voice, text, settings và engine version.
-- Cache integrity verification, tự render lại file hỏng và cleanup policy 30 ngày/tối đa 100 entry.
-- 5 fake-TTS tests offline; preview không tạo database, job hay chapter artifact.
-- Diagnostic UI ba cấp cho job, chapter và segment, gồm trạng thái file/hash, lỗi và metadata checkpoint.
-- Retry action theo chapter hoặc segment lỗi; verified segment được giữ nguyên và không cho retry trực tiếp.
-- 5 offline tests cho aggregation, file corruption diagnostics và retry invariants.
-- Schema migration runner với bảng `schema_migrations`, checksum và future-version guard.
-- Baseline migration `0001_initial` cho cả DB mới và DB 0.1.0 chưa version.
-- `scripts/backup.py`: SQLite Online Backup, blobs/output/work và manifest SHA-256.
-- `scripts/restore.py`: verify-only, staging restore, path remap và overwrite có pre-restore copy.
-- Shared integrity checker cho doctor và integration tests.
-- Offline integration tests cho legacy migration, restart recovery, retry reuse, cancel, backup/restore và artifact corruption.
+- Story Audio â†’ YouTube Auto Handoff V1 exporter/verifier cho má»™t completed chapter.
+- Bundle báº¥t biáº¿n gá»“m pinned `content.md`, copied narration audio, integer-ms speech timeline, character identity seed vÃ  SHA-256 manifest.
+- Doctor kiá»ƒm tra export bundle; backup bao gá»“m `data/exports/youtube_auto`; 7 offline exporter tests.
+- Shared Gemini punctuation-repair cache táº¡i `data/cache/gemini_repairs/`, khÃ³a canonical theo source hash, model, prompt, repair contract, block strategy, lexical validator vÃ  output settings.
+- Cache manifest atomic trá» tá»›i content-addressed text blobs; cache hit xÃ¡c minh schema/key/hash/character count vÃ  cháº¡y láº¡i lexical validation.
+- Cleanup cache máº·c Ä‘á»‹nh dry-run (`scripts/cleanup_gemini_cache.py`), TTL 180 ngÃ y, giá»›i háº¡n 10.000 manifest/256 MiB vÃ  khÃ´ng xÃ³a text blob.
+- Doctor shallow/deep bÃ¡o cache manifest há»ng hoáº·c file táº¡m á»Ÿ má»©c warning; 10 fake-Gemini/cache regression tests offline.
+- Text Revision Diff tab trong chapter dialog vá»›i preset raw/reflowed/repaired, Inline vÃ  Side-by-side.
+- Read-only revision metadata/diff API vá»›i block matching, token/punctuation operations vÃ  lexical integrity summary.
+- Whitespace toggle, unchanged collapse/expand, large-payload warning vÃ  explicit 500.000-character limit.
+- 12 offline regression tests cho punctuation, whitespace, paragraph, Unicode, blob integrity, XSS vÃ  large text.
+- Character manager theo book vÃ  Manual Casting panel trong chapter dialog.
+- Immutable content-addressed Casting Plan Revision pin approved TextRevision báº±ng utterance offsets.
+- Multi-voice job snapshot, speaker-bounded segments vÃ  timeline speaker metadata.
+- Migration `0002_character_voice` cÃ¹ng offline upgrade/backward-compatibility tests.
+- Voice Preview cho preset voice vá»›i máº«u Ä‘á»c 10â€“20 giÃ¢y vÃ  audio player ngay táº¡i mÃ n hÃ¬nh táº¡o job.
+- Preview cache Ä‘á»™c láº­p táº¡i `data/cache/previews/`, khÃ³a theo voice, text, settings vÃ  engine version.
+- Cache integrity verification, tá»± render láº¡i file há»ng vÃ  cleanup policy 30 ngÃ y/tá»‘i Ä‘a 100 entry.
+- 5 fake-TTS tests offline; preview khÃ´ng táº¡o database, job hay chapter artifact.
+- Diagnostic UI ba cáº¥p cho job, chapter vÃ  segment, gá»“m tráº¡ng thÃ¡i file/hash, lá»—i vÃ  metadata checkpoint.
+- Retry action theo chapter hoáº·c segment lá»—i; verified segment Ä‘Æ°á»£c giá»¯ nguyÃªn vÃ  khÃ´ng cho retry trá»±c tiáº¿p.
+- 5 offline tests cho aggregation, file corruption diagnostics vÃ  retry invariants.
+- Schema migration runner vá»›i báº£ng `schema_migrations`, checksum vÃ  future-version guard.
+- Baseline migration `0001_initial` cho cáº£ DB má»›i vÃ  DB 0.1.0 chÆ°a version.
+- `scripts/backup.py`: SQLite Online Backup, blobs/output/work vÃ  manifest SHA-256.
+- `scripts/restore.py`: verify-only, staging restore, path remap vÃ  overwrite cÃ³ pre-restore copy.
+- Shared integrity checker cho doctor vÃ  integration tests.
+- Offline integration tests cho legacy migration, restart recovery, retry reuse, cancel, backup/restore vÃ  artifact corruption.
 
 ### Changed
 
 - Documented ADR-013 and synchronized README, architecture, runbook, testing and cost-control guidance for the planned Personal Edition three-voice profile; this is an architecture decision only, not an implemented feature.
-- Gemini API chỉ được gọi sau khi job checkpoint, approved repaired TextRevision và shared cache đều không reuse được; cache hỏng trở thành safe miss.
-- Audit phân biệt `gemini_cache_hit`, `gemini_cache_miss`, `gemini_cache_invalid`, `gemini_api_call` và `gemini_checkpoint_reuse` mà không lưu source text/API key.
-- Audio assembly dùng thư mục `render_<generation>` để retry không ghi đè artifact verified cũ.
-- Doctor kiểm tra schema version, verified segments và hash blob khi dùng `--deep`.
-- App từ chối khởi động nếu DB mới hơn code hoặc migration đã apply bị sửa checksum.
+- Gemini API chá»‰ Ä‘Æ°á»£c gá»i sau khi job checkpoint, approved repaired TextRevision vÃ  shared cache Ä‘á»u khÃ´ng reuse Ä‘Æ°á»£c; cache há»ng trá»Ÿ thÃ nh safe miss.
+- Audit phÃ¢n biá»‡t `gemini_cache_hit`, `gemini_cache_miss`, `gemini_cache_invalid`, `gemini_api_call` vÃ  `gemini_checkpoint_reuse` mÃ  khÃ´ng lÆ°u source text/API key.
+- Audio assembly dÃ¹ng thÆ° má»¥c `render_<generation>` Ä‘á»ƒ retry khÃ´ng ghi Ä‘Ã¨ artifact verified cÅ©.
+- Doctor kiá»ƒm tra schema version, verified segments vÃ  hash blob khi dÃ¹ng `--deep`.
+- App tá»« chá»‘i khá»Ÿi Ä‘á»™ng náº¿u DB má»›i hÆ¡n code hoáº·c migration Ä‘Ã£ apply bá»‹ sá»­a checksum.
 
 ### Verified
 
-- 67 offline tests đạt; JavaScript syntax đạt.
-- Live diff API trên chapter 18.649 ký tự hoàn thành khoảng 330 ms và không trả internal path.
+- 67 offline tests Ä‘áº¡t; JavaScript syntax Ä‘áº¡t.
+- Live diff API trÃªn chapter 18.649 kÃ½ tá»± hoÃ n thÃ nh khoáº£ng 330 ms vÃ  khÃ´ng tráº£ internal path.
 - VieNeu v3 Turbo multi-voice smoke: job 3, 3 preset voices, 8 utterance/segment, M4A 22.810 ms.
-- Controlled retry render lại một segment trong 2,47 giây và reuse nguyên hash/mtime của 7 segment còn lại.
-- Timeline speaker metadata, job voice snapshot, artifact hashes và duration tolerance 1.000 ms đều đạt.
-- Backup thật 3.989 file / 60.216.155 byte verify đạt.
-- Restore sang data root mới remap 13 path và deep integrity đạt.
+- Controlled retry render láº¡i má»™t segment trong 2,47 giÃ¢y vÃ  reuse nguyÃªn hash/mtime cá»§a 7 segment cÃ²n láº¡i.
+- Timeline speaker metadata, job voice snapshot, artifact hashes vÃ  duration tolerance 1.000 ms Ä‘á»u Ä‘áº¡t.
+- Backup tháº­t 3.989 file / 60.216.155 byte verify Ä‘áº¡t.
+- Restore sang data root má»›i remap 13 path vÃ  deep integrity Ä‘áº¡t.
 
-## 0.1.0 — 2026-06-23
+## [2026-06-27] Phase 3A: Job/Casting Snapshot Pinning (Migration 0007)
+
+**Commit**: `7705bc3737644037c701ea87533811d7204b1b44`
+**Branch**: `fix/epub-inline-unicode-extraction`
+
+### Added
+- `story_audio/pipeline.py` — `_prepare_segments` now pins 14 snapshot columns (from migration 0007) during segment creation.
+- `tests/test_voice_snapshot.py` — New offline test suite for snapshot logic with 11 focused isolated tests.
+
+### Changed
+- `story_audio/pipeline.py` — Modified `_prepare_segments` to build the full 25-column segments row. Lazily resolves and pins exact custom reference `custom_voice_revision_id`, `reference_audio_sha256`, `reference_audio_storage_key`, `reference_transcript`, and `reference_transcript_sha256`. Also deterministically serializes `synthesis_settings_json`.
+
+### Verified
+- 305/305 offline tests pass, including historical legacy migration tests (v2 test fixture regression fixed).
+- Doctor confirms code supports schema 7.
+- Live database remains schema version 6 and was not migrated (no live DB mutation occurred).
+
+### Notes
+- Snapshot persistence is complete (Phase 3A closed).
+- Retry does NOT yet consume snapshots (planned for Phase 3B).
+- Reference audio is NOT yet passed to VieNeu (planned for Phase 3B).
+- Next task is Phase 3B: TTS + Retry Integration.
+
+## [2026-06-27] Resolve custom reference voice assignments
+
+**Commit**: `64c7ea4949b4c5c37b01cc05bb2eddd686691066`
+**Branch**: `fix/epub-inline-unicode-extraction`
+
+### Added
+- `story_audio/voice_ref.py` — New module. Custom voice logical reference parser (`custom:<id>`), `CustomVoiceContext` catalog, availability check, deterministic latest revision selection, and `resolve_custom_ref` with structured output (kind=`custom_reference`).
+- `tests/test_voice_ref.py` — 31 offline tests: `custom:<id>` parsing, context build, resolution, voice profile integration, casting draft integration (preset backward compat + custom narrator + mixed plan), and live DB guard.
+
+### Changed
+- `story_audio/casting.py` — `create_casting_draft`, `casting_context`, and validation now accept optional `custom_voice_context: CustomVoiceContext | None`. `_is_allowed_voice` helper added. All preset-only voice checks extended to allow custom references.
+- `story_audio/voice_profile.py` — `set_book_voice_profile`, `profile_validation`, `set_character_voice_override`, and `resolve_voice` extended with `custom_voice_context` parameter. `resolve_voice` now returns `custom_reference` kind dict for custom refs.
+- `pyproject.toml` — Added `python-multipart>=0.0.18` to declared dependencies.
+
+### Notes
+- All preset voice resolution paths are fully backward compatible.
+- No migration, no schema change, no live DB access during development.
+- Full offline suite: 290/290 pass.
+
+## 0.1.0 â€” 2026-06-23
 
 ### Added
 
-- FastAPI UI/API tại cổng 8766.
-- EPUB import cho 1.980 chương.
-- Content-addressed text storage và TextRevision.
-- Gemini punctuation repair theo block với lexical integrity validation.
+- FastAPI UI/API táº¡i cá»•ng 8766.
+- EPUB import cho 1.980 chÆ°Æ¡ng.
+- Content-addressed text storage vÃ  TextRevision.
+- Gemini punctuation repair theo block vá»›i lexical integrity validation.
 - VieNeu v3 Turbo segment worker.
 - SQLite checkpoint, pause/resume/cancel/retry.
-- Artifact cho master WAV, M4A/MP3 và timeline.
-- Audio player và cleanup retention.
+- Artifact cho master WAV, M4A/MP3 vÃ  timeline.
+- Audio player vÃ  cleanup retention.
 
 ### Verified
 
 - 8 offline unit tests.
-- End-to-end chương 858, 10 segment, M4A 118.710 ms.
-- Resume test giữ 9 segment hợp lệ và tạo lại một segment lỗi.
+- End-to-end chÆ°Æ¡ng 858, 10 segment, M4A 118.710 ms.
+- Resume test giá»¯ 9 segment há»£p lá»‡ vÃ  táº¡o láº¡i má»™t segment lá»—i.

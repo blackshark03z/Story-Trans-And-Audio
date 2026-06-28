@@ -11,12 +11,12 @@ from unittest.mock import patch
 
 from story_audio.db import Database, utcnow
 from story_audio.files import sha256_text
-from story_audio.gemini import RepairResult
+from story_audio.gemini import RepairResult, repair_punctuation
 from story_audio.gemini_cache import GeminiRepairCache
 from story_audio.integrity import check_data_integrity, has_errors
-from story_audio.pipeline import PipelineWorker, create_job
+from story_audio.pipeline import ChapterNeedsReview, PipelineWorker, create_job
 from story_audio.storage import ContentStore
-from story_audio.text import lexical_sha256
+from story_audio.text import lexical_sha256, split_repair_blocks, validate_repair_candidate
 from tests.test_recovery import FakeTts, make_config
 
 
@@ -25,24 +25,123 @@ REPAIRED = "Trời đã tối, anh bước về nhà."
 
 
 class GeminiCacheTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+    
+    def tearDown(self) -> None:
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
+        super().tearDown()
+
     def make_cache(self, root: Path, **overrides):
         config = replace(make_config(root), **overrides)
         config.ensure_dirs()
         store = ContentStore(config)
         return config, store, GeminiRepairCache(store, config)
 
-    def test_store_hit_revalidates_lexical_identity(self) -> None:
+    def test_store_hit_revalidates_repair_candidate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             _config, _store, cache = self.make_cache(Path(directory))
             cache.store_result(source=SOURCE, repaired=REPAIRED, model="m1", prompt_version="p1")
             with patch(
-                "story_audio.gemini_cache.validate_lexical_identity",
-                wraps=__import__("story_audio.text", fromlist=["validate_lexical_identity"]).validate_lexical_identity,
+                "story_audio.gemini_cache.validate_repair_candidate",
+                wraps=validate_repair_candidate,
             ) as validator:
                 result = cache.lookup(source=SOURCE, model="m1", prompt_version="p1")
             self.assertEqual(result.status, "hit")
             self.assertEqual(result.repaired_text, REPAIRED)
             self.assertGreaterEqual(validator.call_count, 1)
+
+    def test_valid_strict_cache_entry_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            _config, _store, cache = self.make_cache(Path(directory))
+            cache.store_result(source=SOURCE, repaired=REPAIRED, model="m", prompt_version="p")
+            result = cache.lookup(source=SOURCE, model="m", prompt_version="p")
+            self.assertEqual(result.status, "hit")
+            self.assertEqual(result.repaired_text, REPAIRED)
+
+    def test_bounded_orthographic_cache_entry_is_accepted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            _config, _store, cache = self.make_cache(Path(directory))
+            source = "tiếng kèn vang lên"
+            repaired = "tiếng kền vang lên."
+            manifest = cache.store_result(source=source, repaired=repaired, model="m", prompt_version="p")
+            self.assertEqual(manifest["repair_validation_classification"], "bounded_orthographic_repair")
+            result = cache.lookup(source=source, model="m", prompt_version="p")
+            self.assertEqual(result.status, "hit")
+            self.assertEqual(result.repaired_text, repaired)
+
+    def test_legacy_punctuation_cache_entry_remains_usable(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            _config, _store, cache = self.make_cache(Path(directory))
+            with patch("story_audio.gemini_cache.REPAIR_CONTRACT_VERSION", "punctuation-only-v1"):
+                legacy = cache.store_result(source=SOURCE, repaired=REPAIRED, model="m", prompt_version="p")
+            result = cache.lookup(source=SOURCE, model="m", prompt_version="p")
+            self.assertEqual(result.status, "hit")
+            self.assertEqual(result.cache_key, legacy["cache_key"])
+            self.assertEqual(result.repaired_text, REPAIRED)
+
+    def test_unsafe_semantic_cache_entry_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            _config, store, cache = self.make_cache(Path(directory))
+            source = "con chó chạy nhanh"
+            safe = "con chó chạy nhanh."
+            manifest = cache.store_result(source=source, repaired=safe, model="m", prompt_version="p")
+            unsafe = "con mèo chạy nhanh."
+            unsafe_path, unsafe_hash = store.put_text(unsafe)
+            path = cache._manifest_path(manifest["cache_key"])
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data.update(
+                repaired_blob_path=unsafe_path,
+                repaired_hash=unsafe_hash,
+                repaired_char_count=len(unsafe),
+            )
+            path.write_text(json.dumps(data), encoding="utf-8")
+            result = cache.lookup(source=source, model="m", prompt_version="p")
+            self.assertEqual(result.status, "invalid")
+            self.assertEqual(result.reason, "repair_candidate_validation_failed")
+
+    def test_number_changing_cache_entry_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            _config, store, cache = self.make_cache(Path(directory))
+            source = "Có 12 người tới"
+            safe = "Có 12 người tới."
+            manifest = cache.store_result(source=source, repaired=safe, model="m", prompt_version="p")
+            unsafe = "Có 13 người tới."
+            unsafe_path, unsafe_hash = store.put_text(unsafe)
+            path = cache._manifest_path(manifest["cache_key"])
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data.update(
+                repaired_blob_path=unsafe_path,
+                repaired_hash=unsafe_hash,
+                repaired_char_count=len(unsafe),
+            )
+            path.write_text(json.dumps(data), encoding="utf-8")
+            result = cache.lookup(source=source, model="m", prompt_version="p")
+            self.assertEqual(result.status, "invalid")
+            self.assertEqual(result.reason, "repair_candidate_validation_failed")
+
+    def test_cache_validation_and_live_response_validation_are_consistent(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            _config, _store, cache = self.make_cache(Path(directory))
+            source = "kèn"
+            repaired = "kền"
+            cache.store_result(source=source, repaired=repaired, model="m", prompt_version="p")
+            self.assertEqual(cache.lookup(source=source, model="m", prompt_version="p").repaired_text, repaired)
+            with patch("story_audio.gemini.urllib.request.urlopen", return_value=_FakeGeminiResponse(source, repaired)):
+                result = repair_punctuation(
+                    api_key="fake",
+                    model="m",
+                    block_id="b1",
+                    text=source,
+                    max_attempts=1,
+                )
+            self.assertEqual(result.text, repaired)
 
     def test_every_output_identity_dimension_changes_key(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -127,32 +226,32 @@ class GeminiCacheTests(unittest.TestCase):
             self.assertTrue(any(item.level == "WARN" and item.name == "gemini_repair_cache" for item in findings))
 
 
-def seed_shared_pipeline(root: Path):
+def seed_shared_pipeline(root: Path, source: str = SOURCE, *, chapter_count: int = 2):
     config = make_config(root)
     config.ensure_dirs()
     db = Database(config.db_path); db.initialize()
     store = ContentStore(config)
-    path, digest = store.put_text(SOURCE)
+    path, digest = store.put_text(source)
     now = utcnow()
     with db.transaction() as connection:
         book_id = int(connection.execute(
             "INSERT INTO books(title,source_path,source_sha256,chapter_count,created_at,updated_at) VALUES(?,?,?,?,?,?)",
-            ("Cache", "cache.epub", "cache-book", 2, now, now),
+            ("Cache", "cache.epub", "cache-book", chapter_count, now, now),
         ).lastrowid)
-        for number in (1, 2):
+        for number in range(1, chapter_count + 1):
             chapter_id = int(connection.execute(
                 "INSERT INTO chapters(book_id,chapter_number,title,char_count,created_at,updated_at) VALUES(?,?,?,?,?,?)",
-                (book_id, number, f"Chapter {number}", len(SOURCE), now, now),
+                (book_id, number, f"Chapter {number}", len(source), now, now),
             ).lastrowid)
             revision_id = int(connection.execute(
                 """INSERT INTO text_revisions(
                     chapter_id,kind,content_path,content_sha256,lexical_sha256,char_count,
                     processor_version,status,created_at) VALUES(?,?,?,?,?,?,?,?,?)""",
-                (chapter_id, "reflowed", path, digest, lexical_sha256(SOURCE), len(SOURCE), "reflow-v1", "approved", now),
+                (chapter_id, "reflowed", path, digest, lexical_sha256(source), len(source), "reflow-v1", "approved", now),
             ).lastrowid)
             connection.execute("UPDATE chapters SET active_text_revision_id=? WHERE id=?", (revision_id, chapter_id))
     created = create_job(
-        db, config, book_id=book_id, from_chapter=1, to_chapter=2, voice_name="Voice",
+        db, config, book_id=book_id, from_chapter=1, to_chapter=chapter_count, voice_name="Voice",
         repair_mode="all_selected", output_format="m4a", skip_completed=False,
     )
     job = dict(db.fetch_one("SELECT * FROM jobs WHERE id=?", (created["job_id"],)))
@@ -165,6 +264,159 @@ def seed_shared_pipeline(root: Path):
 
 
 class SharedPipelineCacheTests(unittest.TestCase):
+
+    def setUp(self) -> None:
+        super().setUp()
+        self._original_testing = os.environ.get("STORY_AUDIO_TESTING")
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+    
+    def tearDown(self) -> None:
+        if self._original_testing is None:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+        else:
+            os.environ["STORY_AUDIO_TESTING"] = self._original_testing
+        super().tearDown()
+
+    def test_pipeline_persists_bounded_orthographic_repair_without_restoring_source(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = "con kền kèn chạy qua"
+            repaired = "con kền kền chạy qua."
+            config, db, store, job, chapters = seed_shared_pipeline(Path(directory), source, chapter_count=1)
+            raw_before = store.read_text(db.fetch_one("SELECT content_path FROM text_revisions WHERE kind='reflowed'")["content_path"])
+            worker = PipelineWorker(db, store, FakeTts(), config)
+            with patch.object(type(config), "gemini_key", return_value="fake-key"), patch(
+                "story_audio.pipeline.repair_punctuation",
+                return_value=RepairResult(repaired, "{}"),
+            ):
+                revision_id, text = worker._prepare_text(job, chapters[0])
+            self.assertIn("con kền kền", text)
+            self.assertNotIn("con kền kèn", text)
+            revision = db.fetch_one("SELECT * FROM text_revisions WHERE id=?", (revision_id,))
+            self.assertEqual(revision["kind"], "repaired")
+            self.assertEqual(store.read_text(revision["content_path"]), text)
+            self.assertEqual(raw_before, source)
+
+    def test_pipeline_validates_bounded_repairs_per_block_not_whole_chapter_budget(self) -> None:
+        sentences = [
+            ("la " * 550).strip() + " kèn.",
+            ("ra " * 550).strip() + " kèn.",
+            ("na " * 550).strip() + " kèn.",
+        ]
+        source = " ".join(sentences)
+        self.assertGreaterEqual(len(split_repair_blocks(source)), 3)
+        with self.assertRaises(ValueError):
+            validate_repair_candidate(source, source.replace("kèn", "kền"))
+        with tempfile.TemporaryDirectory() as directory:
+            config, db, store, job, chapters = seed_shared_pipeline(Path(directory), source, chapter_count=1)
+            worker = PipelineWorker(db, store, FakeTts(), config)
+
+            def fake_repair(**kwargs):
+                return RepairResult(kwargs["text"].replace("kèn", "kền"), "{}")
+
+            with patch.object(type(config), "gemini_key", return_value="fake-key"), patch(
+                "story_audio.pipeline.repair_punctuation",
+                side_effect=fake_repair,
+            ) as fake:
+                _revision_id, text = worker._prepare_text(job, chapters[0])
+            self.assertEqual(fake.call_count, len(split_repair_blocks(source)))
+            self.assertEqual(text.count("kền"), len(split_repair_blocks(source)))
+
+    def test_pipeline_rejects_semantic_block_without_repaired_revision(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = "con chó chạy nhanh"
+            config, db, store, job, chapters = seed_shared_pipeline(Path(directory), source, chapter_count=1)
+            worker = PipelineWorker(db, store, FakeTts(), config)
+            with patch.object(type(config), "gemini_key", return_value="fake-key"), patch(
+                "story_audio.pipeline.repair_punctuation",
+                return_value=RepairResult("con mèo chạy nhanh.", "{}"),
+            ):
+                with self.assertRaises(ChapterNeedsReview):
+                    worker._prepare_text(job, chapters[0])
+            self.assertEqual(db.fetch_one("SELECT COUNT(*) AS n FROM text_revisions WHERE kind='repaired'")["n"], 0)
+            self.assertEqual(db.fetch_one("SELECT status FROM repair_blocks")["status"], "failed")
+
+    def test_pipeline_reuses_verified_bounded_block_without_gemini_call(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = "tiếng kèn vang lên"
+            repaired = "tiếng kền vang lên"
+            config, db, store, job, chapters = seed_shared_pipeline(Path(directory), source, chapter_count=1)
+            block = split_repair_blocks(source)[0]
+            source_path, source_hash = store.put_text(block)
+            repaired_path, _ = store.put_text(repaired)
+            prompt = f"{config.gemini_prompt_version}:{GeminiRepairCache(store, config).contract_fingerprint(model=config.gemini_model, prompt_version=config.gemini_prompt_version)}"
+            with db.connect() as connection:
+                connection.execute(
+                    """INSERT INTO repair_blocks(
+                        job_chapter_id,block_index,source_path,repaired_path,source_sha256,
+                        lexical_sha256,model_id,prompt_version,status,verified_at
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        chapters[0]["id"], 1, source_path, repaired_path, source_hash,
+                        lexical_sha256(block), config.gemini_model, prompt, "verified", utcnow(),
+                    ),
+                )
+            worker = PipelineWorker(db, store, FakeTts(), config)
+            with patch("story_audio.pipeline.repair_punctuation") as fake:
+                _revision_id, text = worker._prepare_text(job, chapters[0])
+            fake.assert_not_called()
+            self.assertEqual(text, repaired)
+
+    def test_source_hash_mismatch_prevents_verified_block_reuse(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = "tiếng kèn vang lên"
+            config, db, store, job, chapters = seed_shared_pipeline(Path(directory), source, chapter_count=1)
+            block = split_repair_blocks(source)[0]
+            source_path, _source_hash = store.put_text(block)
+            stale_repaired_path, _ = store.put_text("stale kền")
+            prompt = f"{config.gemini_prompt_version}:{GeminiRepairCache(store, config).contract_fingerprint(model=config.gemini_model, prompt_version=config.gemini_prompt_version)}"
+            with db.connect() as connection:
+                connection.execute(
+                    """INSERT INTO repair_blocks(
+                        job_chapter_id,block_index,source_path,repaired_path,source_sha256,
+                        lexical_sha256,model_id,prompt_version,status,verified_at
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        chapters[0]["id"], 1, source_path, stale_repaired_path, "0" * 64,
+                        lexical_sha256(block), config.gemini_model, prompt, "verified", utcnow(),
+                    ),
+                )
+            worker = PipelineWorker(db, store, FakeTts(), config)
+            with patch.object(type(config), "gemini_key", return_value="fake-key"), patch(
+                "story_audio.pipeline.repair_punctuation",
+                return_value=RepairResult("tiếng kền vang lên", "{}"),
+            ) as fake:
+                _revision_id, text = worker._prepare_text(job, chapters[0])
+            self.assertEqual(fake.call_count, 1)
+            self.assertEqual(text, "tiếng kền vang lên")
+
+    def test_missing_repair_block_indexes_fail_before_assembly_and_duplicate_detection_is_reachable(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            sentence = ("la " * 550).strip() + " kèn."
+            source = f"{sentence} {sentence}"
+            config, db, store, job, chapters = seed_shared_pipeline(Path(directory), source, chapter_count=1)
+            block = split_repair_blocks(source)[0]
+            source_path, source_hash = store.put_text(block)
+            with db.connect() as connection:
+                connection.execute(
+                    """INSERT INTO repair_blocks(
+                        job_chapter_id,block_index,source_path,source_sha256,
+                        lexical_sha256,model_id,prompt_version,status
+                    ) VALUES(?,?,?,?,?,?,?,'pending')""",
+                    (
+                        chapters[0]["id"], 1, source_path, source_hash, lexical_sha256(block),
+                        config.gemini_model, config.gemini_prompt_version,
+                    ),
+                )
+            worker = PipelineWorker(db, store, FakeTts(), config)
+            with self.assertRaises(ChapterNeedsReview):
+                worker._prepare_text(job, chapters[0])
+
+            with self.assertRaises(ChapterNeedsReview):
+                worker._validate_repair_block_structure(
+                    [{"block_index": 1}, {"block_index": 1}],
+                    {1: "first", 2: "second"},
+                )
+
     def test_pre_cache_verified_block_is_adopted_without_gemini_call(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             config, db, store, job, chapters = seed_shared_pipeline(Path(directory))
@@ -260,6 +512,37 @@ class SharedPipelineCacheTests(unittest.TestCase):
                 row["event_code"] == "gemini_cache_invalid"
                 for row in db.fetch_all("SELECT event_code FROM audit_events")
             ))
+
+
+class _FakeGeminiResponse:
+    def __init__(self, source: str, repaired: str):
+        del source
+        payload = {
+            "candidates": [
+                {
+                    "content": {
+                        "parts": [
+                            {
+                                "text": json.dumps(
+                                    {"block_id": "b1", "repaired_text": repaired},
+                                    ensure_ascii=False,
+                                )
+                            }
+                        ]
+                    }
+                }
+            ]
+        }
+        self.body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc, traceback):
+        return False
+
+    def read(self) -> bytes:
+        return self.body
 
 
 if __name__ == "__main__":

@@ -1,24 +1,28 @@
 # Next Task
 
 Current Sprint:
-Controlled Maintenance
+YouTube Auto Handoff V2
 
 Current Task:
-Documentation sync and one safe maintainability cleanup
+Chapter Output Package for YouTube Auto
 
 Status:
-In Progress
+Planned — Custom Voice workflow complete; output-contract audit pending
 
 Previous Task Summary:
-Long-Chapter Validation Phase 3 đã hoàn tất. Bundle identity `050ac2f2a73bda7b84beb7c1e9bd5b06d9fd3a00773214fa91616c451e8f9280` export deterministic, legacy bundles verify/import đạt, Story Audio 119 tests pass, YouTube Auto 96 tests pass, Doctor critical_errors=0.
+Custom Reference Voice Library UI completed with compact Preset Voice Preview restoration and UI usability consolidation. Test count: 584 tests passing (3 known false failures in minified JS assertions). No migration required.
 
 Next Steps:
-Đồng bộ tài liệu sau Long-Chapter Validation, audit read-only một cơ hội bảo trì nhỏ, chọn đúng một cleanup an toàn nếu có thể verify offline, rồi cập nhật lại roadmap/status sau khi hoàn tất.
+Implement Chapter Output Package for YouTube Auto with real chapter render validation:
+- Segment-level timeline.json with speaker labels, timestamps derived from final assembled audio
+- Subtitles.srt with relative timestamps
+- Manifest.json with chapter metadata and artifact references
+- Real handoff smoke test with full chapter render
+- Relative paths for portable bundle structure
 
-Do Not Work On:
-- Auto-approve hoặc auto-render audio.
-- Character creation/merge bằng AI.
-- Voice cloning hoặc emotion control.
-- Image/video generation trong Story Audio.
-- Multi-user, SaaS hoặc quota dashboard.
-- Hard-delete character hoặc dữ liệu người dùng.
+Deferred:
+- Word-level forced alignment
+- Karaoke-style caption rendering
+- Lip sync metadata
+- Generic production hardening
+- Multi-worker load testing

@@ -6,7 +6,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import Body, FastAPI, HTTPException, Query
+from fastapi import Body, FastAPI, File, Form, HTTPException, Query, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -28,6 +28,17 @@ from .character_bible import (
     apply_character_bible_import,
     parse_character_bible,
     plan_character_bible_import,
+)
+from .custom_voice import CustomVoiceRepository
+from .custom_voice_api import (
+    create_custom_voice_handler,
+    create_custom_voice_revision_handler,
+    deactivate_custom_voice_handler,
+    get_custom_voice_handler,
+    get_custom_voice_revision_handler,
+    list_custom_voice_revisions_handler,
+    list_custom_voices_handler,
+    reactivate_custom_voice_handler,
 )
 from .db import Database, utcnow
 from .diagnostics import (
@@ -72,8 +83,11 @@ from .voice_profile import (
 settings.ensure_dirs()
 db = Database(settings.db_path)
 store = ContentStore(settings)
+custom_voice_repo = CustomVoiceRepository(db, store)
 worker = PipelineWorker(db, store, tts_service, settings)
-voice_previews = VoicePreviewService(tts_service, settings)
+voice_previews = VoicePreviewService(
+    tts_service, settings, custom_voice_repo=custom_voice_repo, store=store
+)
 
 
 class ImportRequest(BaseModel):
@@ -92,7 +106,9 @@ class JobRequest(BaseModel):
 
 
 class VoicePreviewRequest(BaseModel):
-    voice_id: str = Field(min_length=1, max_length=200)
+    voice_id: str | None = Field(default=None, min_length=1, max_length=200)
+    custom_voice_revision_id: int | None = Field(default=None, gt=0)
+    preview_text: str | None = Field(default=None, max_length=500)
 
 
 class CharacterCreateRequest(BaseModel):
@@ -589,17 +605,54 @@ def approve_casting(casting_plan_id: int) -> dict[str, Any]:
 
 @app.post("/api/voice-previews")
 def create_voice_preview(request: VoicePreviewRequest) -> dict[str, Any]:
+    # Import custom voice exceptions for error handling
+    from .custom_voice import CustomVoiceRevisionNotFoundError
+    from .synthesis_snapshot import StorageResolutionError
+
+    # XOR validation: exactly one selector required
+    preset_provided = request.voice_id is not None
+    custom_provided = request.custom_voice_revision_id is not None
+
+    if not preset_provided and not custom_provided:
+        raise HTTPException(400, "Must provide either voice_id or custom_voice_revision_id")
+    if preset_provided and custom_provided:
+        raise HTTPException(400, "Cannot provide both voice_id and custom_voice_revision_id")
+
+    # Validate preview_text is only used with custom voices
+    if request.preview_text is not None and preset_provided:
+        raise HTTPException(400, "preview_text can only be used with custom_voice_revision_id")
+
     try:
-        valid_voices = {item["id"] for item in tts_service.voices()}
-        if request.voice_id not in valid_voices:
-            raise ValueError(f"Giọng '{request.voice_id}' không tồn tại trong VieNeu.")
-        result = voice_previews.create(request.voice_id)
-        result["audio_url"] = f"/api/voice-previews/{result['cache_key']}/file"
-        return result
+        if preset_provided:
+            # Preset path (unchanged behavior)
+            valid_voices = {item["id"] for item in tts_service.voices()}
+            if request.voice_id not in valid_voices:
+                raise ValueError(f"Giọng '{request.voice_id}' không tồn tại trong VieNeu.")
+            result = voice_previews.create(request.voice_id)
+            result["audio_url"] = f"/api/voice-previews/{result['cache_key']}/file"
+            return result
+        else:
+            # Custom path with optional preview_text
+            result = voice_previews.create_custom(
+                request.custom_voice_revision_id,
+                preview_text=request.preview_text
+            )
+            result["audio_url"] = f"/api/voice-previews/{result['cache_key']}/file"
+            return result
+    except CustomVoiceRevisionNotFoundError:
+        raise HTTPException(404, "Custom voice revision not found")
+    except StorageResolutionError:
+        raise HTTPException(404, "Custom voice reference audio is unavailable")
     except ValueError as exc:
+        # Metadata/transcript/duration validation errors
+        exc_str = str(exc).lower()
+        if "revision" in exc_str or "transcript" in exc_str or "audio" in exc_str:
+            raise HTTPException(400, "Invalid custom voice revision metadata")
+        if "duration" in exc_str or "preview" in exc_str:
+            raise HTTPException(400, "Voice preview validation failed")
         raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(503, f"Không tạo được voice preview: {exc}") from exc
+        raise HTTPException(503, "Voice preview generation failed") from exc
 
 
 @app.get("/api/voice-previews/{cache_key}/file")
@@ -804,6 +857,90 @@ def cleanup_segments() -> dict[str, int]:
 @app.post("/api/maintenance/preview-cache")
 def cleanup_preview_cache() -> dict[str, int]:
     return voice_previews.cleanup()
+
+
+# Custom Voice API Endpoints
+
+@app.post("/api/custom-voices")
+def create_custom_voice(
+    display_name: str = Body(..., min_length=1, max_length=120),
+    description: str | None = Body(None),
+) -> dict[str, Any]:
+    return create_custom_voice_handler(custom_voice_repo, display_name, description)
+
+
+@app.get("/api/custom-voices")
+def list_custom_voices(active_only: bool = Query(False)) -> list[dict[str, Any]]:
+    return list_custom_voices_handler(custom_voice_repo, active_only)
+
+
+@app.get("/api/custom-voices/{voice_id}")
+def get_custom_voice(voice_id: int) -> dict[str, Any]:
+    return get_custom_voice_handler(custom_voice_repo, voice_id)
+
+
+@app.patch("/api/custom-voices/{voice_id}/deactivate")
+def deactivate_custom_voice(voice_id: int) -> dict[str, Any]:
+    return deactivate_custom_voice_handler(custom_voice_repo, voice_id)
+
+
+@app.patch("/api/custom-voices/{voice_id}/reactivate")
+def reactivate_custom_voice(voice_id: int) -> dict[str, Any]:
+    return reactivate_custom_voice_handler(custom_voice_repo, voice_id)
+
+
+@app.post("/api/custom-voices/{voice_id}/revisions")
+async def create_custom_voice_revision(
+    voice_id: int,
+    audio: UploadFile = File(...),
+    transcript: str = Form(...),
+) -> dict[str, Any]:
+    return create_custom_voice_revision_handler(custom_voice_repo, voice_id, audio, transcript)
+
+
+@app.get("/api/custom-voices/{voice_id}/revisions")
+def list_custom_voice_revisions(voice_id: int) -> list[dict[str, Any]]:
+    return list_custom_voice_revisions_handler(custom_voice_repo, voice_id)
+
+
+@app.get("/api/custom-voice-revisions/{revision_id}")
+def get_custom_voice_revision(revision_id: int) -> dict[str, Any]:
+    return get_custom_voice_revision_handler(custom_voice_repo, revision_id)
+
+
+@app.get("/api/custom-voice-revisions/{revision_id}/audio")
+def get_custom_voice_revision_audio(revision_id: int):
+    """Serve the reference audio file for a custom voice revision."""
+    from .custom_voice import CustomVoiceRevisionNotFoundError
+    from .files import sha256_file
+
+    try:
+        revision = custom_voice_repo.get_revision(revision_id)
+    except CustomVoiceRevisionNotFoundError:
+        raise HTTPException(404, "Custom voice revision not found")
+
+    # Resolve audio path
+    try:
+        audio_path = store.absolute(revision.audio_storage_key)
+    except ValueError:
+        raise HTTPException(404, "Reference audio path is invalid")
+
+    if not audio_path.exists() or not audio_path.is_file():
+        raise HTTPException(404, "Reference audio file not found")
+
+    # Verify SHA-256 integrity before serving
+    computed_sha = sha256_file(audio_path)
+    if computed_sha != revision.audio_sha256:
+        raise HTTPException(409, "Reference audio integrity check failed")
+
+    # Determine content type from audio format
+    content_type = "audio/wav" if revision.audio_format == "wav" else "audio/mpeg"
+
+    return FileResponse(
+        audio_path,
+        media_type=content_type,
+        filename=f"revision_{revision_id}.{revision.audio_format}"
+    )
 
 
 UI_DIR = settings.root / "ui"
