@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import subprocess
 import threading
 from pathlib import Path
 from typing import Any
@@ -13,6 +14,89 @@ class TtsService:
         self._lock = threading.RLock()
         self.status = "not_loaded"
         self.error: str | None = None
+
+    def _validate_synthesized_audio(self, wav_path: Path, text: str) -> None:
+        """
+        Validate that synthesized audio is not predominantly silent.
+        
+        Raises ValueError if:
+        - Audio contains excessive silence (> 50% of duration with >2s continuous silence)
+        - Audio is effectively silent (RMS < 0.001)
+        
+        This catches VieNeu engine bugs that produce long silent segments.
+        """
+        import numpy as np
+        import soundfile as sf
+        
+        # Use FFmpeg silencedetect to find silence regions
+        result = subprocess.run(
+            [
+                "ffmpeg", "-i", str(wav_path),
+                "-af", "silencedetect=noise=-30dB:d=0.5",
+                "-f", "null", "-"
+            ],
+            capture_output=True,
+            text=True,
+        )
+        
+        # Parse silence detection output
+        silence_regions = []
+        lines = result.stderr.split('\n')
+        current_start = None
+        
+        for line in lines:
+            if 'silence_start:' in line:
+                try:
+                    start_str = line.split('silence_start:')[1].strip()
+                    current_start = float(start_str)
+                except (IndexError, ValueError):
+                    continue
+            elif 'silence_end:' in line and current_start is not None:
+                try:
+                    parts = line.split('silence_end:')[1].split('|')
+                    end_str = parts[0].strip()
+                    end = float(end_str)
+                    duration_str = parts[1].split('silence_duration:')[1].strip()
+                    duration = float(duration_str)
+                    silence_regions.append((current_start, end, duration))
+                    current_start = None
+                except (IndexError, ValueError):
+                    continue
+        
+        # Get total audio duration
+        info = sf.info(str(wav_path))
+        total_duration = info.duration
+        
+        if total_duration <= 0:
+            raise ValueError("Audio duration is zero")
+        
+        # Calculate total silence duration
+        total_silence = sum(duration for _, _, duration in silence_regions)
+        silence_ratio = total_silence / total_duration
+        
+        # Find longest continuous silence
+        longest_silence = max((duration for _, _, duration in silence_regions), default=0.0)
+        
+        # Check for excessive silence (conservative thresholds)
+        # Reject if silence ratio > 50% AND longest silence > 2 seconds
+        if silence_ratio > 0.5 and longest_silence > 2.0:
+            raise ValueError(
+                f"Excessive silence in synthesized audio: {silence_ratio*100:.1f}% silent "
+                f"({total_silence:.1f}s of {total_duration:.1f}s total), "
+                f"longest continuous silence: {longest_silence:.1f}s. "
+                f"Text: '{text[:100]}...' ({len(text)} chars). "
+                f"This appears to be a VieNeu engine bug."
+            )
+        
+        # Additional check: verify audio has actual signal energy
+        audio_data, sample_rate = sf.read(str(wav_path), dtype='float32')
+        rms = float(np.sqrt(np.mean(audio_data ** 2)))
+        
+        if rms < 0.001:
+            raise ValueError(
+                f"Audio is effectively silent (RMS: {rms:.6f}). "
+                f"Text: '{text[:100]}...' ({len(text)} chars)"
+            )
 
     def ensure_loaded(self) -> Any:
         with self._lock:
@@ -220,6 +304,10 @@ class TtsService:
             info = sf.info(str(partial))
             if info.frames <= 0 or info.duration <= 0:
                 raise ValueError("WAV segment không hợp lệ.")
+            
+            # Validate audio is not excessively silent (catches VieNeu bugs)
+            self._validate_synthesized_audio(partial, synth_input.text)
+            
             partial.replace(output_path)
         except Exception:
             partial.unlink(missing_ok=True)
@@ -270,6 +358,10 @@ class TtsService:
             info = sf.info(str(partial))
             if info.frames <= 0 or info.duration <= 0:
                 raise ValueError("WAV segment không hợp lệ.")
+            
+            # Validate audio is not excessively silent (catches VieNeu bugs)
+            self._validate_synthesized_audio(partial, text)
+            
             partial.replace(output_path)
         except Exception:
             partial.unlink(missing_ok=True)
@@ -321,6 +413,10 @@ class TtsService:
             info = sf.info(str(partial))
             if info.frames <= 0 or info.duration <= 0:
                 raise ValueError("WAV segment không hợp lệ.")
+            
+            # Validate audio is not excessively silent (catches VieNeu bugs)
+            self._validate_synthesized_audio(partial, text)
+            
             partial.replace(output_path)
         except Exception:
             partial.unlink(missing_ok=True)
