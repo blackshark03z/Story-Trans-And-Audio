@@ -4,6 +4,10 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ## Unreleased
 
+### Planned
+
+- **Custom Reference Voice Library UI**: Global library interface for managing custom reference voices (not model training). Create logical voices with display name/description, upload immutable audio/transcript revisions via multipart form, view revision history, deactivate/reactivate voices, preview exact revisions with VieNeu reference-audio synthesis. Repository code supports schema version 7; migration 0006_custom_voices provides the storage contract; no new migration required. UI maps HTTP statuses to safe user-facing messages without exposing backend exception text, absolute paths, or stack traces.
+
 ### Added
 
 - **Custom Voice Preview**: Immutable custom voice revision preview with exact revision ID, reference audio/transcript integrity verification, content-addressed preview cache, and backward-compatible preset request API.

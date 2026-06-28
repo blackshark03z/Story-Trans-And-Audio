@@ -219,7 +219,7 @@ Danh sách 1.980 chương phải dùng virtual scrolling, phân trang phía back
 - Hiện có voice preview và Character Manager/manual casting.
 - UI cấu hình profile/override và hiển thị resolution source/needs-review trong casting đã hoàn thành.
 - Không sửa voice của CastingPlan/job cũ; thay profile/override chỉ ảnh hưởng plan/job mới.
-- Voice cloning nằm ngoài phạm vi Personal Edition hiện tại.
+- **Custom Reference Voice Library**: Global library quản lý logical custom voices với immutable audio/transcript revisions. Backend API hoàn tất (migration 0006); UI đang triển khai. Đây là reference-audio synthesis (truyền audio/transcript vào VieNeu runtime), không phải model training hay voice cloning tổng quát.
 
 ### Trình phát
 
@@ -237,8 +237,18 @@ GET    /api/books/{book_id}/chapters?offset=&limit=&status=&query=
 GET    /api/chapters/{chapter_id}
 
 GET    /api/voices
-POST   /api/voices/{voice_id}/preview
-DELETE /api/voices/{voice_id}
+POST   /api/voice-previews
+GET    /api/voice-previews/{cache_key}/file
+
+# Custom Reference Voice API (schema v6)
+POST   /api/custom-voices
+GET    /api/custom-voices
+GET    /api/custom-voices/{voice_id}
+PATCH  /api/custom-voices/{voice_id}/deactivate
+PATCH  /api/custom-voices/{voice_id}/reactivate
+POST   /api/custom-voices/{voice_id}/revisions   # multipart: audio (File), transcript (Form)
+GET    /api/custom-voices/{voice_id}/revisions
+GET    /api/custom-voice-revisions/{revision_id}
 
 POST   /api/jobs
 GET    /api/jobs
@@ -256,7 +266,7 @@ GET    /api/diagnostics
 
 `POST /api/jobs` nhận `chapter_ids`, `voice_id`, tùy chọn audio và thiết lập TTS. Backend xác thực tất cả chương thuộc cùng sách và chụp snapshot cấu hình trước khi trả về.
 
-Ghi chú lịch sử: các bản thiết kế sớm có nhắc voice cloning, nhưng voice cloning không được triển khai trong Personal Edition hiện tại.
+**Custom Reference Voice semantics**: Logical voice creation does NOT train a model. Uploading audio/transcript creates an immutable revision. Modifying audio/transcript creates a NEW revision (old revisions preserved). Synthesis passes reference audio/transcript to VieNeu at runtime (reference-audio synthesis, not model training).
 
 ## 11. Quy tắc để dễ bảo trì
 

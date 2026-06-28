@@ -17,7 +17,17 @@ Roadmap mô tả thứ tự đầu tư, không phải cam kết thời gian. Ưu
 
 ## Next — In Progress
 
-Controlled Maintenance Sprint: đồng bộ tài liệu sau Long-Chapter Validation và thực hiện tối đa một cleanup nhỏ không đổi hành vi nếu audit tìm được phạm vi an toàn.
+Custom Reference Voice Library UI: Global library interface for managing custom reference voices (not model training). Create logical voices with display name/description, upload immutable audio/transcript revisions via multipart form, view revision history, deactivate/reactivate voices, preview exact revisions with VieNeu reference-audio synthesis. Repository code supports schema version 7; migration 0006_custom_voices provides the storage contract; no new migration required. UI maps HTTP statuses to safe user-facing messages without exposing backend internals.
+
+Implementation phases:
+- Phase 5B1: Logical Voice Library UI (list, create, select, deactivate/reactivate, safe errors, API integration)
+- Phase 5B2: Immutable Revision Upload and History (file picker, transcript input, multipart upload, no edit/overwrite)
+- Phase 5B3: Preview Integration and Offline Tests (exact revision ID, UI contract tests, API regressions)
+- Phase 5B4: Real Smoke and Closure (real VieNeu preview, immutability verification, full suite, Doctor)
+
+## Paused
+
+Controlled Maintenance Sprint: completed Custom Voice Preview; paused for Custom Reference Voice Library UI priority.
 
 
 ## Ownership Boundary

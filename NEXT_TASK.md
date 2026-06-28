@@ -1,24 +1,29 @@
 # Next Task
 
 Current Sprint:
-Controlled Maintenance
+Custom Reference Voice Usability Completion
 
 Current Task:
-Documentation sync and one safe maintainability cleanup
+Custom Reference Voice Library UI
 
 Status:
-In Progress
+Planned — API contract audit complete, implementation pending
 
 Previous Task Summary:
-Long-Chapter Validation Phase 3 đã hoàn tất. Bundle identity `050ac2f2a73bda7b84beb7c1e9bd5b06d9fd3a00773214fa91616c451e8f9280` export deterministic, legacy bundles verify/import đạt, Story Audio 119 tests pass, YouTube Auto 96 tests pass, Doctor critical_errors=0.
+Custom Voice Preview completed in commit 02a76135dad5b1b4fa6a42552791a2d9cd718049 with 450 offline tests. Immutable revision preview with reference audio/transcript integrity, content-addressed cache, backward-compatible API, and minimal UI panel.
 
 Next Steps:
-Đồng bộ tài liệu sau Long-Chapter Validation, audit read-only một cơ hội bảo trì nhỏ, chọn đúng một cleanup an toàn nếu có thể verify offline, rồi cập nhật lại roadmap/status sau khi hoàn tất.
+Implement Global Custom Reference Voice Library UI:
+- Phase 5B1: Logical Voice Library UI (list, create, select, deactivate/reactivate, safe errors, API integration)
+- Phase 5B2: Immutable Revision Upload and History (file picker, transcript input, multipart upload, no edit/overwrite)
+- Phase 5B3: Preview Integration and Offline Tests (exact revision ID, UI contract tests, API regressions)
+- Phase 5B4: Real Smoke and Closure (real VieNeu preview, immutability verification, full suite, Doctor)
 
 Do Not Work On:
-- Auto-approve hoặc auto-render audio.
-- Character creation/merge bằng AI.
-- Voice cloning hoặc emotion control.
-- Image/video generation trong Story Audio.
-- Multi-user, SaaS hoặc quota dashboard.
-- Hard-delete character hoặc dữ liệu người dùng.
+- Modifying an immutable revision or overwriting reference audio
+- Hard delete of logical voices or revisions
+- Automatic transcript generation or model training
+- Voice cloning, emotion control, or importing voices from VieNeu presets
+- Automatic casting changes or automatic character creation
+- Job or chapter rendering (preview only)
+- Arbitrary preview text (fixed preview text only)

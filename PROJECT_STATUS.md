@@ -96,6 +96,8 @@ Audio casting máº·c Ä‘á»‹nh dÃ¹ng ba nhÃ³m voice cáº¥p book: na
 - [x] Gemini Speaker Assignment Draft Core: immutable draft, cache, strict candidates/confidence/alternatives vÃ  no auto-apply.
 - [x] Speaker Assignment Review and Approval UI: filter/bulk review, alternatives/manual correction, effective voice preview, partial immutable approval, stale protection vÃ  idempotency.
 - [x] Custom Reference Voice Storage & API: Schema v6, Global custom_voices, immutable revisions, content-addressed audio blob storage, and isolated offline API tests.
+- [x] Custom Voice Preview: Immutable revision preview, reference audio/transcript integrity, content-addressed cache, backward-compatible API, minimal UI and 450 offline tests.
+- [ ] Custom Reference Voice Library UI: Global library panel for creating logical voices (display name/description), uploading immutable audio/transcript revisions (multipart form), viewing revision history, deactivate/reactivate workflow, exact revision preview integration, UI/API tests, and real VieNeu UI smoke.
 
 ## Háº¡n cháº¿ hiá»‡n táº¡i
 
