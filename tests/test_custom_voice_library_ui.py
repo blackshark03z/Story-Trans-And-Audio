@@ -602,6 +602,15 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
 
     # Phase 5B3: Preview Text and Reference Audio Tests
 
+    def test_no_duplicate_custom_preview_panel(self):
+        """No duplicate standalone custom voice preview panel exists."""
+        # The redundant panel should be removed
+        self.assertNotIn('custom-voice-preview-panel', self.html)
+
+    def test_custom_voice_library_panel_is_single_workspace(self):
+        """Custom voice library panel is the single coherent workspace."""
+        self.assertIn('custom-voice-library-panel', self.html)
+
     def test_library_preview_text_textarea_exists(self):
         """Library preview text textarea exists in HTML."""
         self.assertIn('id="libraryPreviewText"', self.html)
