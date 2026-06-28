@@ -750,11 +750,6 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         self.assertEqual(len(matches), 1)
 
 
-if __name__ == "__main__":
-    unittest.main()
-
-
-
     # Revision selection UX tests
     def test_revision_row_has_radio_button(self):
         """Revision rows include radio button input in render logic."""
@@ -881,6 +876,113 @@ if __name__ == "__main__":
         if not match:
             self.fail(f"Function {func_name} not found in JavaScript")
         return match.group(1)
+
+    # Phase 5B5: Preset Voice Preview Restoration Tests
+
+    def test_preset_voice_preview_panel_exists(self):
+        """Compact standalone Preset Voice Preview panel exists."""
+        self.assertIn('preset-voice-preview-panel', self.html)
+
+    def test_preset_voice_select_element_exists(self):
+        """Preset voice select dropdown exists in HTML."""
+        self.assertIn('id="presetVoiceSelect"', self.html)
+
+    def test_load_preset_voices_button_exists(self):
+        """Load preset voices button exists in HTML."""
+        self.assertIn('id="loadPresetVoices"', self.html)
+
+    def test_preview_preset_voice_button_exists(self):
+        """Preview preset voice button exists in HTML."""
+        self.assertIn('id="previewPresetVoice"', self.html)
+
+    def test_preset_preview_box_exists(self):
+        """Preset preview box exists in HTML."""
+        self.assertIn('id="presetPreviewBox"', self.html)
+
+    def test_preset_preview_audio_element_exists(self):
+        """Preset preview audio element exists in HTML."""
+        self.assertIn('id="presetPreviewAudio"', self.html)
+
+    def test_preset_preview_status_element_exists(self):
+        """Preset preview status element exists in HTML."""
+        self.assertIn('id="presetPreviewStatus"', self.html)
+
+    def test_load_preset_voices_function_exists(self):
+        """loadPresetVoices function exists in JavaScript."""
+        self.assertIn("async function loadPresetVoices()", self.js)
+
+    def test_preview_preset_voice_function_exists(self):
+        """previewPresetVoice function exists in JavaScript."""
+        self.assertIn("async function previewPresetVoice()", self.js)
+
+    def test_load_preset_voices_handler_wired(self):
+        """loadPresetVoices event handler is wired."""
+        self.assertIn("$('#loadPresetVoices').onclick=loadPresetVoices", self.js)
+
+    def test_preview_preset_voice_handler_wired(self):
+        """previewPresetVoice event handler is wired."""
+        self.assertIn("$('#previewPresetVoice').onclick=previewPresetVoice", self.js)
+
+    def test_preset_voice_select_change_handler_wired(self):
+        """presetVoiceSelect change event handler is wired."""
+        pattern = r"\$\('#presetVoiceSelect'\)\.addEventListener\('change'"
+        self.assertRegex(self.js, pattern)
+
+    def test_preset_preview_sends_only_voice_id(self):
+        """previewPresetVoice sends only voice_id (not custom_voice_revision_id)."""
+        preset_section = re.search(
+            r"async function previewPresetVoice\(\).*?}catch",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(preset_section)
+        section_text = preset_section.group(0)
+        self.assertIn("voice_id:", section_text)
+        self.assertNotIn("custom_voice_revision_id", section_text)
+
+    def test_preset_preview_does_not_send_preview_text(self):
+        """previewPresetVoice does not send preview_text field."""
+        preset_section = re.search(
+            r"async function previewPresetVoice\(\).*?}catch",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(preset_section)
+        section_text = preset_section.group(0)
+        self.assertNotIn("preview_text", section_text)
+
+    def test_preset_preview_uses_voice_previews_endpoint(self):
+        """previewPresetVoice uses existing /api/voice-previews endpoint."""
+        preset_section = re.search(
+            r"async function previewPresetVoice\(\).*?}catch",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(preset_section)
+        section_text = preset_section.group(0)
+        self.assertIn("/api/voice-previews", section_text)
+
+    def test_no_duplicate_dom_ids_between_preset_and_custom(self):
+        """No DOM ID conflicts between preset preview and custom voice library."""
+        preset_ids = ["presetVoiceSelect", "loadPresetVoices", "previewPresetVoice",
+                      "presetPreviewBox", "presetPreviewAudio", "presetPreviewStatus"]
+        for element_id in preset_ids:
+            pattern = rf'id="{element_id}"'
+            matches = re.findall(pattern, self.html)
+            self.assertEqual(
+                len(matches),
+                1,
+                f"Expected exactly 1 occurrence of id=\"{element_id}\", found {len(matches)}",
+            )
+
+    def test_custom_voice_library_remains_only_custom_workflow(self):
+        """Custom Voice Library is the only custom-reference workflow."""
+        # Should have exactly one custom voice library panel
+        library_panels = self.html.count('custom-voice-library-panel')
+        self.assertEqual(library_panels, 1)
+
+        # Should not have redundant standalone custom preview panel
+        self.assertNotIn('custom-voice-preview-panel', self.html)
 
 
 if __name__ == "__main__":

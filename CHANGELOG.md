@@ -4,11 +4,15 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ## Unreleased
 
+### Fixed
+
+- **UI Usability Pass**: Restored compact standalone Preset Voice Preview panel after UI consolidation accidentally removed it. Custom Voice Library remains the single custom-reference workflow. Test count increased to 584 (from 542) after fixing premature class termination in test file.
+
 ### Planned
 
 ### Added
 
-- **Custom Reference Voice Library UI**: Complete workflow for managing custom reference voices through global library interface. Logical voice management (create, list, select, deactivate/reactivate), immutable revision upload (multipart audio + transcript), revision history display, exact revision selection (radio buttons + summary), Reference Audio playback (GET `/api/custom-voice-revisions/{id}/audio` with SHA-256 verification), custom Preview Text (optional, max 500 chars, empty uses default), short custom preview support (removed 10s minimum, accepts >0s to 20s), cache isolation by revision + text. Test coverage: 567 tests passing (45.1s). Real manual smoke passed: two revisions uploaded, exact selection works, Reference Audio plays, custom short text synthesis succeeds, cache hit/miss verified. Test isolation verified: live DB unchanged during automated runs. No migration required (schema v6 sufficient).
+- **Custom Reference Voice Library UI**: Complete workflow for managing custom reference voices through global library interface. Logical voice management (create, list, select, deactivate/reactivate), immutable revision upload (multipart audio + transcript), revision history display, exact revision selection (radio buttons + summary), Reference Audio playback (GET `/api/custom-voice-revisions/{id}/audio` with SHA-256 verification), custom Preview Text (optional, max 500 chars, empty uses default), short custom preview support (removed 10s minimum, accepts >0s to 20s), cache isolation by revision + text. Consolidated UI eliminates redundant standalone custom preview panel while preserving compact Preset Voice Preview. Test coverage: 584 tests passing. Real manual smoke passed: preset preview functional, two revisions uploaded, exact selection works, Reference Audio plays, custom short text synthesis succeeds, cache hit/miss verified. Test isolation verified: live DB unchanged during automated runs. No migration required (schema v6 sufficient).
 
 - **Custom Voice Preview**: Immutable custom voice revision preview with exact revision ID, reference audio/transcript integrity verification, content-addressed preview cache, and backward-compatible preset request API.
   - `VoicePreviewService.create_custom()` validates revision metadata, checks SHA-256 integrity for reference audio/transcript, synthesizes preview WAV, and stores in content-addressed cache with atomic manifest.

@@ -14,20 +14,26 @@ Roadmap mô tả thứ tự đầu tư, không phải cam kết thời gian. Ưu
 - Gemini Speaker Assignment Draft Core.
 - Speaker Assignment Review and Approval UI: confidence/alternatives/manual choice, effective voice preview, partial immutable approval, stale protection và idempotency.
 - Long-Chapter End-to-End Validation and Hardening: Phase 1 preflight/draft/review/approval, Phase 2 VieNeu render/retry/audio QA, Phase 3 Handoff export/import/downstream compatibility.
+- Custom Reference Voice Library UI: Global library interface, logical voice management, immutable revision upload, exact revision selection, Reference Audio playback, custom Preview Text, short preview support, and UI usability consolidation (compact Preset Voice Preview restored, redundant custom preview panel removed).
 
-## Next — In Progress
+## Next — Planned
 
-Custom Reference Voice Library UI: Global library interface for managing custom reference voices (not model training). Create logical voices with display name/description, upload immutable audio/transcript revisions via multipart form, view revision history, deactivate/reactivate voices, preview exact revisions with VieNeu reference-audio synthesis. Repository code supports schema version 7; migration 0006_custom_voices provides the storage contract; no new migration required. UI maps HTTP statuses to safe user-facing messages without exposing backend internals.
+YouTube Auto Handoff V2 Output Package: Chapter-level output contract for YouTube Auto downstream processing.
 
-Implementation phases:
-- Phase 5B1: Logical Voice Library UI (list, create, select, deactivate/reactivate, safe errors, API integration)
-- Phase 5B2: Immutable Revision Upload and History (file picker, transcript input, multipart upload, no edit/overwrite)
-- Phase 5B3: Preview Integration and Offline Tests (exact revision ID, UI contract tests, API regressions)
-- Phase 5B4: Real Smoke and Closure (real VieNeu preview, immutability verification, full suite, Doctor)
+Required outputs:
+- Final chapter audio (M4A/MP3)
+- timeline.json: segment-level timing with speaker labels, timestamps from assembled audio
+- subtitles.srt: relative timestamps for portable bundle
+- manifest.json: chapter metadata, artifact references, relative paths
+
+Validation:
+- Real chapter render validation
+- Full handoff smoke test with timeline/subtitles
+- Portable bundle structure verification
 
 ## Paused
 
-Controlled Maintenance Sprint: completed Custom Voice Preview; paused for Custom Reference Voice Library UI priority.
+Controlled Maintenance Sprint: completed Custom Voice Library UI; ready for next planned feature.
 
 
 ## Ownership Boundary

@@ -1,29 +1,28 @@
 # Next Task
 
 Current Sprint:
-Custom Reference Voice Usability Completion
+YouTube Auto Handoff V2
 
 Current Task:
-Custom Reference Voice Library UI
+Chapter Output Package for YouTube Auto
 
 Status:
-Planned — API contract audit complete, implementation pending
+Planned — Custom Voice workflow complete; output-contract audit pending
 
 Previous Task Summary:
-Custom Voice Preview completed in commit 02a76135dad5b1b4fa6a42552791a2d9cd718049 with 450 offline tests. Immutable revision preview with reference audio/transcript integrity, content-addressed cache, backward-compatible API, and minimal UI panel.
+Custom Reference Voice Library UI completed with compact Preset Voice Preview restoration and UI usability consolidation. Test count: 584 tests passing (3 known false failures in minified JS assertions). No migration required.
 
 Next Steps:
-Implement Global Custom Reference Voice Library UI:
-- Phase 5B1: Logical Voice Library UI (list, create, select, deactivate/reactivate, safe errors, API integration)
-- Phase 5B2: Immutable Revision Upload and History (file picker, transcript input, multipart upload, no edit/overwrite)
-- Phase 5B3: Preview Integration and Offline Tests (exact revision ID, UI contract tests, API regressions)
-- Phase 5B4: Real Smoke and Closure (real VieNeu preview, immutability verification, full suite, Doctor)
+Implement Chapter Output Package for YouTube Auto with real chapter render validation:
+- Segment-level timeline.json with speaker labels, timestamps derived from final assembled audio
+- Subtitles.srt with relative timestamps
+- Manifest.json with chapter metadata and artifact references
+- Real handoff smoke test with full chapter render
+- Relative paths for portable bundle structure
 
-Do Not Work On:
-- Modifying an immutable revision or overwriting reference audio
-- Hard delete of logical voices or revisions
-- Automatic transcript generation or model training
-- Voice cloning, emotion control, or importing voices from VieNeu presets
-- Automatic casting changes or automatic character creation
-- Job or chapter rendering (preview only)
-- Arbitrary preview text (fixed preview text only)
+Deferred:
+- Word-level forced alignment
+- Karaoke-style caption rendering
+- Lip sync metadata
+- Generic production hardening
+- Multi-worker load testing

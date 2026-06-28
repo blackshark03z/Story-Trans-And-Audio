@@ -28,6 +28,26 @@
       <div id="books" class="book-grid"></div>
     </section>
 
+    <section class="panel preset-voice-preview-panel">
+      <div>
+        <h2>Preset Voice Preview</h2>
+        <p class="muted">Preview VieNeu preset voices with the default sample text.</p>
+      </div>
+      <div class="form-grid">
+        <label>Preset Voice
+          <select id="presetVoiceSelect"><option value="">Chưa tải danh sách giọng</option></select>
+        </label>
+      </div>
+      <div class="row">
+        <button id="loadPresetVoices" class="secondary">Load Preset Voices</button>
+        <button id="previewPresetVoice" class="secondary" disabled>▶ Preview 10–20s</button>
+      </div>
+      <div id="presetPreviewBox" class="voice-preview hidden">
+        <audio id="presetPreviewAudio" controls preload="metadata"></audio>
+        <span id="presetPreviewStatus" class="muted"></span>
+      </div>
+    </section>
+
     <section class="panel custom-voice-library-panel">
       <div>
         <h2>Custom Voice Library</h2>
