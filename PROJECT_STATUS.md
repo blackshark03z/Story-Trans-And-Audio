@@ -1,6 +1,6 @@
-# Tráº¡ng thÃ¡i dá»± Ã¡n
+﻿# Tráº¡ng thÃ¡i dá»± Ã¡n
 
-**Cập nhật:** 2026-06-28T18:30 (Asia/Saigon)
+**Cập nhật:** 2026-06-28T21:00 (Asia/Saigon)
 **Milestone:** Ready for Personal Production Use
 **Trạng thái:** Ready; chạy `.\run_app.ps1` để mở lại `http://127.0.0.1:8766`
 
@@ -97,7 +97,7 @@ Audio casting máº·c Ä‘á»‹nh dÃ¹ng ba nhÃ³m voice cáº¥p book: na
 - [x] Speaker Assignment Review and Approval UI: filter/bulk review, alternatives/manual correction, effective voice preview, partial immutable approval, stale protection vÃ  idempotency.
 - [x] Custom Reference Voice Storage & API: Schema v6, Global custom_voices, immutable revisions, content-addressed audio blob storage, and isolated offline API tests.
 - [x] Custom Voice Preview: Immutable revision preview, reference audio/transcript integrity, content-addressed cache, backward-compatible API, minimal UI and 450 offline tests.
-- [x] Custom Reference Voice Library UI: Global library panel, logical voice create/list/select/deactivate/reactivate, immutable audio/transcript revision upload (multipart), revision history, exact revision selection (radio + summary), Reference Audio playback (separate from preview), custom Preview Text (optional, 500 char max), short preview support (>0s, no 10s minimum), cache isolation, compact standalone Preset Voice Preview restored, 584 tests passing (3 known false failures in minified JS assertions), real manual smoke passed (preset preview functional, two revisions, exact selection, Reference Audio, short custom text synthesis, cache behavior verified), test isolation verified (live DB unchanged during automated runs), UI usability consolidation complete (redundant custom preview panel removed, Custom Voice Library is single custom-reference workflow).
+- [x] Custom Reference Voice Library UI: Global library panel, logical voice create/list/select/deactivate/reactivate, immutable audio/transcript revision upload (multipart), revision history, exact revision selection (radio + summary), Reference Audio playback (separate from preview), custom Preview Text (optional, 500 char max), short preview support (>0s, no 10s minimum), cache isolation, compact standalone Preset Voice Preview restored, redundant custom preview panel removed (Custom Voice Library is single custom-reference workflow), smoke/test books hidden by default with "Show test data" checkbox, full-width vertical form labels, responsive two-column upload layout. Real manual smoke passed: preset preview functional, two revisions, exact selection, Reference Audio, short custom text synthesis, cache behavior verified. Test isolation verified: live DB unchanged during automated runs. 613 tests passing (3 known pre-existing failures in brittle minified JS assertions). **Work merged into main via PR #2.**
 
 ## Háº¡n cháº¿ hiá»‡n táº¡i
 

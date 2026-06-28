@@ -14,9 +14,9 @@ Roadmap mô tả thứ tự đầu tư, không phải cam kết thời gian. Ưu
 - Gemini Speaker Assignment Draft Core.
 - Speaker Assignment Review and Approval UI: confidence/alternatives/manual choice, effective voice preview, partial immutable approval, stale protection và idempotency.
 - Long-Chapter End-to-End Validation and Hardening: Phase 1 preflight/draft/review/approval, Phase 2 VieNeu render/retry/audio QA, Phase 3 Handoff export/import/downstream compatibility.
-- Custom Reference Voice Library UI: Global library interface, logical voice management, immutable revision upload, exact revision selection, Reference Audio playback, custom Preview Text, short preview support, and UI usability consolidation (compact Preset Voice Preview restored, redundant custom preview panel removed).
+- Custom Reference Voice Library UI (Complete): Global library interface, logical voice management, immutable revision upload, exact revision selection, Reference Audio playback, custom Preview Text, short preview support, compact Preset Voice Preview restored, smoke/test book filtering, full-width vertical form layouts, responsive design. **Merged into main via PR #2. Ready for personal production use.**
 
-## Next — Planned
+## Next — Deferred (Awaiting User Approval)
 
 YouTube Auto Handoff V2 Output Package: Chapter-level output contract for YouTube Auto downstream processing.
 
@@ -33,7 +33,7 @@ Validation:
 
 ## Paused
 
-Controlled Maintenance Sprint: completed Custom Voice Library UI; ready for next planned feature.
+No active implementation task. Custom Voice Library UI complete and merged. Chapter Output Package for YouTube Auto deferred until user explicitly approves starting it.
 
 
 ## Ownership Boundary
