@@ -29,6 +29,7 @@ from story_audio.custom_voice_api import (
     list_custom_voices_handler,
     list_custom_voice_revisions_handler,
     reactivate_custom_voice_handler,
+    set_preferred_synthesis_revision_handler,
 )
 from story_audio.db import Database
 from story_audio.storage import ContentStore
@@ -401,9 +402,93 @@ class CustomVoiceApiTests(unittest.TestCase):
         for handler in handlers:
             self.assertNotIn("delete", handler.__name__)
 
+    def test_set_preferred_synthesis_revision_success(self) -> None:
+        """Test setting preferred synthesis revision."""
+        voice = create_custom_voice_handler(self.repo, "Preferred Revision Test")
+        audio_data = b"fake audio data"
+        
+        # Create two revisions
+        upload1 = self._create_mock_upload("test1.wav", audio_data)
+        upload2 = self._create_mock_upload("test2.wav", audio_data + b" v2")
+        
+        rev1 = create_custom_voice_revision_handler(self.repo, voice["id"], upload1, "Transcript 1")
+        rev2 = create_custom_voice_revision_handler(self.repo, voice["id"], upload2, "Transcript 2")
+        
+        # Initially no preferred revision
+        voice_data = get_custom_voice_handler(self.repo, voice["id"])
+        self.assertIsNone(voice_data["preferred_synthesis_revision_id"])
+        
+        # Set revision 1 as preferred
+        result = set_preferred_synthesis_revision_handler(self.repo, voice["id"], rev1["id"])
+        self.assertEqual(result["preferred_synthesis_revision_id"], rev1["id"])
+        
+        # Verify persistence
+        voice_data = get_custom_voice_handler(self.repo, voice["id"])
+        self.assertEqual(voice_data["preferred_synthesis_revision_id"], rev1["id"])
+        
+        # Change to revision 2
+        result = set_preferred_synthesis_revision_handler(self.repo, voice["id"], rev2["id"])
+        self.assertEqual(result["preferred_synthesis_revision_id"], rev2["id"])
+        
+        # Verify persistence
+        voice_data = get_custom_voice_handler(self.repo, voice["id"])
+        self.assertEqual(voice_data["preferred_synthesis_revision_id"], rev2["id"])
+
+    def test_set_preferred_synthesis_revision_clear(self) -> None:
+        """Test clearing preferred synthesis revision."""
+        voice = create_custom_voice_handler(self.repo, "Clear Preferred Test")
+        audio_data = b"fake audio data"
+        
+        upload = self._create_mock_upload("test.wav", audio_data)
+        rev = create_custom_voice_revision_handler(self.repo, voice["id"], upload, "Transcript")
+        
+        # Set preferred
+        set_preferred_synthesis_revision_handler(self.repo, voice["id"], rev["id"])
+        voice_data = get_custom_voice_handler(self.repo, voice["id"])
+        self.assertEqual(voice_data["preferred_synthesis_revision_id"], rev["id"])
+        
+        # Clear preferred
+        result = set_preferred_synthesis_revision_handler(self.repo, voice["id"], None)
+        self.assertIsNone(result["preferred_synthesis_revision_id"])
+        
+        # Verify persistence
+        voice_data = get_custom_voice_handler(self.repo, voice["id"])
+        self.assertIsNone(voice_data["preferred_synthesis_revision_id"])
+
+    def test_set_preferred_synthesis_revision_nonexistent_voice(self) -> None:
+        """Test setting preferred revision for nonexistent voice."""
+        with self.assertRaises(HTTPException) as ctx:
+            set_preferred_synthesis_revision_handler(self.repo, 999, 1)
+        self.assertEqual(ctx.exception.status_code, 404)
+
+    def test_set_preferred_synthesis_revision_nonexistent_revision(self) -> None:
+        """Test setting nonexistent revision as preferred."""
+        voice = create_custom_voice_handler(self.repo, "Invalid Revision Test")
+        
+        with self.assertRaises(HTTPException) as ctx:
+            set_preferred_synthesis_revision_handler(self.repo, voice["id"], 999)
+        self.assertEqual(ctx.exception.status_code, 404)
+
+    def test_preferred_revision_included_in_list(self) -> None:
+        """Test that preferred_synthesis_revision_id is included in list responses."""
+        voice = create_custom_voice_handler(self.repo, "List Preferred Test")
+        audio_data = b"fake audio data"
+        
+        upload = self._create_mock_upload("test.wav", audio_data)
+        rev = create_custom_voice_revision_handler(self.repo, voice["id"], upload, "Transcript")
+        
+        # Set preferred
+        set_preferred_synthesis_revision_handler(self.repo, voice["id"], rev["id"])
+        
+        # Verify in list response
+        voices = list_custom_voices_handler(self.repo)
+        voice_in_list = next(v for v in voices if v["id"] == voice["id"])
+        self.assertEqual(voice_in_list["preferred_synthesis_revision_id"], rev["id"])
+
 
 if __name__ == "__main__":
     unittest.main()
+
 
 
 

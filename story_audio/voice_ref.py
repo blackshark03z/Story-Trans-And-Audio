@@ -157,26 +157,45 @@ class CustomVoiceContext:
         """
         Build a CustomVoiceContext from a CustomVoiceRepository.
         Only includes active custom voices that have at least one revision.
-        Latest revision is selected by revision_number DESC (deterministic).
+        
+        Revision selection priority:
+        1. Preferred synthesis revision (if set and usable)
+        2. Latest revision by revision_number DESC (fallback)
         """
         entries = []
         for voice in repository.list_custom_voices(active_only=True):
-            latest = repository.get_latest_revision(voice.id)
-            if latest is None:
-                continue  # Skip voices with no revision
+            # Try preferred revision first
+            selected_revision = None
+            if voice.preferred_synthesis_revision_id is not None:
+                try:
+                    selected_revision = repository.get_revision(voice.preferred_synthesis_revision_id)
+                    # Verify it belongs to this voice
+                    if selected_revision.custom_voice_id != voice.id:
+                        selected_revision = None
+                except Exception:
+                    # Preferred revision not found or invalid, fall back to latest
+                    selected_revision = None
+            
+            # Fall back to latest if no preferred or preferred is invalid
+            if selected_revision is None:
+                selected_revision = repository.get_latest_revision(voice.id)
+            
+            if selected_revision is None:
+                continue  # Skip voices with no usable revision
+            
             entries.append(CustomVoiceEntry(
                 custom_voice_id=voice.id,
                 logical_ref=custom_ref(voice.id),
-                latest_revision_id=latest.id,
-                revision_number=latest.revision_number,
-                audio_storage_key=latest.audio_storage_key,
-                audio_sha256=latest.audio_sha256,
-                reference_transcript=latest.reference_transcript,
-                transcript_sha256=latest.transcript_sha256,
-                duration_ms=latest.duration_ms,
-                sample_rate=latest.sample_rate,
-                channels=latest.channels,
-                audio_format=latest.audio_format,
+                latest_revision_id=selected_revision.id,
+                revision_number=selected_revision.revision_number,
+                audio_storage_key=selected_revision.audio_storage_key,
+                audio_sha256=selected_revision.audio_sha256,
+                reference_transcript=selected_revision.reference_transcript,
+                transcript_sha256=selected_revision.transcript_sha256,
+                duration_ms=selected_revision.duration_ms,
+                sample_rate=selected_revision.sample_rate,
+                channels=selected_revision.channels,
+                audio_format=selected_revision.audio_format,
             ))
         return cls(entries)
 

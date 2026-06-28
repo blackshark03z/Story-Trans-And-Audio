@@ -85,7 +85,7 @@ class TtsService:
                 f"({total_silence:.1f}s of {total_duration:.1f}s total), "
                 f"longest continuous silence: {longest_silence:.1f}s. "
                 f"Text: '{text[:100]}...' ({len(text)} chars). "
-                f"This appears to be a VieNeu engine bug."
+                f"This may indicate a synthesis issue with the reference audio or text combination."
             )
         
         # Additional check: verify audio has actual signal energy

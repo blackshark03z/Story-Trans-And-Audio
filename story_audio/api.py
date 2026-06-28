@@ -39,6 +39,7 @@ from .custom_voice_api import (
     list_custom_voice_revisions_handler,
     list_custom_voices_handler,
     reactivate_custom_voice_handler,
+    set_preferred_synthesis_revision_handler,
 )
 from .db import Database, utcnow
 from .diagnostics import (
@@ -966,6 +967,15 @@ def list_custom_voice_revisions(voice_id: int) -> list[dict[str, Any]]:
 @app.get("/api/custom-voice-revisions/{revision_id}")
 def get_custom_voice_revision(revision_id: int) -> dict[str, Any]:
     return get_custom_voice_revision_handler(custom_voice_repo, revision_id)
+
+
+@app.patch("/api/custom-voices/{voice_id}/preferred-revision")
+def set_preferred_synthesis_revision(
+    voice_id: int,
+    revision_id: int | None = Body(None, embed=True),
+) -> dict[str, Any]:
+    """Set or clear the preferred synthesis revision for a custom voice."""
+    return set_preferred_synthesis_revision_handler(custom_voice_repo, voice_id, revision_id)
 
 
 @app.get("/api/custom-voice-revisions/{revision_id}/audio")
