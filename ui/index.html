@@ -62,10 +62,17 @@
       <div id="libraryVoiceList" class="voice-library-list"></div>
       <div id="librarySelectedDetails" class="library-selected-details hidden">
         <h3>Selected Voice</h3>
-        <div class="form-grid">
-          <label>Name<input id="librarySelectedName" disabled></label>
-          <label>Description<textarea id="librarySelectedDescription" disabled rows="2"></textarea></label>
-          <label>Status<input id="librarySelectedStatus" disabled></label>
+        <div class="voice-form-group">
+          <label for="librarySelectedName">Name</label>
+          <input id="librarySelectedName" disabled>
+        </div>
+        <div class="voice-form-group">
+          <label for="librarySelectedDescription">Description</label>
+          <textarea id="librarySelectedDescription" class="voice-description-input" disabled rows="3"></textarea>
+        </div>
+        <div class="voice-form-group">
+          <label for="librarySelectedStatus">Status</label>
+          <input id="librarySelectedStatus" disabled>
         </div>
         <div class="row">
           <button id="libraryDeactivate" class="secondary" disabled>Deactivate Voice</button>
@@ -93,8 +100,10 @@
         <audio id="libraryReferenceAudio" controls preload="metadata" class="hidden"></audio>
         <h4>Preview Selected Revision</h4>
         <p class="muted">Generate a preview using custom text or the default sample. The reference transcript remains immutable.</p>
-        <div class="form-grid">
-          <label>Preview Text (optional)<textarea id="libraryPreviewText" placeholder="Leave empty to use default sample" rows="3" maxlength="500"></textarea><span id="libraryPreviewTextCounter" class="char-counter muted">0 / 500</span></label>
+        <div class="voice-form-group">
+          <label for="libraryPreviewText">Preview Text (optional)</label>
+          <textarea id="libraryPreviewText" class="voice-description-input" placeholder="Leave empty to use default sample" rows="4" maxlength="500"></textarea>
+          <span id="libraryPreviewTextCounter" class="char-counter muted">0 / 500</span>
         </div>
         <div class="row">
           <button id="libraryUseDefaultPreview" class="ghost">Use Default Sample</button>
@@ -106,9 +115,15 @@
         </div>
       </div>
       <h3>Create New Voice</h3>
-      <div class="form-grid">
-        <label>Name<input id="libraryNewName" placeholder="Voice name" maxlength="120"></label>
-        <label>Description (optional)<textarea id="libraryNewDescription" placeholder="Optional description" rows="2"></textarea></label>
+      <div class="create-voice-form">
+        <div class="voice-form-group">
+          <label for="libraryNewName">Name</label>
+          <input id="libraryNewName" placeholder="Voice name" maxlength="120">
+        </div>
+        <div class="voice-form-group">
+          <label for="libraryNewDescription">Description (optional)</label>
+          <textarea id="libraryNewDescription" class="voice-description-input" placeholder="Optional description" rows="4"></textarea>
+        </div>
       </div>
       <button id="libraryCreate" class="primary">Create Voice</button>
       <div id="libraryError" class="issue error hidden"></div>

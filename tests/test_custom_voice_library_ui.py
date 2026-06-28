@@ -1106,6 +1106,122 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         )
         self.assertIsNotNone(grid_styles_section)
 
+    # Create New Voice Form Layout Tests
+
+    def test_create_voice_form_class_exists(self):
+        """create-voice-form class exists in HTML."""
+        self.assertIn('class="create-voice-form"', self.html)
+
+    def test_voice_form_group_class_exists(self):
+        """voice-form-group class exists in HTML for form groups."""
+        self.assertIn('class="voice-form-group"', self.html)
+
+    def test_voice_description_input_class_exists(self):
+        """voice-description-input class exists for description textareas."""
+        self.assertIn('class="voice-description-input"', self.html)
+
+    def test_create_new_voice_not_using_form_grid(self):
+        """Create New Voice section does not use broken inline form-grid layout."""
+        # Find the Create New Voice section
+        create_section = re.search(
+            r'<h3>Create New Voice</h3>.*?<button id="libraryCreate"',
+            self.html,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(create_section)
+        section_text = create_section.group(0)
+        # Should NOT use form-grid
+        self.assertNotIn('class="form-grid"', section_text)
+        # Should use create-voice-form
+        self.assertIn('class="create-voice-form"', section_text)
+
+    def test_create_voice_name_and_description_separate_groups(self):
+        """Name and Description are in separate form groups."""
+        create_section = re.search(
+            r'<h3>Create New Voice</h3>.*?<button id="libraryCreate"',
+            self.html,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(create_section)
+        section_text = create_section.group(0)
+        # Should have multiple voice-form-group instances
+        form_groups = re.findall(r'class="voice-form-group"', section_text)
+        self.assertGreaterEqual(len(form_groups), 2)
+
+    def test_create_voice_labels_block_level(self):
+        """Labels in Create New Voice are block-level above controls."""
+        create_section = re.search(
+            r'<h3>Create New Voice</h3>.*?<button id="libraryCreate"',
+            self.html,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(create_section)
+        section_text = create_section.group(0)
+        # Labels should have for attribute and be separate from input
+        self.assertIn('for="libraryNewName"', section_text)
+        self.assertIn('for="libraryNewDescription"', section_text)
+
+    def test_create_voice_description_has_dedicated_class(self):
+        """Description textarea has voice-description-input class."""
+        create_section = re.search(
+            r'<textarea id="libraryNewDescription"[^>]*>',
+            self.html,
+        )
+        self.assertIsNotNone(create_section)
+        textarea_tag = create_section.group(0)
+        self.assertIn('voice-description-input', textarea_tag)
+
+    def test_create_voice_form_styles_exist(self):
+        """create-voice-form styles exist in CSS."""
+        self.assertIn(".create-voice-form", self.css)
+
+    def test_voice_form_group_styles_exist(self):
+        """voice-form-group styles exist in CSS."""
+        self.assertIn(".voice-form-group", self.css)
+
+    def test_voice_description_input_styles_exist(self):
+        """voice-description-input styles exist in CSS."""
+        self.assertIn(".voice-description-input", self.css)
+
+    def test_voice_description_input_has_minimum_height(self):
+        """voice-description-input has reasonable minimum height (90-110px)."""
+        desc_styles = re.search(
+            r"\.voice-description-input\{[^}]*min-height:\s*(\d+)px",
+            self.css,
+        )
+        self.assertIsNotNone(desc_styles)
+        height = int(desc_styles.group(1))
+        self.assertGreaterEqual(height, 90)
+        self.assertLessEqual(height, 110)
+
+    def test_voice_form_group_labels_block_level_in_css(self):
+        """voice-form-group labels are styled as block-level in CSS."""
+        label_styles = re.search(
+            r"\.voice-form-group label\{[^}]*display:\s*block",
+            self.css,
+        )
+        self.assertIsNotNone(label_styles)
+
+    def test_voice_form_controls_full_width(self):
+        """Form controls in voice-form-group are full width."""
+        control_styles = re.search(
+            r"\.voice-form-group (input|select|textarea)\{[^}]*width:\s*100%",
+            self.css,
+        )
+        self.assertIsNotNone(control_styles)
+
+    def test_voice_form_controls_have_focus_state(self):
+        """Form controls have visible focus state."""
+        focus_styles = re.search(
+            r"\.voice-form-group (input|select|textarea):focus",
+            self.css,
+        )
+        self.assertIsNotNone(focus_styles)
+
+    def test_voice_description_input_resize_vertical(self):
+        """voice-description-input has resize: vertical."""
+        self.assertIn("resize:vertical", self.css.replace(" ", ""))
+
 
 if __name__ == "__main__":
     unittest.main()
