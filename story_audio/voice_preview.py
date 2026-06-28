@@ -83,8 +83,9 @@ class VoicePreviewService:
         custom_voice_revision_id: int,
         reference_audio_sha256: str,
         reference_transcript_sha256: str,
+        preview_text: str,
     ) -> dict[str, Any]:
-        text_sha256 = sha256_text(PREVIEW_TEXT)
+        text_sha256 = sha256_text(preview_text)
         settings_hash = sha256_text(
             json.dumps(self._settings(), sort_keys=True, separators=(",", ":"))
         )
@@ -110,6 +111,7 @@ class VoicePreviewService:
             "reference_audio_sha256": reference_audio_sha256,
             "reference_transcript_sha256": reference_transcript_sha256,
             "preview_text_sha256": text_sha256,
+            "preview_text": preview_text,
             "settings_hash": settings_hash,
             "engine_version": engine_version,
         }
@@ -157,6 +159,7 @@ class VoicePreviewService:
             )
             if not wav_path.is_file() or wav_path.stat().st_size <= 0:
                 raise ValueError("TTS preview did not produce a valid WAV file")
+            # Preset preview uses fixed PREVIEW_TEXT designed for 10-20s range
             if not MIN_PREVIEW_DURATION_MS <= duration_ms <= MAX_PREVIEW_DURATION_MS:
                 wav_path.unlink(missing_ok=True)
                 raise ValueError(
@@ -180,7 +183,7 @@ class VoicePreviewService:
             "duration_ms": manifest["duration_ms"],
             "sample_rate": manifest["sample_rate"],
             "cache_hit": cache_hit,
-            "preview_text": PREVIEW_TEXT,
+            "preview_text": manifest.get("preview_text", PREVIEW_TEXT),
         }
         # Add voice_id for preset, custom_voice_revision_id for custom
         if "voice_id" in manifest:
@@ -189,10 +192,14 @@ class VoicePreviewService:
             response["custom_voice_revision_id"] = manifest["custom_voice_revision_id"]
         return response
 
-    def create_custom(self, custom_voice_revision_id: int) -> dict[str, Any]:
+    def create_custom(self, custom_voice_revision_id: int, preview_text: str | None = None) -> dict[str, Any]:
         """
         Create a preview for a custom voice revision.
         Requires custom_voice_repo and store to be injected at construction.
+
+        Args:
+            custom_voice_revision_id: The ID of the custom voice revision to preview
+            preview_text: Optional text to synthesize. If None/empty/whitespace, uses PREVIEW_TEXT constant.
         """
         # Dependency validation
         if self.custom_voice_repo is None or self.store is None:
@@ -224,11 +231,17 @@ class VoicePreviewService:
         if not revision.transcript_sha256 or len(revision.transcript_sha256) != 64:
             raise ValueError("Revision has invalid transcript_sha256")
 
-        # Build identity
+        # Compute effective preview text (trim and use default if empty)
+        effective_text = (preview_text or "").strip()
+        if not effective_text:
+            effective_text = PREVIEW_TEXT
+
+        # Build identity with effective preview text
         identity = self._custom_identity(
             revision.id,
             revision.audio_sha256,
             revision.transcript_sha256,
+            effective_text,
         )
 
         wav_path, manifest_path = self._paths(identity["cache_key"])
@@ -279,10 +292,10 @@ class VoicePreviewService:
                     f"got {transcript_sha_computed}"
                 )
 
-            # Call TTS with custom reference
+            # Call TTS with custom reference and effective preview text
             try:
                 duration_ms, sample_rate = self.tts.synthesize(
-                    text=PREVIEW_TEXT,
+                    text=effective_text,
                     reference_audio_path=reference_audio_path,
                     reference_transcript=revision.reference_transcript,
                     output_path=wav_path,
@@ -300,11 +313,19 @@ class VoicePreviewService:
                 manifest_path.unlink(missing_ok=True)
                 raise ValueError("TTS preview did not produce a valid WAV file")
 
-            if not MIN_PREVIEW_DURATION_MS <= duration_ms <= MAX_PREVIEW_DURATION_MS:
+            # Custom preview: allow valid short audio, enforce only maximum duration
+            if duration_ms <= 0:
                 wav_path.unlink(missing_ok=True)
                 manifest_path.unlink(missing_ok=True)
                 raise ValueError(
-                    f"Voice preview duration must be 10–20 seconds, got {duration_ms / 1000:.1f}"
+                    f"Voice preview duration must be greater than zero, got {duration_ms / 1000:.1f}"
+                )
+
+            if duration_ms > MAX_PREVIEW_DURATION_MS:
+                wav_path.unlink(missing_ok=True)
+                manifest_path.unlink(missing_ok=True)
+                raise ValueError(
+                    f"Voice preview duration must not exceed {MAX_PREVIEW_DURATION_MS / 1000:.1f} seconds, got {duration_ms / 1000:.1f}"
                 )
 
             # Write manifest

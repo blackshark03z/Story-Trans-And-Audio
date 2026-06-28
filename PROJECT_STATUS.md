@@ -1,8 +1,6 @@
-﻿# Tráº¡ng thÃ¡i dá»± Ã¡n
+# Tráº¡ng thÃ¡i dá»± Ã¡n
 
-**Cáº­p nháº­t:** 2026-06-28T17:00 (Asia/Saigon)
-**Milestone:** Controlled Maintenance Sprint
-**Tráº¡ng thÃ¡i:** In Progress; cháº¡y `.\run_app.ps1` Ä‘á»ƒ má»Ÿ láº¡i `http://127.0.0.1:8766`
+**Cập nhật:** 2026-06-28T18:30 (Asia/Saigon)`n**Milestone:** Ready for Personal Production Use`n**Trạng thái:** Stable; chạy ``.\run_app.ps1`` để mở lại ``http://127.0.0.1:8766``
 
 ÄÃ¢y lÃ  nguá»“n sá»± tháº­t ngáº¯n gá»n vá» tiáº¿n Ä‘á»™. Sau má»—i thay Ä‘á»•i Ä‘Ã¡ng ká»ƒ, cáº­p nháº­t file nÃ y thay vÃ¬ buá»™c ngÆ°á»i tiáº¿p theo Ä‘á»c lá»‹ch sá»­ chat hoáº·c toÃ n bá»™ kiáº¿n trÃºc.
 
@@ -97,7 +95,7 @@ Audio casting máº·c Ä‘á»‹nh dÃ¹ng ba nhÃ³m voice cáº¥p book: na
 - [x] Speaker Assignment Review and Approval UI: filter/bulk review, alternatives/manual correction, effective voice preview, partial immutable approval, stale protection vÃ  idempotency.
 - [x] Custom Reference Voice Storage & API: Schema v6, Global custom_voices, immutable revisions, content-addressed audio blob storage, and isolated offline API tests.
 - [x] Custom Voice Preview: Immutable revision preview, reference audio/transcript integrity, content-addressed cache, backward-compatible API, minimal UI and 450 offline tests.
-- [ ] Custom Reference Voice Library UI: Global library panel for creating logical voices (display name/description), uploading immutable audio/transcript revisions (multipart form), viewing revision history, deactivate/reactivate workflow, exact revision preview integration, UI/API tests, and real VieNeu UI smoke.
+- [x] Custom Reference Voice Library UI: Global library panel, logical voice create/list/select/deactivate/reactivate, immutable audio/transcript revision upload (multipart), revision history, exact revision selection (radio + summary), Reference Audio playback (separate from preview), custom Preview Text (optional, 500 char max), short preview support (>0s, no 10s minimum), cache isolation, 567 tests passing, real manual smoke passed (two revisions, exact selection, Reference Audio, short custom text synthesis, cache behavior verified), test isolation verified (live DB unchanged during automated runs).
 
 ## Háº¡n cháº¿ hiá»‡n táº¡i
 

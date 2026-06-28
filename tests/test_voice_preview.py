@@ -540,7 +540,8 @@ class VoicePreviewTests(IsolatedTestCase):
             service.create_custom(revision_id)
 
     # Output and cleanup
-    def test_custom_duration_below_minimum_rejected(self) -> None:
+    def test_custom_short_duration_accepted(self) -> None:
+        """Custom preview accepts valid short audio (2-5 seconds)."""
         config = make_config(self.temp_root)
         db = Database(config.db_path)
         db.initialize()
@@ -550,10 +551,33 @@ class VoicePreviewTests(IsolatedTestCase):
         voice = repo.create_custom_voice("Test Voice")
         revision = repo.create_revision(voice.id, b"audio", "transcript")
 
-        fake = FakePreviewTts(duration_ms=9_000)
+        # 3-second audio should be accepted for custom preview
+        fake = FakePreviewTts(duration_ms=3_000)
         service = VoicePreviewService(fake, config, custom_voice_repo=repo, store=store)
 
-        with self.assertRaisesRegex(ValueError, "10–20 seconds"):
+        result = service.create_custom(revision.id, preview_text="Short text")
+
+        self.assertFalse(result["cache_hit"])
+        self.assertEqual(result["custom_voice_revision_id"], revision.id)
+        self.assertEqual(result["duration_ms"], 3_000)
+        # Valid cache entry created
+        self.assertEqual(len(list(config.preview_cache_dir.glob("*.json"))), 1)
+
+    def test_custom_zero_duration_rejected(self) -> None:
+        """Custom preview rejects zero-duration audio."""
+        config = make_config(self.temp_root)
+        db = Database(config.db_path)
+        db.initialize()
+        store = ContentStore(config)
+        repo = CustomVoiceRepository(db, store)
+
+        voice = repo.create_custom_voice("Test Voice")
+        revision = repo.create_revision(voice.id, b"audio", "transcript")
+
+        fake = FakePreviewTts(duration_ms=0)
+        service = VoicePreviewService(fake, config, custom_voice_repo=repo, store=store)
+
+        with self.assertRaisesRegex(ValueError, "greater than zero"):
             service.create_custom(revision.id)
 
         # No valid cache entry left
@@ -572,7 +596,7 @@ class VoicePreviewTests(IsolatedTestCase):
         fake = FakePreviewTts(duration_ms=21_000)
         service = VoicePreviewService(fake, config, custom_voice_repo=repo, store=store)
 
-        with self.assertRaisesRegex(ValueError, "10–20 seconds"):
+        with self.assertRaisesRegex(ValueError, "must not exceed.*20"):
             service.create_custom(revision.id)
 
         self.assertEqual(len(list(config.preview_cache_dir.glob("*.json"))), 0)

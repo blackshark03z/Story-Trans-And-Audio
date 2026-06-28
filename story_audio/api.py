@@ -108,6 +108,7 @@ class JobRequest(BaseModel):
 class VoicePreviewRequest(BaseModel):
     voice_id: str | None = Field(default=None, min_length=1, max_length=200)
     custom_voice_revision_id: int | None = Field(default=None, gt=0)
+    preview_text: str | None = Field(default=None, max_length=500)
 
 
 class CharacterCreateRequest(BaseModel):
@@ -617,6 +618,10 @@ def create_voice_preview(request: VoicePreviewRequest) -> dict[str, Any]:
     if preset_provided and custom_provided:
         raise HTTPException(400, "Cannot provide both voice_id and custom_voice_revision_id")
 
+    # Validate preview_text is only used with custom voices
+    if request.preview_text is not None and preset_provided:
+        raise HTTPException(400, "preview_text can only be used with custom_voice_revision_id")
+
     try:
         if preset_provided:
             # Preset path (unchanged behavior)
@@ -627,8 +632,11 @@ def create_voice_preview(request: VoicePreviewRequest) -> dict[str, Any]:
             result["audio_url"] = f"/api/voice-previews/{result['cache_key']}/file"
             return result
         else:
-            # Custom path
-            result = voice_previews.create_custom(request.custom_voice_revision_id)
+            # Custom path with optional preview_text
+            result = voice_previews.create_custom(
+                request.custom_voice_revision_id,
+                preview_text=request.preview_text
+            )
             result["audio_url"] = f"/api/voice-previews/{result['cache_key']}/file"
             return result
     except CustomVoiceRevisionNotFoundError:
@@ -898,6 +906,41 @@ def list_custom_voice_revisions(voice_id: int) -> list[dict[str, Any]]:
 @app.get("/api/custom-voice-revisions/{revision_id}")
 def get_custom_voice_revision(revision_id: int) -> dict[str, Any]:
     return get_custom_voice_revision_handler(custom_voice_repo, revision_id)
+
+
+@app.get("/api/custom-voice-revisions/{revision_id}/audio")
+def get_custom_voice_revision_audio(revision_id: int):
+    """Serve the reference audio file for a custom voice revision."""
+    from .custom_voice import CustomVoiceRevisionNotFoundError
+    from .files import sha256_file
+
+    try:
+        revision = custom_voice_repo.get_revision(revision_id)
+    except CustomVoiceRevisionNotFoundError:
+        raise HTTPException(404, "Custom voice revision not found")
+
+    # Resolve audio path
+    try:
+        audio_path = store.absolute(revision.audio_storage_key)
+    except ValueError:
+        raise HTTPException(404, "Reference audio path is invalid")
+
+    if not audio_path.exists() or not audio_path.is_file():
+        raise HTTPException(404, "Reference audio file not found")
+
+    # Verify SHA-256 integrity before serving
+    computed_sha = sha256_file(audio_path)
+    if computed_sha != revision.audio_sha256:
+        raise HTTPException(409, "Reference audio integrity check failed")
+
+    # Determine content type from audio format
+    content_type = "audio/wav" if revision.audio_format == "wav" else "audio/mpeg"
+
+    return FileResponse(
+        audio_path,
+        media_type=content_type,
+        filename=f"revision_{revision_id}.{revision.audio_format}"
+    )
 
 
 UI_DIR = settings.root / "ui"

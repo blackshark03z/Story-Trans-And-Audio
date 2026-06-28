@@ -55,6 +55,71 @@
       </div>
     </section>
 
+    <section class="panel custom-voice-library-panel">
+      <div>
+        <h2>Custom Voice Library</h2>
+        <p class="muted">Manage custom reference voices for VieNeu synthesis.</p>
+      </div>
+      <div class="row">
+        <button id="refreshLibrary" class="secondary">Refresh Voices</button>
+        <label class="check"><input id="showInactiveVoices" type="checkbox"> Show inactive voices</label>
+      </div>
+      <div id="libraryStatus" class="muted">Click Refresh to load voices.</div>
+      <div id="libraryVoiceList" class="voice-library-list"></div>
+      <div id="librarySelectedDetails" class="library-selected-details hidden">
+        <h3>Selected Voice</h3>
+        <div class="form-grid">
+          <label>Name<input id="librarySelectedName" disabled></label>
+          <label>Description<textarea id="librarySelectedDescription" disabled rows="2"></textarea></label>
+          <label>Status<input id="librarySelectedStatus" disabled></label>
+        </div>
+        <div class="row">
+          <button id="libraryDeactivate" class="secondary" disabled>Deactivate Voice</button>
+          <button id="libraryReactivate" class="secondary" disabled>Reactivate Voice</button>
+        </div>
+        <h4>Upload Revision</h4>
+        <p class="muted immutable-notice">Uploading new audio or transcript creates a new immutable revision. Existing revisions are never overwritten.</p>
+        <div class="form-grid">
+          <label>Reference Audio<input id="libraryAudioFile" type="file" accept="audio/wav,audio/x-wav,audio/mp3,audio/mpeg" disabled></label>
+          <label>Exact Transcript<textarea id="libraryTranscript" placeholder="Enter the exact transcript for the reference audio" rows="3" maxlength="10000" disabled></textarea><span id="libraryTranscriptCounter" class="char-counter muted">0 / 10000</span></label>
+        </div>
+        <button id="libraryUploadRevision" class="primary" disabled>Upload Revision</button>
+        <div id="libraryUploadStatus" class="muted"></div>
+        <div id="libraryUploadError" class="issue error hidden"></div>
+        <h4>Revision History</h4>
+        <div id="libraryRevisionsStatus" class="muted">Loading revisions...</div>
+        <div id="libraryRevisionsList" class="library-revisions-list"></div>
+        <div id="librarySelectedRevision" class="selected-revision-summary hidden">
+          <strong>Selected Revision:</strong>
+          <span id="librarySelectedRevisionText">—</span>
+        </div>
+        <h4>Reference Audio</h4>
+        <p class="muted">Listen to the original reference audio for the selected revision.</p>
+        <div id="libraryReferenceAudioStatus" class="muted">No revision selected</div>
+        <audio id="libraryReferenceAudio" controls preload="metadata" class="hidden"></audio>
+        <h4>Preview Selected Revision</h4>
+        <p class="muted">Generate a preview using custom text or the default sample. The reference transcript remains immutable.</p>
+        <div class="form-grid">
+          <label>Preview Text (optional)<textarea id="libraryPreviewText" placeholder="Leave empty to use default sample" rows="3" maxlength="500"></textarea><span id="libraryPreviewTextCounter" class="char-counter muted">0 / 500</span></label>
+        </div>
+        <div class="row">
+          <button id="libraryUseDefaultPreview" class="ghost">Use Default Sample</button>
+          <button id="libraryPreviewRevision" class="secondary" disabled>▶ Generate Preview</button>
+        </div>
+        <div id="libraryPreviewBox" class="voice-preview hidden">
+          <audio id="libraryPreviewAudio" controls preload="metadata"></audio>
+          <span id="libraryPreviewStatus" class="muted"></span>
+        </div>
+      </div>
+      <h3>Create New Voice</h3>
+      <div class="form-grid">
+        <label>Name<input id="libraryNewName" placeholder="Voice name" maxlength="120"></label>
+        <label>Description (optional)<textarea id="libraryNewDescription" placeholder="Optional description" rows="2"></textarea></label>
+      </div>
+      <button id="libraryCreate" class="primary">Create Voice</button>
+      <div id="libraryError" class="issue error hidden"></div>
+    </section>
+
     <section id="workspace" class="workspace hidden">
       <aside class="panel chapter-panel">
         <div class="section-head">
