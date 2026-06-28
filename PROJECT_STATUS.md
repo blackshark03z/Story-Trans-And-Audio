@@ -1,6 +1,6 @@
-# Tráº¡ng thÃ¡i dá»± Ã¡n
+﻿# Tráº¡ng thÃ¡i dá»± Ã¡n
 
-**Cáº­p nháº­t:** 2026-06-27T13:39 (Asia/Saigon)
+**Cáº­p nháº­t:** 2026-06-28T17:00 (Asia/Saigon)
 **Milestone:** Controlled Maintenance Sprint
 **Tráº¡ng thÃ¡i:** In Progress; cháº¡y `.\run_app.ps1` Ä‘á»ƒ má»Ÿ láº¡i `http://127.0.0.1:8766`
 

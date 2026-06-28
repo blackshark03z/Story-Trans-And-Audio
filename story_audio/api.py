@@ -85,7 +85,9 @@ db = Database(settings.db_path)
 store = ContentStore(settings)
 custom_voice_repo = CustomVoiceRepository(db, store)
 worker = PipelineWorker(db, store, tts_service, settings)
-voice_previews = VoicePreviewService(tts_service, settings)
+voice_previews = VoicePreviewService(
+    tts_service, settings, custom_voice_repo=custom_voice_repo, store=store
+)
 
 
 class ImportRequest(BaseModel):
@@ -104,7 +106,8 @@ class JobRequest(BaseModel):
 
 
 class VoicePreviewRequest(BaseModel):
-    voice_id: str = Field(min_length=1, max_length=200)
+    voice_id: str | None = Field(default=None, min_length=1, max_length=200)
+    custom_voice_revision_id: int | None = Field(default=None, gt=0)
 
 
 class CharacterCreateRequest(BaseModel):
@@ -601,17 +604,47 @@ def approve_casting(casting_plan_id: int) -> dict[str, Any]:
 
 @app.post("/api/voice-previews")
 def create_voice_preview(request: VoicePreviewRequest) -> dict[str, Any]:
+    # Import custom voice exceptions for error handling
+    from .custom_voice import CustomVoiceRevisionNotFoundError
+    from .synthesis_snapshot import StorageResolutionError
+
+    # XOR validation: exactly one selector required
+    preset_provided = request.voice_id is not None
+    custom_provided = request.custom_voice_revision_id is not None
+
+    if not preset_provided and not custom_provided:
+        raise HTTPException(400, "Must provide either voice_id or custom_voice_revision_id")
+    if preset_provided and custom_provided:
+        raise HTTPException(400, "Cannot provide both voice_id and custom_voice_revision_id")
+
     try:
-        valid_voices = {item["id"] for item in tts_service.voices()}
-        if request.voice_id not in valid_voices:
-            raise ValueError(f"Giọng '{request.voice_id}' không tồn tại trong VieNeu.")
-        result = voice_previews.create(request.voice_id)
-        result["audio_url"] = f"/api/voice-previews/{result['cache_key']}/file"
-        return result
+        if preset_provided:
+            # Preset path (unchanged behavior)
+            valid_voices = {item["id"] for item in tts_service.voices()}
+            if request.voice_id not in valid_voices:
+                raise ValueError(f"Giọng '{request.voice_id}' không tồn tại trong VieNeu.")
+            result = voice_previews.create(request.voice_id)
+            result["audio_url"] = f"/api/voice-previews/{result['cache_key']}/file"
+            return result
+        else:
+            # Custom path
+            result = voice_previews.create_custom(request.custom_voice_revision_id)
+            result["audio_url"] = f"/api/voice-previews/{result['cache_key']}/file"
+            return result
+    except CustomVoiceRevisionNotFoundError:
+        raise HTTPException(404, "Custom voice revision not found")
+    except StorageResolutionError:
+        raise HTTPException(404, "Custom voice reference audio is unavailable")
     except ValueError as exc:
+        # Metadata/transcript/duration validation errors
+        exc_str = str(exc).lower()
+        if "revision" in exc_str or "transcript" in exc_str or "audio" in exc_str:
+            raise HTTPException(400, "Invalid custom voice revision metadata")
+        if "duration" in exc_str or "preview" in exc_str:
+            raise HTTPException(400, "Voice preview validation failed")
         raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
-        raise HTTPException(503, f"Không tạo được voice preview: {exc}") from exc
+        raise HTTPException(503, "Voice preview generation failed") from exc
 
 
 @app.get("/api/voice-previews/{cache_key}/file")

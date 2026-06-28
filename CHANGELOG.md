@@ -6,6 +6,15 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Custom Voice Preview**: Immutable custom voice revision preview with exact revision ID, reference audio/transcript integrity verification, content-addressed preview cache, and backward-compatible preset request API.
+  - `VoicePreviewService.create_custom()` validates revision metadata, checks SHA-256 integrity for reference audio/transcript, synthesizes preview WAV, and stores in content-addressed cache with atomic manifest.
+  - `TtsService.synthesize()` extended with optional `reference_audio_path` and `reference_transcript` parameters for custom-reference synthesis preview (routing validation prevents mixing modes).
+  - POST `/api/voice-previews` accepts XOR selector: `voice_id` (preset) or `custom_voice_revision_id` (custom), maps domain exceptions to HTTP 404/400/503 without leaking internal details.
+  - Custom Voice Preview UI panel with logical custom voice selector, immutable revision selector, preview button, audio player, and status display. JavaScript converts revision ID to integer and sends exact `custom_voice_revision_id` (no `voice_type` or `preview_text`).
+  - Test coverage: 27 UI contract tests, 16 API integration tests, 29 service tests, 23 TTS tests. Total: 450 tests passing (41.9s).
+  - Real VieNeu custom preview smoke not performed; accepted residual risk with comprehensive offline test coverage.
+  - Live DB remained unchanged; no migration required.
+
 - **Phase 3B: Immutable voice synthesis snapshots** for preset and custom-reference voices with strict version-1 validation, fail-closed legacy policy, and deterministic retry behavior.
   - `SegmentSynthesisInput` dataclass with 14 immutable snapshot fields including voice provider/model, synthesis settings JSON, text SHA-256, and custom reference audio/transcript integrity.
   - `load_segment_synthesis_input()` validates snapshots before TTS, performs SHA-256 integrity checks, and loads managed-storage reference audio without database lookups.
