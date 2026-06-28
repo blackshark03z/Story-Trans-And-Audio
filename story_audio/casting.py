@@ -604,7 +604,11 @@ def approve_plan(db: Database, store: ContentStore, plan_id: int) -> dict[str, A
     return get_plan(db, store, plan_id, include_text=True)
 
 def validate_approved_plan(
-    db: Database, store: ContentStore, plan_id: int, allowed_voice_ids: set[str] | None = None
+    db: Database,
+    store: ContentStore,
+    plan_id: int,
+    allowed_voice_ids: set[str] | None = None,
+    custom_voice_context: CustomVoiceContext | None = None,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     row = db.fetch_one(
         """SELECT cp.*,c.book_id FROM casting_plans cp
@@ -625,6 +629,19 @@ def validate_approved_plan(
             )
             if not character:
                 raise CastingError("Casting plan references a character from another book")
-    if allowed_voice_ids is not None and not voices <= allowed_voice_ids:
-        raise CastingError("Casting plan contains an unavailable voice")
+    
+    # Validate all voices (preset and custom)
+    if allowed_voice_ids is not None:
+        from .voice_ref import is_custom_ref, parse_custom_ref
+        for voice_id in voices:
+            if is_custom_ref(voice_id):
+                # Validate custom voice
+                try:
+                    custom_id = parse_custom_ref(voice_id)
+                    if custom_voice_context is None or custom_voice_context.get(custom_id) is None:
+                        raise CastingError(f"Casting plan contains unavailable custom voice: {voice_id}")
+                except Exception as e:
+                    raise CastingError(f"Casting plan contains invalid custom voice: {e}") from e
+            elif voice_id not in allowed_voice_ids:
+                raise CastingError("Casting plan contains an unavailable voice")
     return dict(row), plan

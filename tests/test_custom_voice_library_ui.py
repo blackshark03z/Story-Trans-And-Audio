@@ -1225,3 +1225,115 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+    # Phase 1 UI Integration Tests
+
+    def test_custom_voices_state_initialized(self):
+        """customVoices state field initialized in global state."""
+        self.assertIn("customVoices:", self.js)
+
+    def test_load_custom_voices_function_exists(self):
+        """loadCustomVoices function exists in JavaScript."""
+        self.assertIn("async function loadCustomVoices()", self.js)
+
+    def test_load_custom_voices_fetches_active_only(self):
+        """loadCustomVoices fetches /api/custom-voices?active_only=true."""
+        load_section = re.search(
+            r"async function loadCustomVoices\(\).*?\}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_section)
+        section_text = load_section.group(0)
+        self.assertIn("/api/custom-voices?active_only=true", section_text)
+
+    def test_load_custom_voices_stores_active_voices(self):
+        """loadCustomVoices filters and stores only active voices."""
+        load_section = re.search(
+            r"async function loadCustomVoices\(\).*?\}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_section)
+        section_text = load_section.group(0)
+        self.assertIn("state.customVoices", section_text)
+        self.assertIn("is_active", section_text)
+
+    def test_open_casting_loads_custom_voices(self):
+        """openCasting loads custom voices alongside preset voices."""
+        open_casting_section = re.search(
+            r"async function openCasting\(\).*?await loadVoices\(\);",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(open_casting_section)
+        section_text = open_casting_section.group(0)
+        # Should call loadCustomVoices after loadVoices
+        self.assertIn("await loadCustomVoices()", section_text)
+
+    def test_casting_voice_options_merges_preset_and_custom(self):
+        """castingVoiceOptions merges preset and custom voices."""
+        casting_section = re.search(
+            r"function castingVoiceOptions\([^)]*\).*?\}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(casting_section)
+        section_text = casting_section.group(0)
+        # Should reference both state.voices and state.customVoices
+        self.assertIn("state.voices", section_text)
+        self.assertIn("state.customVoices", section_text)
+
+    def test_casting_voice_options_uses_optgroups(self):
+        """castingVoiceOptions uses optgroup to separate preset and custom."""
+        casting_section = re.search(
+            r"function castingVoiceOptions\([^)]*\).*?\}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(casting_section)
+        section_text = casting_section.group(0)
+        self.assertIn("<optgroup", section_text)
+        self.assertIn("Preset Voices", section_text)
+        self.assertIn("Custom Voices", section_text)
+
+    def test_casting_voice_options_uses_custom_prefix(self):
+        """castingVoiceOptions uses custom:<id> format for custom voice values."""
+        casting_section = re.search(
+            r"function castingVoiceOptions\([^)]*\).*?\}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(casting_section)
+        section_text = casting_section.group(0)
+        self.assertIn("custom:", section_text)
+
+    def test_casting_voice_options_labels_custom_voices(self):
+        """castingVoiceOptions labels custom voices with (Custom) suffix."""
+        casting_section = re.search(
+            r"function castingVoiceOptions\([^)]*\).*?\}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(casting_section)
+        section_text = casting_section.group(0)
+        self.assertIn("(Custom)", section_text)
+
+    def test_resolution_text_displays_custom_voice_names(self):
+        """resolutionText displays custom voice display name for custom:<id> values."""
+        resolution_section = re.search(
+            r"function resolutionText\([^)]*\).*?\}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(resolution_section)
+        section_text = resolution_section.group(0)
+        # Should check for custom: prefix and lookup in state.customVoices
+        self.assertIn("startsWith('custom:')", section_text)
+        self.assertIn("state.customVoices", section_text)
+
+    def test_source_labels_includes_custom_reference(self):
+        """sourceLabels includes custom_reference label."""
+        self.assertIn("custom_reference:", self.js)
+        self.assertIn("Custom voice", self.js)

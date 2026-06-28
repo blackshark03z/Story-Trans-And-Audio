@@ -295,6 +295,7 @@ def approve_speaker_review(
     decisions: list[dict[str, Any]],
     idempotency_key: str,
     allowed_voice_ids: set[str],
+    custom_voice_context: CustomVoiceContext | None = None,
 ) -> dict[str, Any]:
     if not idempotency_key.strip() or len(idempotency_key) > 200:
         raise SpeakerReviewError("A valid idempotency_key is required")
@@ -454,6 +455,7 @@ def approve_speaker_review(
             maximum=config.tts_max_chars,
             source_metadata={"source": "gemini_speaker_review", "review": review_metadata},
             base_utterances=base_plan["plan"]["utterances"] if base_plan else None,
+            custom_voice_context=custom_voice_context,
         )
         approved = approve_plan(db, store, int(created["id"]))
         return _approval_response(approved, review_metadata, reused=False)
