@@ -984,6 +984,244 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         # Should not have redundant standalone custom preview panel
         self.assertNotIn('custom-voice-preview-panel', self.html)
 
+    # Library Smoke Filtering Tests
+
+    def test_show_smoke_books_checkbox_exists(self):
+        """Show test data checkbox exists in HTML."""
+        self.assertIn('id="showSmokeBooks"', self.html)
+
+    def test_is_smoke_book_function_exists(self):
+        """isSmokeBook helper function exists in JavaScript."""
+        self.assertIn("function isSmokeBook(title)", self.js)
+
+    def test_show_smoke_books_state_initialized(self):
+        """showSmokeBooks state field initialized in global state."""
+        self.assertIn("showSmokeBooks:", self.js)
+
+    def test_smoke_filtering_uses_centralized_logic(self):
+        """Smoke filtering uses centralized isSmokeBook function."""
+        load_books_section = re.search(
+            r"async function loadBooks\(\).*?}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_books_section)
+        section_text = load_books_section.group(0)
+        self.assertIn("isSmokeBook", section_text)
+
+    def test_smoke_books_hidden_by_default(self):
+        """Smoke books are filtered by default when showSmokeBooks is false."""
+        load_books_section = re.search(
+            r"async function loadBooks\(\).*?}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_books_section)
+        section_text = load_books_section.group(0)
+        # Should filter based on showSmokeBooks state
+        self.assertIn("state.showSmokeBooks", section_text)
+        self.assertIn("filter", section_text)
+
+    def test_show_smoke_books_handler_wired(self):
+        """showSmokeBooks checkbox event handler is wired."""
+        pattern = r"\$\('#showSmokeBooks'\)\.onchange"
+        self.assertRegex(self.js, pattern)
+
+    def test_smoke_checkbox_calls_load_books(self):
+        """showSmokeBooks checkbox change triggers loadBooks."""
+        handler_section = re.search(
+            r"\$\('#showSmokeBooks'\)\.onchange.*?loadBooks\(\)",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(handler_section)
+
+    def test_smoke_pattern_matches_common_test_books(self):
+        """isSmokeBook pattern matches common test book patterns."""
+        is_smoke_section = re.search(
+            r"function isSmokeBook\(title\).*?}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(is_smoke_section)
+        section_text = is_smoke_section.group(0)
+        # Should match patterns like "Smoke", "Speaker Review", "Character Bible Smoke"
+        self.assertIn("smoke", section_text.lower())
+        self.assertIn("speaker", section_text.lower())
+        self.assertIn("character", section_text.lower())
+
+    # Custom Voice Form Layout Tests
+
+    def test_upload_revision_grid_class_exists(self):
+        """upload-revision-grid class exists in HTML for form layout."""
+        self.assertIn('class="upload-revision-grid"', self.html)
+
+    def test_upload_revision_grid_styles_exist(self):
+        """upload-revision-grid styles exist in CSS."""
+        self.assertIn(".upload-revision-grid", self.css)
+
+    def test_upload_revision_grid_two_column_layout(self):
+        """upload-revision-grid uses two-column responsive layout."""
+        grid_styles_section = re.search(
+            r"\.upload-revision-grid\{[^}]+\}",
+            self.css,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(grid_styles_section)
+        section_text = grid_styles_section.group(0)
+        self.assertIn("grid-template-columns", section_text)
+        self.assertIn("1fr 1fr", section_text)
+
+    def test_upload_revision_grid_responsive_mobile(self):
+        """upload-revision-grid collapses to single column on mobile."""
+        # Should have media query for smaller screens
+        self.assertIn("@media(max-width:700px)", self.css)
+        mobile_section = re.search(
+            r"@media\(max-width:700px\)\{.*?\.upload-revision-grid.*?\}",
+            self.css,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(mobile_section)
+
+    def test_upload_revision_labels_full_width_structure(self):
+        """Upload revision labels use proper full-width form group structure."""
+        upload_section = re.search(
+            r'<div class="upload-revision-grid">.*?</div>',
+            self.html,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(upload_section)
+        section_text = upload_section.group(0)
+        # Should have labels wrapping inputs/textareas
+        self.assertIn("<label>", section_text)
+        self.assertIn("Reference Audio", section_text)
+        self.assertIn("Exact Transcript", section_text)
+
+    def test_textarea_minimum_height_in_upload_grid(self):
+        """Textareas in upload-revision-grid have minimum height."""
+        grid_styles_section = re.search(
+            r"\.upload-revision-grid.*?min-height",
+            self.css,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(grid_styles_section)
+
+    # Create New Voice Form Layout Tests
+
+    def test_create_voice_form_class_exists(self):
+        """create-voice-form class exists in HTML."""
+        self.assertIn('class="create-voice-form"', self.html)
+
+    def test_voice_form_group_class_exists(self):
+        """voice-form-group class exists in HTML for form groups."""
+        self.assertIn('class="voice-form-group"', self.html)
+
+    def test_voice_description_input_class_exists(self):
+        """voice-description-input class exists for description textareas."""
+        self.assertIn('class="voice-description-input"', self.html)
+
+    def test_create_new_voice_not_using_form_grid(self):
+        """Create New Voice section does not use broken inline form-grid layout."""
+        # Find the Create New Voice section
+        create_section = re.search(
+            r'<h3>Create New Voice</h3>.*?<button id="libraryCreate"',
+            self.html,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(create_section)
+        section_text = create_section.group(0)
+        # Should NOT use form-grid
+        self.assertNotIn('class="form-grid"', section_text)
+        # Should use create-voice-form
+        self.assertIn('class="create-voice-form"', section_text)
+
+    def test_create_voice_name_and_description_separate_groups(self):
+        """Name and Description are in separate form groups."""
+        create_section = re.search(
+            r'<h3>Create New Voice</h3>.*?<button id="libraryCreate"',
+            self.html,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(create_section)
+        section_text = create_section.group(0)
+        # Should have multiple voice-form-group instances
+        form_groups = re.findall(r'class="voice-form-group"', section_text)
+        self.assertGreaterEqual(len(form_groups), 2)
+
+    def test_create_voice_labels_block_level(self):
+        """Labels in Create New Voice are block-level above controls."""
+        create_section = re.search(
+            r'<h3>Create New Voice</h3>.*?<button id="libraryCreate"',
+            self.html,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(create_section)
+        section_text = create_section.group(0)
+        # Labels should have for attribute and be separate from input
+        self.assertIn('for="libraryNewName"', section_text)
+        self.assertIn('for="libraryNewDescription"', section_text)
+
+    def test_create_voice_description_has_dedicated_class(self):
+        """Description textarea has voice-description-input class."""
+        create_section = re.search(
+            r'<textarea id="libraryNewDescription"[^>]*>',
+            self.html,
+        )
+        self.assertIsNotNone(create_section)
+        textarea_tag = create_section.group(0)
+        self.assertIn('voice-description-input', textarea_tag)
+
+    def test_create_voice_form_styles_exist(self):
+        """create-voice-form styles exist in CSS."""
+        self.assertIn(".create-voice-form", self.css)
+
+    def test_voice_form_group_styles_exist(self):
+        """voice-form-group styles exist in CSS."""
+        self.assertIn(".voice-form-group", self.css)
+
+    def test_voice_description_input_styles_exist(self):
+        """voice-description-input styles exist in CSS."""
+        self.assertIn(".voice-description-input", self.css)
+
+    def test_voice_description_input_has_minimum_height(self):
+        """voice-description-input has reasonable minimum height (90-110px)."""
+        desc_styles = re.search(
+            r"\.voice-description-input\{[^}]*min-height:\s*(\d+)px",
+            self.css,
+        )
+        self.assertIsNotNone(desc_styles)
+        height = int(desc_styles.group(1))
+        self.assertGreaterEqual(height, 90)
+        self.assertLessEqual(height, 110)
+
+    def test_voice_form_group_labels_block_level_in_css(self):
+        """voice-form-group labels are styled as block-level in CSS."""
+        label_styles = re.search(
+            r"\.voice-form-group label\{[^}]*display:\s*block",
+            self.css,
+        )
+        self.assertIsNotNone(label_styles)
+
+    def test_voice_form_controls_full_width(self):
+        """Form controls in voice-form-group are full width."""
+        control_styles = re.search(
+            r"\.voice-form-group (input|select|textarea)\{[^}]*width:\s*100%",
+            self.css,
+        )
+        self.assertIsNotNone(control_styles)
+
+    def test_voice_form_controls_have_focus_state(self):
+        """Form controls have visible focus state."""
+        focus_styles = re.search(
+            r"\.voice-form-group (input|select|textarea):focus",
+            self.css,
+        )
+        self.assertIsNotNone(focus_styles)
+
+    def test_voice_description_input_resize_vertical(self):
+        """voice-description-input has resize: vertical."""
+        self.assertIn("resize:vertical", self.css.replace(" ", ""))
+
 
 if __name__ == "__main__":
     unittest.main()
