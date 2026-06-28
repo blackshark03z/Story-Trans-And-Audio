@@ -14,26 +14,35 @@ Roadmap mô tả thứ tự đầu tư, không phải cam kết thời gian. Ưu
 - Gemini Speaker Assignment Draft Core.
 - Speaker Assignment Review and Approval UI: confidence/alternatives/manual choice, effective voice preview, partial immutable approval, stale protection và idempotency.
 - Long-Chapter End-to-End Validation and Hardening: Phase 1 preflight/draft/review/approval, Phase 2 VieNeu render/retry/audio QA, Phase 3 Handoff export/import/downstream compatibility.
-- Custom Reference Voice Library UI (Complete): Global library interface, logical voice management, immutable revision upload, exact revision selection, Reference Audio playback, custom Preview Text, short preview support, compact Preset Voice Preview restored, smoke/test book filtering, full-width vertical form layouts, responsive design. **Merged into main via PR #2. Ready for personal production use.**
+- Custom Reference Voice Library UI: Global library interface, logical voice management, immutable revision upload, exact revision selection, Reference Audio playback, custom Preview Text, short preview support, compact Preset Voice Preview restored, smoke/test book filtering, full-width vertical form layouts, responsive design. **Merged into main via PR #2.**
+- Custom Voice Backend Resolution & Snapshot Support: voice_ref.py `custom:<id>` parser, CustomVoiceContext catalog, resolver integration in casting/profile/pipeline, 14-field immutable snapshot, snapshot-based TTS synthesis, fail-closed legacy policy, 377 offline tests (92 new snapshot tests), real VieNeu smoke (preset + custom). **Migration 0007, Phase 3A/3B complete.**
 
-## Next — Deferred (Awaiting User Approval)
+## Next — In Progress
 
-YouTube Auto Handoff V2 Output Package: Chapter-level output contract for YouTube Auto downstream processing.
+Multi Custom Voice Ready for Personal Use: Complete end-to-end workflow validation for custom reference voices in production use.
 
-Required outputs:
-- Final chapter audio (M4A/MP3)
-- timeline.json: segment-level timing with speaker labels, timestamps from assembled audio
-- subtitles.srt: relative timestamps for portable bundle
-- manifest.json: chapter metadata, artifact references, relative paths
+**Current Phase**: UI Integration
 
-Validation:
-- Real chapter render validation
-- Full handoff smoke test with timeline/subtitles
-- Portable bundle structure verification
+**Remaining Work**:
+1. **UI Integration**: Load custom voices from `/api/custom-voices` into Book Voice Profile, Character Override, and Manual Casting voice selects. Merge with presets in `castingVoiceOptions()`, display format `"<name> (Custom)"`, preserve preset-only backward compatibility.
+
+2. **Short Smoke Test**: 3-utterance isolated chapter with mixed custom/preset voices, verify job/TTS/timeline/retry.
+
+3. **Real Chapter Render**: Full chapter (20–50 utterances) with custom narrator + preset dialogue, verify distribution/quality/handoff.
+
+4. **Retry Validation**: Force segment failure, verify custom voice snapshot preservation during retry.
+
+5. **Documentation Closeout**: Update PROJECT_STATUS, ROADMAP, CHANGELOG to reflect "Ready for Personal Use" status.
+
+**Status**: Backend complete (resolution, snapshot, TTS integration, 377 tests). UI library panel complete and merged (PR #2, 613 tests). Voice selects do not yet expose custom voices to user.
 
 ## Paused
 
-No active implementation task. Custom Voice Library UI complete and merged. Chapter Output Package for YouTube Auto deferred until user explicitly approves starting it.
+No paused tasks. Active implementation: Multi Custom Voice Ready for Personal Use (UI Integration phase).
+
+## Deferred (Awaiting User Approval After Current Task)
+
+YouTube Auto Handoff V2 Output Package: Chapter-level output contract with timeline.json, subtitles.srt, manifest.json for YouTube Auto downstream processing.
 
 
 ## Ownership Boundary

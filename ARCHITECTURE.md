@@ -219,7 +219,7 @@ Danh sách 1.980 chương phải dùng virtual scrolling, phân trang phía back
 - Hiện có voice preview và Character Manager/manual casting.
 - UI cấu hình profile/override và hiển thị resolution source/needs-review trong casting đã hoàn thành.
 - Không sửa voice của CastingPlan/job cũ; thay profile/override chỉ ảnh hưởng plan/job mới.
-- **Custom Reference Voice Library**: Global library quản lý logical custom voices với immutable audio/transcript revisions. Backend API hoàn tất (migration 0006); UI đang triển khai. Đây là reference-audio synthesis (truyền audio/transcript vào VieNeu runtime), không phải model training hay voice cloning tổng quát.
+- **Custom Reference Voice Library**: Global library quản lý logical custom voices với immutable audio/transcript revisions. Backend API hoàn tất (migration 0006). UI library panel và preview hoàn tất và merged vào main (PR #2). **Backend resolution và snapshot support hoàn tất** (migration 0007, phase 3A/3B). **UI integration vào voice selects chưa có** — người dùng chưa assign custom voices qua browser cho narrator/male/female/character. Đây là reference-audio synthesis (truyền audio/transcript vào VieNeu runtime), không phải model training hay voice cloning tổng quát.
 
 ### Trình phát
 
