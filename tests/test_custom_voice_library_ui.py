@@ -984,6 +984,128 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         # Should not have redundant standalone custom preview panel
         self.assertNotIn('custom-voice-preview-panel', self.html)
 
+    # Library Smoke Filtering Tests
+
+    def test_show_smoke_books_checkbox_exists(self):
+        """Show test data checkbox exists in HTML."""
+        self.assertIn('id="showSmokeBooks"', self.html)
+
+    def test_is_smoke_book_function_exists(self):
+        """isSmokeBook helper function exists in JavaScript."""
+        self.assertIn("function isSmokeBook(title)", self.js)
+
+    def test_show_smoke_books_state_initialized(self):
+        """showSmokeBooks state field initialized in global state."""
+        self.assertIn("showSmokeBooks:", self.js)
+
+    def test_smoke_filtering_uses_centralized_logic(self):
+        """Smoke filtering uses centralized isSmokeBook function."""
+        load_books_section = re.search(
+            r"async function loadBooks\(\).*?}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_books_section)
+        section_text = load_books_section.group(0)
+        self.assertIn("isSmokeBook", section_text)
+
+    def test_smoke_books_hidden_by_default(self):
+        """Smoke books are filtered by default when showSmokeBooks is false."""
+        load_books_section = re.search(
+            r"async function loadBooks\(\).*?}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_books_section)
+        section_text = load_books_section.group(0)
+        # Should filter based on showSmokeBooks state
+        self.assertIn("state.showSmokeBooks", section_text)
+        self.assertIn("filter", section_text)
+
+    def test_show_smoke_books_handler_wired(self):
+        """showSmokeBooks checkbox event handler is wired."""
+        pattern = r"\$\('#showSmokeBooks'\)\.onchange"
+        self.assertRegex(self.js, pattern)
+
+    def test_smoke_checkbox_calls_load_books(self):
+        """showSmokeBooks checkbox change triggers loadBooks."""
+        handler_section = re.search(
+            r"\$\('#showSmokeBooks'\)\.onchange.*?loadBooks\(\)",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(handler_section)
+
+    def test_smoke_pattern_matches_common_test_books(self):
+        """isSmokeBook pattern matches common test book patterns."""
+        is_smoke_section = re.search(
+            r"function isSmokeBook\(title\).*?}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(is_smoke_section)
+        section_text = is_smoke_section.group(0)
+        # Should match patterns like "Smoke", "Speaker Review", "Character Bible Smoke"
+        self.assertIn("smoke", section_text.lower())
+        self.assertIn("speaker", section_text.lower())
+        self.assertIn("character", section_text.lower())
+
+    # Custom Voice Form Layout Tests
+
+    def test_upload_revision_grid_class_exists(self):
+        """upload-revision-grid class exists in HTML for form layout."""
+        self.assertIn('class="upload-revision-grid"', self.html)
+
+    def test_upload_revision_grid_styles_exist(self):
+        """upload-revision-grid styles exist in CSS."""
+        self.assertIn(".upload-revision-grid", self.css)
+
+    def test_upload_revision_grid_two_column_layout(self):
+        """upload-revision-grid uses two-column responsive layout."""
+        grid_styles_section = re.search(
+            r"\.upload-revision-grid\{[^}]+\}",
+            self.css,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(grid_styles_section)
+        section_text = grid_styles_section.group(0)
+        self.assertIn("grid-template-columns", section_text)
+        self.assertIn("1fr 1fr", section_text)
+
+    def test_upload_revision_grid_responsive_mobile(self):
+        """upload-revision-grid collapses to single column on mobile."""
+        # Should have media query for smaller screens
+        self.assertIn("@media(max-width:700px)", self.css)
+        mobile_section = re.search(
+            r"@media\(max-width:700px\)\{.*?\.upload-revision-grid.*?\}",
+            self.css,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(mobile_section)
+
+    def test_upload_revision_labels_full_width_structure(self):
+        """Upload revision labels use proper full-width form group structure."""
+        upload_section = re.search(
+            r'<div class="upload-revision-grid">.*?</div>',
+            self.html,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(upload_section)
+        section_text = upload_section.group(0)
+        # Should have labels wrapping inputs/textareas
+        self.assertIn("<label>", section_text)
+        self.assertIn("Reference Audio", section_text)
+        self.assertIn("Exact Transcript", section_text)
+
+    def test_textarea_minimum_height_in_upload_grid(self):
+        """Textareas in upload-revision-grid have minimum height."""
+        grid_styles_section = re.search(
+            r"\.upload-revision-grid.*?min-height",
+            self.css,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(grid_styles_section)
+
 
 if __name__ == "__main__":
     unittest.main()

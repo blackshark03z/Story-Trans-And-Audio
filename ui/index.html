@@ -24,6 +24,7 @@
       <div class="row import-row">
         <select id="epubPath"></select>
         <button id="importBtn" class="secondary">Nhập EPUB</button>
+        <label class="check"><input id="showSmokeBooks" type="checkbox"> Show test data</label>
       </div>
       <div id="books" class="book-grid"></div>
     </section>
@@ -72,7 +73,7 @@
         </div>
         <h4>Upload Revision</h4>
         <p class="muted immutable-notice">Uploading new audio or transcript creates a new immutable revision. Existing revisions are never overwritten.</p>
-        <div class="form-grid">
+        <div class="upload-revision-grid">
           <label>Reference Audio<input id="libraryAudioFile" type="file" accept="audio/wav,audio/x-wav,audio/mp3,audio/mpeg" disabled></label>
           <label>Exact Transcript<textarea id="libraryTranscript" placeholder="Enter the exact transcript for the reference audio" rows="3" maxlength="10000" disabled></textarea><span id="libraryTranscriptCounter" class="char-counter muted">0 / 10000</span></label>
         </div>
