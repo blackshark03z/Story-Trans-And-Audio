@@ -1673,3 +1673,136 @@ if __name__ == "__main__":
         """sourceLabels includes custom_reference label."""
         self.assertIn("custom_reference:", self.js)
         self.assertIn("Custom voice", self.js)
+
+
+    # Main Job Selector Integration Tests
+    def test_load_voices_calls_load_custom_voices(self):
+        """loadVoices loads custom voices after loading preset voices."""
+        load_voices_section = re.search(
+            r"async function loadVoices\(\).*?}finally",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_voices_section)
+        section_text = load_voices_section.group(0)
+        # Should call loadCustomVoices
+        self.assertIn("await loadCustomVoices()", section_text)
+
+    def test_voice_select_uses_casting_voice_options(self):
+        """voiceSelect uses castingVoiceOptions for grouped preset+custom options."""
+        load_voices_section = re.search(
+            r"async function loadVoices\(\).*?}finally",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_voices_section)
+        section_text = load_voices_section.group(0)
+        # Should use castingVoiceOptions() instead of direct map
+        self.assertIn("castingVoiceOptions()", section_text)
+        self.assertIn("$('#voiceSelect').innerHTML", section_text)
+
+    def test_voice_select_does_not_store_revision_ids(self):
+        """voiceSelect option values never contain revision IDs (e.g., NOT custom:25:1)."""
+        casting_options_section = re.search(
+            r"function castingVoiceOptions\([^)]*\).*?\}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(casting_options_section)
+        section_text = casting_options_section.group(0)
+        # Should use custom:${v.id} format (logical voice only)
+        self.assertIn("custom:${v.id}", section_text)
+        # Should NOT contain revision_number or revision_id in option values
+        self.assertNotIn("revision_number", section_text)
+        self.assertNotIn("revision_id", section_text)
+
+    def test_preview_voice_sends_logical_reference_unchanged(self):
+        """previewVoice sends voiceSelect value unchanged (e.g., custom:25)."""
+        preview_section = re.search(
+            r"async function previewVoice\(\).*?}finally",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(preview_section)
+        section_text = preview_section.group(0)
+        # Should read from voiceSelect and send directly to API
+        self.assertIn("$('#voiceSelect').value", section_text)
+        self.assertIn("voice_id:voiceId", section_text)
+
+    def test_run_job_sends_logical_reference_unchanged(self):
+        """runJob sends voiceSelect value unchanged in voice_name field."""
+        run_job_section = re.search(
+            r"async function runJob\(\).*?}catch",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(run_job_section)
+        section_text = run_job_section.group(0)
+        # Should use voiceSelect value directly
+        self.assertIn("voice_name:$('#voiceSelect').value", section_text)
+
+    def test_load_voices_handles_custom_api_failure_gracefully(self):
+        """loadCustomVoices error doesn't break loadVoices, presets remain usable."""
+        load_custom_section = re.search(
+            r"async function loadCustomVoices\(\).*?\}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_custom_section)
+        section_text = load_custom_section.group(0)
+        # Should catch errors and set empty array
+        self.assertIn("catch", section_text)
+        self.assertIn("state.customVoices=[]", section_text)
+
+    def test_preset_voice_select_remains_preset_only(self):
+        """presetVoiceSelect remains preset-only, does not use castingVoiceOptions."""
+        load_preset_section = re.search(
+            r"async function loadPresetVoices\(\).*?}finally",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_preset_section)
+        section_text = load_preset_section.group(0)
+        # Should use direct map, NOT castingVoiceOptions
+        self.assertIn("$('#presetVoiceSelect').innerHTML", section_text)
+        self.assertIn("data.items.map", section_text)
+        self.assertNotIn("castingVoiceOptions", section_text)
+
+    def test_load_voices_updates_total_count(self):
+        """loadVoices toast shows combined preset + custom voice count."""
+        load_voices_section = re.search(
+            r"async function loadVoices\(\).*?}finally",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_voices_section)
+        section_text = load_voices_section.group(0)
+        # Should calculate total from both sources
+        self.assertIn("state.voices.length", section_text)
+        self.assertIn("state.customVoices", section_text)
+
+    def test_voice_select_repeated_loading_no_duplication(self):
+        """Repeated loadVoices calls replace options rather than duplicating."""
+        load_voices_section = re.search(
+            r"async function loadVoices\(\).*?}finally",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_voices_section)
+        section_text = load_voices_section.group(0)
+        # Should use innerHTML assignment (replaces content)
+        self.assertIn("$('#voiceSelect').innerHTML", section_text)
+        # Should NOT use += or append
+        self.assertNotIn(".innerHTML+=", section_text)
+        self.assertNotIn(".append(", section_text)
+
+    def test_casting_selectors_remain_unchanged(self):
+        """Profile and casting selectors continue using castingVoiceOptions unchanged."""
+        # Book Voice Profile selectors
+        self.assertIn("$('#profileNarratorVoice').innerHTML=castingVoiceOptions", self.js)
+        self.assertIn("$('#profileMaleVoice').innerHTML=castingVoiceOptions", self.js)
+        self.assertIn("$('#profileFemaleVoice').innerHTML=castingVoiceOptions", self.js)
+        self.assertIn("$('#profileExplicitVoice').innerHTML=castingVoiceOptions", self.js)
+        # Casting panel selectors
+        self.assertIn("$('#castingNarratorVoice').innerHTML=castingVoiceOptions", self.js)
+        self.assertIn("$('#newCharacterVoice').innerHTML=castingVoiceOptions", self.js)

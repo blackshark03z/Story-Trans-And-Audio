@@ -661,8 +661,9 @@ def approve_casting(casting_plan_id: int) -> dict[str, Any]:
 @app.post("/api/voice-previews")
 def create_voice_preview(request: VoicePreviewRequest) -> dict[str, Any]:
     # Import custom voice exceptions for error handling
-    from .custom_voice import CustomVoiceRevisionNotFoundError
+    from .custom_voice import CustomVoiceRevisionNotFoundError, CustomVoiceRepository
     from .synthesis_snapshot import StorageResolutionError
+    from .voice_ref import is_custom_ref, resolve_custom_ref, CustomVoiceContext
 
     # XOR validation: exactly one selector required
     preset_provided = request.voice_id is not None
@@ -679,15 +680,30 @@ def create_voice_preview(request: VoicePreviewRequest) -> dict[str, Any]:
 
     try:
         if preset_provided:
-            # Preset path (unchanged behavior)
-            valid_voices = {item["id"] for item in tts_service.voices()}
-            if request.voice_id not in valid_voices:
-                raise ValueError(f"Giọng '{request.voice_id}' không tồn tại trong VieNeu.")
-            result = voice_previews.create(request.voice_id)
-            result["audio_url"] = f"/api/voice-previews/{result['cache_key']}/file"
-            return result
+            # Check if voice_id is a custom logical reference (e.g., "custom:25")
+            if is_custom_ref(request.voice_id):
+                # Resolve logical custom voice reference to preferred revision
+                ctx = CustomVoiceContext.from_repository(custom_voice_repo)
+                resolved = resolve_custom_ref(request.voice_id, ctx, repository=custom_voice_repo)
+                revision_id = resolved["custom_voice_revision_id"]
+
+                # Use custom path with resolved revision
+                result = voice_previews.create_custom(
+                    revision_id,
+                    preview_text=request.preview_text
+                )
+                result["audio_url"] = f"/api/voice-previews/{result['cache_key']}/file"
+                return result
+            else:
+                # Preset path (unchanged behavior)
+                valid_voices = {item["id"] for item in tts_service.voices()}
+                if request.voice_id not in valid_voices:
+                    raise ValueError(f"Giọng '{request.voice_id}' không tồn tại trong VieNeu.")
+                result = voice_previews.create(request.voice_id)
+                result["audio_url"] = f"/api/voice-previews/{result['cache_key']}/file"
+                return result
         else:
-            # Custom path with optional preview_text
+            # Custom path with explicit revision ID and optional preview_text
             result = voice_previews.create_custom(
                 request.custom_voice_revision_id,
                 preview_text=request.preview_text
@@ -707,6 +723,8 @@ def create_voice_preview(request: VoicePreviewRequest) -> dict[str, Any]:
             raise HTTPException(400, "Voice preview validation failed")
         raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(503, "Voice preview generation failed") from exc
 
 
