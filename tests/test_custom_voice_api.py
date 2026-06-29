@@ -485,6 +485,22 @@ class CustomVoiceApiTests(unittest.TestCase):
         voice_in_list = next(v for v in voices if v["id"] == voice["id"])
         self.assertEqual(voice_in_list["preferred_synthesis_revision_id"], rev["id"])
 
+    def test_set_preferred_revision_wrong_voice_rejected(self) -> None:
+        """Test that a revision from a different voice cannot be set as preferred."""
+        voice_a = create_custom_voice_handler(self.repo, "Voice A")
+        voice_b = create_custom_voice_handler(self.repo, "Voice B")
+        audio_data = b"fake audio data"
+
+        # Create revision for Voice B
+        upload = self._create_mock_upload("test.wav", audio_data)
+        rev_b = create_custom_voice_revision_handler(self.repo, voice_b["id"], upload, "Transcript B")
+
+        # Try to set Voice B's revision as preferred for Voice A - should fail
+        with self.assertRaises(HTTPException) as ctx:
+            set_preferred_synthesis_revision_handler(self.repo, voice_a["id"], rev_b["id"])
+        self.assertEqual(ctx.exception.status_code, 404)
+        self.assertIn("does not belong", str(ctx.exception.detail))
+
 
 if __name__ == "__main__":
     unittest.main()
