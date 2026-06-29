@@ -79,7 +79,7 @@ from .voice_profile import (
     set_character_gender,
     set_character_voice_override,
 )
-from .voice_ref import CustomVoiceContext
+from .voice_ref import CustomVoiceContext, is_custom_ref, resolve_custom_ref
 
 
 settings.ensure_dirs()
@@ -771,15 +771,29 @@ def submit_job(request: JobRequest) -> dict[str, Any]:
     try:
         payload = request.model_dump()
         payload["voice_name"] = unicodedata.normalize("NFC", payload["voice_name"]).strip()
-        valid_voices = _preset_voice_ids()
-        if payload["voice_name"] not in valid_voices:
-            raise ValueError(f"Giọng '{payload['voice_name']}' không tồn tại trong VieNeu.")
+
+        # Validate voice reference (preset or custom logical reference)
+        voice_name = payload["voice_name"]
+        if is_custom_ref(voice_name):
+            # Validate custom logical reference
+            ctx = CustomVoiceContext.from_repository(custom_voice_repo)
+            try:
+                # This will raise if voice is inactive, missing, or has no preferred revision
+                resolve_custom_ref(voice_name, ctx, repository=custom_voice_repo)
+            except Exception as exc:
+                raise ValueError(f"Giọng '{voice_name}' không khả dụng: {str(exc)}")
+        else:
+            # Validate preset voice
+            valid_voices = _preset_voice_ids()
+            if voice_name not in valid_voices:
+                raise ValueError(f"Giọng '{voice_name}' không tồn tại trong VieNeu.")
+
         if payload.get("casting_plan_id") is not None:
             validate_approved_plan(
                 db,
                 store,
                 int(payload["casting_plan_id"]),
-                valid_voices,
+                _preset_voice_ids(),
                 custom_voice_context=_build_custom_voice_context(),
             )
         result = create_job(db, settings, store=store, **payload)

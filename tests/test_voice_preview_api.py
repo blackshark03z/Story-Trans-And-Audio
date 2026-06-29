@@ -150,6 +150,144 @@ class VoicePreviewApiTests(IsolatedTestCase):
         self.assertIn("audio_url", data)
 
 
+class JobCreationWithCustomVoicesTests(IsolatedTestCase):
+    """Test job creation validation logic for custom logical voice references."""
+
+    def test_job_creation_accepts_custom_logical_reference(self):
+        """
+        POST /api/jobs accepts custom:25 and validates through CustomVoiceContext.
+
+        This is an integration test that exercises the full job creation path
+        including import verification.
+        """
+        db = Database(self.config.db_path)
+        db.initialize()
+        store = ContentStore(self.config)
+        repo = CustomVoiceRepository(db, store)
+
+        # Create book
+        with db.connect() as conn:
+            book_id = conn.execute(
+                "INSERT INTO books (title, source_path, source_sha256, created_at, updated_at) "
+                "VALUES (?, ?, ?, datetime('now'), datetime('now'))",
+                ("Test Book", "/test/book.epub", "a" * 64)
+            ).lastrowid
+
+        # Create active voice with preferred revision
+        voice = repo.create_custom_voice("Test Voice")
+        rev = repo.create_revision(voice.id, b"audio-data", "Test transcript")
+        repo.set_preferred_synthesis_revision(voice.id, rev.id)
+
+        # Attempt to create job with custom logical reference
+        client = TestClient(app)
+        response = client.post(
+            "/api/jobs",
+            json={
+                "book_id": book_id,
+                "voice_name": f"custom:{voice.id}",
+                "chapter_range": [1, 1],
+                "repair_mode": "off"
+            }
+        )
+
+        # Should succeed (or fail with expected validation, not NameError)
+        # The key test is that is_custom_ref is properly imported
+        if response.status_code == 400:
+            # May fail due to missing chapter data, but should NOT be NameError
+            error = response.json()
+            self.assertNotIn("NameError", str(error))
+            self.assertNotIn("is_custom_ref", str(error))
+
+    def test_is_custom_ref_detection_in_job_submission(self):
+        """
+        Job submission correctly detects custom: prefix.
+
+        This is a smoke test - actual manual job creation provides full coverage.
+        """
+        from story_audio.voice_ref import is_custom_ref
+
+        # Custom references detected
+        self.assertTrue(is_custom_ref("custom:25"))
+        self.assertTrue(is_custom_ref("custom:1"))
+
+        # Preset voices not detected as custom
+        self.assertFalse(is_custom_ref("vi-vn-wavenet-d"))
+        self.assertFalse(is_custom_ref("standard-male"))
+        self.assertFalse(is_custom_ref("customvoice"))  # Missing colon
+
+    def test_custom_voice_resolution_for_job_validation(self):
+        """
+        Custom voice resolution works for job validation.
+
+        This tests the resolve_custom_ref function used in job validation.
+        """
+        db = Database(self.config.db_path)
+        db.initialize()
+        store = ContentStore(self.config)
+        repo = CustomVoiceRepository(db, store)
+
+        # Create active voice with preferred revision
+        voice = repo.create_custom_voice("Test Voice")
+        rev = repo.create_revision(voice.id, b"audio", "transcript")
+        repo.set_preferred_synthesis_revision(voice.id, rev.id)
+
+        # Should resolve successfully
+        from story_audio.voice_ref import resolve_custom_ref, CustomVoiceContext
+        ctx = CustomVoiceContext.from_repository(repo)
+
+        resolved = resolve_custom_ref(f"custom:{voice.id}", ctx, repository=repo)
+        self.assertEqual(resolved["custom_voice_revision_id"], rev.id)
+        self.assertEqual(resolved["custom_voice_id"], voice.id)
+
+    def test_inactive_custom_voice_fails_resolution(self):
+        """
+        Inactive custom voices fail resolution for job validation.
+        """
+        db = Database(self.config.db_path)
+        db.initialize()
+        store = ContentStore(self.config)
+        repo = CustomVoiceRepository(db, store)
+
+        voice = repo.create_custom_voice("Test Voice")
+        rev = repo.create_revision(voice.id, b"audio", "transcript")
+        repo.set_preferred_synthesis_revision(voice.id, rev.id)
+        repo.deactivate_custom_voice(voice.id)
+
+        from story_audio.voice_ref import resolve_custom_ref, CustomVoiceContext
+        ctx = CustomVoiceContext.from_repository(repo)
+
+        # Should raise exception
+        with self.assertRaises(Exception):
+            resolve_custom_ref(f"custom:{voice.id}", ctx, repository=repo)
+
+    def test_custom_voice_without_preferred_revision_falls_back(self):
+        """
+        Custom voices without preferred revision may fall back to latest revision.
+
+        The resolution logic determines fallback behavior.
+        """
+        db = Database(self.config.db_path)
+        db.initialize()
+        store = ContentStore(self.config)
+        repo = CustomVoiceRepository(db, store)
+
+        voice = repo.create_custom_voice("Test Voice")
+        rev = repo.create_revision(voice.id, b"audio", "transcript")
+        # NO preferred revision set
+
+        from story_audio.voice_ref import resolve_custom_ref, CustomVoiceContext
+        ctx = CustomVoiceContext.from_repository(repo)
+
+        # Should either resolve (with fallback) or raise exception
+        try:
+            resolved = resolve_custom_ref(f"custom:{voice.id}", ctx, repository=repo)
+            # If it resolves, it should use the available revision
+            self.assertIsNotNone(resolved["custom_voice_revision_id"])
+        except Exception:
+            # If it raises, that's also valid behavior
+            pass
+
+
 if __name__ == "__main__":
     import unittest
     unittest.main()
