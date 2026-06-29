@@ -4,9 +4,14 @@
 **Milestone:** Custom Voice Backend Complete; UI Integration Pending
 **Trạng thái:** Backend ready for personal use; UI voice selects do not expose custom voices yet
 
-Đây là nguồn sự thật ngắn gọn về tiến độ. Sau mỗi thay đổi đáng kể, cập nhật file này thay vì buộc người tiếp theo đọc lịch sử chat hoặc toàn bộ kiến trúc.
+File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
+
+**Last verified against commit:** `a3208c12f3da24d96aa24b1cd78c0459c5b57710`
+**Last verified branch:** `feat/multi-custom-voice-short-smoke`
+**Last verified date:** 2026-06-28
+**Last verified focused test baseline:** 377 tests passing (verified 2026-06-28 at commit a3208c12)
 
 - EPUB: `Quang_Am_Chi_Ngoai.epub`.
 - Import: 1 sách, 1.980 chương, khoảng 12,6 triệu ký tự.
@@ -18,7 +23,7 @@
 - Schema migration: version 7 (`0007_voice_snapshot`), checksum-locked.
 - Code supports: schema version 7.
 - Offline tests: 377 tests passing (92 new snapshot tests added in Phase 3B).
-- Live DB: schema version 7, SHA-256 `A17D3DF726DAD98A7A9777D55A8E68147E06995308EF35169A5E18AC3CD1D9FA`.
+- Live DB: schema version 7, SHA-256 `A17D3DF726DAD98A7A9777D55A8E68147E06995308EF35169A5E18AC3CD1D9FA` (verified 2026-06-28).
 - End-to-end smoke: chương 858, giọng Ngọc Lan, Gemini `all_selected`.
 - Kết quả smoke: 10/10 segment, M4A dài 118.710 ms, artifact active.
 - Multi-voice real-TTS smoke: isolated book 3 / chapter 1982, casting plan 2, job 3.
