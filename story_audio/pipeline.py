@@ -927,9 +927,7 @@ class PipelineWorker:
                     else:
                         snap_logical_ref = speaker_role  # narrator/unknown/etc.
 
-                    snap_effective_ref = voice_id  # "custom:<id>" - stable, no revision
-
-                    # Resolve custom ref
+                    # Resolve custom ref first
                     custom_voice_id = parse_custom_ref(voice_id)
                     if not hasattr(self, "_custom_ctx_cache"):
                         repo = CustomVoiceRepository(self.db, self.store)
@@ -947,6 +945,8 @@ class PipelineWorker:
                         raise ValueError(f"Transcript SHA-256 mismatch for {voice_id}")
 
                     snap_custom_revision_id = resolved["custom_voice_revision_id"]
+                    # effective_voice_ref must be custom:<revision_id> for snapshot validation
+                    snap_effective_ref = f"custom:{snap_custom_revision_id}"
                     snap_audio_sha = resolved["audio_sha256"]
                     snap_audio_key = resolved["audio_storage_key"]
                     snap_transcript = transcript

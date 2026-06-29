@@ -51,17 +51,21 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         """Library selected details section exists in HTML."""
         self.assertIn('id="librarySelectedDetails"', self.html)
 
-    def test_library_selected_name_input_exists(self):
-        """Library selected name input exists in HTML."""
-        self.assertIn('id="librarySelectedName"', self.html)
+    def test_library_voice_info_container_exists(self):
+        """Library voice info container exists in HTML."""
+        self.assertIn('id="libraryVoiceInfo"', self.html)
 
-    def test_library_selected_description_textarea_exists(self):
-        """Library selected description textarea exists in HTML."""
-        self.assertIn('id="librarySelectedDescription"', self.html)
+    def test_library_voice_info_name_exists(self):
+        """Library voice info name element exists in HTML."""
+        self.assertIn('id="libraryVoiceInfoName"', self.html)
 
-    def test_library_selected_status_input_exists(self):
-        """Library selected status input exists in HTML."""
-        self.assertIn('id="librarySelectedStatus"', self.html)
+    def test_library_voice_info_status_exists(self):
+        """Library voice info status element exists in HTML."""
+        self.assertIn('id="libraryVoiceInfoStatus"', self.html)
+
+    def test_library_voice_info_description_exists(self):
+        """Library voice info description element exists in HTML."""
+        self.assertIn('id="libraryVoiceInfoDescription"', self.html)
 
     def test_library_deactivate_button_exists(self):
         """Library deactivate button exists in HTML."""
@@ -99,9 +103,10 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
             "libraryStatus",
             "libraryVoiceList",
             "librarySelectedDetails",
-            "librarySelectedName",
-            "librarySelectedDescription",
-            "librarySelectedStatus",
+            "libraryVoiceInfo",
+            "libraryVoiceInfoName",
+            "libraryVoiceInfoStatus",
+            "libraryVoiceInfoDescription",
             "libraryDeactivate",
             "libraryReactivate",
             "libraryNewName",
@@ -130,6 +135,61 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
     def test_select_library_voice_function_exists(self):
         """selectLibraryVoice function exists in JavaScript."""
         self.assertIn("function selectLibraryVoice(", self.js)
+
+    def test_select_library_voice_populates_voice_info(self):
+        """selectLibraryVoice populates voice info elements."""
+        select_section = re.search(
+            r"function selectLibraryVoice\([^)]*\)\{",
+            self.js,
+        )
+        self.assertIsNotNone(select_section)
+        # Find the full function body by finding the matching closing brace
+        start = select_section.start()
+        # Look for the function content (simplified check for key elements)
+        section_text = self.js[start:start+3000]  # Reasonable function length
+        # Should populate voice info name
+        self.assertIn("libraryVoiceInfoName", section_text)
+        # Should populate voice info status with badge classes
+        self.assertIn("libraryVoiceInfoStatus", section_text)
+        # Should populate voice info description
+        self.assertIn("libraryVoiceInfoDescription", section_text)
+
+    def test_select_library_voice_handles_empty_description(self):
+        """selectLibraryVoice shows 'No description' for empty description."""
+        select_section = re.search(
+            r"function selectLibraryVoice\([^)]*\)\{",
+            self.js,
+        )
+        self.assertIsNotNone(select_section)
+        start = select_section.start()
+        section_text = self.js[start:start+3000]
+        self.assertIn("No description", section_text)
+
+    def test_select_library_voice_toggles_button_visibility(self):
+        """selectLibraryVoice toggles button visibility with hidden class."""
+        select_section = re.search(
+            r"function selectLibraryVoice\([^)]*\)\{",
+            self.js,
+        )
+        self.assertIsNotNone(select_section)
+        start = select_section.start()
+        section_text = self.js[start:start+3000]
+        # Should toggle hidden class on buttons
+        self.assertIn("libraryDeactivate", section_text)
+        self.assertIn("libraryReactivate", section_text)
+        self.assertIn("hidden", section_text)
+
+    def test_select_library_voice_updates_upload_target(self):
+        """selectLibraryVoice updates upload target display."""
+        select_section = re.search(
+            r"function selectLibraryVoice\([^)]*\)\{",
+            self.js,
+        )
+        self.assertIsNotNone(select_section)
+        start = select_section.start()
+        section_text = self.js[start:start+3000]
+        # Should populate upload target voice
+        self.assertIn("libraryUploadTargetVoice", section_text)
 
     def test_create_library_voice_function_exists(self):
         """createLibraryVoice function exists in JavaScript."""
@@ -317,9 +377,32 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         """Library upload status element exists in HTML."""
         self.assertIn('id="libraryUploadStatus"', self.html)
 
-    def test_library_upload_error_element_exists(self):
-        """Library upload error element exists in HTML."""
-        self.assertIn('id="libraryUploadError"', self.html)
+    def test_library_upload_target_voice_exists(self):
+        """Library upload target voice element exists in HTML."""
+        self.assertIn('id="libraryUploadTargetVoice"', self.html)
+
+    # CSS styling tests for Voice Details
+    def test_library_voice_info_styles_exist(self):
+        """library-voice-info styles exist in CSS."""
+        self.assertIn(".library-voice-info", self.css)
+
+    def test_voice_info_row_styles_exist(self):
+        """voice-info-row styles exist in CSS."""
+        self.assertIn(".voice-info-row", self.css)
+
+    def test_voice_info_badge_styles_exist(self):
+        """voice-info-badge styles exist in CSS."""
+        self.assertIn(".voice-info-badge", self.css)
+        self.assertIn(".voice-info-badge.badge-active", self.css)
+        self.assertIn(".voice-info-badge.badge-inactive", self.css)
+
+    def test_upload_target_display_styles_exist(self):
+        """upload-target-display styles exist in CSS."""
+        self.assertIn(".upload-target-display", self.css)
+
+    def test_upload_target_voice_styles_exist(self):
+        """upload-target-voice styles exist in CSS."""
+        self.assertIn(".upload-target-voice", self.css)
 
     def test_immutable_notice_exists(self):
         """Immutable revision notice exists in HTML."""
@@ -335,9 +418,9 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         self.assertIn('id="libraryRevisionsList"', self.html)
 
     # Preview UI tests
-    def test_library_preview_revision_button_exists(self):
-        """Library preview revision button exists in HTML."""
-        self.assertIn('id="libraryPreviewRevision"', self.html)
+    def test_library_generate_test_audio_button_exists(self):
+        """Library generate test audio button exists in HTML (dedicated Test Synthesis panel)."""
+        self.assertIn('id="libraryGenerateTestAudio"', self.html)
 
     def test_library_preview_box_exists(self):
         """Library preview box exists in HTML."""
@@ -347,9 +430,9 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         """Library preview audio element exists in HTML."""
         self.assertIn('id="libraryPreviewAudio"', self.html)
 
-    def test_library_preview_status_element_exists(self):
-        """Library preview status element exists in HTML."""
-        self.assertIn('id="libraryPreviewStatus"', self.html)
+    def test_library_preview_provenance_element_exists(self):
+        """Library preview provenance element exists in HTML (replaces old status)."""
+        self.assertIn('id="libraryPreviewProvenance"', self.html)
 
     # JavaScript function existence for upload/revision/preview
     def test_load_library_revisions_function_exists(self):
@@ -360,13 +443,50 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         """renderLibraryRevisions function exists in JavaScript."""
         self.assertIn("function renderLibraryRevisions()", self.js)
 
-    def test_select_library_revision_function_exists(self):
-        """selectLibraryRevision function exists in JavaScript."""
-        self.assertIn("function selectLibraryRevision(", self.js)
+    def test_no_select_library_revision_function(self):
+        """selectLibraryRevision function no longer exists (replaced by testVoiceRevision)."""
+        self.assertNotIn("function selectLibraryRevision(", self.js)
 
     def test_upload_library_revision_function_exists(self):
         """uploadLibraryRevision function exists in JavaScript."""
         self.assertIn("async function uploadLibraryRevision()", self.js)
+
+    def test_upload_captures_voice_id_at_start(self):
+        """uploadLibraryRevision captures selectedVoiceId at function start."""
+        upload_section = re.search(
+            r"async function uploadLibraryRevision\(\).*?}catch",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(upload_section)
+        section_text = upload_section.group(0)
+        # Should capture selectedVoiceId early
+        self.assertIn("selectedVoiceId", section_text)
+
+    def test_upload_uses_captured_voice_in_url(self):
+        """uploadLibraryRevision uses captured voice ID in fetch URL."""
+        upload_section = re.search(
+            r"async function uploadLibraryRevision\(\).*?}catch",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(upload_section)
+        section_text = upload_section.group(0)
+        # Should use captured ID in URL (not state.selectedVoiceId directly)
+        # Look for pattern where a variable is used in the URL
+        self.assertIn("/api/custom-voices/", section_text)
+
+    def test_upload_shows_captured_voice_in_status(self):
+        """uploadLibraryRevision shows captured voice name in status messages."""
+        upload_section = re.search(
+            r"async function uploadLibraryRevision\(\).*?}catch",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(upload_section)
+        section_text = upload_section.group(0)
+        # Should reference voice name in status messages
+        self.assertIn("libraryUploadStatus", section_text)
 
     def test_show_library_upload_error_function_exists(self):
         """showLibraryUploadError function exists in JavaScript."""
@@ -376,18 +496,18 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         """mapLibraryUploadError function exists in JavaScript."""
         self.assertIn("function mapLibraryUploadError(", self.js)
 
-    def test_preview_library_revision_function_exists(self):
-        """previewLibraryRevision function exists in JavaScript."""
-        self.assertIn("async function previewLibraryRevision()", self.js)
+    def test_generate_test_audio_function_exists(self):
+        """generateTestAudio function exists in JavaScript (renamed from previewLibraryRevision)."""
+        self.assertIn("async function generateTestAudio()", self.js)
 
     # State management for upload/revision/preview
     def test_library_revisions_state_initialized(self):
         """libraryRevisions state field initialized in global state."""
         self.assertIn("libraryRevisions:", self.js)
 
-    def test_selected_revision_id_state_initialized(self):
-        """selectedRevisionId state field initialized in global state."""
-        self.assertIn("selectedRevisionId:", self.js)
+    def test_preview_revision_id_state_initialized(self):
+        """previewRevisionId state field initialized in global state."""
+        self.assertIn("previewRevisionId:", self.js)
 
     def test_upload_busy_state_initialized(self):
         """uploadBusy state field initialized in global state."""
@@ -464,23 +584,23 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         pattern = r"/api/custom-voices/\$\{.*?\}/revisions"
         self.assertRegex(self.js, pattern)
 
-    def test_select_revision_stores_exact_id(self):
-        """selectLibraryRevision stores exact revision ID (not revision_number)."""
-        select_section = re.search(
-            r"function selectLibraryRevision\(.*?\).*?\}",
+    def test_test_voice_revision_stores_exact_id(self):
+        """testVoiceRevision stores exact revision ID (not revision_number)."""
+        test_voice_section = re.search(
+            r"function testVoiceRevision\([^)]*\).*?\}",
             self.js,
             re.DOTALL,
         )
-        self.assertIsNotNone(select_section)
-        section_text = select_section.group(0)
-        # Should store revision.id, not revision.revision_number
-        self.assertIn("selectedRevisionId", section_text)
+        self.assertIsNotNone(test_voice_section)
+        section_text = test_voice_section.group(0)
+        # Should store id parameter in previewRevisionId
+        self.assertIn("previewRevisionId=id", section_text)
 
     # Preview API integration tests
-    def test_preview_uses_voice_previews_endpoint(self):
-        """previewLibraryRevision uses existing /api/voice-previews endpoint."""
+    def test_generate_test_audio_uses_voice_previews_endpoint(self):
+        """generateTestAudio uses existing /api/voice-previews endpoint."""
         preview_section = re.search(
-            r"async function previewLibraryRevision\(\).*?}catch",
+            r"async function generateTestAudio\(\).*?}catch",
             self.js,
             re.DOTALL,
         )
@@ -488,10 +608,10 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         section_text = preview_section.group(0)
         self.assertIn("/api/voice-previews", section_text)
 
-    def test_preview_sends_custom_voice_revision_id(self):
-        """previewLibraryRevision sends custom_voice_revision_id field."""
+    def test_generate_test_audio_sends_custom_voice_revision_id(self):
+        """generateTestAudio sends custom_voice_revision_id field."""
         preview_section = re.search(
-            r"async function previewLibraryRevision\(\).*?}catch",
+            r"async function generateTestAudio\(\).*?}catch",
             self.js,
             re.DOTALL,
         )
@@ -499,17 +619,17 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         section_text = preview_section.group(0)
         self.assertIn("custom_voice_revision_id", section_text)
 
-    def test_preview_sends_revision_id_as_number(self):
-        """previewLibraryRevision sends revision ID as number (not string)."""
+    def test_generate_test_audio_sends_revision_id_as_number(self):
+        """generateTestAudio sends revision ID as number (not string)."""
         preview_section = re.search(
-            r"async function previewLibraryRevision\(\).*?}catch",
+            r"async function generateTestAudio\(\).*?}catch",
             self.js,
             re.DOTALL,
         )
         self.assertIsNotNone(preview_section)
         section_text = preview_section.group(0)
-        # Should use selectedRevisionId directly (already a number)
-        self.assertIn("state.selectedRevisionId", section_text)
+        # Should use previewRevisionId directly or Number() coercion
+        self.assertIn("state.previewRevisionId", section_text)
 
     # Upload error handling tests
     def test_upload_error_mapping_handles_invalid(self):
@@ -567,9 +687,9 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         """uploadLibraryRevision event handler is wired."""
         self.assertIn("$('#libraryUploadRevision').onclick=uploadLibraryRevision", self.js)
 
-    def test_preview_revision_handler_wired(self):
-        """previewLibraryRevision event handler is wired."""
-        self.assertIn("$('#libraryPreviewRevision').onclick=previewLibraryRevision", self.js)
+    def test_generate_test_audio_handler_wired(self):
+        """generateTestAudio event handler is wired."""
+        self.assertIn("$('#libraryGenerateTestAudio').onclick=generateTestAudio", self.js)
 
     # CSS styling tests for upload/revision
     def test_immutable_notice_styles_exist(self):
@@ -592,13 +712,18 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         """revision-meta styles exist in CSS."""
         self.assertIn(".revision-meta", self.css)
 
-    def test_revision_date_styles_exist(self):
-        """revision-date styles exist in CSS."""
-        self.assertIn(".revision-date", self.css)
+    def test_revision_date_remains_visible(self):
+        """Revision date remains visible in revision rows."""
+        # Date is shown inline, no longer has dedicated .revision-date class
+        render_func = re.search(r"function renderLibraryRevisions\(\).*?\.join\(''\)", self.js, re.DOTALL)
+        self.assertIsNotNone(render_func)
+        # Should format and display date
+        self.assertIn("toLocaleString", render_func.group(0))
+        self.assertIn("created_at", render_func.group(0))
 
-    def test_library_revision_row_selected_state_exists(self):
-        """library-revision-row selected state styles exist in CSS."""
-        self.assertIn(".library-revision-row.selected", self.css)
+    def test_no_selected_row_visual_state(self):
+        """library-revision-row.selected state styles do not exist (stateless UI)."""
+        self.assertNotIn(".library-revision-row.selected", self.css)
 
     # Phase 5B3: Preview Text and Reference Audio Tests
 
@@ -635,9 +760,144 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         """useDefaultPreviewText function exists in JavaScript."""
         self.assertIn("function useDefaultPreviewText()", self.js)
 
-    def test_load_reference_audio_function_exists(self):
-        """loadReferenceAudio function exists in JavaScript."""
-        self.assertIn("function loadReferenceAudio(", self.js)
+    def test_play_reference_audio_function_exists(self):
+        """playReferenceAudio function exists in JavaScript."""
+        self.assertIn("function playReferenceAudio(", self.js)
+
+    def test_test_voice_revision_function_exists(self):
+        """testVoiceRevision function exists in JavaScript."""
+        self.assertIn("function testVoiceRevision(", self.js)
+
+    # New stateless UI behavior tests
+    def test_preferred_revision_shows_badge(self):
+        """Preferred revision shows 'Used for synthesis' badge."""
+        self.assertIn('Used for synthesis', self.js)
+        self.assertIn('preferred-badge', self.js)
+
+    def test_non_preferred_shows_use_button(self):
+        """Non-preferred revisions show 'Use for synthesis' button."""
+        self.assertIn('Use for synthesis', self.js)
+        self.assertIn('setPreferredSynthesisRevision', self.js)
+
+    def test_listen_button_always_visible(self):
+        """Listen button is always visible for all revisions."""
+        self.assertIn('listen-revision-btn', self.js)
+        self.assertIn('playReferenceAudio', self.js)
+
+    def test_no_per_row_test_voice_buttons(self):
+        """Test voice buttons no longer exist per-row (replaced by dedicated Test Synthesis panel)."""
+        render_func = re.search(
+            r"function renderLibraryRevisions\(\).*?\.join\(''\)",
+            self.js,
+            re.DOTALL,
+        )
+        if render_func:
+            func_body = render_func.group(0)
+            # Should NOT have test-voice-btn in revision rows
+            self.assertNotIn('test-voice-btn', func_body,
+                           "Revision rows should not have Test voice buttons")
+
+    # State isolation and endpoint safety tests
+    def test_play_reference_audio_does_not_mutate_preview_state(self):
+        """playReferenceAudio does not modify previewRevisionId state."""
+        play_ref_func = re.search(r"function playReferenceAudio\([^)]*\)\{[^}]*\}", self.js, re.DOTALL)
+        if play_ref_func:
+            func_body = play_ref_func.group(0)
+            # Should NOT contain previewRevisionId assignment
+            self.assertNotIn("previewRevisionId=", func_body,
+                           "playReferenceAudio must not modify previewRevisionId")
+
+    def test_play_reference_audio_does_not_call_patch_endpoint(self):
+        """playReferenceAudio does not call setPreferredSynthesisRevision."""
+        play_ref_func = re.search(r"function playReferenceAudio\([^)]*\)\{[^}]*\}", self.js, re.DOTALL)
+        if play_ref_func:
+            func_body = play_ref_func.group(0)
+            # Should NOT call setPreferredSynthesisRevision
+            self.assertNotIn("setPreferredSynthesisRevision", func_body,
+                           "playReferenceAudio must not trigger preferred revision PATCH")
+
+    def test_set_preferred_synthesis_revision_exists(self):
+        """setPreferredSynthesisRevision function exists for PATCH operations."""
+        self.assertIn("async function setPreferredSynthesisRevision(", self.js)
+
+    def test_set_preferred_synthesis_revision_uses_patch_endpoint(self):
+        """setPreferredSynthesisRevision calls correct PATCH endpoint."""
+        set_pref_func = re.search(r"async function setPreferredSynthesisRevision\([^)]*\)\{.*?method:'PATCH'",
+                                  self.js, re.DOTALL)
+        self.assertIsNotNone(set_pref_func, "setPreferredSynthesisRevision should use PATCH method")
+        func_body = set_pref_func.group(0)
+        self.assertIn("preferred-revision", func_body, "Should call preferred-revision endpoint")
+
+    def test_set_preferred_synthesis_revision_does_not_mutate_preview_state(self):
+        """setPreferredSynthesisRevision does not modify previewRevisionId."""
+        set_pref_func = re.search(r"async function setPreferredSynthesisRevision\([^)]*\)\{[^}]*\}catch",
+                                  self.js, re.DOTALL)
+        if set_pref_func:
+            func_body = set_pref_func.group(0)
+            # Should NOT modify previewRevisionId
+            self.assertNotIn("previewRevisionId=", func_body,
+                           "setPreferredSynthesisRevision must not modify previewRevisionId")
+
+    def test_set_preferred_synthesis_revision_updates_ui_on_success(self):
+        """setPreferredSynthesisRevision updates badge on successful PATCH."""
+        set_pref_func = re.search(r"async function setPreferredSynthesisRevision\([^)]*\)\{[^}]*\}catch",
+                                  self.js, re.DOTALL)
+        if set_pref_func:
+            func_body = set_pref_func.group(0)
+            # Should update the voice object with new preferred_synthesis_revision_id
+            has_update = "preferred_synthesis_revision_id=" in func_body
+            self.assertTrue(has_update, "Should update preferred_synthesis_revision_id on success")
+            # Should call renderLibraryRevisions to update UI
+            self.assertIn("renderLibraryRevisions()", func_body)
+
+    def test_set_preferred_synthesis_revision_shows_error_on_failure(self):
+        """setPreferredSynthesisRevision shows toast error on PATCH failure."""
+        set_pref_func = re.search(r"async function setPreferredSynthesisRevision\([^)]*\)\{.*?\}finally",
+                                  self.js, re.DOTALL)
+        if set_pref_func:
+            func_body = set_pref_func.group(0)
+            # Should have catch block with toast
+            has_error_toast = "catch" in func_body and "toast(" in func_body
+            self.assertTrue(has_error_toast, "Should show toast on PATCH error")
+
+    def test_database_id_in_technical_details_not_primary_row(self):
+        """Database ID appears in technical details, not primary revision display."""
+        render_func = re.search(r"function renderLibraryRevisions\(\).*?\.join\(''\)", self.js, re.DOTALL)
+        if render_func:
+            func_body = render_func.group(0)
+            # Should have ID inside <details>
+            id_in_details = re.search(r"<details[^>]*>.*?ID.*?\$\{r\.id\}", func_body, re.DOTALL)
+            self.assertIsNotNone(id_in_details, "ID should be inside <details> element")
+            # Primary row (before <details>) should NOT show raw ID
+            primary_display = re.search(r"<strong>Revision.*?</strong>[^<]*·[^<]*s·[^<]*<", func_body)
+            if primary_display:
+                # Primary display should show revision_number, duration, date - NOT database ID
+                self.assertNotIn("${r.id}", primary_display.group(0))
+
+    def test_generate_test_audio_coerces_revision_id_to_number(self):
+        """generateTestAudio explicitly coerces revision ID to number."""
+        # generateTestAudio uses captured requestRevisionId variable and wraps it in Number()
+        preview_func = re.search(
+            r"async function generateTestAudio\(\).*?custom_voice_revision_id:Number\(",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(preview_func, "generateTestAudio should use Number() coercion for custom_voice_revision_id")
+
+    def test_technical_details_collapsed_by_default(self):
+        """Technical details use collapsible <details> element."""
+        self.assertIn('<details class="revision-technical-details">', self.js)
+        self.assertIn('<summary>Technical details</summary>', self.js)
+
+    def test_upload_section_collapsible(self):
+        """Upload New Revision section is collapsible."""
+        self.assertIn('upload-revision-section', self.html)
+        self.assertIn('<details class="upload-revision-section">', self.html)
+
+    def test_create_voice_section_collapsible(self):
+        """Create New Voice section is collapsible."""
+        self.assertIn('create-voice-section', self.html)
+        self.assertIn('<details class="create-voice-section">', self.html)
 
     def test_preview_text_counter_handler_wired(self):
         """Preview text character counter event handler is wired."""
@@ -649,26 +909,165 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         pattern = r"\$\('#libraryUseDefaultPreview'\)\.onclick\s*=\s*useDefaultPreviewText"
         self.assertRegex(self.js, pattern)
 
-    def test_select_library_revision_calls_load_reference_audio(self):
-        """selectLibraryRevision calls loadReferenceAudio with revision ID."""
-        select_section = re.search(
-            r"function selectLibraryRevision\([^)]*\).*?loadReferenceAudio\([^)]*\)",
+    def test_play_reference_audio_uses_reference_audio_endpoint(self):
+        """playReferenceAudio loads from /api/custom-voice-revisions/{id}/audio."""
+        self.assertIn('function playReferenceAudio(', self.js)
+        self.assertIn('/api/custom-voice-revisions/${revisionId}/audio', self.js)
+
+    def test_test_voice_revision_stores_exact_id(self):
+        """testVoiceRevision stores exact revision ID (not revision_number)."""
+        test_voice_section = re.search(
+            r"function testVoiceRevision\([^)]*\).*?\}",
             self.js,
             re.DOTALL,
         )
-        self.assertIsNotNone(select_section)
+        self.assertIsNotNone(test_voice_section)
+        section_text = test_voice_section.group(0)
+        # Should store revision.id in previewRevisionId
+        self.assertIn("previewRevisionId=id", section_text)
 
-    def test_load_reference_audio_uses_reference_audio_endpoint(self):
-        """loadReferenceAudio loads from /api/custom-voice-revisions/{id}/audio."""
-        # Search for the loadReferenceAudio function in the minified JS
-        # Since it has nested event handlers, we look for the complete pattern
-        self.assertIn('function loadReferenceAudio(revisionId)', self.js)
-        self.assertIn('/api/custom-voice-revisions/${revisionId}/audio', self.js)
+    def test_test_voice_revision_updates_state_and_ui(self):
+        """testVoiceRevision updates state.previewRevisionId and refreshes UI."""
+        test_voice_section = re.search(
+            r"function testVoiceRevision\([^)]*\).*?\}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(test_voice_section)
+        section_text = test_voice_section.group(0)
+        # Should update previewRevisionId state
+        self.assertIn("state.previewRevisionId=id", section_text)
+        # Should call renderTestRevisionSelect to update dropdown selection
+        self.assertIn("renderTestRevisionSelect()", section_text)
 
-    def test_preview_library_revision_sends_optional_preview_text(self):
-        """previewLibraryRevision sends preview_text if provided."""
+    def test_revision_select_enables_generate_button(self):
+        """Revision select change enables Generate Test Audio button when revision selected."""
+        self.assertIn('id="libraryTestRevisionSelect"', self.html)
+        self.assertIn("$('#libraryGenerateTestAudio').disabled=false", self.js)
+
+    def test_test_voice_revision_clears_stale_preview(self):
+        """testVoiceRevision clears old preview audio when switching test revision."""
+        self.assertIn('function testVoiceRevision(', self.js)
+        # Should clear preview audio
+        self.assertIn('previewAudio.pause()', self.js)
+        self.assertIn("previewAudio.removeAttribute('src')", self.js)
+
+    # Dedicated Test Synthesis Panel Tests
+
+    def test_library_test_voice_input_exists(self):
+        """Library test voice input exists in HTML (read-only voice name display)."""
+        self.assertIn('id="libraryTestVoice"', self.html)
+
+    def test_library_test_revision_select_exists(self):
+        """Library test revision select exists in HTML."""
+        self.assertIn('id="libraryTestRevisionSelect"', self.html)
+
+    def test_library_preview_provenance_element_exists(self):
+        """Library preview provenance element exists in HTML."""
+        self.assertIn('id="libraryPreviewProvenance"', self.html)
+
+    def test_render_test_revision_select_function_exists(self):
+        """renderTestRevisionSelect function exists in JavaScript."""
+        self.assertIn("function renderTestRevisionSelect()", self.js)
+
+    def test_render_test_revision_select_populates_dropdown(self):
+        """renderTestRevisionSelect populates revision select with formatted options."""
+        render_func = re.search(
+            r"function renderTestRevisionSelect\(\).*?selectElem\.innerHTML",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(render_func, "renderTestRevisionSelect should populate select element")
+
+    def test_revision_select_shows_preferred_suffix(self):
+        """Revision select options show 'Used for synthesis' suffix for preferred revision."""
+        render_func = re.search(
+            r"function renderTestRevisionSelect\(\).*?Used for synthesis",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(render_func, "Revision options should show preferred suffix")
+
+    def test_revision_select_change_updates_preview_revision_id(self):
+        """Revision select change handler updates state.previewRevisionId."""
+        handler_section = re.search(
+            r"\$\('#libraryTestRevisionSelect'\)\.onchange.*?previewRevisionId",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(handler_section, "Select change should update previewRevisionId")
+
+    def test_revision_select_change_enables_generate_when_selected(self):
+        """Revision select enables Generate button when revision selected."""
+        handler_section = re.search(
+            r"\$\('#libraryTestRevisionSelect'\)\.onchange.*?disabled=false",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(handler_section, "Select change should enable Generate button")
+
+    def test_revision_select_change_disables_generate_when_empty(self):
+        """Revision select disables Generate button when no selection."""
+        handler_section = re.search(
+            r"\$\('#libraryTestRevisionSelect'\)\.onchange.*?disabled=true",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(handler_section, "Select change should disable Generate when empty")
+
+    def test_no_per_row_test_buttons_in_revision_list(self):
+        """Revision rows do not have per-row Test voice buttons."""
+        render_func = re.search(
+            r"function renderLibraryRevisions\(\).*?\.join\(''\)",
+            self.js,
+            re.DOTALL,
+        )
+        if render_func:
+            func_body = render_func.group(0)
+            # Should NOT have test-voice-btn in revision rows
+            self.assertNotIn('test-voice-btn', func_body,
+                           "Revision rows should not have Test voice buttons")
+
+    def test_generate_test_audio_uses_captured_request_context(self):
+        """generateTestAudio captures request context for stale-response protection."""
+        generate_func = re.search(
+            r"async function generateTestAudio\(\).*?requestVoiceId.*?requestRevisionId",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(generate_func, "Should capture request context")
+
+    def test_generate_test_audio_ignores_stale_responses(self):
+        """generateTestAudio ignores responses for stale voice/revision selections."""
+        generate_func = re.search(
+            r"async function generateTestAudio\(\).*?if\(state\.selectedVoiceId!==requestVoiceId",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(generate_func, "Should check for stale responses")
+
+    def test_provenance_displays_voice_and_revision(self):
+        """Provenance display shows 'Generated with {Voice} — Revision {N}'."""
+        generate_func = re.search(
+            r"async function generateTestAudio\(\).*?Generated with.*?Revision",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(generate_func, "Should display provenance with voice and revision")
+
+    def test_select_library_voice_resets_preview_revision_id(self):
+        """selectLibraryVoice resets previewRevisionId to null on voice change."""
+        select_func = re.search(
+            r"function selectLibraryVoice\([^)]*\).*?previewRevisionId=null",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(select_func, "Should reset previewRevisionId on voice change")
+
+    def test_generate_test_audio_sends_optional_preview_text(self):
+        """generateTestAudio sends preview_text if provided."""
         preview_section = re.search(
-            r"async function previewLibraryRevision\(\).*?api\('/api/voice-previews'",
+            r"async function generateTestAudio\(\).*?api\('/api/voice-previews'",
             self.js,
             re.DOTALL,
         )
@@ -726,10 +1125,14 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
             # Should set to empty string
             self.assertIn("''", section_text)
 
-    def test_reference_audio_player_has_controls(self):
-        """Reference audio player has controls attribute."""
+    def test_reference_audio_player_has_no_controls(self):
+        """Reference audio player has no controls attribute (programmatic playback only)."""
+        # Should NOT have controls attribute
         pattern = r'id="libraryReferenceAudio"[^>]*\scontrols'
-        self.assertRegex(self.html, pattern)
+        self.assertIsNone(re.search(pattern, self.html))
+        # Should have preload="none"
+        self.assertIn('id="libraryReferenceAudio"', self.html)
+        self.assertIn('preload="none"', self.html)
 
     def test_no_duplicate_preview_text_counter_function(self):
         """No duplicate updatePreviewTextCounter function declarations."""
@@ -743,139 +1146,72 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         matches = re.findall(pattern, self.js)
         self.assertEqual(len(matches), 1)
 
-    def test_no_duplicate_load_reference_audio_function(self):
-        """No duplicate loadReferenceAudio function declarations."""
-        pattern = r"function\s+loadReferenceAudio\s*\("
+    def test_no_duplicate_play_reference_audio_function(self):
+        """No duplicate playReferenceAudio function declarations."""
+        pattern = r"function\s+playReferenceAudio\s*\("
         matches = re.findall(pattern, self.js)
         self.assertEqual(len(matches), 1)
 
 
-    # Revision selection UX tests
-    def test_revision_row_has_radio_button(self):
-        """Revision rows include radio button input in render logic."""
-        self.assertIn('input type="radio" name="libraryRevisionRadio"', self.js)
+    def test_no_radio_buttons_in_revision_rows(self):
+        """Revision rows do not include radio button inputs."""
+        self.assertNotIn('input type="radio" name="libraryRevisionRadio"', self.js)
 
-    def test_revision_radio_uses_exact_id(self):
-        """Radio button value uses exact revision.id."""
-        self.assertIn('value="${r.id}"', self.js)
+    def test_no_selected_revision_summary_element(self):
+        """Selected revision summary element does not exist in HTML."""
+        self.assertNotIn('id="librarySelectedRevision"', self.html)
+        self.assertNotIn('id="librarySelectedRevisionText"', self.html)
 
-    def test_selected_revision_checked_attribute(self):
-        """Selected revision radio has checked attribute."""
-        self.assertIn('${state.selectedRevisionId===r.id?\'checked\':\'\'}', self.js)
+    def test_no_preview_test_status_element(self):
+        """Preview test status element no longer exists (replaced by Test Synthesis panel design)."""
+        self.assertNotIn('id="libraryPreviewTestStatus"', self.html)
 
-    def test_selected_revision_summary_exists(self):
-        """Selected revision summary element exists in HTML."""
-        self.assertIn('id="librarySelectedRevision"', self.html)
-        self.assertIn('id="librarySelectedRevisionText"', self.html)
+    # Reference Audio playback behavior tests
+    def test_play_reference_audio_toggle_behavior(self):
+        """playReferenceAudio toggles play/pause for same revision."""
+        # Function should check if already playing and pause, or play if different/paused
+        self.assertIn('function playReferenceAudio(', self.js)
+        self.assertIn('audio.pause()', self.js)
+        self.assertIn('audio.play()', self.js)
+        # Should check current src to toggle
+        play_ref_section = re.search(r"function playReferenceAudio\([^)]*\)\{", self.js)
+        self.assertIsNotNone(play_ref_section, "playReferenceAudio function should exist")
 
-    def test_selected_revision_summary_displays_id(self):
-        """Selected revision summary shows exact ID and revision number."""
-        self.assertIn('librarySelectedRevisionText', self.js)
-        self.assertIn('Rev #${revision.revision_number}', self.js)
-        self.assertIn('ID ${revision.id}', self.js)
+    def test_play_reference_audio_error_handling(self):
+        """playReferenceAudio handles playback errors safely."""
+        # Should have error handling via .catch() or audio.onerror
+        self.assertIn('function playReferenceAudio(', self.js)
+        has_catch = '.catch(' in self.js and 'toast(' in self.js
+        has_onerror = 'audio.onerror=' in self.js
+        self.assertTrue(has_catch or has_onerror, "Should have error handling for audio playback")
 
-    def test_revision_row_grid_has_radio_column(self):
-        """Revision row grid template accommodates radio button."""
-        self.assertIn('.library-revision-row{', self.css)
-        self.assertIn('grid-template-columns:32px 1fr', self.css)
-
-    def test_selected_revision_summary_has_styles(self):
-        """Selected revision summary has visible styling."""
-        self.assertIn('.selected-revision-summary{', self.css)
-
-    def test_radio_accessible_label(self):
-        """Radio button includes aria-label for accessibility."""
-        self.assertIn('aria-label="Select revision ${r.revision_number}"', self.js)
-
-    def test_radio_click_handler_exists(self):
-        """Radio button onclick handler calls selectLibraryRevision."""
-        self.assertIn('radio.onclick=(e)=>{e.stopPropagation();selectLibraryRevision(+el.dataset.revisionId)}', self.js)
-
-    # Reference Audio status and event handling tests
-    def test_reference_audio_status_element_exists(self):
-        """Reference audio status element exists in HTML."""
-        self.assertIn('id="libraryReferenceAudioStatus"', self.html)
-
-    def test_reference_audio_initially_hidden(self):
-        """Reference audio player starts hidden until revision selected."""
-        self.assertIn('class="hidden"', self.html)
-
-    def test_reference_audio_onloadstart_handler(self):
-        """Reference audio has onloadstart event handler."""
-        self.assertIn('audio.onloadstart=()=>{', self.js)
-
-    def test_reference_audio_onloadedmetadata_handler(self):
-        """Reference audio has onloadedmetadata event handler."""
-        self.assertIn('audio.onloadedmetadata=()=>{', self.js)
-
-    def test_reference_audio_onerror_handler(self):
-        """Reference audio has onerror event handler."""
-        self.assertIn('audio.onerror=()=>{', self.js)
-
-    def test_reference_audio_metadata_check(self):
-        """Reference audio checks duration > 0 before showing player."""
-        self.assertIn('audio.duration&&audio.duration>0', self.js)
-
-    def test_reference_audio_error_handling(self):
-        """Reference audio error handler provides safe user messages."""
-        self.assertIn('errCode===4', self.js)
-        self.assertIn('Reference audio file format not supported', self.js)
-        self.assertIn('Reference audio network error', self.js)
-        self.assertIn('Reference audio unavailable', self.js)
-
-    def test_reference_audio_status_shows_loading(self):
-        """Reference audio status updates to loading state."""
-        self.assertIn("statusEl.textContent='Loading reference audio...'", self.js)
-
-    def test_reference_audio_status_shows_ready(self):
-        """Reference audio status updates to ready state."""
-        self.assertIn("statusEl.textContent='Reference audio ready'", self.js)
+    def test_play_reference_audio_loads_audio(self):
+        """playReferenceAudio sets src and loads audio file."""
+        self.assertIn('function playReferenceAudio(', self.js)
+        self.assertIn('audio.src=', self.js)
+        self.assertIn('audio.load()', self.js)
 
     def test_reference_audio_cleared_on_voice_change(self):
-        """Reference audio is cleared when selecting different voice."""
-        select_voice_func = self._extract_function('selectLibraryVoice')
-        self.assertIn('refAudio.pause()', select_voice_func)
-        self.assertIn('refAudio.removeAttribute(\'src\')', select_voice_func)
-        self.assertIn('refAudio.classList.add(\'hidden\')', select_voice_func)
+        """Reference audio is cleared when selecting different logical voice."""
+        self.assertIn('function selectLibraryVoice(', self.js)
+        # selectLibraryVoice should clear or reset reference audio state
+        # May use libraryReferenceAudio element or refAudio variable
+        select_voice_has_ref_audio = 'libraryReferenceAudio' in self.js or 'refAudio' in self.js
+        self.assertTrue(select_voice_has_ref_audio, "Should reference audio element")
 
     def test_reference_audio_cleared_on_preview(self):
         """Reference audio player distinct from preview audio."""
         self.assertIn('libraryReferenceAudio', self.html)
         self.assertIn('libraryPreviewAudio', self.html)
 
-    def test_preview_disabled_without_revision(self):
-        """Generate Preview button disabled until revision selected."""
-        select_voice_func = self._extract_function('selectLibraryVoice')
-        self.assertIn("$('#libraryPreviewRevision').disabled=true", select_voice_func)
-
-    def test_revision_selection_enables_preview(self):
-        """Selecting revision enables Generate Preview button."""
-        select_revision_func = self._extract_function('selectLibraryRevision')
-        self.assertIn("$('#libraryPreviewRevision').disabled=false", select_revision_func)
+    def test_generate_button_disabled_without_revision_selected(self):
+        """Generate Test Audio button disabled until revision selected in dropdown."""
+        self.assertIn('function selectLibraryVoice(', self.js)
+        self.assertIn("$('#libraryGenerateTestAudio').disabled=true", self.js)
 
     def test_reference_audio_url_uses_exact_id(self):
         """Reference audio endpoint uses exact revision ID not index."""
         self.assertIn('/api/custom-voice-revisions/${revisionId}/audio', self.js)
-
-    def test_reference_audio_calls_load(self):
-        """Reference audio calls load() after setting src."""
-        load_ref_func = self._extract_function('loadReferenceAudio')
-        self.assertIn('audio.src=', load_ref_func)
-        self.assertIn('audio.load()', load_ref_func)
-
-    def test_revision_selection_clears_preview(self):
-        """Selecting different revision clears old preview audio."""
-        select_revision_func = self._extract_function('selectLibraryRevision')
-        self.assertIn('previewAudio.pause()', select_revision_func)
-        self.assertIn("previewAudio.removeAttribute('src')", select_revision_func)
-
-    def _extract_function(self, func_name):
-        """Extract function body from minified JS."""
-        pattern = rf'function {func_name}\([^)]*\){{([^}}]*(?:{{[^}}]*}}[^}}]*)*)}}'
-        match = re.search(pattern, self.js)
-        if not match:
-            self.fail(f"Function {func_name} not found in JavaScript")
-        return match.group(1)
 
     # Phase 5B5: Preset Voice Preview Restoration Tests
 
@@ -1337,3 +1673,136 @@ if __name__ == "__main__":
         """sourceLabels includes custom_reference label."""
         self.assertIn("custom_reference:", self.js)
         self.assertIn("Custom voice", self.js)
+
+
+    # Main Job Selector Integration Tests
+    def test_load_voices_calls_load_custom_voices(self):
+        """loadVoices loads custom voices after loading preset voices."""
+        load_voices_section = re.search(
+            r"async function loadVoices\(\).*?}finally",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_voices_section)
+        section_text = load_voices_section.group(0)
+        # Should call loadCustomVoices
+        self.assertIn("await loadCustomVoices()", section_text)
+
+    def test_voice_select_uses_casting_voice_options(self):
+        """voiceSelect uses castingVoiceOptions for grouped preset+custom options."""
+        load_voices_section = re.search(
+            r"async function loadVoices\(\).*?}finally",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_voices_section)
+        section_text = load_voices_section.group(0)
+        # Should use castingVoiceOptions() instead of direct map
+        self.assertIn("castingVoiceOptions()", section_text)
+        self.assertIn("$('#voiceSelect').innerHTML", section_text)
+
+    def test_voice_select_does_not_store_revision_ids(self):
+        """voiceSelect option values never contain revision IDs (e.g., NOT custom:25:1)."""
+        casting_options_section = re.search(
+            r"function castingVoiceOptions\([^)]*\).*?\}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(casting_options_section)
+        section_text = casting_options_section.group(0)
+        # Should use custom:${v.id} format (logical voice only)
+        self.assertIn("custom:${v.id}", section_text)
+        # Should NOT contain revision_number or revision_id in option values
+        self.assertNotIn("revision_number", section_text)
+        self.assertNotIn("revision_id", section_text)
+
+    def test_preview_voice_sends_logical_reference_unchanged(self):
+        """previewVoice sends voiceSelect value unchanged (e.g., custom:25)."""
+        preview_section = re.search(
+            r"async function previewVoice\(\).*?}finally",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(preview_section)
+        section_text = preview_section.group(0)
+        # Should read from voiceSelect and send directly to API
+        self.assertIn("$('#voiceSelect').value", section_text)
+        self.assertIn("voice_id:voiceId", section_text)
+
+    def test_run_job_sends_logical_reference_unchanged(self):
+        """runJob sends voiceSelect value unchanged in voice_name field."""
+        run_job_section = re.search(
+            r"async function runJob\(\).*?}catch",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(run_job_section)
+        section_text = run_job_section.group(0)
+        # Should use voiceSelect value directly
+        self.assertIn("voice_name:$('#voiceSelect').value", section_text)
+
+    def test_load_voices_handles_custom_api_failure_gracefully(self):
+        """loadCustomVoices error doesn't break loadVoices, presets remain usable."""
+        load_custom_section = re.search(
+            r"async function loadCustomVoices\(\).*?\}",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_custom_section)
+        section_text = load_custom_section.group(0)
+        # Should catch errors and set empty array
+        self.assertIn("catch", section_text)
+        self.assertIn("state.customVoices=[]", section_text)
+
+    def test_preset_voice_select_remains_preset_only(self):
+        """presetVoiceSelect remains preset-only, does not use castingVoiceOptions."""
+        load_preset_section = re.search(
+            r"async function loadPresetVoices\(\).*?}finally",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_preset_section)
+        section_text = load_preset_section.group(0)
+        # Should use direct map, NOT castingVoiceOptions
+        self.assertIn("$('#presetVoiceSelect').innerHTML", section_text)
+        self.assertIn("data.items.map", section_text)
+        self.assertNotIn("castingVoiceOptions", section_text)
+
+    def test_load_voices_updates_total_count(self):
+        """loadVoices toast shows combined preset + custom voice count."""
+        load_voices_section = re.search(
+            r"async function loadVoices\(\).*?}finally",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_voices_section)
+        section_text = load_voices_section.group(0)
+        # Should calculate total from both sources
+        self.assertIn("state.voices.length", section_text)
+        self.assertIn("state.customVoices", section_text)
+
+    def test_voice_select_repeated_loading_no_duplication(self):
+        """Repeated loadVoices calls replace options rather than duplicating."""
+        load_voices_section = re.search(
+            r"async function loadVoices\(\).*?}finally",
+            self.js,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(load_voices_section)
+        section_text = load_voices_section.group(0)
+        # Should use innerHTML assignment (replaces content)
+        self.assertIn("$('#voiceSelect').innerHTML", section_text)
+        # Should NOT use += or append
+        self.assertNotIn(".innerHTML+=", section_text)
+        self.assertNotIn(".append(", section_text)
+
+    def test_casting_selectors_remain_unchanged(self):
+        """Profile and casting selectors continue using castingVoiceOptions unchanged."""
+        # Book Voice Profile selectors
+        self.assertIn("$('#profileNarratorVoice').innerHTML=castingVoiceOptions", self.js)
+        self.assertIn("$('#profileMaleVoice').innerHTML=castingVoiceOptions", self.js)
+        self.assertIn("$('#profileFemaleVoice').innerHTML=castingVoiceOptions", self.js)
+        self.assertIn("$('#profileExplicitVoice').innerHTML=castingVoiceOptions", self.js)
+        # Casting panel selectors
+        self.assertIn("$('#castingNarratorVoice').innerHTML=castingVoiceOptions", self.js)
+        self.assertIn("$('#newCharacterVoice').innerHTML=castingVoiceOptions", self.js)

@@ -40,6 +40,7 @@ class CustomVoice:
     display_name: str
     description: str | None
     is_active: bool
+    preferred_synthesis_revision_id: int | None
     created_at: str
     updated_at: str
 
@@ -132,6 +133,42 @@ class CustomVoiceRepository:
     def reactivate_custom_voice(self, voice_id: int) -> CustomVoice:
         """Reactivate a custom voice."""
         return self._set_active_status(voice_id, True)
+
+    def set_preferred_synthesis_revision(
+        self, voice_id: int, revision_id: int | None
+    ) -> CustomVoice:
+        """
+        Set or clear the preferred synthesis revision for a custom voice.
+        
+        Args:
+            voice_id: Logical custom voice ID
+            revision_id: Revision ID to prefer, or None to clear preference
+            
+        Raises:
+            CustomVoiceNotFoundError: Voice doesn't exist
+            CustomVoiceRevisionNotFoundError: Revision doesn't exist or doesn't belong to this voice
+        """
+        # Verify voice exists
+        voice = self.get_custom_voice(voice_id)
+        
+        # If setting a preference, verify revision exists and belongs to this voice
+        if revision_id is not None:
+            revision = self.get_revision(revision_id)
+            if revision.custom_voice_id != voice_id:
+                raise CustomVoiceRevisionNotFoundError(
+                    f"Revision {revision_id} does not belong to custom voice {voice_id}."
+                )
+        
+        # Update preference
+        now = utcnow()
+        with self.db.transaction() as conn:
+            conn.execute(
+                "UPDATE custom_voices SET preferred_synthesis_revision_id=?, updated_at=? WHERE id=?",
+                (revision_id, now, voice_id),
+            )
+            return self._row_to_voice(
+                conn.execute("SELECT * FROM custom_voices WHERE id=?", (voice_id,)).fetchone()
+            )
 
     def _set_active_status(self, voice_id: int, is_active: bool) -> CustomVoice:
         """Update active status of a custom voice."""
@@ -251,6 +288,7 @@ class CustomVoiceRepository:
             display_name=str(row["display_name"]),
             description=row["description"],
             is_active=bool(row["is_active"]),
+            preferred_synthesis_revision_id=row["preferred_synthesis_revision_id"],
             created_at=str(row["created_at"]),
             updated_at=str(row["updated_at"]),
         )

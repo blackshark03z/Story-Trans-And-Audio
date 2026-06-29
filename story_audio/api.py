@@ -39,6 +39,7 @@ from .custom_voice_api import (
     list_custom_voice_revisions_handler,
     list_custom_voices_handler,
     reactivate_custom_voice_handler,
+    set_preferred_synthesis_revision_handler,
 )
 from .db import Database, utcnow
 from .diagnostics import (
@@ -78,7 +79,7 @@ from .voice_profile import (
     set_character_gender,
     set_character_voice_override,
 )
-from .voice_ref import CustomVoiceContext
+from .voice_ref import CustomVoiceContext, is_custom_ref, resolve_custom_ref
 
 
 settings.ensure_dirs()
@@ -660,8 +661,9 @@ def approve_casting(casting_plan_id: int) -> dict[str, Any]:
 @app.post("/api/voice-previews")
 def create_voice_preview(request: VoicePreviewRequest) -> dict[str, Any]:
     # Import custom voice exceptions for error handling
-    from .custom_voice import CustomVoiceRevisionNotFoundError
+    from .custom_voice import CustomVoiceRevisionNotFoundError, CustomVoiceRepository
     from .synthesis_snapshot import StorageResolutionError
+    from .voice_ref import is_custom_ref, resolve_custom_ref, CustomVoiceContext
 
     # XOR validation: exactly one selector required
     preset_provided = request.voice_id is not None
@@ -678,15 +680,30 @@ def create_voice_preview(request: VoicePreviewRequest) -> dict[str, Any]:
 
     try:
         if preset_provided:
-            # Preset path (unchanged behavior)
-            valid_voices = {item["id"] for item in tts_service.voices()}
-            if request.voice_id not in valid_voices:
-                raise ValueError(f"Giọng '{request.voice_id}' không tồn tại trong VieNeu.")
-            result = voice_previews.create(request.voice_id)
-            result["audio_url"] = f"/api/voice-previews/{result['cache_key']}/file"
-            return result
+            # Check if voice_id is a custom logical reference (e.g., "custom:25")
+            if is_custom_ref(request.voice_id):
+                # Resolve logical custom voice reference to preferred revision
+                ctx = CustomVoiceContext.from_repository(custom_voice_repo)
+                resolved = resolve_custom_ref(request.voice_id, ctx, repository=custom_voice_repo)
+                revision_id = resolved["custom_voice_revision_id"]
+
+                # Use custom path with resolved revision
+                result = voice_previews.create_custom(
+                    revision_id,
+                    preview_text=request.preview_text
+                )
+                result["audio_url"] = f"/api/voice-previews/{result['cache_key']}/file"
+                return result
+            else:
+                # Preset path (unchanged behavior)
+                valid_voices = {item["id"] for item in tts_service.voices()}
+                if request.voice_id not in valid_voices:
+                    raise ValueError(f"Giọng '{request.voice_id}' không tồn tại trong VieNeu.")
+                result = voice_previews.create(request.voice_id)
+                result["audio_url"] = f"/api/voice-previews/{result['cache_key']}/file"
+                return result
         else:
-            # Custom path with optional preview_text
+            # Custom path with explicit revision ID and optional preview_text
             result = voice_previews.create_custom(
                 request.custom_voice_revision_id,
                 preview_text=request.preview_text
@@ -706,6 +723,8 @@ def create_voice_preview(request: VoicePreviewRequest) -> dict[str, Any]:
             raise HTTPException(400, "Voice preview validation failed")
         raise HTTPException(400, str(exc)) from exc
     except Exception as exc:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(503, "Voice preview generation failed") from exc
 
 
@@ -752,15 +771,29 @@ def submit_job(request: JobRequest) -> dict[str, Any]:
     try:
         payload = request.model_dump()
         payload["voice_name"] = unicodedata.normalize("NFC", payload["voice_name"]).strip()
-        valid_voices = _preset_voice_ids()
-        if payload["voice_name"] not in valid_voices:
-            raise ValueError(f"Giọng '{payload['voice_name']}' không tồn tại trong VieNeu.")
+
+        # Validate voice reference (preset or custom logical reference)
+        voice_name = payload["voice_name"]
+        if is_custom_ref(voice_name):
+            # Validate custom logical reference
+            ctx = CustomVoiceContext.from_repository(custom_voice_repo)
+            try:
+                # This will raise if voice is inactive, missing, or has no preferred revision
+                resolve_custom_ref(voice_name, ctx, repository=custom_voice_repo)
+            except Exception as exc:
+                raise ValueError(f"Giọng '{voice_name}' không khả dụng: {str(exc)}")
+        else:
+            # Validate preset voice
+            valid_voices = _preset_voice_ids()
+            if voice_name not in valid_voices:
+                raise ValueError(f"Giọng '{voice_name}' không tồn tại trong VieNeu.")
+
         if payload.get("casting_plan_id") is not None:
             validate_approved_plan(
                 db,
                 store,
                 int(payload["casting_plan_id"]),
-                valid_voices,
+                _preset_voice_ids(),
                 custom_voice_context=_build_custom_voice_context(),
             )
         result = create_job(db, settings, store=store, **payload)
@@ -966,6 +999,15 @@ def list_custom_voice_revisions(voice_id: int) -> list[dict[str, Any]]:
 @app.get("/api/custom-voice-revisions/{revision_id}")
 def get_custom_voice_revision(revision_id: int) -> dict[str, Any]:
     return get_custom_voice_revision_handler(custom_voice_repo, revision_id)
+
+
+@app.patch("/api/custom-voices/{voice_id}/preferred-revision")
+def set_preferred_synthesis_revision(
+    voice_id: int,
+    revision_id: int | None = Body(None, embed=True),
+) -> dict[str, Any]:
+    """Set or clear the preferred synthesis revision for a custom voice."""
+    return set_preferred_synthesis_revision_handler(custom_voice_repo, voice_id, revision_id)
 
 
 @app.get("/api/custom-voice-revisions/{revision_id}/audio")

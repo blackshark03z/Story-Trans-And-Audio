@@ -50,6 +50,7 @@ def create_custom_voice_handler(
             "display_name": voice.display_name,
             "description": voice.description,
             "is_active": voice.is_active,
+            "preferred_synthesis_revision_id": voice.preferred_synthesis_revision_id,
             "created_at": voice.created_at,
             "updated_at": voice.updated_at,
         }
@@ -68,6 +69,7 @@ def list_custom_voices_handler(
             "display_name": v.display_name,
             "description": v.description,
             "is_active": v.is_active,
+            "preferred_synthesis_revision_id": v.preferred_synthesis_revision_id,
             "created_at": v.created_at,
             "updated_at": v.updated_at,
         }
@@ -86,6 +88,7 @@ def get_custom_voice_handler(
             "display_name": voice.display_name,
             "description": voice.description,
             "is_active": voice.is_active,
+            "preferred_synthesis_revision_id": voice.preferred_synthesis_revision_id,
             "created_at": voice.created_at,
             "updated_at": voice.updated_at,
         }
@@ -104,6 +107,7 @@ def deactivate_custom_voice_handler(
             "display_name": voice.display_name,
             "description": voice.description,
             "is_active": voice.is_active,
+            "preferred_synthesis_revision_id": voice.preferred_synthesis_revision_id,
             "created_at": voice.created_at,
             "updated_at": voice.updated_at,
         }
@@ -122,6 +126,27 @@ def reactivate_custom_voice_handler(
             "display_name": voice.display_name,
             "description": voice.description,
             "is_active": voice.is_active,
+            "preferred_synthesis_revision_id": voice.preferred_synthesis_revision_id,
+            "created_at": voice.created_at,
+            "updated_at": voice.updated_at,
+        }
+    except CustomVoiceError as exc:
+        raise _custom_voice_error_handler(exc) from exc
+
+def set_preferred_synthesis_revision_handler(
+    repo: CustomVoiceRepository,
+    voice_id: int,
+    revision_id: int | None,
+) -> dict[str, Any]:
+    """Set or clear the preferred synthesis revision for a custom voice."""
+    try:
+        voice = repo.set_preferred_synthesis_revision(voice_id, revision_id)
+        return {
+            "id": voice.id,
+            "display_name": voice.display_name,
+            "description": voice.description,
+            "is_active": voice.is_active,
+            "preferred_synthesis_revision_id": voice.preferred_synthesis_revision_id,
             "created_at": voice.created_at,
             "updated_at": voice.updated_at,
         }

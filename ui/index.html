@@ -61,71 +61,86 @@
       <div id="libraryStatus" class="muted">Click Refresh to load voices.</div>
       <div id="libraryVoiceList" class="voice-library-list"></div>
       <div id="librarySelectedDetails" class="library-selected-details hidden">
-        <h3>Selected Voice</h3>
-        <div class="voice-form-group">
-          <label for="librarySelectedName">Name</label>
-          <input id="librarySelectedName" disabled>
-        </div>
-        <div class="voice-form-group">
-          <label for="librarySelectedDescription">Description</label>
-          <textarea id="librarySelectedDescription" class="voice-description-input" disabled rows="3"></textarea>
-        </div>
-        <div class="voice-form-group">
-          <label for="librarySelectedStatus">Status</label>
-          <input id="librarySelectedStatus" disabled>
+        <h3>Voice Details</h3>
+        <div id="libraryVoiceInfo" class="library-voice-info">
+          <div class="voice-info-row">
+            <span class="voice-info-label">Name:</span>
+            <span id="libraryVoiceInfoName" class="voice-info-value">—</span>
+          </div>
+          <div class="voice-info-row">
+            <span class="voice-info-label">Status:</span>
+            <span id="libraryVoiceInfoStatus" class="voice-info-badge"></span>
+          </div>
+          <div class="voice-info-row">
+            <span class="voice-info-label">Description:</span>
+            <span id="libraryVoiceInfoDescription" class="voice-info-value muted">—</span>
+          </div>
         </div>
         <div class="row">
           <button id="libraryDeactivate" class="secondary" disabled>Deactivate Voice</button>
-          <button id="libraryReactivate" class="secondary" disabled>Reactivate Voice</button>
+          <button id="libraryReactivate" class="secondary hidden" disabled>Reactivate Voice</button>
         </div>
-        <h4>Upload Revision</h4>
-        <p class="muted immutable-notice">Uploading new audio or transcript creates a new immutable revision. Existing revisions are never overwritten.</p>
-        <div class="upload-revision-grid">
-          <label>Reference Audio<input id="libraryAudioFile" type="file" accept="audio/wav,audio/x-wav,audio/mp3,audio/mpeg" disabled></label>
-          <label>Exact Transcript<textarea id="libraryTranscript" placeholder="Enter the exact transcript for the reference audio" rows="3" maxlength="10000" disabled></textarea><span id="libraryTranscriptCounter" class="char-counter muted">0 / 10000</span></label>
-        </div>
-        <button id="libraryUploadRevision" class="primary" disabled>Upload Revision</button>
-        <div id="libraryUploadStatus" class="muted"></div>
-        <div id="libraryUploadError" class="issue error hidden"></div>
         <h4>Revision History</h4>
         <div id="libraryRevisionsStatus" class="muted">Loading revisions...</div>
         <div id="libraryRevisionsList" class="library-revisions-list"></div>
-        <div id="librarySelectedRevision" class="selected-revision-summary hidden">
-          <strong>Selected Revision:</strong>
-          <span id="librarySelectedRevisionText">—</span>
+        <audio id="libraryReferenceAudio" preload="none" class="hidden"></audio>
+        <h4>Test Synthesis with Custom Text</h4>
+        <p class="muted">Choose a revision, enter optional text, then generate a short test audio.</p>
+        <div class="test-synthesis-panel">
+          <div class="voice-form-group">
+            <label for="libraryTestVoice">Voice</label>
+            <input id="libraryTestVoice" disabled readonly>
+          </div>
+          <div class="voice-form-group">
+            <label for="libraryTestRevisionSelect">Revision</label>
+            <select id="libraryTestRevisionSelect" disabled>
+              <option value="">Choose a revision</option>
+            </select>
+          </div>
+          <div class="voice-form-group">
+            <label for="libraryPreviewText">Preview Text (optional)</label>
+            <textarea id="libraryPreviewText" class="voice-description-input" placeholder="Leave empty to use default sample" rows="3" maxlength="500"></textarea>
+            <span id="libraryPreviewTextCounter" class="char-counter muted">0 / 500</span>
+          </div>
+          <div class="row">
+            <button id="libraryUseDefaultPreview" class="ghost">Use Default Sample</button>
+            <button id="libraryGenerateTestAudio" class="secondary" disabled>▶ Generate Test Audio</button>
+          </div>
+          <div id="libraryPreviewBox" class="voice-preview hidden">
+            <audio id="libraryPreviewAudio" controls preload="metadata"></audio>
+            <div id="libraryPreviewProvenance" class="muted"></div>
+          </div>
         </div>
-        <h4>Reference Audio</h4>
-        <p class="muted">Listen to the original reference audio for the selected revision.</p>
-        <div id="libraryReferenceAudioStatus" class="muted">No revision selected</div>
-        <audio id="libraryReferenceAudio" controls preload="metadata" class="hidden"></audio>
-        <h4>Preview Selected Revision</h4>
-        <p class="muted">Generate a preview using custom text or the default sample. The reference transcript remains immutable.</p>
-        <div class="voice-form-group">
-          <label for="libraryPreviewText">Preview Text (optional)</label>
-          <textarea id="libraryPreviewText" class="voice-description-input" placeholder="Leave empty to use default sample" rows="4" maxlength="500"></textarea>
-          <span id="libraryPreviewTextCounter" class="char-counter muted">0 / 500</span>
-        </div>
-        <div class="row">
-          <button id="libraryUseDefaultPreview" class="ghost">Use Default Sample</button>
-          <button id="libraryPreviewRevision" class="secondary" disabled>▶ Generate Preview</button>
-        </div>
-        <div id="libraryPreviewBox" class="voice-preview hidden">
-          <audio id="libraryPreviewAudio" controls preload="metadata"></audio>
-          <span id="libraryPreviewStatus" class="muted"></span>
-        </div>
+        <details class="upload-revision-section">
+          <summary><h4>Upload New Revision</h4></summary>
+          <p class="muted immutable-notice">Uploading new audio or transcript creates a new immutable revision. Existing revisions are never overwritten.</p>
+          <div class="upload-target-display">
+            <span class="upload-target-label">Uploading to voice:</span>
+            <strong id="libraryUploadTargetVoice" class="upload-target-voice">—</strong>
+          </div>
+          <div class="upload-revision-grid">
+            <label>Reference Audio<input id="libraryAudioFile" type="file" accept="audio/wav,audio/x-wav,audio/mp3,audio/mpeg" disabled></label>
+            <label>Exact Transcript<textarea id="libraryTranscript" placeholder="Enter the exact transcript for the reference audio" rows="3" maxlength="10000" disabled></textarea><span id="libraryTranscriptCounter" class="char-counter muted">0 / 10000</span></label>
+          </div>
+          <button id="libraryUploadRevision" class="primary" disabled>Upload Revision</button>
+          <div id="libraryUploadStatus" class="muted"></div>
+          <div id="libraryUploadError" class="issue error hidden"></div>
+        </details>
       </div>
-      <h3>Create New Voice</h3>
-      <div class="create-voice-form">
-        <div class="voice-form-group">
-          <label for="libraryNewName">Name</label>
-          <input id="libraryNewName" placeholder="Voice name" maxlength="120">
+      <details class="create-voice-section">
+        <summary><h3>Create New Voice</h3></summary>
+        <div class="create-voice-form">
+          <div class="voice-form-group">
+            <label for="libraryNewName">Name</label>
+            <input id="libraryNewName" placeholder="Voice name" maxlength="120">
+          </div>
+          <div class="voice-form-group">
+            <label for="libraryNewDescription">Description (optional)</label>
+            <textarea id="libraryNewDescription" class="voice-description-input" placeholder="Optional description" rows="3"></textarea>
+          </div>
         </div>
-        <div class="voice-form-group">
-          <label for="libraryNewDescription">Description (optional)</label>
-          <textarea id="libraryNewDescription" class="voice-description-input" placeholder="Optional description" rows="4"></textarea>
-        </div>
-      </div>
-      <button id="libraryCreate" class="primary">Create Voice</button>
+        <button id="libraryCreate" class="primary">Create Voice</button>
+      </details>
       <div id="libraryError" class="issue error hidden"></div>
     </section>
 
