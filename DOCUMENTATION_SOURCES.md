@@ -2,6 +2,9 @@
 
 **Created:** 2026-06-28  
 **Purpose:** Clarify which sources are authoritative for different types of information
+**Status:** **TEMPORARY** — This file serves as a pointer while AGENTS.md encoding is corrupted
+
+**Note:** AGENTS.md encoding repair is a separate documentation-maintenance task, not a feature prerequisite. Once AGENTS.md is repaired, this file may be archived or removed.
 
 ---
 
