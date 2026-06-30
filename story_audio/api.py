@@ -885,6 +885,86 @@ def retry_failed_segment(segment_id: int) -> dict[str, Any]:
     return {"ok": True, **result}
 
 
+@app.post("/api/segments/{segment_id}/regenerate")
+def regenerate_segment(segment_id: int) -> dict[str, Any]:
+    """Generate candidate synthesis for verified segment."""
+    from .segment_regeneration import RegenerationError, regenerate_verified_segment
+    try:
+        result = regenerate_verified_segment(db, store, tts_service, settings, segment_id)
+        return {"ok": True, **result}
+    except RegenerationError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/segments/{segment_id}/accept-candidate")
+def accept_candidate(segment_id: int, body: dict[str, int] = Body(...)) -> dict[str, Any]:
+    """Accept candidate and rebuild chapter artifacts."""
+    from .segment_regeneration import RegenerationError, accept_segment_candidate
+    attempt_id = body.get("attempt_id")
+    if not attempt_id:
+        raise HTTPException(400, "attempt_id required")
+    try:
+        result = accept_segment_candidate(db, store, settings, segment_id, attempt_id)
+        return {"ok": True, **result}
+    except RegenerationError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/segments/{segment_id}/reject-candidate")
+def reject_candidate(segment_id: int, body: dict[str, int] = Body(...)) -> dict[str, Any]:
+    """Reject candidate and keep active segment unchanged."""
+    from .segment_regeneration import RegenerationError, reject_segment_candidate
+    attempt_id = body.get("attempt_id")
+    if not attempt_id:
+        raise HTTPException(400, "attempt_id required")
+    try:
+        result = reject_segment_candidate(db, segment_id, attempt_id)
+        return {"ok": True, **result}
+    except RegenerationError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/segments/{segment_id}/attempts")
+def get_segment_attempts(segment_id: int) -> dict[str, Any]:
+    """List all attempts for a segment."""
+    from .segment_regeneration import RegenerationError, list_segment_attempts
+    try:
+        return list_segment_attempts(db, segment_id)
+    except RegenerationError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/segments/{segment_id}/audio")
+def get_segment_audio(segment_id: int) -> FileResponse:
+    """Serve audio for current active segment."""
+    segment = db.fetch_one("SELECT * FROM segments WHERE id=?", (segment_id,))
+    if not segment:
+        raise HTTPException(404, "Segment not found")
+
+    if not segment["wav_path"]:
+        raise HTTPException(404, "Segment has no audio")
+
+    path = Path(segment["wav_path"])
+    if not path.exists():
+        raise HTTPException(404, "Audio file not found")
+
+    return FileResponse(path, media_type="audio/wav", filename=f"segment_{segment_id}.wav")
+
+
+@app.get("/api/segment-attempts/{attempt_id}/audio")
+def get_attempt_audio(attempt_id: int) -> FileResponse:
+    """Serve audio for a specific attempt (safe audio serving)."""
+    attempt = db.fetch_one("SELECT * FROM segment_attempts WHERE id=?", (attempt_id,))
+    if not attempt:
+        raise HTTPException(404, "Attempt not found")
+
+    path = Path(attempt["wav_path"])
+    if not path.exists():
+        raise HTTPException(404, "Audio file not found")
+
+    return FileResponse(path, media_type="audio/wav", filename=f"attempt_{attempt_id}.wav")
+
+
 @app.post("/api/jobs/{job_id}/{action}")
 def job_action(job_id: int, action: str) -> dict[str, Any]:
     job = db.fetch_one("SELECT * FROM jobs WHERE id=?", (job_id,))
