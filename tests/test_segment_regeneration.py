@@ -718,6 +718,172 @@ class TestSegmentRegeneration(IsolatedTestCase):
         self.assertEqual(candidate["attempt_number"], 2)
         self.assertEqual(candidate["duration_ms"], 1100)  # Candidate duration
 
+    @patch('story_audio.segment_regeneration._reassemble_chapter_with_candidate')
+    def test_accept_supersedes_previous_active(self, mock_reassemble):
+        """Test that accepting Attempt 2 supersedes Active Attempt 1."""
+        # Create Active Attempt 1 (original)
+        active_path = self.segment_dir / "segment_1_attempt_1.wav"
+        self._create_test_wav(active_path, duration_ms=1000)
+
+        with self.db.connect() as conn:
+            conn.execute(
+                """INSERT INTO segment_attempts(
+                    segment_id,attempt_number,status,wav_path,audio_sha256,duration_ms,created_at,accepted_at
+                ) VALUES(?,?,?,?,?,?,?,?)""",
+                (self.segment_id, 1, "active", str(active_path), sha256_file(active_path), 1000, utcnow(), utcnow())
+            )
+
+            # Create Candidate Attempt 2
+            candidate_path = self.segment_dir / "segment_1_attempt_2.wav"
+            self._create_test_wav(candidate_path, duration_ms=1100)
+
+            conn.execute(
+                """INSERT INTO segment_attempts(
+                    segment_id,attempt_number,status,wav_path,audio_sha256,duration_ms,created_at
+                ) VALUES(?,?,?,?,?,?,?)""",
+                (self.segment_id, 2, "candidate", str(candidate_path), sha256_file(candidate_path), 1100, utcnow())
+            )
+            candidate_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+        # Mock rebuild to return success
+        master_path = self.config.work_dir / "temp_master.wav"
+        timeline_path = self.config.work_dir / "temp_timeline.json"
+        self._create_test_wav(master_path, duration_ms=1100)
+        timeline_path.write_text(json.dumps({"schema_version": 2, "duration_ms": 1100}))
+
+        mock_reassemble.return_value = {
+            "master_wav": master_path,
+            "master_duration_ms": 1100,
+            "timeline_json": timeline_path,
+            "final_path": master_path,
+            "temp_dir": self.config.work_dir / "temp"
+        }
+
+        # Get original chapter artifact
+        orig_artifact_id = self.db.fetch_one("SELECT active_audio_artifact_id FROM chapters WHERE id=?", (self.chapter_id,))["active_audio_artifact_id"]
+
+        # Accept Attempt 2
+        result = accept_segment_candidate(
+            self.db, self.store, self.config, self.segment_id, candidate_id
+        )
+
+        # Assert Attempt 1 becomes superseded
+        attempt1 = self.db.fetch_one("SELECT * FROM segment_attempts WHERE segment_id=? AND attempt_number=1", (self.segment_id,))
+        self.assertEqual(attempt1["status"], "superseded")
+        self.assertIsNotNone(attempt1["superseded_at"])
+
+        # Assert Attempt 2 becomes active
+        attempt2 = self.db.fetch_one("SELECT * FROM segment_attempts WHERE id=?", (candidate_id,))
+        self.assertEqual(attempt2["status"], "active")
+        self.assertIsNotNone(attempt2["accepted_at"])
+
+        # Assert segment pointers point to Attempt 2
+        segment = self.db.fetch_one("SELECT * FROM segments WHERE id=?", (self.segment_id,))
+        self.assertEqual(segment["wav_path"], str(candidate_path))
+        self.assertEqual(segment["audio_sha256"], sha256_file(candidate_path))
+        self.assertEqual(segment["duration_ms"], 1100)
+
+        # Assert chapter active artifact pointer changed
+        new_artifact_id = self.db.fetch_one("SELECT active_audio_artifact_id FROM chapters WHERE id=?", (self.chapter_id,))["active_audio_artifact_id"]
+        self.assertNotEqual(new_artifact_id, orig_artifact_id)
+        self.assertEqual(new_artifact_id, result["new_artifact_id"])
+
+        # Assert accepting Attempt 2 again is rejected (now it's active, not candidate)
+        with self.assertRaises(RegenerationValidationError) as cm:
+            accept_segment_candidate(
+                self.db, self.store, self.config, self.segment_id, candidate_id
+            )
+        self.assertIn("expected 'candidate'", str(cm.exception))
+        self.assertIn("active", str(cm.exception))
+
+    def test_accept_rejects_non_candidate_status(self):
+        """Test that accepting non-candidate status is rejected."""
+        # Create already-accepted attempt
+        accepted_path = self.segment_dir / "segment_1_attempt_1.wav"
+        self._create_test_wav(accepted_path, duration_ms=1100)
+
+        with self.db.connect() as conn:
+            conn.execute(
+                """INSERT INTO segment_attempts(
+                    segment_id,attempt_number,status,wav_path,audio_sha256,duration_ms,created_at,accepted_at
+                ) VALUES(?,?,?,?,?,?,?,?)""",
+                (self.segment_id, 1, "active", str(accepted_path), sha256_file(accepted_path), 1100, utcnow(), utcnow())
+            )
+            attempt_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+        # Attempt to accept already-active attempt
+        with self.assertRaises(RegenerationValidationError) as cm:
+            accept_segment_candidate(
+                self.db, self.store, self.config, self.segment_id, attempt_id
+            )
+
+        self.assertIn("expected 'candidate'", str(cm.exception))
+        self.assertIn("active", str(cm.exception))
+
+    def test_reject_rejects_non_candidate_status(self):
+        """Test that rejecting non-candidate status is rejected."""
+        # Create already-rejected attempt
+        rejected_path = self.segment_dir / "segment_1_attempt_1.wav"
+        self._create_test_wav(rejected_path, duration_ms=1100)
+
+        with self.db.connect() as conn:
+            conn.execute(
+                """INSERT INTO segment_attempts(
+                    segment_id,attempt_number,status,wav_path,audio_sha256,duration_ms,created_at,rejected_at
+                ) VALUES(?,?,?,?,?,?,?,?)""",
+                (self.segment_id, 1, "rejected", str(rejected_path), sha256_file(rejected_path), 1100, utcnow(), utcnow())
+            )
+            attempt_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+        # Attempt to reject already-rejected attempt
+        with self.assertRaises(RegenerationValidationError) as cm:
+            reject_segment_candidate(self.db, self.segment_id, attempt_id)
+
+        self.assertIn("expected 'candidate'", str(cm.exception))
+        self.assertIn("rejected", str(cm.exception))
+
+    def test_regenerate_after_reject_creates_next_attempt(self):
+        """Test that regeneration after reject creates next valid attempt number."""
+        # Mock TTS
+        def mock_synthesize(synth_input=None, output_path=None, **kwargs):
+            self._create_test_wav(output_path, duration_ms=1100)
+            return (1100, 48000)
+
+        self.tts.synthesize = Mock(side_effect=mock_synthesize)
+
+        # First regeneration (creates active Attempt 1, candidate Attempt 2)
+        result1 = regenerate_verified_segment(
+            self.db, self.store, self.tts, self.config, self.segment_id
+        )
+        self.assertEqual(result1["attempt_number"], 2)
+        candidate1_id = result1["attempt_id"]
+
+        # Reject first candidate
+        reject_segment_candidate(self.db, self.segment_id, candidate1_id)
+
+        # Verify rejected
+        attempt1 = self.db.fetch_one("SELECT * FROM segment_attempts WHERE id=?", (candidate1_id,))
+        self.assertEqual(attempt1["status"], "rejected")
+
+        # Second regeneration (should create Attempt 3)
+        result2 = regenerate_verified_segment(
+            self.db, self.store, self.tts, self.config, self.segment_id
+        )
+        self.assertEqual(result2["attempt_number"], 3)
+
+        # Verify all attempts exist
+        attempts = self.db.fetch_all(
+            "SELECT * FROM segment_attempts WHERE segment_id=? ORDER BY attempt_number",
+            (self.segment_id,)
+        )
+        self.assertEqual(len(attempts), 3)
+        self.assertEqual(attempts[0]["attempt_number"], 1)
+        self.assertEqual(attempts[0]["status"], "active")
+        self.assertEqual(attempts[1]["attempt_number"], 2)
+        self.assertEqual(attempts[1]["status"], "rejected")
+        self.assertEqual(attempts[2]["attempt_number"], 3)
+        self.assertEqual(attempts[2]["status"], "candidate")
+
     def test_custom_snapshot_regeneration(self):
         """Test custom voice segment regeneration with pinned revision."""
         # Create custom voice with revision
