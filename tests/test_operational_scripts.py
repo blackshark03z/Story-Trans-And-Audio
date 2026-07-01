@@ -187,16 +187,25 @@ class TestOperationalScripts(IsolatedTestCase):
         db.initialize()
         
         # doctor.py only reads, doesn't call initialize() on a new DB
-        with patch("story_audio.db.canonical_production_db_path") as mock_canonical:
-            mock_canonical.return_value = self.config.db_path
-            with patch("sys.argv", ["doctor.py"]):
-                from scripts.doctor import main as doctor_main
-                try:
-                    result = doctor_main()
-                    self.assertIsInstance(result, int)
-                except RuntimeError as e:
-                    # Should NOT be the live DB guard error
-                    self.assertNotIn("without explicit opt-in", str(e))
+        # Patch settings to use test config so doctor reads from the initialized test DB
+        with patch("story_audio.config.settings", self.config):
+            with patch("story_audio.integrity.Database") as mock_db_class:
+                # Make Database class return the already-initialized test DB
+                mock_db_class.return_value = db
+                
+                with patch("sys.argv", ["doctor.py"]):
+                    # Import doctor after patching to pick up test config
+                    import importlib
+                    if 'scripts.doctor' in sys.modules:
+                        importlib.reload(sys.modules['scripts.doctor'])
+                    from scripts.doctor import main as doctor_main
+                    
+                    try:
+                        result = doctor_main()
+                        self.assertIsInstance(result, int)
+                    except RuntimeError as e:
+                        # Should NOT be the live DB guard error
+                        self.assertNotIn("without explicit opt-in", str(e))
 
 
 if __name__ == "__main__":

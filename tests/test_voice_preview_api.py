@@ -199,6 +199,8 @@ class VoicePreviewApiTests(IsolatedTestCase):
         
         Custom Voice Library's explicit revision ID path must not be affected.
         """
+        from unittest.mock import Mock
+        
         db = Database(self.config.db_path)
         db.initialize()
         store = ContentStore(self.config)
@@ -207,11 +209,26 @@ class VoicePreviewApiTests(IsolatedTestCase):
         voice = repo.create_custom_voice("Test Voice")
         rev = repo.create_revision(voice.id, b"audio", "transcript")
 
-        # Create test-isolated voice preview service
+        # Create mock TTS that generates valid WAV files
+        mock_tts = Mock()
+        def mock_synthesize(output_path=None, **kwargs):
+            # Generate valid 15-second WAV (within 10-20s contract for custom preview)
+            import wave
+            sample_rate = 48000
+            duration_ms = 15000
+            samples = (duration_ms * sample_rate) // 1000
+            with wave.open(str(output_path), 'wb') as wav:
+                wav.setnchannels(1)
+                wav.setsampwidth(2)
+                wav.setframerate(sample_rate)
+                wav.writeframes(b'\x00\x00' * samples)
+            return (duration_ms, sample_rate)
+        mock_tts.synthesize = Mock(side_effect=mock_synthesize)
+
+        # Create test-isolated voice preview service with mock TTS
         from story_audio.voice_preview import VoicePreviewService
-        from story_audio.tts import tts_service
         test_voice_previews = VoicePreviewService(
-            tts_service, self.config, custom_voice_repo=repo, store=store
+            mock_tts, self.config, custom_voice_repo=repo, store=store
         )
 
         # Patch API module dependencies with test instances
@@ -229,11 +246,11 @@ class VoicePreviewApiTests(IsolatedTestCase):
                 json={"custom_voice_revision_id": rev.id}
             )
 
-        # Should use explicit revision path (200 or 503 if TTS unavailable in test)
-        self.assertIn(response.status_code, [200, 503])
-        if response.status_code == 200:
-            data = response.json()
-            self.assertIn("audio_url", data)
+        # Should succeed with explicit revision path
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertIn("audio_url", data)
+        self.assertEqual(data["custom_voice_revision_id"], rev.id)
 
 
 class JobCreationWithCustomVoicesTests(IsolatedTestCase):
