@@ -6,6 +6,16 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Manual Casting Draft Character Assignment Fix**: Hybrid API endpoint for preserving manual character assignments by text offsets. The POST `/api/chapters/{chapter_id}/casting/draft` endpoint now supports both offset-based (new authoritative manual mode) and utterance-ID-based (existing auto-draft mode) assignments.
+  - **Root cause**: Previous implementation regenerated utterances via `split_utterances()` and matched assignments only by `utterance_id`. UI/manual span IDs did not reliably match regenerated IDs, causing manual assignments to be rejected, ignored, or silently defaulted to narrator.
+  - **Offset-based assignments**: Use `start_offset` and `end_offset` to specify character spans within the approved TextRevision. When an authoritative span is split into multiple utterances by the chunker, every child utterance inherits the source `role`, `character_id`, resolved voice, and resolution metadata.
+  - **Validation**: XOR constraint (exactly one of utterance_id or offsets required), integer offsets within text bounds, ordered non-overlapping spans, active character validation, role/character_id consistency checks. Invalid requests return clear 400 errors with specific messages.
+  - **Coverage behavior**: Partial coverage allowed; uncovered text defaults to narrator. Manual offset mode does not call Gemini.
+  - **Backward compatibility**: Existing utterance-ID workflow unchanged. Empty assignments (auto-draft) still supported. Approved Casting Plans remain immutable.
+  - **Vietnamese smoke validation**: 750-character "Ngôi Nhà Bỏ Hoang" text, 5 offset-based character dialogue spans (3 An, 2 Bình), uncovered narrator spans. Result: 20 utterances with 10 narrator, 4 An (resolved via book_male → Đức Trí), 6 Bình (resolved via book_female → Mỹ Duyên). Distribution difference from expected 13/3/4 is correct: some submitted dialogue spans split into multiple child utterances, all inheriting character assignment.
+  - Test coverage: 723 offline tests passing (13 new offset-based tests in `tests/test_offset_casting.py`).
+  - Live DB remained unchanged during isolated smoke testing.
+
 - **Multi-voice Segment Regeneration**: Isolated segment re-synthesis for verified segments without re-running entire jobs. Users can generate candidate attempts using immutable segment snapshots (text, voice, settings), listen to original (active) and candidate side-by-side, then Accept (rebuilds chapter artifacts) or Reject (keeps original). Full attempt history preserved for audit and rollback.
   - `segment_attempts` table tracks active attempt, candidates, rejected attempts, and superseded attempts with timestamps.
   - On first regeneration, system transactionally seeds existing verified output as active Attempt 1, then creates candidate as Attempt 2.
@@ -17,7 +27,6 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
   - Vietnamese multi-voice pilot passed: Book 19, Chapter 1996, Job 16 with 20/20 segments verified, Ngọc Lan (narrator) / Đức Trí (male An) / Mỹ Duyên (female Bình) voices.
   - Real regeneration smoke: Segment 350 generated candidate (1510ms) from original (1750ms), manual rejection workflow passed, active Attempt 1 preserved.
   - Test coverage: 708 offline tests passing (includes segment regeneration, voice preview, casting/speaker review, migration tests).
-  - Known gap: POST `/api/chapters/{chapter_id}/casting/draft` ignores supplied `character_id` assignments; users must manually correct character assignments in UI after draft creation.
 
 ### Planned
 
