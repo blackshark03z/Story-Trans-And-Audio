@@ -1,31 +1,22 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-06-28T23:45 (Asia/Saigon)
-**Milestone:** Custom Voice Library UI Complete; Voice Select Integration Pending
-**Trạng thái:** Custom Voice Library panel complete and merged; voice selects (Book Voice Profile/Character Override/Manual Casting) do not yet expose custom voices to user
+**Cập nhật:** 2026-07-01T12:00 (Asia/Saigon)
+**Milestone:** Multi-voice Segment Regeneration Complete
+**Trạng thái:** feat/segment-regeneration ready for merge; multi-voice pilot passed; regeneration preserves character voice assignments
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `a3208c12f3da24d96aa24b1cd78c0459c5b57710`
-**Last verified branch:** `feat/multi-custom-voice-short-smoke`
-**Last verified date:** 2026-06-28
+**Last verified against commit:** `c3162c0`
+**Last verified branch:** `feat/segment-regeneration`
+**Last verified date:** 2026-07-01
 
-**Last verified focused Custom Voice test baseline:**
-- Custom Voice Library UI tests: 219 tests passing
-- Custom Voice API tests: 34 tests passing
-- **Total focused:** 253 tests passing
-- JavaScript syntax validation: PASS
-- Verification command: `unittest tests.test_custom_voice_library_ui` + `tests.test_custom_voice_api`
-- Verified at commit: `a3208c12f3da24d96aa24b1cd78c0459c5b57710`
-- Verified date: 2026-06-28
-
-**Last verified full-suite baseline:**
-- Full offline test suite: 377 tests passing (92 new snapshot tests added in Phase 3B)
+**Last verified focused Multi-voice Segment Regeneration baseline:**
+- Full offline test suite: 708 tests passing
 - Verification command: `unittest discover -s tests`
-- Verified at commit: `a3208c12f3da24d96aa24b1cd78c0459c5b57710`
-- Verified date: 2026-06-28
+- Verified at commit: `c3162c0`
+- Verified date: 2026-07-01
 
 - EPUB: `Quang_Am_Chi_Ngoai.epub`.
 - Import: 1 sách, 1.980 chương, khoảng 12,6 triệu ký tự.
@@ -121,9 +112,11 @@ Audio casting mặc định dùng ba nhóm voice cấp book: narrator, male dial
 - [x] Custom Voice Preview: Immutable revision preview, reference audio/transcript integrity, content-addressed cache, backward-compatible API, minimal UI and 450 offline tests.
 - [x] Custom Reference Voice Library UI: Global library panel, logical voice create/list/select/deactivate/reactivate, immutable audio/transcript revision upload (multipart), revision history, exact revision selection (radio + summary), Reference Audio playback (separate from preview), custom Preview Text (optional, 500 char max), short preview support (>0s, no 10s minimum), cache isolation, compact standalone Preset Voice Preview restored, redundant custom preview panel removed (Custom Voice Library is single custom-reference workflow), smoke/test books hidden by default with "Show test data" checkbox, full-width vertical form labels, responsive two-column upload layout. Real manual smoke passed: preset preview functional, two revisions, exact selection, Reference Audio, short custom text synthesis, cache behavior verified. Test isolation verified: live DB unchanged during automated runs. 613 tests passing (3 known pre-existing failures in brittle minified JS assertions). **Work merged into main via PR #2.**
 - [x] Custom Voice Backend Resolution & Snapshot Support: voice_ref.py `custom:<id>` parser, CustomVoiceContext catalog, resolver integration in casting/profile/pipeline, 14-field immutable snapshot, snapshot-based TTS synthesis, fail-closed legacy policy, 377 offline tests (92 new snapshot tests), real VieNeu smoke (preset + custom). **Migration 0007, Phase 3A/3B complete.**
+- [x] Multi-voice Segment Regeneration: Isolated segment re-synthesis with immutable voice snapshots, A/B candidate comparison, Accept/Reject workflows, and segment_attempts history tracking. Voice preservation verified: Character An → Đức Trí assignment preserved across regeneration. Vietnamese multi-voice pilot passed (Book 19, Job 16, 20/20 segments verified, Ngọc Lan/Đức Trí/Mỹ Duyên voices). Real regeneration smoke: Segment 350 generated candidate with correct Đức Trí voice, manual rejection workflow passed. 708 offline tests passing. **feat/segment-regeneration complete, ready for merge.**
 
 ## Hạn chế hiện tại
 
+- **POST /api/chapters/{chapter_id}/casting/draft character_id assignment gap**: The manual casting draft API endpoint ignores supplied `character_id` assignments in the request payload. Users must manually correct character assignments in the UI after draft creation. This affects Vietnamese multi-voice workflows where precise character-to-voice mapping is required.
 - **Custom Voice UI Integration**: Backend resolution, snapshot, và TTS synthesis hoàn tất. UI library panel và preview hoàn tất. **UI voice selects (Book Voice Profile narrator/male/female, Character Override, Manual Casting) chưa load custom voices từ `/api/custom-voices`**. Người dùng chỉ chọn được preset voices qua browser. Cần thêm JavaScript `loadCustomVoices()` và merge vào `castingVoiceOptions()`.
 - Gemini và TTS chạy tuần tự trong một orchestration worker; chưa prefetch 2–5 chương.
 - Shared Gemini cache vẫn chạy tuần tự; hai process có thể cùng gọi Gemini trước khi atomic write cùng một key (kết quả cuối vẫn hợp lệ).
@@ -213,3 +206,4 @@ Các hạng mục vận hành/quota và alignment không cấp thiết được 
 | 2026-06-28 | Phase 3B: Immutable Voice Snapshots | 14-field SegmentSynthesisInput, snapshot-based TTS, fail-closed legacy policy, 377 tests (92 new), real VieNeu smoke (preset + custom) |
 | 2026-06-28 | Custom Voice UI Library | PR #2 merged; 613 tests pass (3 pre-existing failures); library panel, revision upload/selection, Reference Audio, preview, smoke passed |
 
+| 2026-07-01 | Multi-voice Segment Regeneration | Book 19/Job 16 Vietnamese pilot 20/20 verified; Segment 350 candidate preserved Đức Trí voice; manual rejection passed; 708 tests pass; Books 14-18 Task 8C duplicates cleaned |
