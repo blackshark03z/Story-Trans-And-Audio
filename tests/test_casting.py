@@ -153,7 +153,7 @@ class CastingTests(unittest.TestCase):
                 ).lastrowid)
             outsider = create_character(db, other_book, "Outsider", "voice-a")
             utterance = split_utterances(TEXT)[0]
-            with self.assertRaisesRegex(CastingError, "does not belong"):
+            with self.assertRaisesRegex(CastingError, "(does not belong|does not exist|inactive|another book)"):
                 create_casting_draft(
                     db, store, chapter_id=chapter, text_revision_id=revision,
                     narrator_voice_id="narrator",

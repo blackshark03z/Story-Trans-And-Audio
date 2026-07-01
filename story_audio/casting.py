@@ -272,6 +272,198 @@ def _is_allowed_voice(voice_ref: str, allowed_voice_ids: set[str], custom_voice_
         return True
     return False
 
+def _apply_assignment_to_utterance(
+    utterance: dict[str, Any],
+    role: str,
+    character_id: int | None,
+    chapter: dict[str, Any],
+    db: Database,
+    profile: dict[str, Any] | None,
+    narrator_voice_id: str,
+    narrator_result: dict[str, Any] | None,
+    allowed_voice_ids: set[str],
+    custom_voice_context: CustomVoiceContext | None,
+    used_characters: set[int],
+) -> None:
+    """Apply a role/character assignment to a single utterance.
+
+    Mutates the utterance dict in place.
+    """
+    # Clear previous resolution metadata
+    for field in (
+        "resolved_voice", "resolution_source", "resolved_gender",
+        "voice_profile_id", "voice_profile_version", "needs_review",
+    ):
+        utterance.pop(field, None)
+
+    if role == "narrator":
+        utterance.update(
+            role="narrator", character_id=None, resolved_voice_id=narrator_voice_id
+        )
+        if narrator_result:
+            utterance.update(
+                resolved_voice=narrator_result["voice"],
+                resolution_source=narrator_result["resolution_source"],
+                resolved_gender=narrator_result["gender"],
+                voice_profile_id=narrator_result["profile_id"],
+                voice_profile_version=narrator_result["profile_version"],
+                needs_review=narrator_result["needs_review"],
+            )
+        return
+
+    if role == "unknown":
+        if profile:
+            resolution = resolve_voice(
+                speaker_type="dialogue", book_voice_profile=profile, custom_voice_context=custom_voice_context
+            )
+            resolved_voice_id = resolution["resolved_voice_id"]
+        else:
+            resolution = None
+            resolved_voice_id = narrator_voice_id
+        if not _is_allowed_voice(resolved_voice_id, allowed_voice_ids, custom_voice_context):
+            raise CastingError("Unknown fallback is not available")
+        utterance.update(
+            role="unknown",
+            character_id=None,
+            resolved_voice_id=resolved_voice_id,
+        )
+        if resolution:
+            utterance.update(
+                resolved_voice=resolution["voice"],
+                resolution_source=resolution["resolution_source"],
+                resolved_gender=resolution["gender"],
+                voice_profile_id=resolution["profile_id"],
+                voice_profile_version=resolution["profile_version"],
+                needs_review=True,
+            )
+        return
+
+    # role == "character"
+    character = db.fetch_one(
+        "SELECT * FROM characters WHERE id=? AND book_id=? AND active=1",
+        (character_id, chapter["book_id"]),
+    )
+    if not character:
+        raise CastingError("Character does not belong to this book")
+    if profile:
+        resolution = resolve_voice(
+            speaker_type="dialogue", book_voice_profile=profile, character=character,
+            custom_voice_context=custom_voice_context
+        )
+        resolved_voice_id = resolution["resolved_voice_id"]
+    else:
+        resolved_voice_id = str(character["voice_override_id"] or "")
+        resolution = None
+        if not resolved_voice_id:
+            raise CastingError(
+                "Create a Book Voice Profile before using book-default character voices"
+            )
+    if not _is_allowed_voice(resolved_voice_id, allowed_voice_ids, custom_voice_context):
+        raise CastingError("Character voice is not available")
+    utterance.update(
+        role="character",
+        character_id=character_id,
+        resolved_voice_id=resolved_voice_id,
+    )
+    if resolution:
+        utterance.update(
+            resolved_voice=resolution["voice"],
+            resolution_source=resolution["resolution_source"],
+            resolved_gender=resolution["gender"],
+            voice_profile_id=resolution["profile_id"],
+            voice_profile_version=resolution["profile_version"],
+            needs_review=resolution["needs_review"],
+        )
+    used_characters.add(character_id)
+
+def _validate_and_categorize_assignments(
+    assignments: list[dict[str, Any]], text: str, book_id: int, db: Database
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Validate and categorize assignments into offset-based and utterance-id-based.
+
+    Returns:
+        (offset_assignments, utterance_assignments)
+
+    Raises:
+        CastingError: if validation fails
+    """
+    offset_assignments: list[dict[str, Any]] = []
+    utterance_assignments: list[dict[str, Any]] = []
+
+    for idx, assignment in enumerate(assignments):
+        has_utterance_id = assignment.get("utterance_id") is not None
+        has_offsets = assignment.get("start_offset") is not None and assignment.get("end_offset") is not None
+
+        # XOR validation: exactly one mode
+        if has_utterance_id and has_offsets:
+            raise CastingError(
+                f"Assignment {idx}: cannot specify both utterance_id and offsets"
+            )
+        if not has_utterance_id and not has_offsets:
+            raise CastingError(
+                f"Assignment {idx}: must specify either utterance_id or start_offset/end_offset"
+            )
+
+        role = assignment.get("role", "narrator")
+        character_id = assignment.get("character_id")
+
+        # Role validation
+        if role not in {"narrator", "character", "unknown"}:
+            raise CastingError(f"Assignment {idx}: role must be narrator, character, or unknown")
+
+        # Character ID validation
+        if role == "narrator" and character_id is not None:
+            raise CastingError(f"Assignment {idx}: narrator cannot have character_id")
+        if role == "unknown" and character_id is not None:
+            raise CastingError(f"Assignment {idx}: unknown speaker cannot have character_id")
+        if role == "character":
+            if character_id is None:
+                raise CastingError(f"Assignment {idx}: character role requires character_id")
+            # Verify character exists, is active, and belongs to book
+            character = db.fetch_one(
+                "SELECT id FROM characters WHERE id=? AND book_id=? AND active=1",
+                (character_id, book_id),
+            )
+            if not character:
+                raise CastingError(
+                    f"Assignment {idx}: character {character_id} does not exist, is inactive, or belongs to another book"
+                )
+
+        if has_offsets:
+            start = assignment["start_offset"]
+            end = assignment["end_offset"]
+
+            # Offset validation
+            if not isinstance(start, int) or not isinstance(end, int):
+                raise CastingError(f"Assignment {idx}: offsets must be integers")
+            if start < 0 or end < 0:
+                raise CastingError(f"Assignment {idx}: offsets cannot be negative")
+            if start >= end:
+                raise CastingError(f"Assignment {idx}: start_offset must be less than end_offset")
+            if start >= len(text) or end > len(text):
+                raise CastingError(
+                    f"Assignment {idx}: offsets [{start}, {end}) are out of text bounds [0, {len(text)})"
+                )
+
+            offset_assignments.append(assignment)
+        else:
+            utterance_assignments.append(assignment)
+
+    # Check for overlaps in offset assignments
+    if offset_assignments:
+        # Sort by start_offset
+        sorted_offsets = sorted(offset_assignments, key=lambda a: a["start_offset"])
+        for i in range(len(sorted_offsets) - 1):
+            curr = sorted_offsets[i]
+            next_a = sorted_offsets[i + 1]
+            if curr["end_offset"] > next_a["start_offset"]:
+                raise CastingError(
+                    f"Overlapping offset assignments: [{curr['start_offset']}, {curr['end_offset']}) "
+                    f"and [{next_a['start_offset']}, {next_a['end_offset']})"
+                )
+
+    return offset_assignments, utterance_assignments
+
 def create_casting_draft(
     db: Database,
     store: ContentStore,
@@ -304,6 +496,13 @@ def create_casting_draft(
     if not _is_allowed_voice(narrator_voice_id, allowed_voice_ids, custom_voice_context):
         raise CastingError("Narrator voice is not available")
     text = store.read_text(revision["content_path"])
+
+    # Validate and categorize assignments
+    assignments_list = list(assignments)
+    offset_assignments, utterance_assignments = _validate_and_categorize_assignments(
+        assignments_list, text, int(chapter["book_id"]), db
+    )
+
     utterances = split_utterances(text, maximum=maximum)
     if base_utterances is not None:
         base_by_id = {
@@ -328,105 +527,53 @@ def create_casting_draft(
         for item in utterances
         if item.get("role") == "character" and item.get("character_id") is not None
     }
-    for assignment in assignments:
+
+    # Process offset-based assignments first
+    for assignment in offset_assignments:
+        role = assignment.get("role", "narrator")
+        character_id = assignment.get("character_id")
+        start = assignment["start_offset"]
+        end = assignment["end_offset"]
+
+        # Find all utterances that are fully or partially contained in this span
+        # An utterance matches if its range overlaps with the assignment span
+        matched_utterances = [
+            u for u in utterances
+            if u["start_offset"] < end and u["end_offset"] > start and u["utterance_id"] not in seen
+        ]
+
+        if not matched_utterances:
+            raise CastingError(
+                f"Offset assignment [{start}, {end}) does not match any unassigned utterances"
+            )
+
+        # Apply assignment to all matched utterances
+        for utterance in matched_utterances:
+            utterance_id = utterance["utterance_id"]
+            seen.add(utterance_id)
+
+            # Apply the assignment
+            _apply_assignment_to_utterance(
+                utterance, role, character_id, chapter, db, profile,
+                narrator_voice_id, narrator_result, allowed_voice_ids,
+                custom_voice_context, used_characters
+            )
+
+    # Process utterance-ID-based assignments (existing flow)
+    for assignment in utterance_assignments:
         utterance_id = str(assignment.get("utterance_id", ""))
         if utterance_id not in by_id or utterance_id in seen:
-            import sys
-            print(f"DEBUG: utterance_id={utterance_id!r}", file=sys.stderr)
-            print(f"DEBUG: by_id keys={list(by_id.keys())}", file=sys.stderr)
-            print(f"DEBUG: seen={seen}", file=sys.stderr)
-            print(f"DEBUG: in by_id={utterance_id in by_id}", file=sys.stderr)
-            print(f"DEBUG: in seen={utterance_id in seen}", file=sys.stderr)
             raise CastingError("Casting assignment does not match deterministic utterances")
         seen.add(utterance_id)
         role = assignment.get("role", "narrator")
+        character_id = assignment.get("character_id")
         target = by_id[utterance_id]
-        for field in (
-            "resolved_voice", "resolution_source", "resolved_gender",
-            "voice_profile_id", "voice_profile_version", "needs_review",
-        ):
-            target.pop(field, None)
-        if role == "narrator":
-            target.update(
-                role="narrator", character_id=None, resolved_voice_id=narrator_voice_id
-            )
-            if narrator_result:
-                target.update(
-                    resolved_voice=narrator_result["voice"],
-                    resolution_source=narrator_result["resolution_source"],
-                    resolved_gender=narrator_result["gender"],
-                    voice_profile_id=narrator_result["profile_id"],
-                    voice_profile_version=narrator_result["profile_version"],
-                    needs_review=narrator_result["needs_review"],
-                )
-            continue
-        if role == "unknown":
-            if assignment.get("character_id") is not None:
-                raise CastingError("Unknown speaker cannot reference a character")
-            if profile:
-                resolution = resolve_voice(
-                    speaker_type="dialogue", book_voice_profile=profile, custom_voice_context=custom_voice_context
-                )
-                resolved_voice_id = resolution["resolved_voice_id"]
-            else:
-                resolution = None
-                resolved_voice_id = narrator_voice_id
-            if not _is_allowed_voice(resolved_voice_id, allowed_voice_ids, custom_voice_context):
-                raise CastingError("Unknown fallback is not available")
-            target.update(
-                role="unknown",
-                character_id=None,
-                resolved_voice_id=resolved_voice_id,
-            )
-            if resolution:
-                target.update(
-                    resolved_voice=resolution["voice"],
-                    resolution_source=resolution["resolution_source"],
-                    resolved_gender=resolution["gender"],
-                    voice_profile_id=resolution["profile_id"],
-                    voice_profile_version=resolution["profile_version"],
-                    needs_review=True,
-                )
-            continue
-        if role != "character" or assignment.get("character_id") is None:
-            raise CastingError("Speaker must be narrator, unknown, or a character")
-        character_id = int(assignment["character_id"])
-        character = db.fetch_one(
-            "SELECT * FROM characters WHERE id=? AND book_id=? AND active=1",
-            (character_id, chapter["book_id"]),
+
+        _apply_assignment_to_utterance(
+            target, role, character_id, chapter, db, profile,
+            narrator_voice_id, narrator_result, allowed_voice_ids,
+            custom_voice_context, used_characters
         )
-        if not character:
-            raise CastingError("Character does not belong to this book")
-        if profile:
-            resolution = resolve_voice(
-                speaker_type="dialogue", book_voice_profile=profile, character=character,
-                custom_voice_context=custom_voice_context
-            )
-            resolved_voice_id = resolution["resolved_voice_id"]
-        else:
-            resolved_voice_id = str(character["voice_override_id"] or "")
-            resolution = None
-            if not resolved_voice_id:
-                raise CastingError(
-                    "Create a Book Voice Profile before using book-default character voices"
-                )
-        if not _is_allowed_voice(resolved_voice_id, allowed_voice_ids, custom_voice_context):
-            raise CastingError("Character voice is not available")
-        target.update(
-            role="character",
-            character_id=character_id,
-            resolved_voice_id=resolved_voice_id,
-        )
-        if resolution:
-            target.update(
-                resolved_voice=resolution["voice"],
-                resolution_source=resolution["resolution_source"],
-                resolved_gender=resolution["gender"],
-                voice_profile_id=resolution["profile_id"],
-                voice_profile_version=resolution["profile_version"],
-                needs_review=resolution["needs_review"],
-            )
-        used_characters.add(character_id)
     for utterance in utterances:
         if not utterance["resolved_voice_id"]:
             utterance["resolved_voice_id"] = narrator_voice_id
@@ -629,7 +776,7 @@ def validate_approved_plan(
             )
             if not character:
                 raise CastingError("Casting plan references a character from another book")
-    
+
     # Validate all voices (preset and custom)
     if allowed_voice_ids is not None:
         from .voice_ref import is_custom_ref, parse_custom_ref
