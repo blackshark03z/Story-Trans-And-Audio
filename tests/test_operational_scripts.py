@@ -136,6 +136,7 @@ class TestOperationalScripts(IsolatedTestCase):
         """Database.initialize() blocks canonical path without STORY_AUDIO_ALLOW_LIVE_DB."""
         # Temporarily disable test mode
         original_testing = os.environ.pop("STORY_AUDIO_TESTING", None)
+        original_allow = os.environ.pop("STORY_AUDIO_ALLOW_LIVE_DB", None)
         try:
             with patch("story_audio.db.canonical_production_db_path") as mock_canonical:
                 mock_canonical.return_value = self.config.db_path
@@ -147,6 +148,8 @@ class TestOperationalScripts(IsolatedTestCase):
         finally:
             if original_testing:
                 os.environ["STORY_AUDIO_TESTING"] = original_testing
+            if original_allow:
+                os.environ["STORY_AUDIO_ALLOW_LIVE_DB"] = original_allow
 
     def test_db_guard_allows_with_flag(self):
         """Database.initialize() allows canonical path with STORY_AUDIO_ALLOW_LIVE_DB=1."""
