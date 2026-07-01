@@ -174,7 +174,9 @@ class CharacterBibleImportRequest(BaseModel):
 
 
 class CastingAssignment(BaseModel):
-    utterance_id: str
+    utterance_id: str | None = None
+    start_offset: int | None = None
+    end_offset: int | None = None
     role: str
     character_id: int | None = None
 
