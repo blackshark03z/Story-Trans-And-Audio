@@ -14,14 +14,41 @@ def canonical_production_db_path() -> Path:
     """
     return ROOT / "data" / "app.db"
 
+
+def _resolve_data_dir() -> Path:
+    """Resolve data directory from environment or default.
+
+    Respects STORY_AUDIO_DATA_DIR environment variable for isolated testing.
+    When unset, uses the default repository data directory.
+    When set, validates and resolves to absolute path.
+    """
+    override = os.getenv("STORY_AUDIO_DATA_DIR", "")
+
+    # If environment variable is not set, use default
+    if override is None or (not override and "STORY_AUDIO_DATA_DIR" not in os.environ):
+        return ROOT / "data"
+
+    # If set to empty or whitespace, reject
+    override = override.strip()
+    if not override:
+        raise ValueError("STORY_AUDIO_DATA_DIR cannot be empty or whitespace")
+
+    data_path = Path(override).resolve()
+    return data_path
+
+
+# Resolve data directory once at module load
+_DATA_DIR = _resolve_data_dir()
+
+
 @dataclass(frozen=True)
 class Settings:
     root: Path = ROOT
-    data_dir: Path = ROOT / "data"
-    db_path: Path = ROOT / "data" / "app.db"
-    blobs_dir: Path = ROOT / "data" / "blobs"
-    output_dir: Path = ROOT / "data" / "output"
-    work_dir: Path = ROOT / "data" / "work"
+    data_dir: Path = _DATA_DIR
+    db_path: Path = _DATA_DIR / "app.db"
+    blobs_dir: Path = _DATA_DIR / "blobs"
+    output_dir: Path = _DATA_DIR / "output"
+    work_dir: Path = _DATA_DIR / "work"
     log_dir: Path = ROOT / "logs"
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     gemini_prompt_version: str = "punctuation-v1"
