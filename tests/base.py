@@ -45,16 +45,16 @@ class IsolatedTestCase(unittest.TestCase):
     
     def tearDown(self) -> None:
         # Restore original environment
-        if self._original_testing is None:
-            os.environ.pop("STORY_AUDIO_TESTING", None)
-        else:
+        if self._original_testing is not None:
             os.environ["STORY_AUDIO_TESTING"] = self._original_testing
-        
-        if self._original_allow_live is None:
-            os.environ.pop("STORY_AUDIO_ALLOW_LIVE_DB", None)
         else:
+            os.environ.pop("STORY_AUDIO_TESTING", None)
+
+        if self._original_allow_live is not None:
             os.environ["STORY_AUDIO_ALLOW_LIVE_DB"] = self._original_allow_live
-        
+        else:
+            os.environ.pop("STORY_AUDIO_ALLOW_LIVE_DB", None)
+
         # Clean up temp directory
         self.temp_dir.cleanup()
         super().tearDown()

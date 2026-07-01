@@ -51,7 +51,7 @@ class TestOperationalScripts(IsolatedTestCase):
                         import_main()
                         self.assertEqual(os.environ.get("STORY_AUDIO_ALLOW_LIVE_DB"), "1")
             finally:
-                if original_testing:
+                if original_testing is not None:
                     os.environ["STORY_AUDIO_TESTING"] = original_testing
         finally:
             if original_allow is not None:
@@ -95,7 +95,7 @@ class TestOperationalScripts(IsolatedTestCase):
                 os.environ["STORY_AUDIO_ALLOW_LIVE_DB"] = original_allow
             else:
                 os.environ.pop("STORY_AUDIO_ALLOW_LIVE_DB", None)
-            if original_testing:
+            if original_testing is not None:
                 os.environ["STORY_AUDIO_TESTING"] = original_testing
 
     def test_smoke_multivoice_flag_sets_env_var(self):
@@ -129,7 +129,7 @@ class TestOperationalScripts(IsolatedTestCase):
                 os.environ["STORY_AUDIO_ALLOW_LIVE_DB"] = original_allow
             else:
                 os.environ.pop("STORY_AUDIO_ALLOW_LIVE_DB", None)
-            if original_testing:
+            if original_testing is not None:
                 os.environ["STORY_AUDIO_TESTING"] = original_testing
 
     def test_db_guard_blocks_without_flag(self):
@@ -146,9 +146,9 @@ class TestOperationalScripts(IsolatedTestCase):
                 self.assertIn("without explicit opt-in", str(cm.exception))
                 self.assertIn("--allow-live-db", str(cm.exception))
         finally:
-            if original_testing:
+            if original_testing is not None:
                 os.environ["STORY_AUDIO_TESTING"] = original_testing
-            if original_allow:
+            if original_allow is not None:
                 os.environ["STORY_AUDIO_ALLOW_LIVE_DB"] = original_allow
 
     def test_db_guard_allows_with_flag(self):
@@ -163,9 +163,9 @@ class TestOperationalScripts(IsolatedTestCase):
                 db.initialize()  # Should not raise
                 self.assertGreater(db.schema_version(), 0)
         finally:
-            if original_testing:
+            if original_testing is not None:
                 os.environ["STORY_AUDIO_TESTING"] = original_testing
-            if original_allow:
+            if original_allow is not None:
                 os.environ["STORY_AUDIO_ALLOW_LIVE_DB"] = original_allow
             else:
                 os.environ.pop("STORY_AUDIO_ALLOW_LIVE_DB", None)
