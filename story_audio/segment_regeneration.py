@@ -243,6 +243,7 @@ def _ffprobe_duration_ms(path: Path) -> int:
 
 def _reassemble_chapter_with_candidate(
     db: Database,
+    store: ContentStore,
     config: Settings,
     segment_id: int,
     candidate_path: Path,
@@ -488,7 +489,7 @@ def accept_segment_candidate(
     # 2. Rebuild chapter with candidate (failure-safe)
     try:
         rebuild_result = _reassemble_chapter_with_candidate(
-            db, config, segment_id, candidate_path, attempt["duration_ms"]
+            db, store, config, segment_id, candidate_path, attempt["duration_ms"]
         )
     except Exception as exc:
         # Rebuild failed - candidate remains available
