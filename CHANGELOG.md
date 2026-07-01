@@ -4,6 +4,21 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ## Unreleased
 
+### Added
+
+- **Multi-voice Segment Regeneration**: Isolated segment re-synthesis for verified segments without re-running entire jobs. Users can generate candidate attempts using immutable segment snapshots (text, voice, settings), listen to original (active) and candidate side-by-side, then Accept (rebuilds chapter artifacts) or Reject (keeps original). Full attempt history preserved for audit and rollback.
+  - `segment_attempts` table tracks active attempt, candidates, rejected attempts, and superseded attempts with timestamps.
+  - On first regeneration, system transactionally seeds existing verified output as active Attempt 1, then creates candidate as Attempt 2.
+  - POST `/api/segments/{segment_id}/regenerate` validates segment status, job idle state, loads immutable snapshot via `load_segment_synthesis_input()`, synthesizes candidate WAV, and records attempt with status='candidate'.
+  - Accept workflow (`/api/segments/{segment_id}/accept-candidate`) rebuilds chapter artifacts with candidate, atomically promotes candidate to active, marks old active as superseded, updates segment pointers, and creates new render directory.
+  - Reject workflow (`/api/segments/{segment_id}/reject-candidate`) marks candidate as rejected, retains WAV for audit, does not modify active segment or artifacts.
+  - List workflow (`/api/segments/{segment_id}/attempts`) returns active, candidate, and history with legacy state repair for pre-seeding segments.
+  - Voice preservation verified: Character An → Đức Trí assignment preserved across regeneration (immutable snapshot guarantees correct voice used).
+  - Vietnamese multi-voice pilot passed: Book 19, Chapter 1996, Job 16 with 20/20 segments verified, Ngọc Lan (narrator) / Đức Trí (male An) / Mỹ Duyên (female Bình) voices.
+  - Real regeneration smoke: Segment 350 generated candidate (1510ms) from original (1750ms), manual rejection workflow passed, active Attempt 1 preserved.
+  - Test coverage: 708 offline tests passing (includes segment regeneration, voice preview, casting/speaker review, migration tests).
+  - Known gap: POST `/api/chapters/{chapter_id}/casting/draft` ignores supplied `character_id` assignments; users must manually correct character assignments in UI after draft creation.
+
 ### Planned
 
 - **Chapter Output Package for YouTube Auto**: Segment-level timeline.json with speaker labels, timestamps derived from final assembled audio, subtitles.srt with relative timestamps, manifest.json with chapter metadata and artifact references. Real handoff smoke test validation with full chapter render and portable bundle structure.

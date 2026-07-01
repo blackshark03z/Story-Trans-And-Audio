@@ -113,14 +113,94 @@ class LiveDBGuardTests(IsolatedTestCase):
 
 
 class EnvironmentIsolationTests(unittest.TestCase):
-    """Verify environment isolation between tests."""
-    
-    def test_previous_test_environment_was_restored(self) -> None:
-        """Previous test's STORY_AUDIO_TESTING should not leak."""
-        # This would fail if LiveDBGuardTests leaked environment
-        testing = os.environ.get("STORY_AUDIO_TESTING")
-        # Could be None or original value, but won't be "1" unless we're in IsolatedTestCase
-        self.assertIsNone(testing)
+    """Verify IsolatedTestCase environment isolation mechanism.
+
+    These tests directly verify that IsolatedTestCase properly restores
+    environment variables to their exact prior state, including:
+    - absent (None)
+    - set to "1"
+    - set to empty string ""
+
+    We test the isolation mechanism directly rather than relying on
+    unittest execution order.
+    """
+
+    def test_isolated_test_case_restores_absent_variables(self) -> None:
+        """IsolatedTestCase restores variables that were absent before setUp."""
+        # Ensure variables are absent
+        os.environ.pop("STORY_AUDIO_TESTING", None)
+        os.environ.pop("STORY_AUDIO_ALLOW_LIVE_DB", None)
+
+        # Create and run lifecycle
+        test = IsolatedTestCase()
+        test.setUp()
+
+        # Verify setUp set STORY_AUDIO_TESTING=1
+        self.assertEqual(os.environ.get("STORY_AUDIO_TESTING"), "1")
+
+        # Run tearDown
+        test.tearDown()
+
+        # Verify variables are absent again
+        self.assertIsNone(os.environ.get("STORY_AUDIO_TESTING"),
+                         "STORY_AUDIO_TESTING should be absent after tearDown")
+        self.assertIsNone(os.environ.get("STORY_AUDIO_ALLOW_LIVE_DB"),
+                         "STORY_AUDIO_ALLOW_LIVE_DB should be absent after tearDown")
+
+    def test_isolated_test_case_restores_set_variables(self) -> None:
+        """IsolatedTestCase restores variables that were set to '1' before setUp."""
+        # Set variables to specific values
+        os.environ["STORY_AUDIO_TESTING"] = "1"
+        os.environ["STORY_AUDIO_ALLOW_LIVE_DB"] = "1"
+
+        # Create and run lifecycle
+        test = IsolatedTestCase()
+        test.setUp()
+
+        # Verify setUp still has STORY_AUDIO_TESTING=1 (same value)
+        self.assertEqual(os.environ.get("STORY_AUDIO_TESTING"), "1")
+
+        # Modify during test to simulate test body
+        os.environ["STORY_AUDIO_TESTING"] = "modified"
+        os.environ["STORY_AUDIO_ALLOW_LIVE_DB"] = "modified"
+
+        # Run tearDown
+        test.tearDown()
+
+        # Verify variables restored to original "1"
+        self.assertEqual(os.environ.get("STORY_AUDIO_TESTING"), "1",
+                        "STORY_AUDIO_TESTING should be restored to '1'")
+        self.assertEqual(os.environ.get("STORY_AUDIO_ALLOW_LIVE_DB"), "1",
+                        "STORY_AUDIO_ALLOW_LIVE_DB should be restored to '1'")
+
+    def test_isolated_test_case_restores_empty_string_variables(self) -> None:
+        """IsolatedTestCase restores variables that were empty string before setUp."""
+        # Set variables to empty string (edge case for truthiness)
+        os.environ["STORY_AUDIO_TESTING"] = ""
+        os.environ["STORY_AUDIO_ALLOW_LIVE_DB"] = ""
+
+        # Create and run lifecycle
+        test = IsolatedTestCase()
+        test.setUp()
+
+        # Verify setUp set STORY_AUDIO_TESTING=1 (overrides empty string)
+        self.assertEqual(os.environ.get("STORY_AUDIO_TESTING"), "1")
+
+        # Run tearDown
+        test.tearDown()
+
+        # Verify variables restored to empty string (not absent)
+        self.assertEqual(os.environ.get("STORY_AUDIO_TESTING"), "",
+                        "STORY_AUDIO_TESTING should be restored to empty string")
+        self.assertEqual(os.environ.get("STORY_AUDIO_ALLOW_LIVE_DB"), "",
+                        "STORY_AUDIO_ALLOW_LIVE_DB should be restored to empty string")
+
+    def tearDown(self) -> None:
+        """Clean up environment after each test."""
+        # Ensure we don't leak our test setup to other tests
+        os.environ.pop("STORY_AUDIO_TESTING", None)
+        os.environ.pop("STORY_AUDIO_ALLOW_LIVE_DB", None)
+        super().tearDown()
 
 
 if __name__ == "__main__":

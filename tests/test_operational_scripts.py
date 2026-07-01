@@ -51,7 +51,7 @@ class TestOperationalScripts(IsolatedTestCase):
                         import_main()
                         self.assertEqual(os.environ.get("STORY_AUDIO_ALLOW_LIVE_DB"), "1")
             finally:
-                if original_testing:
+                if original_testing is not None:
                     os.environ["STORY_AUDIO_TESTING"] = original_testing
         finally:
             if original_allow is not None:
@@ -95,7 +95,7 @@ class TestOperationalScripts(IsolatedTestCase):
                 os.environ["STORY_AUDIO_ALLOW_LIVE_DB"] = original_allow
             else:
                 os.environ.pop("STORY_AUDIO_ALLOW_LIVE_DB", None)
-            if original_testing:
+            if original_testing is not None:
                 os.environ["STORY_AUDIO_TESTING"] = original_testing
 
     def test_smoke_multivoice_flag_sets_env_var(self):
@@ -129,13 +129,14 @@ class TestOperationalScripts(IsolatedTestCase):
                 os.environ["STORY_AUDIO_ALLOW_LIVE_DB"] = original_allow
             else:
                 os.environ.pop("STORY_AUDIO_ALLOW_LIVE_DB", None)
-            if original_testing:
+            if original_testing is not None:
                 os.environ["STORY_AUDIO_TESTING"] = original_testing
 
     def test_db_guard_blocks_without_flag(self):
         """Database.initialize() blocks canonical path without STORY_AUDIO_ALLOW_LIVE_DB."""
         # Temporarily disable test mode
         original_testing = os.environ.pop("STORY_AUDIO_TESTING", None)
+        original_allow = os.environ.pop("STORY_AUDIO_ALLOW_LIVE_DB", None)
         try:
             with patch("story_audio.db.canonical_production_db_path") as mock_canonical:
                 mock_canonical.return_value = self.config.db_path
@@ -145,8 +146,10 @@ class TestOperationalScripts(IsolatedTestCase):
                 self.assertIn("without explicit opt-in", str(cm.exception))
                 self.assertIn("--allow-live-db", str(cm.exception))
         finally:
-            if original_testing:
+            if original_testing is not None:
                 os.environ["STORY_AUDIO_TESTING"] = original_testing
+            if original_allow is not None:
+                os.environ["STORY_AUDIO_ALLOW_LIVE_DB"] = original_allow
 
     def test_db_guard_allows_with_flag(self):
         """Database.initialize() allows canonical path with STORY_AUDIO_ALLOW_LIVE_DB=1."""
@@ -160,9 +163,9 @@ class TestOperationalScripts(IsolatedTestCase):
                 db.initialize()  # Should not raise
                 self.assertGreater(db.schema_version(), 0)
         finally:
-            if original_testing:
+            if original_testing is not None:
                 os.environ["STORY_AUDIO_TESTING"] = original_testing
-            if original_allow:
+            if original_allow is not None:
                 os.environ["STORY_AUDIO_ALLOW_LIVE_DB"] = original_allow
             else:
                 os.environ.pop("STORY_AUDIO_ALLOW_LIVE_DB", None)
@@ -187,16 +190,25 @@ class TestOperationalScripts(IsolatedTestCase):
         db.initialize()
         
         # doctor.py only reads, doesn't call initialize() on a new DB
-        with patch("story_audio.db.canonical_production_db_path") as mock_canonical:
-            mock_canonical.return_value = self.config.db_path
-            with patch("sys.argv", ["doctor.py"]):
-                from scripts.doctor import main as doctor_main
-                try:
-                    result = doctor_main()
-                    self.assertIsInstance(result, int)
-                except RuntimeError as e:
-                    # Should NOT be the live DB guard error
-                    self.assertNotIn("without explicit opt-in", str(e))
+        # Patch settings to use test config so doctor reads from the initialized test DB
+        with patch("story_audio.config.settings", self.config):
+            with patch("story_audio.integrity.Database") as mock_db_class:
+                # Make Database class return the already-initialized test DB
+                mock_db_class.return_value = db
+                
+                with patch("sys.argv", ["doctor.py"]):
+                    # Import doctor after patching to pick up test config
+                    import importlib
+                    if 'scripts.doctor' in sys.modules:
+                        importlib.reload(sys.modules['scripts.doctor'])
+                    from scripts.doctor import main as doctor_main
+                    
+                    try:
+                        result = doctor_main()
+                        self.assertIsInstance(result, int)
+                    except RuntimeError as e:
+                        # Should NOT be the live DB guard error
+                        self.assertNotIn("without explicit opt-in", str(e))
 
 
 if __name__ == "__main__":

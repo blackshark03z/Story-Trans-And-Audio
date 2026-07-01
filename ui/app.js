@@ -1,5 +1,5 @@
 const $=s=>document.querySelector(s);let state={config:null,books:[],book:null,page:0,pageSize:100,total:0,previewOk:false,dialog:null,libraryVoices:[],selectedVoiceId:null,showInactive:false,showSmokeBooks:false,libraryBusy:false,libraryRevisions:[],previewRevisionId:null,uploadBusy:false,previewBusy:false,customVoices:[]};
-async function api(url,options={}){const r=await fetch(url,{headers:{'Content-Type':'application/json',...(options.headers||{})},...options});let data;try{data=await r.json()}catch{data={detail:await r.text()}}if(!r.ok)throw new Error(data.detail||data.error||'Yêu cầu thất bại');return data}
+async function api(url,options={}){const r=await fetch(url,{headers:{'Content-Type':'application/json',...(options.headers||{})},...options});let data;try{data=await r.json()}catch{data={detail:'Response error'}}if(!r.ok)throw new Error(data.detail||data.error||'Yêu cầu thất bại');return data}
 function toast(msg,error=false){const el=$('#toast');el.textContent=msg;el.className='toast'+(error?' error':'');setTimeout(()=>el.classList.add('hidden'),4500)}
 function fmtStatus(s){return({scheduled:'Chờ hoàn tác',queued:'Đang chờ',running:'Đang chạy',repairing:'Gemini',synthesizing:'Đang đọc',assembling:'Đang ghép',paused:'Tạm dừng',completed:'Hoàn tất',completed_with_errors:'Xong có lỗi',failed:'Thất bại',cancelled:'Đã hủy',interrupted:'Bị gián đoạn'})[s]||s}
 async function init(){try{state.config=await api('/api/config');$('#health').textContent=`Gemini: ${state.config.gemini_configured?'sẵn sàng':'chưa có key'} · VieNeu: ${state.config.tts_status}`;$('#epubPath').innerHTML=state.config.available_epubs.map(p=>`<option value="${p}">${p.split(/[\\/]/).pop()}</option>`).join('')||'<option>Không tìm thấy EPUB</option>';await loadBooks();await loadJobs()}catch(e){toast(e.message,true)}setInterval(loadJobs,2500)}
@@ -87,12 +87,100 @@ async function openJobDiagnostics(id){try{const data=await api(`/api/diagnostics
 
 async function openChapterDiagnostics(id){try{const data=await api(`/api/diagnostics/job-chapters/${id}`);state.diagnosticChapterId=id;state.diagnosticJobId=data.chapter.job_id;$('#chapterDiagnosticTitle').textContent=`Chương ${data.chapter.chapter_number} · ${data.chapter.title}`;const rev=data.text_revision;$('#chapterDiagnosticBody').innerHTML=`<div class="diag-line">${statusBadge(data.chapter.status)}${rev?`<span>Revision #${rev.id} · ${esc(rev.kind)} · ${rev.char_count.toLocaleString('vi-VN')} ký tự</span>`:'<span>Chưa gắn text revision</span>'}</div>${data.chapter.error_message?`<div class="issue">${esc(data.chapter.error_message)}</div>`:''}<h3>Gemini repair blocks (${data.repair_blocks.length})</h3>${data.repair_blocks.length?`<div class="diag-table-wrap"><table class="diag-table"><thead><tr><th>#</th><th>Trạng thái</th><th>Lần thử</th><th>Source</th><th>Output</th><th>Lỗi</th></tr></thead><tbody>${data.repair_blocks.map(b=>`<tr><td>${b.block_index}</td><td>${statusBadge(b.status)}</td><td>${b.attempt_count}</td><td>${b.source_file_exists?'Có':'Thiếu'}</td><td>${b.repaired_file_exists?'Có':'—'}</td><td>${esc(b.error_message||'')}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">Không dùng Gemini repair cho chương này.</p>'}<h3>Segments (${data.segments.length})</h3><div class="diag-table-wrap"><table class="diag-table"><thead><tr><th>#</th><th>Trạng thái</th><th>Text</th><th>Audio</th><th>Thời lượng</th><th></th></tr></thead><tbody>${data.segments.map(s=>`<tr><td>${s.segment_index}</td><td>${statusBadge(s.status)}${s.error_message?`<small>${esc(s.error_message)}</small>`:''}</td><td class="diag-preview">${esc(s.text_preview||'—')}</td><td>${fileState(s)} · ${bytes(s.actual_size_bytes)}</td><td>${s.duration_ms?`${(s.duration_ms/1000).toFixed(1)}s`:'—'}</td><td class="diag-actions"><button onclick="openSegmentDiagnostics(${s.id})">Chi tiết</button>${['failed','interrupted'].includes(s.status)?`<button onclick="retrySegmentAction(${s.id})">Thử lại</button>`:''}</td></tr>`).join('')}</tbody></table></div><h3>Artifacts (${data.artifacts.length})</h3>${data.artifacts.length?`<div class="diag-table-wrap"><table class="diag-table"><thead><tr><th>Loại</th><th>Trạng thái</th><th>File</th><th>Kích thước</th></tr></thead><tbody>${data.artifacts.map(a=>`<tr><td>${esc(a.artifact_type)}</td><td>${statusBadge(a.status)}</td><td>${fileState(a)} · ${esc(a.filename||'—')}</td><td>${bytes(a.actual_size_bytes)}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">Chưa có artifact.</p>'}`;$('#jobDiagnosticsDialog').close();$('#segmentDiagnosticsDialog').close();if(!$('#chapterDiagnosticsDialog').open)$('#chapterDiagnosticsDialog').showModal()}catch(e){toast(e.message,true)}}
 
-async function openSegmentDiagnostics(id){try{const s=await api(`/api/diagnostics/segments/${id}`);state.diagnosticSegmentId=id;state.diagnosticChapterId=s.job_chapter_id;$('#segmentDiagnosticTitle').textContent=`Segment #${s.segment_index} · Chương ${s.chapter_number}`;$('#segmentDiagnosticBody').innerHTML=`<div class="diag-line">${statusBadge(s.status)}<span>Lần thử: ${s.attempt_count}</span><span>Thời lượng: ${s.duration_ms?`${(s.duration_ms/1000).toFixed(2)}s`:'—'}</span></div>${s.error_message?`<div class="issue">${esc(s.error_message)}</div>`:''}<h3>Text đầu vào</h3><pre class="segment-text">${esc(s.text_preview||'Không đọc được text blob.')}</pre><div class="file-grid"><div><strong>Text blob</strong>${fileState(s.text_file)}<span>${bytes(s.text_file.actual_size_bytes)}</span></div><div><strong>WAV segment</strong>${fileState(s.audio_file)}<span>${bytes(s.audio_file.actual_size_bytes)}</span></div></div>${['failed','interrupted'].includes(s.status)?`<button class="primary" onclick="retrySegmentAction(${s.id})">Thử lại segment này</button>`:''}`;$('#chapterDiagnosticsDialog').close();if(!$('#segmentDiagnosticsDialog').open)$('#segmentDiagnosticsDialog').showModal()}catch(e){toast(e.message,true)}}
+async function openSegmentDiagnostics(id){try{const s=await api(`/api/diagnostics/segments/${id}`);state.diagnosticSegmentId=id;state.diagnosticChapterId=s.job_chapter_id;$('#segmentDiagnosticTitle').textContent=`Segment #${s.segment_index} · Chương ${s.chapter_number}`;$('#segmentDiagnosticBody').innerHTML=`<div class="diag-line">${statusBadge(s.status)}<span>Lần thử: ${s.attempt_count}</span><span>Thời lượng: ${s.duration_ms?`${(s.duration_ms/1000).toFixed(2)}s`:'—'}</span></div>${s.error_message?`<div class="issue">${esc(s.error_message)}</div>`:''}<h3>Text đầu vào</h3><pre class="segment-text">${esc(s.text_preview||'Không đọc được text blob.')}</pre><div class="file-grid"><div><strong>Text blob</strong>${fileState(s.text_file)}<span>${bytes(s.text_file.actual_size_bytes)}</span></div><div><strong>WAV segment</strong>${fileState(s.audio_file)}<span>${bytes(s.audio_file.actual_size_bytes)}</span></div></div><div class="diag-actions">${['failed','interrupted'].includes(s.status)?`<button class="primary" onclick="retrySegmentAction(${s.id})">Thử lại segment này</button>`:''}${s.status==='verified'?`<button onclick="regenerateSegment(${s.id})">Regenerate Verified Segment</button>`:''}</div><div id="segmentAttemptsContainer"></div>`;$('#chapterDiagnosticsDialog').close();if(!$('#segmentDiagnosticsDialog').open)$('#segmentDiagnosticsDialog').showModal();if(s.status==='verified')refreshSegmentAttempts(s.id)}catch(e){toast(e.message,true)}}
 
 async function retryChapter(id){try{const r=await api(`/api/job-chapters/${id}/retry`,{method:'POST',body:'{}'});toast(`Đã xếp lại chương; giữ nguyên ${r.verified_segments_reused} segment hợp lệ.`);$('#chapterDiagnosticsDialog').close();await loadJobs();await openJobDiagnostics(state.diagnosticJobId)}catch(e){toast(e.message,true)}}
 async function retrySegmentAction(id){try{await api(`/api/segments/${id}/retry`,{method:'POST',body:'{}'});toast('Đã xếp lại segment lỗi; các segment hợp lệ được giữ nguyên.');$('#segmentDiagnosticsDialog').close();await loadJobs();await openJobDiagnostics(state.diagnosticJobId)}catch(e){toast(e.message,true)}}
 
 window.openJobDiagnostics=openJobDiagnostics;window.openChapterDiagnostics=openChapterDiagnostics;window.openSegmentDiagnostics=openSegmentDiagnostics;window.retryChapter=retryChapter;window.retrySegmentAction=retrySegmentAction;
+
+// Segment Regeneration UI
+async function regenerateSegment(segmentId) {
+  try {
+    const result = await api(`/api/segments/${segmentId}/regenerate`, {method: 'POST', body: '{}'});
+    state.segmentCandidate = {segmentId, attemptId: result.attempt_id, attemptNumber: result.attempt_number};
+    await refreshSegmentAttempts(segmentId);
+    toast(`Candidate ${result.attempt_number} generated (${(result.duration_ms/1000).toFixed(2)}s)`);
+  } catch(e) {
+    toast(e.message, true);
+  }
+}
+
+async function refreshSegmentAttempts(segmentId) {
+  try {
+    const data = await api(`/api/segments/${segmentId}/attempts`);
+    state.segmentAttempts = data;
+    renderSegmentAttempts(segmentId);
+  } catch(e) {
+    toast(e.message, true);
+  }
+}
+
+function renderSegmentAttempts(segmentId) {
+  const data = state.segmentAttempts;
+  if (!data) return;
+
+  const container = $('#segmentAttemptsContainer');
+  if (!container) return;
+
+  let html = '<h3>Segment Attempts</h3><div class="attempts-grid">';
+
+  if (data.active_attempt) {
+    html += `<div class="attempt-card active"><strong>Active (Attempt ${data.active_attempt.attempt_number})</strong>`;
+    html += `<span>${(data.active_attempt.duration_ms/1000).toFixed(2)}s</span>`;
+    html += `<audio controls src="/api/segments/${segmentId}/audio"></audio></div>`;
+  }
+
+  if (data.candidate) {
+    html += `<div class="attempt-card candidate"><strong>Candidate (Attempt ${data.candidate.attempt_number})</strong>`;
+    html += `<span>${(data.candidate.duration_ms/1000).toFixed(2)}s</span>`;
+    html += `<audio controls src="/api/segment-attempts/${data.candidate.attempt_id}/audio"></audio>`;
+    html += `<div class="attempt-actions">`;
+    html += `<button class="primary" onclick="acceptCandidate(${segmentId}, ${data.candidate.attempt_id})">Accept</button>`;
+    html += `<button class="ghost" onclick="rejectCandidate(${segmentId}, ${data.candidate.attempt_id})">Reject</button>`;
+    html += `</div></div>`;
+  }
+
+  if (data.history && data.history.length > 0) {
+    html += '<details><summary>History</summary>';
+    data.history.forEach(h => {
+      html += `<div class="attempt-card history"><span>Attempt ${h.attempt_number} (${h.status})</span>`;
+      html += `<span>${(h.duration_ms/1000).toFixed(2)}s</span></div>`;
+    });
+    html += '</details>';
+  }
+
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+async function acceptCandidate(segmentId, attemptId) {
+  if (!confirm('Accept this candidate? This will rebuild the chapter artifact.')) return;
+  try {
+    await api(`/api/segments/${segmentId}/accept-candidate`, {method: 'POST', body: JSON.stringify({attempt_id: attemptId})});
+    toast('Candidate accepted and chapter rebuilt');
+    state.segmentCandidate = null;
+    await refreshSegmentAttempts(segmentId);
+  } catch(e) {
+    toast(e.message, true);
+  }
+}
+
+async function rejectCandidate(segmentId, attemptId) {
+  try {
+    await api(`/api/segments/${segmentId}/reject-candidate`, {method: 'POST', body: JSON.stringify({attempt_id: attemptId})});
+    toast('Candidate rejected');
+    state.segmentCandidate = null;
+    await refreshSegmentAttempts(segmentId);
+  } catch(e) {
+    toast(e.message, true);
+  }
+}
+
+window.regenerateSegment = regenerateSegment;
+window.acceptCandidate = acceptCandidate;
+window.rejectCandidate = rejectCandidate;
+window.refreshSegmentAttempts = refreshSegmentAttempts;
 async function refreshLibrary(){if(state.libraryBusy)return;state.libraryBusy=true;$('#refreshLibrary').disabled=true;$('#libraryStatus').textContent='Loading voices…';$('#libraryError').classList.add('hidden');try{const activeOnly=!state.showInactive;state.libraryVoices=await api(`/api/custom-voices?active_only=${activeOnly}`);renderLibraryVoices();$('#libraryStatus').textContent=`${state.libraryVoices.length} voice${state.libraryVoices.length===1?'':'s'}${activeOnly?' (active only)':''}`}catch(e){$('#libraryStatus').textContent='Error loading voices';showLibraryError(mapLibraryError(e.message))}finally{state.libraryBusy=false;$('#refreshLibrary').disabled=false}}
 function renderLibraryVoices(){const container=$('#libraryVoiceList');if(!state.libraryVoices||state.libraryVoices.length===0){container.innerHTML='<p class="muted">No voices found.</p>';if(state.selectedVoiceId){state.selectedVoiceId=null;$('#librarySelectedDetails').classList.add('hidden')}return}container.innerHTML=state.libraryVoices.map(v=>`<div class="voice-library-row ${state.selectedVoiceId===v.id?'selected':''}" data-voice-id="${v.id}"><strong>${esc(v.display_name)}</strong><span class="muted">${v.is_active?'Active':'Inactive'}${v.description?' · '+esc(v.description):''}</span></div>`).join('');container.querySelectorAll('.voice-library-row').forEach(el=>el.onclick=()=>selectLibraryVoice(+el.dataset.voiceId));if(state.selectedVoiceId&&!state.libraryVoices.find(v=>v.id===state.selectedVoiceId)){state.selectedVoiceId=null;$('#librarySelectedDetails').classList.add('hidden')}}
 function selectLibraryVoice(id){const voice=state.libraryVoices?.find(v=>v.id===id);if(!voice)return;state.selectedVoiceId=id;state.previewRevisionId=null;state.libraryRevisions=[];renderLibraryVoices();$('#librarySelectedDetails').classList.remove('hidden');$('#libraryVoiceInfoName').textContent=voice.display_name;$('#libraryVoiceInfoStatus').textContent=voice.is_active?'Active':'Inactive';$('#libraryVoiceInfoStatus').className=voice.is_active?'voice-info-badge badge-active':'voice-info-badge badge-inactive';if(voice.description&&voice.description.trim()){$('#libraryVoiceInfoDescription').textContent=voice.description;$('#libraryVoiceInfoDescription').classList.remove('muted')}else{$('#libraryVoiceInfoDescription').textContent='No description';$('#libraryVoiceInfoDescription').classList.add('muted')}$('#libraryDeactivate').disabled=!voice.is_active||state.libraryBusy;$('#libraryDeactivate').classList.toggle('hidden',!voice.is_active);$('#libraryReactivate').disabled=voice.is_active||state.libraryBusy;$('#libraryReactivate').classList.toggle('hidden',voice.is_active);$('#libraryAudioFile').disabled=false;$('#libraryTranscript').disabled=false;$('#libraryTranscript').value='';$('#libraryTranscriptCounter').textContent='0 / 10000';$('#libraryUploadRevision').disabled=false;$('#libraryUploadStatus').textContent='';$('#libraryUploadError').classList.add('hidden');$('#libraryUploadTargetVoice').textContent=voice.display_name;$('#libraryPreviewBox').classList.add('hidden');const audio=$('#libraryPreviewAudio');audio.pause();audio.removeAttribute('src');loadLibraryRevisions()}

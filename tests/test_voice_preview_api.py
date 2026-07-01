@@ -7,9 +7,10 @@ This module tests the /api/voice-previews endpoint's ability to:
 3. Accept custom logical references (custom:<voice_id>) and resolve to preferred revision (NEW)
 """
 
+from unittest.mock import patch
+
 from fastapi.testclient import TestClient
 
-from story_audio.api import app
 from story_audio.custom_voice import CustomVoiceRepository
 from story_audio.db import Database
 from story_audio.storage import ContentStore
@@ -40,12 +41,27 @@ class VoicePreviewApiTests(IsolatedTestCase):
         # Set rev1 as preferred
         repo.set_preferred_synthesis_revision(voice.id, rev1.id)
 
-        # Make request with logical reference
-        client = TestClient(app)
-        response = client.post(
-            "/api/voice-previews",
-            json={"voice_id": f"custom:{voice.id}"}
+        # Create test-isolated voice preview service
+        from story_audio.voice_preview import VoicePreviewService
+        from story_audio.tts import tts_service
+        test_voice_previews = VoicePreviewService(
+            tts_service, self.config, custom_voice_repo=repo, store=store
         )
+
+        # Patch API module dependencies with test instances
+        import story_audio.api as api_module
+        with patch.object(api_module, 'db', db), \
+             patch.object(api_module, 'store', store), \
+             patch.object(api_module, 'custom_voice_repo', repo), \
+             patch.object(api_module, 'voice_previews', test_voice_previews), \
+             patch.object(api_module, 'settings', self.config):
+            
+            from story_audio.api import app
+            client = TestClient(app)
+            response = client.post(
+                "/api/voice-previews",
+                json={"voice_id": f"custom:{voice.id}"}
+            )
 
         # Should succeed or fail with 503 (TTS unavailable in test)
         # The important part is that it resolved the logical reference
@@ -70,11 +86,27 @@ class VoicePreviewApiTests(IsolatedTestCase):
         voice = repo.create_custom_voice("Test Voice")
         repo.create_revision(voice.id, b"audio", "transcript")
 
-        client = TestClient(app)
-        response = client.post(
-            "/api/voice-previews",
-            json={"voice_id": f"custom:{voice.id}"}
+        # Create test-isolated voice preview service
+        from story_audio.voice_preview import VoicePreviewService
+        from story_audio.tts import tts_service
+        test_voice_previews = VoicePreviewService(
+            tts_service, self.config, custom_voice_repo=repo, store=store
         )
+
+        # Patch API module dependencies with test instances
+        import story_audio.api as api_module
+        with patch.object(api_module, 'db', db), \
+             patch.object(api_module, 'store', store), \
+             patch.object(api_module, 'custom_voice_repo', repo), \
+             patch.object(api_module, 'voice_previews', test_voice_previews), \
+             patch.object(api_module, 'settings', self.config):
+            
+            from story_audio.api import app
+            client = TestClient(app)
+            response = client.post(
+                "/api/voice-previews",
+                json={"voice_id": f"custom:{voice.id}"}
+            )
 
         # Should fail with 400 or 503
         self.assertIn(response.status_code, [400, 503])
@@ -99,11 +131,27 @@ class VoicePreviewApiTests(IsolatedTestCase):
         # Deactivate voice
         repo.deactivate_custom_voice(voice.id)
 
-        client = TestClient(app)
-        response = client.post(
-            "/api/voice-previews",
-            json={"voice_id": f"custom:{voice.id}"}
+        # Create test-isolated voice preview service
+        from story_audio.voice_preview import VoicePreviewService
+        from story_audio.tts import tts_service
+        test_voice_previews = VoicePreviewService(
+            tts_service, self.config, custom_voice_repo=repo, store=store
         )
+
+        # Patch API module dependencies with test instances
+        import story_audio.api as api_module
+        with patch.object(api_module, 'db', db), \
+             patch.object(api_module, 'store', store), \
+             patch.object(api_module, 'custom_voice_repo', repo), \
+             patch.object(api_module, 'voice_previews', test_voice_previews), \
+             patch.object(api_module, 'settings', self.config):
+            
+            from story_audio.api import app
+            client = TestClient(app)
+            response = client.post(
+                "/api/voice-previews",
+                json={"voice_id": f"custom:{voice.id}"}
+            )
 
         # Should fail with 400, 404, or 503
         self.assertIn(response.status_code, [400, 404, 503])
@@ -114,11 +162,32 @@ class VoicePreviewApiTests(IsolatedTestCase):
         
         Existing preset preview behavior must not be affected.
         """
-        client = TestClient(app)
-        response = client.post(
-            "/api/voice-previews",
-            json={"voice_id": "vi-vn-wavenet-d"}
+        db = Database(self.config.db_path)
+        db.initialize()
+        store = ContentStore(self.config)
+        repo = CustomVoiceRepository(db, store)
+
+        # Create test-isolated voice preview service
+        from story_audio.voice_preview import VoicePreviewService
+        from story_audio.tts import tts_service
+        test_voice_previews = VoicePreviewService(
+            tts_service, self.config, custom_voice_repo=repo, store=store
         )
+
+        # Patch API module dependencies with test instances
+        import story_audio.api as api_module
+        with patch.object(api_module, 'db', db), \
+             patch.object(api_module, 'store', store), \
+             patch.object(api_module, 'custom_voice_repo', repo), \
+             patch.object(api_module, 'voice_previews', test_voice_previews), \
+             patch.object(api_module, 'settings', self.config):
+            
+            from story_audio.api import app
+            client = TestClient(app)
+            response = client.post(
+                "/api/voice-previews",
+                json={"voice_id": "vi-vn-wavenet-d"}
+            )
 
         # Should attempt preset path (will fail in test without real TTS, but that's expected)
         # We just verify it doesn't crash on the custom reference check
@@ -130,6 +199,8 @@ class VoicePreviewApiTests(IsolatedTestCase):
         
         Custom Voice Library's explicit revision ID path must not be affected.
         """
+        from unittest.mock import Mock
+        
         db = Database(self.config.db_path)
         db.initialize()
         store = ContentStore(self.config)
@@ -138,16 +209,48 @@ class VoicePreviewApiTests(IsolatedTestCase):
         voice = repo.create_custom_voice("Test Voice")
         rev = repo.create_revision(voice.id, b"audio", "transcript")
 
-        client = TestClient(app)
-        response = client.post(
-            "/api/voice-previews",
-            json={"custom_voice_revision_id": rev.id}
+        # Create mock TTS that generates valid WAV files
+        mock_tts = Mock()
+        def mock_synthesize(output_path=None, **kwargs):
+            # Generate valid 15-second WAV (within 10-20s contract for custom preview)
+            import wave
+            sample_rate = 48000
+            duration_ms = 15000
+            samples = (duration_ms * sample_rate) // 1000
+            with wave.open(str(output_path), 'wb') as wav:
+                wav.setnchannels(1)
+                wav.setsampwidth(2)
+                wav.setframerate(sample_rate)
+                wav.writeframes(b'\x00\x00' * samples)
+            return (duration_ms, sample_rate)
+        mock_tts.synthesize = Mock(side_effect=mock_synthesize)
+
+        # Create test-isolated voice preview service with mock TTS
+        from story_audio.voice_preview import VoicePreviewService
+        test_voice_previews = VoicePreviewService(
+            mock_tts, self.config, custom_voice_repo=repo, store=store
         )
 
-        # Should use explicit revision path
+        # Patch API module dependencies with test instances
+        import story_audio.api as api_module
+        with patch.object(api_module, 'db', db), \
+             patch.object(api_module, 'store', store), \
+             patch.object(api_module, 'custom_voice_repo', repo), \
+             patch.object(api_module, 'voice_previews', test_voice_previews), \
+             patch.object(api_module, 'settings', self.config):
+            
+            from story_audio.api import app
+            client = TestClient(app)
+            response = client.post(
+                "/api/voice-previews",
+                json={"custom_voice_revision_id": rev.id}
+            )
+
+        # Should succeed with explicit revision path
         self.assertEqual(response.status_code, 200)
         data = response.json()
         self.assertIn("audio_url", data)
+        self.assertEqual(data["custom_voice_revision_id"], rev.id)
 
 
 class JobCreationWithCustomVoicesTests(IsolatedTestCase):
@@ -178,17 +281,24 @@ class JobCreationWithCustomVoicesTests(IsolatedTestCase):
         rev = repo.create_revision(voice.id, b"audio-data", "Test transcript")
         repo.set_preferred_synthesis_revision(voice.id, rev.id)
 
-        # Attempt to create job with custom logical reference
-        client = TestClient(app)
-        response = client.post(
-            "/api/jobs",
-            json={
-                "book_id": book_id,
-                "voice_name": f"custom:{voice.id}",
-                "chapter_range": [1, 1],
-                "repair_mode": "off"
-            }
-        )
+        # Patch API module dependencies with test instances
+        import story_audio.api as api_module
+        with patch.object(api_module, 'db', db), \
+             patch.object(api_module, 'store', store), \
+             patch.object(api_module, 'custom_voice_repo', repo), \
+             patch.object(api_module, 'settings', self.config):
+            
+            from story_audio.api import app
+            client = TestClient(app)
+            response = client.post(
+                "/api/jobs",
+                json={
+                    "book_id": book_id,
+                    "voice_name": f"custom:{voice.id}",
+                    "chapter_range": [1, 1],
+                    "repair_mode": "off"
+                }
+            )
 
         # Should succeed (or fail with expected validation, not NameError)
         # The key test is that is_custom_ref is properly imported
@@ -231,13 +341,20 @@ class JobCreationWithCustomVoicesTests(IsolatedTestCase):
         rev = repo.create_revision(voice.id, b"audio", "transcript")
         repo.set_preferred_synthesis_revision(voice.id, rev.id)
 
-        # Should resolve successfully
-        from story_audio.voice_ref import resolve_custom_ref, CustomVoiceContext
-        ctx = CustomVoiceContext.from_repository(repo)
+        # Patch API module dependencies with test instances
+        import story_audio.api as api_module
+        with patch.object(api_module, 'db', db), \
+             patch.object(api_module, 'store', store), \
+             patch.object(api_module, 'custom_voice_repo', repo), \
+             patch.object(api_module, 'settings', self.config):
+            
+            # Should resolve successfully
+            from story_audio.voice_ref import resolve_custom_ref, CustomVoiceContext
+            ctx = CustomVoiceContext.from_repository(repo)
 
-        resolved = resolve_custom_ref(f"custom:{voice.id}", ctx, repository=repo)
-        self.assertEqual(resolved["custom_voice_revision_id"], rev.id)
-        self.assertEqual(resolved["custom_voice_id"], voice.id)
+            resolved = resolve_custom_ref(f"custom:{voice.id}", ctx, repository=repo)
+            self.assertEqual(resolved["custom_voice_revision_id"], rev.id)
+            self.assertEqual(resolved["custom_voice_id"], voice.id)
 
     def test_inactive_custom_voice_fails_resolution(self):
         """
@@ -253,12 +370,19 @@ class JobCreationWithCustomVoicesTests(IsolatedTestCase):
         repo.set_preferred_synthesis_revision(voice.id, rev.id)
         repo.deactivate_custom_voice(voice.id)
 
-        from story_audio.voice_ref import resolve_custom_ref, CustomVoiceContext
-        ctx = CustomVoiceContext.from_repository(repo)
+        # Patch API module dependencies with test instances
+        import story_audio.api as api_module
+        with patch.object(api_module, 'db', db), \
+             patch.object(api_module, 'store', store), \
+             patch.object(api_module, 'custom_voice_repo', repo), \
+             patch.object(api_module, 'settings', self.config):
+            
+            from story_audio.voice_ref import resolve_custom_ref, CustomVoiceContext
+            ctx = CustomVoiceContext.from_repository(repo)
 
-        # Should raise exception
-        with self.assertRaises(Exception):
-            resolve_custom_ref(f"custom:{voice.id}", ctx, repository=repo)
+            # Should raise exception
+            with self.assertRaises(Exception):
+                resolve_custom_ref(f"custom:{voice.id}", ctx, repository=repo)
 
     def test_custom_voice_without_preferred_revision_falls_back(self):
         """
@@ -275,17 +399,24 @@ class JobCreationWithCustomVoicesTests(IsolatedTestCase):
         rev = repo.create_revision(voice.id, b"audio", "transcript")
         # NO preferred revision set
 
-        from story_audio.voice_ref import resolve_custom_ref, CustomVoiceContext
-        ctx = CustomVoiceContext.from_repository(repo)
+        # Patch API module dependencies with test instances
+        import story_audio.api as api_module
+        with patch.object(api_module, 'db', db), \
+             patch.object(api_module, 'store', store), \
+             patch.object(api_module, 'custom_voice_repo', repo), \
+             patch.object(api_module, 'settings', self.config):
+            
+            from story_audio.voice_ref import resolve_custom_ref, CustomVoiceContext
+            ctx = CustomVoiceContext.from_repository(repo)
 
-        # Should either resolve (with fallback) or raise exception
-        try:
-            resolved = resolve_custom_ref(f"custom:{voice.id}", ctx, repository=repo)
-            # If it resolves, it should use the available revision
-            self.assertIsNotNone(resolved["custom_voice_revision_id"])
-        except Exception:
-            # If it raises, that's also valid behavior
-            pass
+            # Should either resolve (with fallback) or raise exception
+            try:
+                resolved = resolve_custom_ref(f"custom:{voice.id}", ctx, repository=repo)
+                # If it resolves, it should use the available revision
+                self.assertIsNotNone(resolved["custom_voice_revision_id"])
+            except Exception:
+                # If it raises, that's also valid behavior
+                pass
 
 
 if __name__ == "__main__":
