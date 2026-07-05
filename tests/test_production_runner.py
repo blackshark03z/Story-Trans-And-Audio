@@ -16,13 +16,17 @@ from story_audio.production_runner import (
     EXIT_DUPLICATE_JOB,
     EXIT_INTERNAL_ERROR,
     EXIT_INVALID_ARGUMENTS,
+    EXIT_OPERATOR_INTERRUPT,
     EXIT_RUNTIME_MISMATCH,
     EXIT_SUBMIT_PERSISTENCE_MISMATCH,
+    EXIT_WATCH_TIMEOUT,
     RuntimeMismatchError,
     SubmitPersistenceError,
+    WatchTimeoutError,
     build_unicode_safe_json_bytes,
     canonicalize_data_root,
     run_cli,
+    run_job_flow,
     run_preflight,
     run_submit,
 )
@@ -50,6 +54,9 @@ class FakeClient:
         if isinstance(value, Exception):
             raise value
         return value
+
+    def post_empty_json(self, path: str):
+        return self.post_json_bytes(path, b"{}")
 
     @staticmethod
     def _key(path: str, params: dict | None) -> str:
@@ -155,7 +162,7 @@ def make_base_responses(*, data_root: str = "D:/isolated/data", jobs: list[dict]
     return responses
 
 
-def make_job_detail(*, job_id: int = 700, status: str = "scheduled", text_revision_id: int = 200, casting_plan_id: int = 55, casting_plan_sha256: str = "plan-sha-55", voice_name: str = "ngoc_lan", profile_id: int = 9, profile_version: int = 4) -> dict:
+def make_job_detail(*, job_id: int = 700, status: str = "scheduled", chapter_status: str | None = None, text_revision_id: int = 200, casting_plan_id: int = 55, casting_plan_sha256: str = "plan-sha-55", voice_name: str = "ngoc_lan", profile_id: int = 9, profile_version: int = 4) -> dict:
     snapshot = {
         "casting_plan_id": casting_plan_id,
         "casting_plan_sha256": casting_plan_sha256,
@@ -182,12 +189,58 @@ def make_job_detail(*, job_id: int = 700, status: str = "scheduled", text_revisi
             {
                 "id": 1700 + job_id,
                 "chapter_id": 100,
+                "status": chapter_status or status,
                 "text_revision_id": text_revision_id,
                 "casting_plan_id": casting_plan_id,
                 "casting_plan_sha256": casting_plan_sha256,
                 "voice_snapshot_json": json.dumps(snapshot, ensure_ascii=False, sort_keys=True),
             }
         ],
+    }
+
+
+def make_job_chapter_diagnostics(*, job_chapter_id: int, segment_statuses: list[str]) -> dict:
+    segments = []
+    for index, status in enumerate(segment_statuses, start=1):
+        segments.append(
+            {
+                "id": 5000 + index,
+                "segment_index": index,
+                "status": status,
+                "attempt_count": 0,
+                "error_message": None,
+                "duration_ms": 1000,
+                "text_sha256": f"text-{index}",
+                "audio_sha256": f"audio-{index}",
+                "created_at": "2026-07-05T00:00:00Z",
+                "verified_at": "2026-07-05T00:00:00Z" if status == "verified" else None,
+                "text_preview": f"segment {index}",
+                "filename": f"{index:06d}.wav",
+                "file_exists": True,
+                "actual_size_bytes": 123,
+                "hash_matches": True,
+            }
+        )
+    return {
+        "chapter": {
+            "job_chapter_id": job_chapter_id,
+            "job_id": 700,
+            "chapter_id": 100,
+            "sequence": 1,
+            "status": "running",
+            "error_message": None,
+            "started_at": "2026-07-05T00:00:00Z",
+            "finished_at": None,
+            "text_revision_id": 200,
+            "chapter_number": 629,
+            "title": "Chapter 629",
+            "job_status": "running",
+            "book_title": "Test Book",
+        },
+        "text_revision": {"id": 200, "content_sha256": "rev-hash-200"},
+        "repair_blocks": [],
+        "segments": segments,
+        "artifacts": [],
     }
 
 
@@ -463,7 +516,7 @@ class ProductionRunnerTests(unittest.TestCase):
                 self.assertEqual(run_cli(base_args), EXIT_DUPLICATE_JOB)
             with patch("story_audio.production_runner.run_preflight", side_effect=ApiFailureError("api")):
                 self.assertEqual(run_cli(base_args), EXIT_API_FAILURE)
-            with patch("story_audio.production_runner.run_submit", side_effect=SubmitPersistenceError("submit mismatch")):
+            with patch("story_audio.production_runner.run_job_flow", side_effect=SubmitPersistenceError("submit mismatch")):
                 self.assertEqual(run_cli(base_args + ["--submit"]), EXIT_SUBMIT_PERSISTENCE_MISMATCH)
 
     def test_cli_known_errors_still_return_machine_readable_json(self):
@@ -514,6 +567,219 @@ class ProductionRunnerTests(unittest.TestCase):
             "--casting-plan-id", "55",
         ])
         self.assertEqual(code, EXIT_INVALID_ARGUMENTS)
+
+    def test_watch_timeout_does_not_cancel_or_mutate(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data_root = str(Path(tmp).resolve())
+            responses = make_base_responses(
+                data_root=data_root,
+                jobs=[{"id": 700, "book_id": 1, "from_chapter": 629, "to_chapter": 629, "repair_mode": "off", "output_format": "m4a", "casting_plan_id": 55}],
+                job_details={700: make_job_detail(job_id=700, status="running", chapter_status="running")},
+            )
+            responses[("GET", "/api/diagnostics/job-chapters/2400")] = make_job_chapter_diagnostics(
+                job_chapter_id=2400,
+                segment_statuses=["verified", "running", "pending"],
+            )
+            client = FakeClient(responses)
+            with self.assertRaisesRegex(Exception, "Timed out while watching job progress"):
+                run_job_flow(
+                    client,
+                    data_root=Path(tmp).resolve(),
+                    book_id=1,
+                    chapter_number=629,
+                    casting_plan_id=55,
+                    output_format="m4a",
+                    submit=False,
+                    watch=True,
+                    resume=False,
+                    job_id=None,
+                    manifest_out=None,
+                    poll_interval=0.2,
+                    timeout_seconds=0.001,
+                    emit_progress=lambda _event: None,
+                )
+            self.assertEqual(client.post_calls, [])
+
+    def test_paused_job_watch_does_not_auto_resume(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data_root = str(Path(tmp).resolve())
+            responses = make_base_responses(
+                data_root=data_root,
+                jobs=[{"id": 700, "book_id": 1, "from_chapter": 629, "to_chapter": 629, "repair_mode": "off", "output_format": "m4a", "casting_plan_id": 55}],
+                job_details={700: make_job_detail(job_id=700, status="paused", chapter_status="interrupted")},
+            )
+            client = FakeClient(responses)
+            result = run_job_flow(
+                client,
+                data_root=Path(tmp).resolve(),
+                book_id=1,
+                chapter_number=629,
+                casting_plan_id=55,
+                output_format="m4a",
+                submit=False,
+                watch=True,
+                resume=False,
+                job_id=None,
+                manifest_out=None,
+                poll_interval=0.2,
+                timeout_seconds=1.0,
+                emit_progress=lambda _event: None,
+            )
+            self.assertEqual(result["status"], "resume_required")
+            self.assertFalse(result["mutation_performed"])
+            self.assertEqual(client.post_calls, [])
+
+    def test_paused_job_resume_calls_endpoint_once(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data_root = str(Path(tmp).resolve())
+            responses = make_base_responses(
+                data_root=data_root,
+                jobs=[{"id": 700, "book_id": 1, "from_chapter": 629, "to_chapter": 629, "repair_mode": "off", "output_format": "m4a", "casting_plan_id": 55}],
+                job_details={700: make_job_detail(job_id=700, status="paused", chapter_status="interrupted")},
+            )
+            responses[("POST", "/api/jobs/700/resume")] = {"ok": True, "action": "resume"}
+            class ResumeClient(FakeClient):
+                def get_json(self, path: str, params: dict | None = None):
+                    if path == "/api/jobs/700" and self.post_calls:
+                        self.get_calls.append((path, params))
+                        return make_job_detail(job_id=700, status="queued", chapter_status="pending")
+                    return super().get_json(path, params)
+
+            client = ResumeClient(responses)
+            result = run_job_flow(
+                client,
+                data_root=Path(tmp).resolve(),
+                book_id=1,
+                chapter_number=629,
+                casting_plan_id=55,
+                output_format="m4a",
+                submit=False,
+                watch=False,
+                resume=True,
+                job_id=None,
+                manifest_out=None,
+                poll_interval=0.2,
+                timeout_seconds=1.0,
+                emit_progress=lambda _event: None,
+            )
+            self.assertEqual(result["status"], "resumed")
+            self.assertTrue(result["mutation_performed"])
+            self.assertEqual(len(client.post_calls), 1)
+            self.assertEqual(client.post_calls[0][0], "/api/jobs/700/resume")
+
+    def test_resume_non_2xx_is_not_retried(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data_root = str(Path(tmp).resolve())
+            responses = make_base_responses(
+                data_root=data_root,
+                jobs=[{"id": 700, "book_id": 1, "from_chapter": 629, "to_chapter": 629, "repair_mode": "off", "output_format": "m4a", "casting_plan_id": 55}],
+                job_details={700: make_job_detail(job_id=700, status="paused", chapter_status="interrupted")},
+            )
+            responses[("POST", "/api/jobs/700/resume")] = ApiFailureError("resume failed", details={"status_code": 409})
+            client = FakeClient(responses)
+            with self.assertRaises(ApiFailureError):
+                run_job_flow(
+                    client,
+                    data_root=Path(tmp).resolve(),
+                    book_id=1,
+                    chapter_number=629,
+                    casting_plan_id=55,
+                    output_format="m4a",
+                    submit=False,
+                    watch=False,
+                    resume=True,
+                    job_id=None,
+                    manifest_out=None,
+                    poll_interval=0.2,
+                    timeout_seconds=1.0,
+                    emit_progress=lambda _event: None,
+                )
+            self.assertEqual(len(client.post_calls), 1)
+
+    def test_running_job_resume_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data_root = str(Path(tmp).resolve())
+            responses = make_base_responses(
+                data_root=data_root,
+                jobs=[{"id": 700, "book_id": 1, "from_chapter": 629, "to_chapter": 629, "repair_mode": "off", "output_format": "m4a", "casting_plan_id": 55}],
+                job_details={700: make_job_detail(job_id=700, status="running", chapter_status="running")},
+            )
+            client = FakeClient(responses)
+            with self.assertRaisesRegex(BindingMismatchError, "not in a resumable state"):
+                run_job_flow(
+                    client,
+                    data_root=Path(tmp).resolve(),
+                    book_id=1,
+                    chapter_number=629,
+                    casting_plan_id=55,
+                    output_format="m4a",
+                    submit=False,
+                    watch=False,
+                    resume=True,
+                    job_id=None,
+                    manifest_out=None,
+                    poll_interval=0.2,
+                    timeout_seconds=1.0,
+                    emit_progress=lambda _event: None,
+                )
+
+    def test_explicit_job_id_with_wrong_binding_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            responses = make_base_responses(
+                data_root=str(Path(tmp).resolve()),
+                jobs=[],
+                job_details={888: make_job_detail(job_id=888, status="completed", text_revision_id=999)},
+            )
+            client = FakeClient(responses)
+            with self.assertRaisesRegex(BindingMismatchError, "does not match the verified production identity"):
+                run_job_flow(
+                    client,
+                    data_root=Path(tmp).resolve(),
+                    book_id=1,
+                    chapter_number=629,
+                    casting_plan_id=55,
+                    output_format="m4a",
+                    submit=False,
+                    watch=False,
+                    resume=False,
+                    job_id=888,
+                    manifest_out=None,
+                    poll_interval=0.2,
+                    timeout_seconds=1.0,
+                    emit_progress=lambda _event: None,
+                )
+
+    def test_cli_watch_timeout_has_distinct_exit_code(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("story_audio.production_runner.run_job_flow", side_effect=WatchTimeoutError("timeout")):
+                code = run_cli([
+                    "--data-root", str(Path(tmp).resolve()),
+                    "--api-base", "http://127.0.0.1:8768",
+                    "--book-id", "1",
+                    "--chapter-number", "629",
+                    "--casting-plan-id", "55",
+                    "--watch",
+                ])
+            self.assertEqual(code, EXIT_WATCH_TIMEOUT)
+
+    def test_cli_keyboard_interrupt_does_not_cancel_job(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with patch("story_audio.production_runner.run_job_flow", side_effect=KeyboardInterrupt()), \
+                 patch("sys.stdout", stdout), \
+                 patch("sys.stderr", stderr):
+                code = run_cli([
+                    "--data-root", str(Path(tmp).resolve()),
+                    "--api-base", "http://127.0.0.1:8768",
+                    "--book-id", "1",
+                    "--chapter-number", "629",
+                    "--casting-plan-id", "55",
+                    "--watch",
+                ])
+            self.assertEqual(code, EXIT_OPERATOR_INTERRUPT)
+            payload = json.loads(stdout.getvalue())
+            self.assertEqual(payload["status"], "operator_interrupt")
 
 
 if __name__ == "__main__":
