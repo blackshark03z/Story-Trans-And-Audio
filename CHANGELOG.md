@@ -6,6 +6,15 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 11B2 - Production runner monitoring, controlled resume, and final manifest**: Extended the guarded production runner to support exact canonical job selection, structured `--watch` progress, explicit same-job `--resume`, completed-job terminal validation, and final manifest generation.
+  - **Runner behavior**: `story_audio/production_runner.py` now resolves one verified existing/new job, refuses hidden auto-resume, blocks active-job resume, keeps `--watch` read-only, and returns structured timeout / operator-interrupt / terminal-validation diagnostics.
+  - **Terminal validation**: completed jobs must prove exact segment counts, zero failed/pending/running, continuous sequence coverage, immutable Text Revision and Casting Plan bindings, no open candidate attempts, same-job render ownership, artifact presence, and recomputed SHA-256 integrity.
+  - **Historical compatibility**: completed historical jobs with nullable `segments.casting_plan_id` are accepted only when `job_chapter` binding plus immutable snapshot evidence prove the same Casting Plan; this does not relax job/revision/plan ownership checks.
+  - **Manifest**: added schema `story-audio-production-manifest/v1` with runtime/job/chapter identity, immutable bindings, terminal counts, artifact metadata, recomputed hashes, and segment integrity summary. Writes are UTF-8, atomic, reread-verified, reused when identical, and fail closed on conflicting existing content.
+  - **Verification**: focused runner/API/manifest 51/51 pass, operational/live-guard 17/17 pass, full offline suite 774/774 pass.
+  - **Disposable smoke**: isolated completed-job verification on `D:\Youtube\StoryAudioTask11B2Smoke` validated Job 2 / Chapter 629 manifest output, exact Text Revision/Casting Plan bindings, 119/119 verified segments, and expected WAV/timeline/M4A hashes with no authoritative runtime mutation.
+  - **Migration**: none.
+
 - **Task 11B1 — Guarded production chapter runner**: Added a production-oriented local runner that defaults to preflight-only mode and only submits with explicit `--submit`.
   - **Runner core**: `story_audio/production_runner.py` validates an absolute isolated data root, rejects the canonical live root, proves API/data-root identity, resolves chapter by book + chapter number, verifies immutable approved Casting Plan bindings, detects duplicate jobs by pinned identity, and returns structured CLI errors including `internal_error` exit `8`.
   - **CLI entrypoint**: `scripts/run_production_chapter.py` exposes the guarded runner without shell-generated JSON.

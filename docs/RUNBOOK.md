@@ -17,6 +17,44 @@ Invoke-RestMethod http://127.0.0.1:8766/api/config
 & 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\doctor.py
 ```
 
+## Production runner
+
+Preflight only:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\run_production_chapter.py --data-root 'D:\IsolatedStoryAudio\data' --api-base 'http://127.0.0.1:8768' --book-id <BOOK_ID> --chapter-number <CHAPTER_NUMBER> --casting-plan-id <CASTING_PLAN_ID>
+```
+
+Submit explicit new job:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\run_production_chapter.py --data-root 'D:\IsolatedStoryAudio\data' --api-base 'http://127.0.0.1:8768' --book-id <BOOK_ID> --chapter-number <CHAPTER_NUMBER> --casting-plan-id <CASTING_PLAN_ID> --submit
+```
+
+Watch existing verified job:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\run_production_chapter.py --data-root 'D:\IsolatedStoryAudio\data' --api-base 'http://127.0.0.1:8768' --book-id <BOOK_ID> --chapter-number <CHAPTER_NUMBER> --casting-plan-id <CASTING_PLAN_ID> --job-id <JOB_ID> --watch
+```
+
+Resume interrupted or paused same job:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\run_production_chapter.py --data-root 'D:\IsolatedStoryAudio\data' --api-base 'http://127.0.0.1:8768' --book-id <BOOK_ID> --chapter-number <CHAPTER_NUMBER> --casting-plan-id <CASTING_PLAN_ID> --job-id <JOB_ID> --resume --watch
+```
+
+Write manifest to explicit absolute path:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\run_production_chapter.py --data-root 'D:\IsolatedStoryAudio\data' --api-base 'http://127.0.0.1:8768' --book-id <BOOK_ID> --chapter-number <CHAPTER_NUMBER> --casting-plan-id <CASTING_PLAN_ID> --job-id <JOB_ID> --watch --manifest-out 'D:\IsolatedStoryAudio\data\manifests\job_<JOB_ID>_chapter_<CHAPTER_NUMBER>.json'
+```
+
+Notes:
+
+- `--resume` la explicit mutation va chi dung cho job `paused` hoac `interrupted`; no khong retry failed jobs.
+- Runner fail-closed neu `--data-root` tro vao canonical live root.
+- `--watch` la read-only va khong tu dong resume/cancel/regenerate/accept/reject.
+
 Logs:
 
 ```text

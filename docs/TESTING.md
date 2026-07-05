@@ -11,6 +11,9 @@ $env:PYTHONDONTWRITEBYTECODE='1'
 node --check ui\app.js
 ```
 
+Authoritative interpreter: `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`
+Current offline baseline for the main branch after Task 11B2: `774/774` passing.
+
 Không được gọi Gemini, VieNeu inference hoặc mạng. Dùng fixture nhỏ cho:
 
 - Reflow và lexical identity.
@@ -57,7 +60,7 @@ Fixture mặc định:
 - Không chạy toàn bộ sách.
 - Ghi model/prompt/voice/version vào test report, không ghi key.
 
-Baseline hiện tại: 119 test offline; chương 858 đã hoàn thành 10 segment và M4A 118.710 ms. Handoff smoke job 3/chapter 1982 đã tạo video YouTube Auto 22,826 giây từ audio 22,810 giây.
+Baseline hiện tại: full offline suite `774/774` pass với interpreter authoritative `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`; ngoài ra vẫn giữ các smoke lịch sử như chương 858 hoàn thành 10 segment/M4A 118.710 ms và handoff smoke job 3/chapter 1982 tạo video YouTube Auto 22,826 giây từ audio 22,810 giây.
 
 Three-Voice UI smoke dùng isolated book 4/chapter 1983: preview Ngọc Lan/Gia Bảo/Mỹ Duyên đạt 14,16–15,12 giây; jobs 4–5 đạt 24.650/26.090 ms với narrator, male, female, unknown fallback và character override. Controlled retry job 4 render lại đúng segment Gia Bảo và reuse 7 segment verified; timeline mới chứa resolution metadata. Chưa đánh giá cảm nhận bằng tai trong smoke tự động.
 
