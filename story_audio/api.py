@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .config import settings
+from .config import canonical_production_db_path, settings
 from .casting import (
     CastingError,
     approve_plan,
@@ -19,6 +19,7 @@ from .casting import (
     create_casting_draft,
     create_character,
     deactivate_character,
+    get_plan,
     list_characters,
     update_character,
     validate_approved_plan,
@@ -250,6 +251,25 @@ def get_config() -> dict[str, Any]:
         "tts_error": tts_service.error,
         "undo_seconds": settings.undo_seconds,
         "available_epubs": epubs,
+    }
+
+
+@app.get("/api/runtime")
+def get_runtime_identity() -> dict[str, Any]:
+    data_root = settings.data_dir.resolve()
+    db_path = settings.db_path.resolve()
+    live_db = canonical_production_db_path().resolve()
+    live_root = live_db.parent
+    return {
+        "root": str(settings.root.resolve()),
+        "data_root": str(data_root),
+        "db_path": str(db_path),
+        "schema_version": db.schema_version(),
+        "latest_schema_version": db.latest_schema_version,
+        "canonical_live_data_root": str(live_root),
+        "canonical_live_db_path": str(live_db),
+        "is_canonical_live_data_root": data_root == live_root,
+        "is_canonical_live_db": db_path == live_db,
     }
 
 
@@ -658,6 +678,24 @@ def approve_casting(casting_plan_id: int) -> dict[str, Any]:
         return result
     except CastingError as exc:
         raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/casting/{casting_plan_id}")
+def read_casting_plan(casting_plan_id: int) -> dict[str, Any]:
+    try:
+        result = get_plan(db, store, casting_plan_id, include_text=True)
+        validate_approved_plan(
+            db,
+            store,
+            casting_plan_id,
+            _preset_voice_ids(),
+            custom_voice_context=_build_custom_voice_context(),
+        )
+        return result
+    except CastingError as exc:
+        message = str(exc)
+        status = 404 if "not found" in message.lower() else 400
+        raise HTTPException(status, message) from exc
 
 
 @app.post("/api/voice-previews")
