@@ -6,6 +6,14 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 10 complete — Long Chapter Production Pilot**: Closed the production pilot with evidence only, no application code changes.
+  - **Chapter 804 workflow validation** completed on isolated runtime V2: pause/restart/resume, controlled regeneration, A/B review, and Reject workflow all passed; no candidate was accepted; final chapter artifact remained 503.800 s.
+  - **Chapter 629 production pilot** completed end-to-end: Character Bible apply, Gemini speaker draft, full editorial review, one corrected attribution, approved immutable Casting Plan #2, three-voice render, and final artifacts verified.
+  - **Render result**: Job #2 / JobChapter #2 completed with 119/119 verified segments, duration 824.420 s, and realized voices Ngọc Lan 90 / Đức Trí 26 / Mỹ Duyên 3.
+  - **QA result**: objective audio QA package generated, then operator listened to the full chapter and marked `OPERATIONAL_PASS`; no pronunciation, pacing, speaker-switching, clipping, volume, or pause issue justified regeneration.
+  - **Evidence runtime**: `D:\Youtube\StoryAudioTask10PilotV2\data` with captures in `D:\Youtube\StoryAudioTask10PilotV2\captures`.
+  - **Repository baseline**: `main` at `6fa018076ad7c146b55d05a8c6bf619abd2176f2`; no repo code change was required for Task 10 closeout.
+
 - **Manual Casting Draft Character Assignment Fix**: Hybrid API endpoint for preserving manual character assignments by text offsets. The POST `/api/chapters/{chapter_id}/casting/draft` endpoint now supports both offset-based (new authoritative manual mode) and utterance-ID-based (existing auto-draft mode) assignments.
   - **Root cause**: Previous implementation regenerated utterances via `split_utterances()` and matched assignments only by `utterance_id`. UI/manual span IDs did not reliably match regenerated IDs, causing manual assignments to be rejected, ignored, or silently defaulted to narrator.
   - **Offset-based assignments**: Use `start_offset` and `end_offset` to specify character spans within the approved TextRevision. When an authoritative span is split into multiple utterances by the chunker, every child utterance inherits the source `role`, `character_id`, resolved voice, and resolution metadata.

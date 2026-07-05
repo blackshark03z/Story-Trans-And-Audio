@@ -17,28 +17,22 @@ Roadmap mô tả thứ tự đầu tư, không phải cam kết thời gian. Ưu
 - Custom Reference Voice Library UI: Global library interface, logical voice management, immutable revision upload, exact revision selection, Reference Audio playback, custom Preview Text, short preview support, compact Preset Voice Preview restored, smoke/test book filtering, full-width vertical form layouts, responsive design. **Merged into main via PR #2.**
 - Custom Voice Backend Resolution & Snapshot Support: voice_ref.py `custom:<id>` parser, CustomVoiceContext catalog, resolver integration in casting/profile/pipeline, 14-field immutable snapshot, snapshot-based TTS synthesis, fail-closed legacy policy, 377 offline tests (92 new snapshot tests), real VieNeu smoke (preset + custom). **Migration 0007, Phase 3A/3B complete.**
 
-## Next — In Progress
+## Next
 
-Multi Custom Voice Ready for Personal Use: Complete end-to-end workflow validation for custom reference voices in production use.
+Task 10 — Long Chapter Production Pilot: Complete.
 
-**Current Phase**: UI Integration
+**Completed evidence**:
+1. **Chapter 804 workflow validation**: isolated runtime, pause/restart/resume, controlled regeneration, A/B review, and Reject workflow all passed; no accepted candidate; final artifact unchanged at 503.800 s.
+2. **Chapter 629 production pilot**: Character Bible apply, Gemini draft, full editorial review, one corrected attribution, immutable Casting Plan, real three-voice render, objective QA, and full-chapter operator listening pass.
+3. **Final production-pilot result**: Job #2 completed with 119/119 verified segments, final M4A 824.420 s, voice distribution Ngọc Lan 90 / Đức Trí 26 / Mỹ Duyên 3, and no open candidate attempts.
 
-**Remaining Work**:
-1. **UI Integration**: Load custom voices from `/api/custom-voices` into Book Voice Profile, Character Override, and Manual Casting voice selects. Merge with presets in `castingVoiceOptions()`, display format `"<name> (Custom)"`, preserve preset-only backward compatibility.
-
-2. **Short Smoke Test**: 3-utterance isolated chapter with mixed custom/preset voices, verify job/TTS/timeline/retry.
-
-3. **Real Chapter Render**: Full chapter (20–50 utterances) with custom narrator + preset dialogue, verify distribution/quality/handoff.
-
-4. **Retry Validation**: Force segment failure, verify custom voice snapshot preservation during retry.
-
-5. **Documentation Closeout**: Update PROJECT_STATUS, ROADMAP, CHANGELOG to reflect "Ready for Personal Use" status.
-
-**Status**: Backend complete (resolution, snapshot, TTS integration, 377 tests). UI library panel complete and merged (PR #2, 613 tests). Voice selects do not yet expose custom voices to user.
+**Next planning state**:
+- No single successor task is active yet.
+- Tech Lead prioritization is required before starting the next implementation track.
 
 ## Paused
 
-No paused tasks. Active implementation: Multi Custom Voice Ready for Personal Use (UI Integration phase).
+No paused tasks.
 
 ## Deferred (Awaiting User Approval After Current Task)
 
