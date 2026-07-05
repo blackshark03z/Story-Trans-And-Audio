@@ -6,6 +6,16 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 11C2 - Deterministic listening checklist HTML**: Added an offline operator listening package built from the Task 11B2 production manifest plus the Task 11C1 QA JSON without mutating jobs, segments, artifacts, or databases.
+  - **Checklist core**: `story_audio/listening_checklist.py` validates exact manifest/QA schema and identity, rejects the canonical live root, re-verifies chapter/segment artifacts by path plus SHA-256, enforces isolated-root relative audio URLs, and emits deterministic UTF-8 HTML.
+  - **Deterministic queue**: the package always includes integrity failures, hard-clipping segments, top-risk shortlist items, one representative sample per realized voice, and first/last segment coverage with deterministic dedupe and selection reasons.
+  - **Local review workflow**: the HTML includes chapter overview, master/final audio controls, per-segment audio controls, operator checklists, localStorage-scoped progress state, reset action, and browser-only JSON export schema `story-audio-listening-review/v1`.
+  - **Safety model**: no CDN, no network calls, no base64 audio, no `eval`, no API mutation routes, and no review import/apply path. Conflicting output and unknown existing package files fail closed.
+  - **CLI**: added `scripts/build_listening_checklist.py` as the operator-facing entrypoint.
+  - **Verification**: focused listening checklist tests 21/21 pass with 1 privilege-related symlink skip plus a mock symlink rejection test; related regressions 108/108 pass; full offline suite 835/835 pass.
+  - **Disposable smoke**: Chapter 629 disposable runtime produced `D:\Youtube\StoryAudioTask11B2Smoke\data\listening\job_2_chapter_629\index.html` with package SHA-256 `6f55fb206eea5f5dc508df7ba4d48e4a847c3a6ee020531f41d44bca07108329`; second unchanged run reused the identical bytes. No source DB/audio mutation occurred.
+  - **Migration**: none.
+
 - **Task 11C1 - Objective audio QA reporting**: Added offline QA analysis for completed-job production manifests without mutating jobs, segments, artifacts, or databases.
   - **QA core**: `story_audio/audio_qa.py` reads a `story-audio-production-manifest/v1`, opens SQLite read-only, re-verifies manifest artifacts by SHA-256, validates timeline/segment bindings, and emits deterministic UTF-8 JSON with chapter, segment, and voice-level metrics.
   - **Signal analysis**: FFmpeg/FFprobe plus direct PCM WAV analysis now report duration, sample rate, channels, exact integer PCM support (8/16/24/32-bit), mean/max loudness, full-scale peak evidence, hard-clipping sample count/ratio, longest full-scale run, near-clipping sample count/ratio, and silence spans.

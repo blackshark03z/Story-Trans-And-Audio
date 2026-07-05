@@ -70,6 +70,21 @@ Notes:
 - Script chi dung FFmpeg/FFprobe local va SQLite read-only; khong goi API mutate, Gemini, TTS, regenerate, accept, hay reject.
 - Report la objective signal heuristics only; operator van la authority cho pronunciation, naturalness, va speaker correctness by ear.
 
+## Listening checklist
+
+Generate the deterministic local listening package from a verified manifest plus Task 11C1 QA report:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\build_listening_checklist.py --manifest 'D:\IsolatedStoryAudio\data\manifests\job_<JOB_ID>_chapter_<CHAPTER_NUMBER>.json' --qa-report 'D:\IsolatedStoryAudio\data\qa\job_<JOB_ID>_chapter_<CHAPTER_NUMBER>_audio_qa.json'
+```
+
+Notes:
+
+- The checklist is offline and local-only: no DB/API mutation, no Gemini, no TTS, no regenerate, no accept/reject.
+- Default output is deterministic under `data\listening\job_<JOB_ID>_chapter_<CHAPTER_NUMBER>\index.html`.
+- Local review state stays in browser `localStorage`; review JSON export is browser-only and is not imported back into Story Audio.
+- Human listening remains the final authority for pronunciation, naturalness, emotion, and speaker correctness.
+
 Logs:
 
 ```text
