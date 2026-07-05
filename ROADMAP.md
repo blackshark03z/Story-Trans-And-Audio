@@ -19,24 +19,25 @@ Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve
 - Task 10 Long Chapter Production Pilot.
 - Task 11B1 Guarded Production Runner: isolated-root production runner, read-only runtime identity endpoint, exact Casting Plan endpoint, Unicode-safe submit path, duplicate protection, immutable binding verification, structured CLI errors, and 759/759 offline tests passing.
 - Task 11B2 Production Runner Monitoring + Manifest: exact existing/new job selection, structured watch progress, controlled same-job resume, completed-job terminal validation, final manifest schema `story-audio-production-manifest/v1`, disposable completed-job smoke, and 774/774 offline tests passing.
+- Task 11C1 Objective Audio QA Reporting: offline manifest-driven QA JSON, FFmpeg/PCM clipping/loudness/silence/duration metrics, deterministic risk shortlist, byte-identical reuse smoke on Chapter 629, and 814/814 offline tests passing.
 
 ## Next
 
-Task 11C - Objective Audio QA and Listening Package
+Task 11C2 - Deterministic Listening Checklist HTML
 
 **Planned scope**:
-1. Consume the Task 11B2 production manifest as the authoritative chapter/job input.
-2. Run deterministic FFmpeg/local metrics for whole-chapter and per-segment audio.
-3. Rank clipping, loudness, silence, and duration risks without mutating chapter audio.
-4. Generate a deterministic listening checklist package for human review.
-5. Include representative narrator/male/female/unknown segments in the review set.
-6. Keep human listening as the final quality authority.
-7. Stop before any automatic regenerate/accept/reject workflow.
+1. Consume the Task 11B2 production manifest plus Task 11C1 QA JSON as authoritative inputs.
+2. Generate a deterministic local HTML listening checklist package for human review.
+3. Show chapter overview, prioritized risk samples, and representative narrator/male/female/unknown samples where present.
+4. Provide local audio controls and operator review fields without mutating chapter audio.
+5. Keep human listening as the final quality authority.
+6. Stop before any automatic regenerate/accept/reject workflow.
 
 **Prerequisites**:
-- Task 11B2 implementation commit `50a2a397b1626ca8abaa1d1ffab5755fdebf5eac`.
+- Task 11C1 implementation commit `9cc41720b7da755dd11302e053573dbb9272cd1a`.
 - Authoritative interpreter `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`.
 - Explicit isolated runtime/data root.
+- Task 11C1 deterministic QA output available for the target manifest.
 - Protected paths `experiment_b_transcript/` and `runs/` remain untouched.
 
 ## Paused

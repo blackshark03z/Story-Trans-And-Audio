@@ -6,6 +6,16 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 11C1 - Objective audio QA reporting**: Added offline QA analysis for completed-job production manifests without mutating jobs, segments, artifacts, or databases.
+  - **QA core**: `story_audio/audio_qa.py` reads a `story-audio-production-manifest/v1`, opens SQLite read-only, re-verifies manifest artifacts by SHA-256, validates timeline/segment bindings, and emits deterministic UTF-8 JSON with chapter, segment, and voice-level metrics.
+  - **Signal analysis**: FFmpeg/FFprobe plus direct PCM WAV analysis now report duration, sample rate, channels, exact integer PCM support (8/16/24/32-bit), mean/max loudness, full-scale peak evidence, hard-clipping sample count/ratio, longest full-scale run, near-clipping sample count/ratio, and silence spans.
+  - **Risk heuristics**: shortlist scoring covers clipping, loudness jumps, long internal silence, context-aware trailing silence, speech-rate outliers, and very long segments while preserving quantitative reasons in the report.
+  - **Determinism**: writes are atomic, reread-verified, reused when identical, and fail closed on conflicting existing output. Default report path remains deterministic under the isolated data root.
+  - **CLI**: added `scripts/run_audio_qa.py` as the operator-facing offline entrypoint.
+  - **Verification**: focused audio QA tests 40/40 pass, related production runner/manifest/API regressions 51/51 pass, operational/live-guard tests 17/17 pass, full offline suite 814/814 pass.
+  - **Disposable smoke**: Chapter 629 manifest on `D:\Youtube\StoryAudioTask11B2Smoke` produced deterministic report `job_2_chapter_629_audio_qa.json` with SHA-256 `f1f889e776c2b88d5bad997b75a4438e9b4ab977cf45cf4bbad92138a74b1581`; second unchanged run reused the identical bytes. No source DB/audio mutation occurred.
+  - **Migration**: none.
+
 - **Task 11B2 - Production runner monitoring, controlled resume, and final manifest**: Extended the guarded production runner to support exact canonical job selection, structured `--watch` progress, explicit same-job `--resume`, completed-job terminal validation, and final manifest generation.
   - **Runner behavior**: `story_audio/production_runner.py` now resolves one verified existing/new job, refuses hidden auto-resume, blocks active-job resume, keeps `--watch` read-only, and returns structured timeout / operator-interrupt / terminal-validation diagnostics.
   - **Terminal validation**: completed jobs must prove exact segment counts, zero failed/pending/running, continuous sequence coverage, immutable Text Revision and Casting Plan bindings, no open candidate attempts, same-job render ownership, artifact presence, and recomputed SHA-256 integrity.

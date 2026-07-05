@@ -55,6 +55,21 @@ Notes:
 - Runner fail-closed neu `--data-root` tro vao canonical live root.
 - `--watch` la read-only va khong tu dong resume/cancel/regenerate/accept/reject.
 
+## Offline audio QA
+
+Objective heuristics only, no live root:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\run_audio_qa.py --manifest 'D:\IsolatedStoryAudio\data\manifests\job_<JOB_ID>_chapter_<CHAPTER_NUMBER>.json' --output 'D:\IsolatedStoryAudio\data\qa\job_<JOB_ID>_chapter_<CHAPTER_NUMBER>_audio_qa.json'
+```
+
+Notes:
+
+- Manifest path phai la absolute path tu isolated data root.
+- `--output` la optional; neu bo qua, script se dung deterministic default filename duoi `data\qa\`.
+- Script chi dung FFmpeg/FFprobe local va SQLite read-only; khong goi API mutate, Gemini, TTS, regenerate, accept, hay reject.
+- Report la objective signal heuristics only; operator van la authority cho pronunciation, naturalness, va speaker correctness by ear.
+
 Logs:
 
 ```text

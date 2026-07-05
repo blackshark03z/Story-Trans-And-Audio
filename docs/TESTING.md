@@ -12,7 +12,13 @@ node --check ui\app.js
 ```
 
 Authoritative interpreter: `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`
-Current offline baseline for the main branch after Task 11B2: `774/774` passing.
+Current offline baseline for the main branch after Task 11C1: `814/814` passing.
+
+Focused Task 11C1 QA tests:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' -m unittest tests.test_audio_qa -v
+```
 
 Không được gọi Gemini, VieNeu inference hoặc mạng. Dùng fixture nhỏ cho:
 
@@ -60,7 +66,9 @@ Fixture mặc định:
 - Không chạy toàn bộ sách.
 - Ghi model/prompt/voice/version vào test report, không ghi key.
 
-Baseline hiện tại: full offline suite `774/774` pass với interpreter authoritative `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`; ngoài ra vẫn giữ các smoke lịch sử như chương 858 hoàn thành 10 segment/M4A 118.710 ms và handoff smoke job 3/chapter 1982 tạo video YouTube Auto 22,826 giây từ audio 22,810 giây.
+Baseline hiện tại: full offline suite `814/814` pass với interpreter authoritative `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`; ngoài ra vẫn giữ các smoke lịch sử như chương 858 hoàn thành 10 segment/M4A 118.710 ms và handoff smoke job 3/chapter 1982 tạo video YouTube Auto 22,826 giây từ audio 22,810 giây.
+
+Task 11C1 added synthetic WAV-based offline coverage for clipping, silence, sample-width support, deterministic report reuse, and no-mutation guarantees. These tests stay local and do not call Gemini, TTS inference, hay app server.
 
 Three-Voice UI smoke dùng isolated book 4/chapter 1983: preview Ngọc Lan/Gia Bảo/Mỹ Duyên đạt 14,16–15,12 giây; jobs 4–5 đạt 24.650/26.090 ms với narrator, male, female, unknown fallback và character override. Controlled retry job 4 render lại đúng segment Gia Bảo và reuse 7 segment verified; timeline mới chứa resolution metadata. Chưa đánh giá cảm nhận bằng tai trong smoke tự động.
 
@@ -94,3 +102,4 @@ Handoff regression thật: export mới chạy hai lần cùng reuse identity `3
 - Casting/job cũ không đổi voice khi character override hoặc Book Voice Profile thay đổi.
 - Resolver Three-Voice phải deterministic cho narrator, male, female, explicit override và unknown/needs-review.
 - UI không tự clear legacy override, không duplicate resolver JavaScript và không tạo plan/job khi chỉ xem effective voice.
+- Audio QA report không được mutate source DB/audio, không được mở live root, và phải reuse byte-identical output khi input/threshold không đổi.
