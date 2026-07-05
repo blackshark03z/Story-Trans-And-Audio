@@ -6,13 +6,22 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 11B1 — Guarded production chapter runner**: Added a production-oriented local runner that defaults to preflight-only mode and only submits with explicit `--submit`.
+  - **Runner core**: `story_audio/production_runner.py` validates an absolute isolated data root, rejects the canonical live root, proves API/data-root identity, resolves chapter by book + chapter number, verifies immutable approved Casting Plan bindings, detects duplicate jobs by pinned identity, and returns structured CLI errors including `internal_error` exit `8`.
+  - **CLI entrypoint**: `scripts/run_production_chapter.py` exposes the guarded runner without shell-generated JSON.
+  - **Read-only API support**: added `GET /api/runtime` for local runtime identity and `GET /api/casting/{casting_plan_id}` for exact-ID Casting Plan fetch needed by the runner.
+  - **Unicode safety**: mutating JSON requests are serialized with `ensure_ascii=True` and UTF-8 bytes so operator payloads do not depend on terminal encoding.
+  - **Verification**: focused runner/API 36/36 pass, related operational/live-guard 17/17 pass, full offline suite 759/759 pass.
+  - **Disposable smoke**: isolated verification runtime confirmed identity/read-only contracts, Chapter 629 duplicate job detection returned `already_completed`, runtime mismatch failed closed with exit `3`, and no real production job was created.
+  - **Migration**: none.
+
 - **Task 10 complete — Long Chapter Production Pilot**: Closed the production pilot with evidence only, no application code changes.
   - **Chapter 804 workflow validation** completed on isolated runtime V2: pause/restart/resume, controlled regeneration, A/B review, and Reject workflow all passed; no candidate was accepted; final chapter artifact remained 503.800 s.
   - **Chapter 629 production pilot** completed end-to-end: Character Bible apply, Gemini speaker draft, full editorial review, one corrected attribution, approved immutable Casting Plan #2, three-voice render, and final artifacts verified.
   - **Render result**: Job #2 / JobChapter #2 completed with 119/119 verified segments, duration 824.420 s, and realized voices Ngọc Lan 90 / Đức Trí 26 / Mỹ Duyên 3.
   - **QA result**: objective audio QA package generated, then operator listened to the full chapter and marked `OPERATIONAL_PASS`; no pronunciation, pacing, speaker-switching, clipping, volume, or pause issue justified regeneration.
   - **Evidence runtime**: `D:\Youtube\StoryAudioTask10PilotV2\data` with captures in `D:\Youtube\StoryAudioTask10PilotV2\captures`.
-  - **Repository baseline**: `main` at `6fa018076ad7c146b55d05a8c6bf619abd2176f2`; no repo code change was required for Task 10 closeout.
+  - **Repository baseline**: Task 10 closeout was verified against `main` at `6fa018076ad7c146b55d05a8c6bf619abd2176f2`; no repo code change was required for that closeout.
 
 - **Manual Casting Draft Character Assignment Fix**: Hybrid API endpoint for preserving manual character assignments by text offsets. The POST `/api/chapters/{chapter_id}/casting/draft` endpoint now supports both offset-based (new authoritative manual mode) and utterance-ID-based (existing auto-draft mode) assignments.
   - **Root cause**: Previous implementation regenerated utterances via `split_utterances()` and matched assignments only by `utterance_id`. UI/manual span IDs did not reliably match regenerated IDs, causing manual assignments to be rejected, ignored, or silently defaulted to narrator.

@@ -1,37 +1,37 @@
 # Next Task
 
 Current Status:
-Task 10 complete. Further prioritization now requires Tech Lead direction.
+Task 11B1 complete. The next approved engineering slice is Task 11B2.
 
 Current Baseline:
 - Branch `main`
-- HEAD / `origin/main`: `6fa018076ad7c146b55d05a8c6bf619abd2176f2`
-- Offline baseline last verified for this line of work: 723 tests passing
+- Task 11B1 implementation commit: `556023a94670730cafa995aa30d70a389f4a995a`
+- Local HEAD before future push should include the Task 11B1 implementation/docs commits; `origin/main` remains `8dd7920ed4641c4423f29f9940a5062bab065c45` until a dedicated push checkpoint
+- Offline baseline last verified for this line of work: 759 tests passing
 - Task 10 evidence runtime: `D:\Youtube\StoryAudioTask10PilotV2\data`
 - Protected untracked paths must remain untouched:
   - `experiment_b_transcript/`
   - `runs/`
 
 Next Task:
-Next task requires Tech Lead prioritization
+Task 11B2 — Production Runner Progress, Resume and Final Manifest
 
 Why:
-- Task 10 is now closed with a real 13m44.420s production pilot, full workflow validation, objective QA, and human full-chapter operational pass.
-- The previous `Multi Custom Voice Ready for Personal Use` instructions are now stale as the active next-task file because they predate Task 10 closeout.
-- `ROADMAP.md` still contains deferred and candidate directions, but does not define a single authoritative successor after Task 10.
+- Task 11B1 established the guarded submit contract: isolated-root enforcement, runtime identity verification, exact Casting Plan readback, Unicode-safe request serialization, duplicate-job protection, immutable binding verification, and structured CLI errors.
+- The next operational step is to exercise progress visibility and controlled resume on the same guarded runner path before expanding automation further.
 
-Candidate Directions:
-1. Custom Voice UI Integration
-   - Load `/api/custom-voices` into Book Voice Profile, Character Override, and Manual Casting selects.
-   - Keep preset compatibility and existing snapshot invariants intact.
-
-2. YouTube Auto Handoff V2 Output Package
-   - Extend chapter output contract with timeline/subtitle/manifest artifacts for downstream automation.
-
-3. Production Hardening / Operations
-   - Quota and cache operations, stronger retry/recovery instrumentation, or worker/process separation.
+Scope:
+1. Identify and report an existing active production-style job under the isolated runtime.
+2. Perform a controlled resume of that same job without creating a second parallel job.
+3. Capture progress checkpoints and terminal-state evidence from the runner/API.
+4. Verify final artifact paths, sizes, and SHA-256 manifest outputs.
+5. Stop before objective QA/listening package work.
+6. Do not add automatic regenerate/Accept/Reject behavior.
 
 Prerequisites For Any Next Task:
+- Preserve the Task 11B1 implementation commit `556023a94670730cafa995aa30d70a389f4a995a`.
+- Use the authoritative VieNeu interpreter: `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`.
+- Require an explicit isolated `STORY_AUDIO_DATA_DIR` / data root for any new smoke or production-style run.
 - Preserve live DB guardrails.
 - Do not mutate `experiment_b_transcript/` or `runs/`.
 - Re-verify Git baseline before implementation.
