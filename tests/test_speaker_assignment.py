@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from story_audio.casting import split_utterances
+from story_audio.casting import CHUNKER_VERSION, split_utterances
 from story_audio.casting import approve_plan, create_casting_draft, get_plan
 from story_audio.db import Database, utcnow
 from story_audio.gemini import SPEAKER_ASSIGNMENT_SYSTEM_PROMPT, build_speaker_assignment_payload
@@ -216,7 +216,7 @@ class SpeakerAssignmentTests(unittest.TestCase):
             config, db, store, _book, chapter, revision, _character = seed(Path(directory))
             utterances = split_utterances(TEXT)
             plan = {
-                "schema_version": 1, "chunker_version": "utterance-v1", "chapter_id": chapter,
+                "schema_version": 1, "chunker_version": CHUNKER_VERSION, "chapter_id": chapter,
                 "text_revision_id": revision, "narrator_voice_id": "narrator",
                 "book_voice_profile": None,
                 "utterances": [{**item, "role": "narrator", "resolved_voice_id": "narrator"} for item in utterances],

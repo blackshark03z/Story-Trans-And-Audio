@@ -12,7 +12,7 @@ from .voice_profile import get_book_voice_profile, preset_ref, profile_validatio
 from .voice_ref import CustomVoiceContext, is_custom_ref
 
 CASTING_SCHEMA_VERSION = 1
-CHUNKER_VERSION = "utterance-v1"
+CHUNKER_VERSION = "utterance-v3"
 TERMINALS = ".!?…"
 OPEN_QUOTES = {'"', "“"}
 CLOSE_QUOTES = {'"', "”"}
@@ -26,6 +26,108 @@ def _trim(text: str, start: int, end: int) -> tuple[int, int] | None:
     while end > start and text[end - 1].isspace():
         end -= 1
     return (start, end) if start < end else None
+
+
+ORPHAN_TAIL_MAX_WORDS = 2
+ORPHAN_TAIL_MAX_CHARS = 16
+LOOKBACK_WINDOW = 96
+SENTENCE_PUNCTUATION = ".!?…"
+CLAUSE_PUNCTUATION = ",;:"
+DANGLING_FINAL_WORDS = {
+    "rất",
+    "không",
+    "đã",
+    "sẽ",
+    "cũng",
+    "vẫn",
+    "còn",
+    "đang",
+    "vừa",
+    "mới",
+    "chỉ",
+}
+
+
+def _is_orphan_tail(text: str, start: int, end: int) -> bool:
+    trimmed = _trim(text, start, end)
+    if not trimmed:
+        return False
+    left, right = trimmed
+    snippet = text[left:right]
+    words = snippet.split()
+    return len(words) <= ORPHAN_TAIL_MAX_WORDS and len(snippet) <= ORPHAN_TAIL_MAX_CHARS
+
+
+def _final_word(text: str, start: int, end: int) -> str:
+    trimmed = _trim(text, start, end)
+    if not trimmed:
+        return ""
+    snippet = text[trimmed[0]:trimmed[1]].rstrip(SENTENCE_PUNCTUATION + CLAUSE_PUNCTUATION + "\"”").strip()
+    words = snippet.split()
+    return words[-1].casefold() if words else ""
+
+
+def _candidate_cuts(text: str, left: int, right: int, maximum: int) -> list[tuple[int, str]]:
+    limit = min(right, left + maximum)
+    candidates: dict[int, str] = {}
+    for index in range(left + 1, limit):
+        if text[index].isspace():
+            look = index - 1
+            while look > left and text[look].isspace():
+                look -= 1
+            while look > left and text[look] in CLOSE_QUOTES:
+                look -= 1
+            marker = text[look] if left <= look < right else ""
+            kind = "space"
+            if marker in SENTENCE_PUNCTUATION:
+                kind = "sentence"
+            elif marker in CLAUSE_PUNCTUATION:
+                kind = "clause"
+            candidates[index] = kind
+    return sorted((cut, kind) for cut, kind in candidates.items() if left < cut < right)
+
+
+def _select_best_candidate(
+    text: str,
+    left: int,
+    right: int,
+    candidates: list[tuple[int, str]],
+    *,
+    prefer_punctuation: bool,
+    maximum: int,
+) -> int | None:
+    if not candidates:
+        return None
+    best: tuple[tuple[int, int, int, int], int] | None = None
+    for cut, kind in candidates:
+        head = _trim(text, left, cut)
+        tail = _trim(text, cut, right)
+        if not head:
+            continue
+        if head[1] - head[0] > maximum:
+            continue
+        tail_orphan = 1 if tail and _is_orphan_tail(text, tail[0], tail[1]) else 0
+        head_dangling = 1 if _final_word(text, head[0], head[1]) in DANGLING_FINAL_WORDS else 0
+        kind_rank = {"sentence": 0, "clause": 1, "space": 2}[kind]
+        if not prefer_punctuation:
+            kind_rank = 0 if kind == "space" else 1
+        distance_rank = -(cut - left)
+        score = (tail_orphan, head_dangling, kind_rank, distance_rank)
+        if best is None or score < best[0]:
+            best = (score, cut)
+    return best[1] if best else None
+
+
+def _choose_cut(text: str, left: int, right: int, maximum: int) -> int:
+    candidates = _candidate_cuts(text, left, right, maximum)
+    limit = min(right, left + maximum)
+    lookback_start = max(left + 1, limit - LOOKBACK_WINDOW)
+    lookback = [(cut, kind) for cut, kind in candidates if cut >= lookback_start]
+    preferred = _select_best_candidate(text, left, right, lookback, prefer_punctuation=True, maximum=maximum)
+    if preferred is not None:
+        return preferred
+    fallback = _select_best_candidate(text, left, right, candidates, prefer_punctuation=False, maximum=maximum)
+    return fallback if fallback is not None else left + maximum
 
 def _split_region(text: str, start: int, end: int, maximum: int) -> list[tuple[int, int]]:
     spans: list[tuple[int, int]] = []
@@ -55,13 +157,7 @@ def _split_region(text: str, start: int, end: int, maximum: int) -> list[tuple[i
     safe: list[tuple[int, int]] = []
     for left, right in spans:
         while right - left > maximum:
-            cut = max(
-                text.rfind(", ", left, left + maximum),
-                text.rfind("; ", left, left + maximum),
-                text.rfind(": ", left, left + maximum),
-                text.rfind(" ", left, left + maximum),
-            )
-            cut = cut + 1 if cut > left + maximum // 2 else left + maximum
+            cut = _choose_cut(text, left, right, maximum)
             piece = _trim(text, left, cut)
             if piece:
                 safe.append(piece)

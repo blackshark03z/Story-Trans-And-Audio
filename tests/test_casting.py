@@ -132,6 +132,88 @@ class CastingTests(unittest.TestCase):
         self.assertTrue(all(item["role"] == "narrator" for item in first))
         self.assertTrue(all(item["end_offset"] - item["start_offset"] <= 256 for item in first))
 
+    def test_splitter_avoids_one_word_orphan_tail(self) -> None:
+        text = (
+            "- Ch\u1ee7 t\u1eed, v\u1eeba n\u00e3y ta c\u00f3 ch\u00fat kh\u00f4ng kh\u1ed1ng ch\u1ebf \u0111\u01b0\u1ee3c, "
+            "ti\u1ebfp theo ta s\u1ebd ch\u1ec9 h\u1ea5p thu b\u1ea3y th\u00e0nh v\u00e0 l\u01b0u l\u1ea1i ba th\u00e0nh, "
+            "nh\u01b0 v\u1eady v\u1eabn c\u00f3 th\u1ec3 b\u00e1n l\u1ea5y ti\u1ec1n, ta th\u00e2n l\u00e0 kh\u00ed linh cho n\u00ean "
+            "c\u00f3 n\u1eafm ch\u1eafc l\u00e0m \u0111\u01b0\u1ee3c \u0111i\u1ec1u n\u00e0y, ch\u1ec9 c\u1ea7n ta b\u1ed1 tr\u00ed "
+            "m\u1ed9t phen th\u00ec c\u1eeda h\u00e0ng r\u1ea5t kh\u00f3 ph\u00e1t hi\u1ec7n."
+        )
+        utterances = split_utterances(text, maximum=256)
+        pieces = [text[item["start_offset"]:item["end_offset"]] for item in utterances]
+        self.assertEqual(len(utterances), 2)
+        self.assertNotEqual(pieces[-1], "hi\u1ec7n.")
+        self.assertTrue(pieces[0].endswith("l\u00e0m \u0111\u01b0\u1ee3c \u0111i\u1ec1u n\u00e0y,"))
+        self.assertTrue(pieces[1].startswith("ch\u1ec9 c\u1ea7n ta b\u1ed1 tr\u00ed"))
+        self.assertIn("kh\u00f3 ph\u00e1t hi\u1ec7n.", pieces[-1])
+        self.assertTrue(all(item["end_offset"] - item["start_offset"] <= 256 for item in utterances))
+
+    def test_splitter_avoids_short_phrase_orphan_tail(self) -> None:
+        text = (
+            "mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot "
+            "mot mot mot mot mot mot mot mot mot mot phat hien."
+        )
+        utterances = split_utterances(text, maximum=60)
+        pieces = [text[item["start_offset"]:item["end_offset"]] for item in utterances]
+        self.assertNotIn("phat hien.", pieces)
+        self.assertTrue(all(item["end_offset"] - item["start_offset"] <= 60 for item in utterances))
+
+    def test_splitter_prefers_clause_punctuation_over_late_whitespace(self) -> None:
+        text = (
+            "mot mot mot mot mot mot mot mot mot mot, "
+            "mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot mot"
+        )
+        utterances = split_utterances(text, maximum=50)
+        pieces = [text[item["start_offset"]:item["end_offset"]] for item in utterances]
+        self.assertTrue(pieces[0].endswith(","))
+
+    def test_splitter_falls_back_to_whitespace_when_no_punctuation_exists(self) -> None:
+        text = "mot " * 30
+        utterances = split_utterances(text, maximum=40)
+        self.assertGreater(len(utterances), 1)
+        self.assertTrue(all(text[item["start_offset"]:item["end_offset"]].strip() for item in utterances))
+
+    def test_splitter_keeps_normal_sentence_unchanged(self) -> None:
+        text = "Xin ch\u00e0o c\u1ea3 nh\u00e0."
+        utterances = split_utterances(text, maximum=256)
+        self.assertEqual(len(utterances), 1)
+        self.assertEqual(text[utterances[0]["start_offset"]:utterances[0]["end_offset"]], text)
+
+    def test_splitter_preserves_exact_text_without_overlap_or_loss(self) -> None:
+        text = (
+            "  \u0110\u00e2y l\u00e0 m\u1ed9t c\u00e2u h\u01a1i d\u00e0i, c\u00f3 d\u1ea5u ph\u1ea9y, c\u00f3 kho\u1ea3ng tr\u1eafng, "
+            "v\u00e0 c\u00f3 c\u1ea3 ti\u1ebfng Vi\u1ec7t \u0111\u1ec3 ki\u1ec3m tra t\u00ednh to\u00e0n v\u1eb9n.  "
+        )
+        utterances = split_utterances(text, maximum=40)
+        rebuilt: list[str] = []
+        cursor = 0
+        for item in utterances:
+            self.assertGreaterEqual(item["start_offset"], cursor)
+            self.assertLessEqual(item["end_offset"], len(text))
+            rebuilt.append(text[cursor:item["start_offset"]])
+            rebuilt.append(text[item["start_offset"]:item["end_offset"]])
+            cursor = item["end_offset"]
+        rebuilt.append(text[cursor:])
+        self.assertEqual("".join(rebuilt), text)
+        self.assertTrue(all(item["end_offset"] - item["start_offset"] <= 40 for item in utterances))
+
+    def test_splitter_preserves_unicode_with_punctuation_aware_boundary(self) -> None:
+        text = (
+            "Ng\u1ecdc Lan k\u1ec3: m\u1ed9t c\u00e2u r\u1ea5t d\u00e0i, c\u00f3 d\u1ea5u ph\u1ea9y, c\u00f3 d\u1ea5u ch\u1ea5m ph\u1ea9y; "
+            "v\u00e0 c\u00f2n c\u1ea3 d\u1ea5u n\u1eb7ng \u0111\u1ec3 ki\u1ec3m tra Unicode."
+        )
+        utterances = split_utterances(text, maximum=64)
+        rebuilt: list[str] = []
+        cursor = 0
+        for item in utterances:
+            rebuilt.append(text[cursor:item["start_offset"]])
+            rebuilt.append(text[item["start_offset"]:item["end_offset"]])
+            cursor = item["end_offset"]
+        rebuilt.append(text[cursor:])
+        self.assertEqual("".join(rebuilt), text)
+        self.assertTrue(all(item["end_offset"] - item["start_offset"] <= 64 for item in utterances))
+
     def test_casting_does_not_create_text_revision_and_approved_plan_is_immutable(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             _config, db, store, _book, _chapter, _revision, character, _b, approved = seed_casting(Path(directory))

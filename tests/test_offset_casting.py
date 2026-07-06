@@ -194,6 +194,53 @@ class OffsetCastingTests(unittest.TestCase):
                 self.assertEqual(u["role"], "character")
                 self.assertEqual(u["resolved_voice_id"], "voice-a")
 
+    def test_offset_assignment_remains_correct_when_splitter_avoids_orphan_tail(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            _config, db, store, book, *_rest = seed_book(Path(directory))
+            text = (
+                "- Ch\u1ee7 t\u1eed, v\u1eeba n\u00e3y ta c\u00f3 ch\u00fat kh\u00f4ng kh\u1ed1ng ch\u1ebf \u0111\u01b0\u1ee3c, "
+                "ti\u1ebfp theo ta s\u1ebd ch\u1ec9 h\u1ea5p thu b\u1ea3y th\u00e0nh v\u00e0 l\u01b0u l\u1ea1i ba th\u00e0nh, "
+                "nh\u01b0 v\u1eady v\u1eabn c\u00f3 th\u1ec3 b\u00e1n l\u1ea5y ti\u1ec1n, ta th\u00e2n l\u00e0 kh\u00ed linh cho n\u00ean "
+                "c\u00f3 n\u1eafm ch\u1eafc l\u00e0m \u0111\u01b0\u1ee3c \u0111i\u1ec1u n\u00e0y, ch\u1ec9 c\u1ea7n ta b\u1ed1 tr\u00ed "
+                "m\u1ed9t phen th\u00ec c\u1eeda h\u00e0ng r\u1ea5t kh\u00f3 ph\u00e1t hi\u1ec7n."
+            )
+            content_path, content_sha = store.put_text(text)
+            now = utcnow()
+            with db.transaction() as connection:
+                chapter_id = int(
+                    connection.execute(
+                        "INSERT INTO chapters(book_id,chapter_number,title,char_count,created_at,updated_at) VALUES(?,?,?,?,?,?)",
+                        (book, 2, "Boundary Chapter", len(text), now, now),
+                    ).lastrowid
+                )
+                revision_id = int(
+                    connection.execute(
+                        """INSERT INTO text_revisions(
+                            chapter_id,kind,content_path,content_sha256,lexical_sha256,char_count,
+                            processor_version,status,created_at
+                        ) VALUES(?,?,?,?,?,?,?,?,?)""",
+                        (chapter_id, "reflowed", content_path, content_sha, "lexical", len(text), "test", "approved", now),
+                    ).lastrowid
+                )
+            character = create_character(db, book, "Boundary Speaker", "voice-a", gender="male")
+            draft = create_casting_draft(
+                db, store,
+                chapter_id=chapter_id,
+                text_revision_id=revision_id,
+                narrator_voice_id="narrator",
+                assignments=[{"start_offset": 0, "end_offset": len(text), "role": "character", "character_id": character["id"]}],
+                allowed_voice_ids=VOICES,
+                maximum=256,
+            )
+            pieces = [item["text"] for item in draft["plan"]["utterances"]]
+            self.assertNotIn("hi\u1ec7n.", pieces)
+            self.assertTrue(any(piece.endswith("l\u00e0m \u0111\u01b0\u1ee3c \u0111i\u1ec1u n\u00e0y,") for piece in pieces))
+            self.assertTrue(any(piece.startswith("ch\u1ec9 c\u1ea7n ta b\u1ed1 tr\u00ed") for piece in pieces))
+            self.assertTrue(any(piece.endswith("kh\u00f3 ph\u00e1t hi\u1ec7n.") for piece in pieces))
+            for item in draft["plan"]["utterances"]:
+                self.assertEqual(item["character_id"], character["id"])
+                self.assertEqual(item["resolved_voice_id"], "voice-a")
+
     def test_overlapping_spans_rejected(self) -> None:
         """Test that overlapping offset spans are rejected."""
         with tempfile.TemporaryDirectory() as directory:

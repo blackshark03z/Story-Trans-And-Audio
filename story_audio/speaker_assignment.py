@@ -4,7 +4,7 @@ import json
 from collections.abc import Callable
 from typing import Any
 
-from .casting import get_plan, list_characters, split_utterances
+from .casting import CHUNKER_VERSION, get_plan, list_characters, split_utterances
 from .config import Settings
 from .db import Database, utcnow
 from .files import sha256_text
@@ -168,7 +168,7 @@ def build_speaker_assignment_request(
         "chapter_id": chapter_id,
         "text_revision_id": int(revision["id"]),
         "text_revision_sha256": str(revision["content_sha256"]),
-        "utterance_chunker": "utterance-v1",
+        "utterance_chunker": CHUNKER_VERSION,
         "targets": targets,
         "character_bible_fingerprint": bible_fingerprint,
         "confirmed_assignment_context_sha256": sha256_text(canonical_json(confirmed_list)),
