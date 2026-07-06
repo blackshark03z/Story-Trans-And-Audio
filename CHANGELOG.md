@@ -6,6 +6,13 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 11D2C - Punctuation-aware utterance splitter v3**: Improved deterministic utterance splitting so long lines prefer natural punctuation boundaries before raw whitespace and no longer strand one-word or very short orphan tails when a better cut exists.
+  - **Chunking behavior**: `story_audio/casting.py` now prefers sentence punctuation (`.?!…`), then clause punctuation (`,;:`), then whitespace within the lookback window before `tts_max_chars`; every chunk still remains within the existing maximum.
+  - **Offset safety**: no text is lost or duplicated, offsets remain deterministic, and manual offset-based casting continues to map rebuilt utterances to the same character assignments.
+  - **Versioning**: `CHUNKER_VERSION` advanced to `utterance-v3`, and `story_audio/speaker_assignment.py` now pins that exact version in draft request identity so v1/v2 semantics are not silently reused through cache or downstream review artifacts.
+  - **Verification**: focused casting/speaker tests 48/48 pass; full offline suite 863/863 pass with 1 expected Windows symlink-privilege skip.
+  - **Operational evidence**: isolated Chapter 357 review rebuild on Text Revision `714` confirmed the repaired boundary `... làm được điều này,` / `chỉ cần ta bố trí một phen thì cửa hàng rất khó phát hiện.` with no plan approval and no TTS render.
+
 - **Task 11D1 - Unified production workflow operator entry point**: Added one guarded local workflow that composes Task 11B1 submit/watch/resume behavior, Task 11B2 manifest generation, Task 11C1 objective audio QA, and Task 11C2 deterministic listening checklist output.
   - **Workflow core**: `story_audio/production_workflow.py` orchestrates preflight, guarded runner execution, manifest validation, objective QA generation, and listening checklist generation while reusing existing cores instead of shelling into internal CLIs.
   - **Mutation guardrails**: default mode is preflight-only; `--submit` and `--resume` are explicit and mutually exclusive; paused or interrupted jobs do not auto-resume; failed/cancelled/error terminal states stop downstream work.

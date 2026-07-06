@@ -12,7 +12,7 @@ node --check ui\app.js
 ```
 
 Authoritative interpreter: `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`
-Current offline baseline for the main branch after Task 11D1: `855/855` passing.
+Current offline baseline for the main branch after Task 11D2C: `863/863` passing, `1 skipped`.
 
 Focused Task 11C1 QA tests:
 
@@ -30,6 +30,12 @@ Focused Task 11D1 unified workflow tests:
 
 ```powershell
 & 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' -m unittest tests.test_production_workflow -v
+```
+
+Focused Task 11D2C splitter/casting tests:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' -m unittest tests.test_casting tests.test_offset_casting tests.test_speaker_assignment -v
 ```
 
 Không được gọi Gemini, VieNeu inference hoặc mạng. Dùng fixture nhỏ cho:
@@ -85,6 +91,8 @@ Task 11C1 added synthetic WAV-based offline coverage for clipping, silence, samp
 Task 11C2 added deterministic offline HTML listening-package coverage: manifest/QA identity validation, live-root rejection, traversal/symlink rejection, percent-encoded relative audio URLs, deterministic queue ordering/dedupe, byte-identical output reuse, safe HTML escaping, localStorage/export contract, and no-network/no-mutation guarantees. Chapter 629 disposable smoke verified package generation and byte-identical reuse without mutating DB or source audio.
 
 Task 11D1 added unified workflow coverage for preflight-only default behavior, explicit submit/resume mutual exclusion, completed-job downstream reuse, paused-job no-auto-resume behavior, fail-closed stage sequencing, structured stdout/stderr contracts, and guarantees that the workflow does not introduce regenerate, accept, reject, or automatic QA decisions. Disposable Chapter 629 smoke verified the end-to-end operator workflow without DB or source-audio mutation.
+
+Task 11D2C added punctuation-aware splitter coverage for sentence/clause punctuation preference, orphan-tail avoidance, whitespace fallback, Unicode safety, exact text preservation, and deterministic offset mapping through manual casting rebuilds. Chapter 357 isolated review rebuild verified the repaired boundary under `utterance-v3`; no Casting Plan approval or TTS render occurred in that review step.
 
 Three-Voice UI smoke dùng isolated book 4/chapter 1983: preview Ngọc Lan/Gia Bảo/Mỹ Duyên đạt 14,16–15,12 giây; jobs 4–5 đạt 24.650/26.090 ms với narrator, male, female, unknown fallback và character override. Controlled retry job 4 render lại đúng segment Gia Bảo và reuse 7 segment verified; timeline mới chứa resolution metadata. Chưa đánh giá cảm nhận bằng tai trong smoke tự động.
 
