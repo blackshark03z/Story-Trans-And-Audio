@@ -55,6 +55,39 @@ Notes:
 - Runner fail-closed neu `--data-root` tro vao canonical live root.
 - `--watch` la read-only va khong tu dong resume/cancel/regenerate/accept/reject.
 
+## Unified production workflow
+
+Preflight only:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\run_production_workflow.py --data-root 'D:\IsolatedStoryAudio\data' --api-base 'http://127.0.0.1:8768' --book-id <BOOK_ID> --chapter-number <CHAPTER_NUMBER> --casting-plan-id <CASTING_PLAN_ID>
+```
+
+Completed job through checklist:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\run_production_workflow.py --data-root 'D:\IsolatedStoryAudio\data' --api-base 'http://127.0.0.1:8768' --book-id <BOOK_ID> --chapter-number <CHAPTER_NUMBER> --casting-plan-id <CASTING_PLAN_ID> --job-id <JOB_ID> --through checklist
+```
+
+Explicit submit:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\run_production_workflow.py --data-root 'D:\IsolatedStoryAudio\data' --api-base 'http://127.0.0.1:8768' --book-id <BOOK_ID> --chapter-number <CHAPTER_NUMBER> --casting-plan-id <CASTING_PLAN_ID> --submit --through checklist
+```
+
+Explicit resume:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\run_production_workflow.py --data-root 'D:\IsolatedStoryAudio\data' --api-base 'http://127.0.0.1:8768' --book-id <BOOK_ID> --chapter-number <CHAPTER_NUMBER> --casting-plan-id <CASTING_PLAN_ID> --job-id <JOB_ID> --resume --through checklist
+```
+
+Notes:
+
+- Stdout ends with one final JSON object using schema `story-audio-production-workflow/v1`.
+- Progress events are emitted as stderr JSON Lines.
+- Default workflow outputs live under `data\workflow\job_<JOB_ID>_chapter_<CHAPTER_NUMBER>\`.
+- The workflow never auto-resumes, regenerates, accepts, rejects, or makes the final QA decision; human listening remains the final authority.
+
 ## Offline audio QA
 
 Objective heuristics only, no live root:

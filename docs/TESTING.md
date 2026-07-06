@@ -12,7 +12,7 @@ node --check ui\app.js
 ```
 
 Authoritative interpreter: `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`
-Current offline baseline for the main branch after Task 11C2: `835/835` passing.
+Current offline baseline for the main branch after Task 11D1: `855/855` passing.
 
 Focused Task 11C1 QA tests:
 
@@ -24,6 +24,12 @@ Focused Task 11C2 listening checklist tests:
 
 ```powershell
 & 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' -m unittest tests.test_listening_checklist -v
+```
+
+Focused Task 11D1 unified workflow tests:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' -m unittest tests.test_production_workflow -v
 ```
 
 Không được gọi Gemini, VieNeu inference hoặc mạng. Dùng fixture nhỏ cho:
@@ -77,6 +83,8 @@ Baseline hiện tại: full offline suite `835/835` pass với interpreter autho
 Task 11C1 added synthetic WAV-based offline coverage for clipping, silence, sample-width support, deterministic report reuse, and no-mutation guarantees. These tests stay local and do not call Gemini, TTS inference, hay app server.
 
 Task 11C2 added deterministic offline HTML listening-package coverage: manifest/QA identity validation, live-root rejection, traversal/symlink rejection, percent-encoded relative audio URLs, deterministic queue ordering/dedupe, byte-identical output reuse, safe HTML escaping, localStorage/export contract, and no-network/no-mutation guarantees. Chapter 629 disposable smoke verified package generation and byte-identical reuse without mutating DB or source audio.
+
+Task 11D1 added unified workflow coverage for preflight-only default behavior, explicit submit/resume mutual exclusion, completed-job downstream reuse, paused-job no-auto-resume behavior, fail-closed stage sequencing, structured stdout/stderr contracts, and guarantees that the workflow does not introduce regenerate, accept, reject, or automatic QA decisions. Disposable Chapter 629 smoke verified the end-to-end operator workflow without DB or source-audio mutation.
 
 Three-Voice UI smoke dùng isolated book 4/chapter 1983: preview Ngọc Lan/Gia Bảo/Mỹ Duyên đạt 14,16–15,12 giây; jobs 4–5 đạt 24.650/26.090 ms với narrator, male, female, unknown fallback và character override. Controlled retry job 4 render lại đúng segment Gia Bảo và reuse 7 segment verified; timeline mới chứa resolution metadata. Chưa đánh giá cảm nhận bằng tai trong smoke tự động.
 

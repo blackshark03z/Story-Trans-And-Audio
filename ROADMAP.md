@@ -21,20 +21,21 @@ Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve
 - Task 11B2 Production Runner Monitoring + Manifest: exact existing/new job selection, structured watch progress, controlled same-job resume, completed-job terminal validation, final manifest schema `story-audio-production-manifest/v1`, disposable completed-job smoke, and 774/774 offline tests passing.
 - Task 11C1 Objective Audio QA Reporting: offline manifest-driven QA JSON, FFmpeg/PCM clipping/loudness/silence/duration metrics, deterministic risk shortlist, byte-identical reuse smoke on Chapter 629, and 814/814 offline tests passing.
 - Task 11C2 Deterministic Listening Checklist HTML: offline listening checklist package, localStorage-scoped review state, browser-only review JSON export, deterministic queue coverage, Chapter 629 disposable smoke, and 835/835 offline tests passing.
+- Task 11D1 Unified Production Workflow: guarded operator entry point composing preflight, explicit submit/resume, completed-job downstream reuse, production manifest, objective QA, deterministic listening checklist, disposable Chapter 629 smoke, and 855/855 offline tests passing.
 
 ## Next
 
-Task 11D - Production Workflow Consolidation and Operator Entry Point
+Task 11D2 - First Production Acceptance Run
 
 **Planned scope**:
-1. Compose Task 11B1 + 11B2 + 11C1 + 11C2 into one guarded operator workflow.
-2. Keep production submit/watch/resume, manifest generation, objective QA, and listening checklist as explicit sequential checkpoints.
-3. Do not add new synthesis logic or automatic QA pass/fail decisions.
-4. Preserve human listening as the final quality authority.
+1. Run the unified workflow on one new real isolated chapter.
+2. Use the generated listening checklist as the operator review surface and keep human review as final authority.
+3. Fix only workflow blockers proven by that production-style acceptance run.
+4. Do not add new synthesis logic, automatic QA decisions, or broader architecture changes.
 5. Stop before YouTube Auto handoff changes in this slice.
 
 **Prerequisites**:
-- Task 11C2 implementation commit `26b8f50acabed3f5f4a7a8c89e62128469221a1d`.
+- Task 11D1 implementation commit `8b0d4485301c8aa03ccc447d72ba0991e15c77a1`.
 - Authoritative interpreter `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`.
 - Explicit isolated runtime/data root.
 - Deterministic production manifest plus deterministic QA output available for the target chapter.

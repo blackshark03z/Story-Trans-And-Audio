@@ -6,6 +6,16 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 11D1 - Unified production workflow operator entry point**: Added one guarded local workflow that composes Task 11B1 submit/watch/resume behavior, Task 11B2 manifest generation, Task 11C1 objective audio QA, and Task 11C2 deterministic listening checklist output.
+  - **Workflow core**: `story_audio/production_workflow.py` orchestrates preflight, guarded runner execution, manifest validation, objective QA generation, and listening checklist generation while reusing existing cores instead of shelling into internal CLIs.
+  - **Mutation guardrails**: default mode is preflight-only; `--submit` and `--resume` are explicit and mutually exclusive; paused or interrupted jobs do not auto-resume; failed/cancelled/error terminal states stop downstream work.
+  - **Completed-job reuse**: an already completed verified job can continue through manifest, QA, and checklist stages without creating a duplicate job.
+  - **Structured output**: stdout ends with one final JSON object using schema `story-audio-production-workflow/v1`; progress events are emitted as stderr JSON Lines; downstream identity mismatches fail closed.
+  - **Operator entrypoint**: added `scripts/run_production_workflow.py`.
+  - **Verification**: focused workflow tests 20/20 pass; related regressions 149/149 pass with 1 skipped; full offline suite 855/855 pass with 1 skipped.
+  - **Disposable smoke**: completed-job Chapter 629 workflow smoke passed with manifest SHA-256 `6bb1fb09a37740a8fbebbc8fec648b92d21ec0db2a3f61250386f9fe3df7bdbb`, workflow QA SHA-256 `831b7d021a711ba24cbc715b577ef54d3baf1a5e0aeb4badcb0ac21104712ead`, and checklist SHA-256 `dcec99be33e57daf15983305d8fd5de8b5e9e755832cb7e0ca9b0fac59126f7f`.
+  - **Safety boundary**: no automatic QA decision, no regenerate, no accept/reject, no new synthesis logic, and no migration.
+
 - **Task 11C2 - Deterministic listening checklist HTML**: Added an offline operator listening package built from the Task 11B2 production manifest plus the Task 11C1 QA JSON without mutating jobs, segments, artifacts, or databases.
   - **Checklist core**: `story_audio/listening_checklist.py` validates exact manifest/QA schema and identity, rejects the canonical live root, re-verifies chapter/segment artifacts by path plus SHA-256, enforces isolated-root relative audio URLs, and emits deterministic UTF-8 HTML.
   - **Deterministic queue**: the package always includes integrity failures, hard-clipping segments, top-risk shortlist items, one representative sample per realized voice, and first/last segment coverage with deterministic dedupe and selection reasons.
