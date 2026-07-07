@@ -6,6 +6,15 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 11D3B1 - Runtime identity banner and operator safety guard**: Added an always-visible runtime identity banner to the operator UI and fail-closed mutation gating while runtime identity is still unknown.
+  - **Runtime banner**: `ui/index.html`, `ui/styles.css`, and `ui/app.js` now surface `CANONICAL PRODUCTION`, `ISOLATED / NON-PRODUCTION`, or `RUNTIME UNKNOWN` in the header, with a short data-root display and full canonical/isolated path available via tooltip.
+  - **Identity source**: the UI now loads `GET /api/runtime` during initialization and never silently assumes the runtime is production while that request is pending or fails.
+  - **Fail-closed operator safety**: primary mutation controls stay disabled until runtime identity resolves, including EPUB import, queue submission, speaker-draft generation/regeneration, Character Bible apply/clear, casting draft save, casting approval, job render, and retry/regenerate-style actions.
+  - **No backend contract change**: canonical and isolated runtimes are both still allowed to mutate once identity resolves; this task does not change API authorization or schema.
+  - **Verification**: focused runtime/UI tests 237/237 pass; full offline suite 870/870 pass with 1 expected Windows symlink-privilege skip.
+  - **Live verification**: restarted only Story Audio on `http://127.0.0.1:8772`, confirmed `/api/runtime` still points to canonical root `D:\Youtube\Story Trans And Audio\data`, rendered DOM shows `CANONICAL PRODUCTION`, and canonical Custom Voice Library inventory remains 4 active voices. Port `8765` (YouTube Auto) was left untouched.
+  - **Migration**: none.
+
 - **Task 11D2 - Chapter 357 production acceptance pass**: Recorded the first real end-to-end acceptance run of the unified production workflow on an isolated runtime without changing application code.
   - **Accepted chapter**: `Quang Âm Chi Ngoại` Chapter `357`, Text Revision `714`, approved Casting Plan `#6` / revision `6`, chunker `utterance-v3`.
   - **Speaker validation**: human review confirmed seq `42–44` and `90–92` as `Lão tổ Kim Cương Tông -> Đức Trí`; seq `41`, `45`, and `93` remained `Narrator -> Ngọc Lan`.

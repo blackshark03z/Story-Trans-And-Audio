@@ -12,7 +12,13 @@
       <p class="eyebrow">EPUB → VieNeu-TTS</p>
       <h1>Story Audio</h1>
     </div>
-    <div id="health" class="health">Đang kết nối…</div>
+    <div class="topbar-status">
+      <div id="runtimeIdentity" class="runtime-identity runtime-unknown" title="Runtime identity is loading">
+        <span id="runtimeBadge" class="runtime-badge">RUNTIME UNKNOWN</span>
+        <span id="runtimePath" class="runtime-path">Resolving runtime…</span>
+      </div>
+      <div id="health" class="health">Đang kết nối…</div>
+    </div>
   </header>
 
   <main>
@@ -23,7 +29,7 @@
       </div>
       <div class="row import-row">
         <select id="epubPath"></select>
-        <button id="importBtn" class="secondary">Nhập EPUB</button>
+        <button id="importBtn" class="secondary" data-runtime-mutation-control>Nhập EPUB</button>
         <label class="check"><input id="showSmokeBooks" type="checkbox"> Show test data</label>
       </div>
       <div id="books" class="book-grid"></div>
@@ -200,7 +206,7 @@
         </div>
         <button id="previewBtn" class="secondary full">Kiểm tra phạm vi</button>
         <div id="preview" class="preview empty">Chưa kiểm tra phạm vi.</div>
-        <button id="runBtn" class="primary full" disabled>Thêm vào hàng đợi</button>
+        <button id="runBtn" class="primary full" disabled data-runtime-mutation-control>Thêm vào hàng đợi</button>
         <p class="hint">Sau khi tạo job, bạn có 10 giây để hoàn tác. Job chỉ dừng tại ranh giới segment an toàn.</p>
       </section>
     </section>
@@ -255,7 +261,7 @@
         </div>
         <div class="profile-actions">
           <span class="muted">Changes apply only to new casting plans and jobs.</span>
-          <button id="saveVoiceProfile" class="secondary">Create Voice Profile</button>
+          <button id="saveVoiceProfile" class="secondary" data-runtime-mutation-control>Create Voice Profile</button>
         </div>
       </section>
       <div class="casting-toolbar">
@@ -269,8 +275,8 @@
         </div>
         <div class="speaker-review-controls">
           <label>Draft<select id="speakerDraftSelect"></select></label>
-          <button id="generateSpeakerDraft" class="primary">Generate Draft</button>
-          <button id="regenerateSpeakerDraft" class="secondary" disabled>Regenerate Draft</button>
+          <button id="generateSpeakerDraft" class="primary" data-runtime-mutation-control>Generate Draft</button>
+          <button id="regenerateSpeakerDraft" class="secondary" disabled data-runtime-mutation-control>Regenerate Draft</button>
           <button id="refreshSpeakerDrafts" class="ghost">Refresh Draft List</button>
         </div>
         <div id="speakerReviewEmpty" class="profile-empty">
@@ -298,7 +304,7 @@
           <div id="speakerReviewRows" class="speaker-review-list"></div>
           <div class="speaker-review-approve">
             <span id="speakerReviewDecisionCount" class="muted">0 reviewed</span>
-            <button id="approveSpeakerReview" class="primary" disabled>Approve Reviewed Decisions</button>
+            <button id="approveSpeakerReview" class="primary" disabled data-runtime-mutation-control>Approve Reviewed Decisions</button>
           </div>
         </div>
       </section>
@@ -312,8 +318,8 @@
           <input id="characterBibleFile" type="file" accept="application/json,.json">
           <label class="check"><input id="characterBibleUpdateExisting" type="checkbox"> Update existing metadata</label>
           <button id="characterBibleDryRun" class="secondary" disabled>Run Dry-Run</button>
-          <button id="characterBibleApply" class="primary" disabled>Apply Import</button>
-          <button id="characterBibleClear" class="ghost" disabled>Clear</button>
+          <button id="characterBibleApply" class="primary" disabled data-runtime-mutation-control>Apply Import</button>
+          <button id="characterBibleClear" class="ghost" disabled data-runtime-mutation-control>Clear</button>
         </div>
         <div id="characterBibleFileInfo" class="muted">No file selected.</div>
         <div id="characterBibleSummary" class="import-summary"></div>
@@ -324,15 +330,15 @@
         <select id="newCharacterGender"><option value="unknown">Unknown</option><option value="male">Male</option><option value="female">Female</option></select>
         <select id="newCharacterAssignment"><option value="default">Use book default</option><option value="custom">Use custom voice</option></select>
         <select id="newCharacterVoice"></select>
-        <button id="addCharacterBtn" class="secondary">Thêm nhân vật</button>
+        <button id="addCharacterBtn" class="secondary" data-runtime-mutation-control>Thêm nhân vật</button>
       </div>
       <div id="characterList" class="character-list"></div>
       <div class="casting-section-head"><h3>Utterances</h3><span id="utteranceCount" class="muted"></span></div>
       <div id="utteranceList" class="utterance-list"></div>
       <div class="casting-actions">
-        <button id="saveCastingDraft" class="secondary">Save Draft</button>
-        <button id="approveCastingPlan" class="secondary" disabled>Approve Casting Plan</button>
-        <button id="renderCastingPlan" class="primary" disabled>Render with Character Voices</button>
+        <button id="saveCastingDraft" class="secondary" data-runtime-mutation-control>Save Draft</button>
+        <button id="approveCastingPlan" class="secondary" disabled data-runtime-mutation-control>Approve Casting Plan</button>
+        <button id="renderCastingPlan" class="primary" disabled data-runtime-mutation-control>Render with Character Voices</button>
       </div>
     </div>
     <div id="textDiffPanel" class="text-diff-panel hidden">

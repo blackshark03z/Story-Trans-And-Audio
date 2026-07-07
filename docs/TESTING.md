@@ -12,7 +12,13 @@ node --check ui\app.js
 ```
 
 Authoritative interpreter: `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`
-Current offline baseline for the main branch after Task 11D2K / Task 11D2 acceptance documentation point: `863/863` passing, `1 skipped`.
+Current offline baseline for the main branch after Task 11D3B1 local runtime-safety UI changes: `870/870` passing, `1 skipped`.
+
+Focused Task 11D3B1 runtime identity / operator safety UI tests:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' -m unittest tests.test_runtime_identity_ui tests.test_speaker_review_ui tests.test_custom_voice_library_ui tests.test_voice_profile_ui -v
+```
 
 Focused Task 11C1 QA tests:
 
@@ -95,6 +101,8 @@ Task 11D1 added unified workflow coverage for preflight-only default behavior, e
 Task 11D2C added punctuation-aware splitter coverage for sentence/clause punctuation preference, orphan-tail avoidance, whitespace fallback, Unicode safety, exact text preservation, and deterministic offset mapping through manual casting rebuilds. Chapter 357 isolated review rebuild verified the repaired boundary under `utterance-v3`; no Casting Plan approval or TTS render occurred in that review step.
 
 Task 11D2 then validated the operator workflow in a real isolated acceptance run on Chapter 357: approved Casting Plan `#6`, Job `#2`, production manifest, objective QA report, and deterministic listening checklist all matched the same Job / Text Revision `714` / Casting Plan bindings; final human full-chapter listening verdict was PASS. This was operational evidence only and did not change the offline test baseline.
+
+Task 11D3B1 added focused UI safety coverage for runtime identity rendering, canonical/isolated/unknown labeling, fail-closed disabling of primary mutation controls before `/api/runtime` resolves, and re-enabling those controls once canonical or isolated identity is confirmed. Live verification used the canonical production UI on `http://127.0.0.1:8772` while keeping YouTube Auto untouched on `8765`.
 
 Three-Voice UI smoke dùng isolated book 4/chapter 1983: preview Ngọc Lan/Gia Bảo/Mỹ Duyên đạt 14,16–15,12 giây; jobs 4–5 đạt 24.650/26.090 ms với narrator, male, female, unknown fallback và character override. Controlled retry job 4 render lại đúng segment Gia Bảo và reuse 7 segment verified; timeline mới chứa resolution metadata. Chưa đánh giá cảm nhận bằng tai trong smoke tự động.
 

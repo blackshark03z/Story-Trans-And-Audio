@@ -4,18 +4,39 @@
 
 ```powershell
 cd 'D:\Youtube\Story Trans And Audio'
-.\run_app.ps1
+.\run_app.ps1 --host 127.0.0.1 --port 8772 --no-browser
 ```
 
-UI: `http://127.0.0.1:8766`
+Story Audio production UI: `http://127.0.0.1:8772`
 VieNeu Gradio riêng: `http://127.0.0.1:7861`
+YouTube Auto: `http://127.0.0.1:8765` — do not stop or repurpose this port while switching Story Audio runtimes.
+
+Notes:
+
+- `run_app.ps1` sets `STORY_AUDIO_ALLOW_LIVE_DB=1` for the launched Story Audio process only. Do not persist this variable at user or machine scope.
+- Canonical production root is `D:\Youtube\Story Trans And Audio\data`.
+- Any isolated runtime must use a different `STORY_AUDIO_DATA_DIR`; isolated data is not merged back into canonical production automatically.
+- The acceptance-to-production switch has been verified: stop only the acceptance app, then relaunch canonical Story Audio on `8772` and re-check `/api/runtime`.
 
 ## Health check
 
 ```powershell
-Invoke-RestMethod http://127.0.0.1:8766/api/config
+Invoke-RestMethod http://127.0.0.1:8772/api/config
+Invoke-RestMethod http://127.0.0.1:8772/api/runtime
 & 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\doctor.py
 ```
+
+Expect canonical production to report:
+
+- `data_root = D:\Youtube\Story Trans And Audio\data`
+- `is_canonical_live_data_root = true`
+- `is_canonical_live_db = true`
+
+UI runtime banner meanings:
+
+- `CANONICAL PRODUCTION`: the app is pointed at `D:\Youtube\Story Trans And Audio\data`
+- `ISOLATED / NON-PRODUCTION`: the app is using a disposable non-canonical `STORY_AUDIO_DATA_DIR`
+- `RUNTIME UNKNOWN`: `/api/runtime` has not resolved yet or failed; primary mutation controls stay disabled until identity is known
 
 ## Production runner
 
