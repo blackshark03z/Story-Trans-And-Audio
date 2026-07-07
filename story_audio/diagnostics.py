@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from typing import Any
 
+from .active_output import get_active_output_bindings
 from .db import Database, utcnow
 from .files import sha256_file
 from .storage import ContentStore
@@ -89,6 +90,7 @@ def get_job_diagnostics(db: Database, job_id: int) -> dict[str, Any]:
         """,
         (job_id,),
     )
+    active_bindings = get_active_output_bindings(db, [row["chapter_id"] for row in chapters])
     events = [dict(row) for row in db.fetch_all(
         """
         SELECT event_code, details_json, created_at
@@ -106,6 +108,35 @@ def get_job_diagnostics(db: Database, job_id: int) -> dict[str, Any]:
 
     result = dict(job)
     result["settings"] = _json(result.pop("settings_json", None), {})
+    chapter_rows: list[dict[str, Any]] = []
+    active_output_chapters: list[dict[str, Any]] = []
+    for row in chapters:
+        item = dict(row)
+        binding = active_bindings.get(int(row["chapter_id"]), {})
+        item["is_active_output"] = (
+            binding.get("active_output_job_id") == int(job_id)
+            and binding.get("active_output_job_chapter_id") == int(row["job_chapter_id"])
+        )
+        item["is_historical_output"] = bool(
+            binding.get("active_output_artifact_id") and not item["is_active_output"]
+        )
+        item["active_output_artifact_id"] = binding.get("active_output_artifact_id")
+        item["active_output_casting_plan_revision"] = binding.get("active_output_casting_plan_revision")
+        chapter_rows.append(item)
+        if item["is_active_output"]:
+            active_output_chapters.append(
+                {
+                    "chapter_id": item["chapter_id"],
+                    "chapter_number": item["chapter_number"],
+                    "title": item["title"],
+                    "job_chapter_id": item["job_chapter_id"],
+                    "active_output_artifact_id": item["active_output_artifact_id"],
+                    "active_output_casting_plan_revision": item["active_output_casting_plan_revision"],
+                }
+            )
+    result["is_active_output"] = bool(active_output_chapters)
+    result["is_historical_output"] = result["status"] in {"completed", "completed_with_errors"} and not active_output_chapters
+    result["active_output_chapters"] = active_output_chapters
     return {
         "job": result,
         "summary": {
@@ -116,7 +147,7 @@ def get_job_diagnostics(db: Database, job_id: int) -> dict[str, Any]:
             "segment_failed": sum(row["segment_failed"] for row in chapters),
             "repair_failed": sum(row["repair_failed"] for row in chapters),
         },
-        "chapters": [dict(row) for row in chapters],
+        "chapters": chapter_rows,
         "events": events,
     }
 

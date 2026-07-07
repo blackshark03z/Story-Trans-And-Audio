@@ -6,6 +6,14 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 11D3B2 - Active output versus historical job clarity**: surfaced the existing chapter artifact binding throughout the API and operator UI so production users can tell which completed job currently backs chapter playback and which jobs are historical evidence only.
+  - **Source of truth**: active output is resolved from `chapters.active_audio_artifact_id`, then joined through `artifacts.job_chapter_id` to the owning `job_id` and `casting_plan_id`; the UI no longer needs to infer "current" audio from newest job ID or latest completion time.
+  - **API/view-model additions**: chapter list/detail and job list/detail responses now expose active-output metadata including active artifact ID, active Job ID, JobChapter ID, and Casting Plan revision when the binding is trustworthy.
+  - **Operator labels**: chapter rows show `ACTIVE AUDIO`; jobs that back the bound chapter artifact show `ACTIVE OUTPUT`; other completed jobs for the same chapter show `HISTORICAL`; diagnostics add explicit active-versus-historical banners without changing persisted business status in SQLite.
+  - **Playback safety**: chapter playback/download continues to use the active artifact path already bound on the chapter, so this task changes clarity only and does not alter render, submit, candidate, or approval semantics.
+  - **Verification**: focused active-output and runtime/diagnostics UI coverage passed, segment-regeneration UI compatibility stayed green, and the full offline suite passed at 877/877 with 1 expected Windows symlink-privilege skip.
+  - **Migration**: none.
+
 - **Task 11D3B1 - Runtime identity banner and operator safety guard**: Added an always-visible runtime identity banner to the operator UI and fail-closed mutation gating while runtime identity is still unknown.
   - **Runtime banner**: `ui/index.html`, `ui/styles.css`, and `ui/app.js` now surface `CANONICAL PRODUCTION`, `ISOLATED / NON-PRODUCTION`, or `RUNTIME UNKNOWN` in the header, with a short data-root display and full canonical/isolated path available via tooltip.
   - **Identity source**: the UI now loads `GET /api/runtime` during initialization and never silently assumes the runtime is production while that request is pending or fails.

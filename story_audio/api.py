@@ -30,6 +30,7 @@ from .character_bible import (
     parse_character_bible,
     plan_character_bible_import,
 )
+from .active_output import annotate_chapter_rows, annotate_job_rows, get_active_output_bindings
 from .custom_voice import CustomVoiceRepository
 from .custom_voice_api import (
     create_custom_voice_handler,
@@ -316,7 +317,7 @@ def list_chapters(
             FROM chapters c WHERE {clause} ORDER BY c.chapter_number LIMIT ? OFFSET ?""",
         tuple(params + [limit, offset]),
     )
-    return {"total": total, "items": [dict(row) for row in rows]}
+    return {"total": total, "items": annotate_chapter_rows(db, rows)}
 
 
 @app.get("/api/chapters/{chapter_id}")
@@ -339,6 +340,7 @@ def chapter_detail(chapter_id: int) -> dict[str, Any]:
             "SELECT id,artifact_type,path,size_bytes,duration_ms,status FROM artifacts WHERE id=?",
             (chapter["active_audio_artifact_id"],),
         )
+    active_output = get_active_output_bindings(db, [chapter_id]).get(chapter_id, {})
     revision_data = []
     for row in revisions:
         item = dict(row)
@@ -349,6 +351,7 @@ def chapter_detail(chapter_id: int) -> dict[str, Any]:
         "revisions": revision_data,
         "qa_issues": [dict(row) for row in issues],
         "audio_artifact": dict(artifact) if artifact else None,
+        "active_output": active_output,
     }
 
 
@@ -854,7 +857,7 @@ def list_jobs(limit: int = Query(50, ge=1, le=200)) -> list[dict[str, Any]]:
             FROM jobs j JOIN books b ON b.id=j.book_id ORDER BY j.id DESC LIMIT ?""",
         (limit,),
     )
-    return [dict(row) for row in rows]
+    return annotate_job_rows(db, rows)
 
 
 @app.get("/api/jobs/{job_id}")
@@ -870,7 +873,23 @@ def job_detail(job_id: int) -> dict[str, Any]:
             WHERE jc.job_id=? ORDER BY jc.sequence""",
         (job_id,),
     )
-    return {"job": dict(job), "chapters": [dict(row) for row in chapters]}
+    job_row = annotate_job_rows(db, [dict(job)])[0]
+    active_bindings = get_active_output_bindings(db, [row["chapter_id"] for row in chapters])
+    chapter_rows: list[dict[str, Any]] = []
+    for row in chapters:
+        item = dict(row)
+        binding = active_bindings.get(int(row["chapter_id"]), {})
+        item["is_active_output"] = (
+            binding.get("active_output_job_id") == int(job_id)
+            and binding.get("active_output_job_chapter_id") == int(row["id"])
+        )
+        item["is_historical_output"] = bool(
+            binding.get("active_output_artifact_id") and not item["is_active_output"]
+        )
+        item["active_output_artifact_id"] = binding.get("active_output_artifact_id")
+        item["active_output_casting_plan_revision"] = binding.get("active_output_casting_plan_revision")
+        chapter_rows.append(item)
+    return {"job": job_row, "chapters": chapter_rows}
 
 
 def _diagnostic_error(exc: Exception) -> HTTPException:

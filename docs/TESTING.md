@@ -12,7 +12,13 @@ node --check ui\app.js
 ```
 
 Authoritative interpreter: `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`
-Current offline baseline for the main branch after Task 11D3B1 local runtime-safety UI changes: `870/870` passing, `1 skipped`.
+Current offline baseline for the main branch after Task 11D3B2 local active-output clarity changes: `877/877` passing, `1 skipped`.
+
+Focused Task 11D3B2 active-output clarity tests:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' -m unittest tests.test_active_output tests.test_active_output_ui tests.test_diagnostics tests.test_runtime_identity_ui tests.test_segment_regeneration_ui -v
+```
 
 Focused Task 11D3B1 runtime identity / operator safety UI tests:
 
@@ -103,6 +109,8 @@ Task 11D2C added punctuation-aware splitter coverage for sentence/clause punctua
 Task 11D2 then validated the operator workflow in a real isolated acceptance run on Chapter 357: approved Casting Plan `#6`, Job `#2`, production manifest, objective QA report, and deterministic listening checklist all matched the same Job / Text Revision `714` / Casting Plan bindings; final human full-chapter listening verdict was PASS. This was operational evidence only and did not change the offline test baseline.
 
 Task 11D3B1 added focused UI safety coverage for runtime identity rendering, canonical/isolated/unknown labeling, fail-closed disabling of primary mutation controls before `/api/runtime` resolves, and re-enabling those controls once canonical or isolated identity is confirmed. Live verification used the canonical production UI on `http://127.0.0.1:8772` while keeping YouTube Auto untouched on `8765`.
+
+Task 11D3B2 added focused API/UI coverage proving active chapter output is derived from the existing artifact binding rather than newest completed job heuristics. Tests cover: one active output among multiple completed jobs for the same chapter, chapter metadata exposing active Job/Casting Plan identity, historical-job diagnostics warnings, playback continuing to use the bound active artifact, and compatibility with pre-existing segment regeneration UI contracts.
 
 Three-Voice UI smoke dùng isolated book 4/chapter 1983: preview Ngọc Lan/Gia Bảo/Mỹ Duyên đạt 14,16–15,12 giây; jobs 4–5 đạt 24.650/26.090 ms với narrator, male, female, unknown fallback và character override. Controlled retry job 4 render lại đúng segment Gia Bảo và reuse 7 segment verified; timeline mới chứa resolution metadata. Chưa đánh giá cảm nhận bằng tai trong smoke tự động.
 

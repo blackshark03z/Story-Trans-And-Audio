@@ -38,6 +38,13 @@ UI runtime banner meanings:
 - `ISOLATED / NON-PRODUCTION`: the app is using a disposable non-canonical `STORY_AUDIO_DATA_DIR`
 - `RUNTIME UNKNOWN`: `/api/runtime` has not resolved yet or failed; primary mutation controls stay disabled until identity is known
 
+Active output labels:
+
+- `ACTIVE AUDIO` on a chapter means playback/download is backed by that chapter's bound active artifact.
+- `ACTIVE OUTPUT` on a job means that job currently backs a chapter's active audio.
+- `HISTORICAL` on a job means the job completed successfully but no longer backs the chapter's current audio.
+- Source of truth is the existing DB binding `chapters.active_audio_artifact_id -> artifacts -> job_chapters`, not newest job ID or latest completion time.
+
 ## Production runner
 
 Preflight only:
@@ -108,6 +115,7 @@ Notes:
 - Progress events are emitted as stderr JSON Lines.
 - Default workflow outputs live under `data\workflow\job_<JOB_ID>_chapter_<CHAPTER_NUMBER>\`.
 - The workflow never auto-resumes, regenerates, accepts, rejects, or makes the final QA decision; human listening remains the final authority.
+- When comparing an accepted chapter against older evidence jobs, use the UI `ACTIVE OUTPUT` and `HISTORICAL` labels rather than guessing from job recency.
 
 ## Offline audio QA
 
