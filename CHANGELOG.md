@@ -6,6 +6,16 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 11D3B3 - Casting review discoverability and active-audio operator guidance**: improved the operator path from chapter selection into Character Voices and made it harder to confuse a fresh casting draft with the chapter's currently active audio.
+  - **Direct chapter CTA**: chapter rows now expose a `Review Character Voices` button that opens the selected chapter directly on the `Character Voices` workspace instead of requiring row-open plus manual tab discovery.
+  - **Casting-state badges**: chapter rows surface `CASTING REVIEW NEEDED` when the latest persisted casting plan is still `draft`, and `CASTING APPROVED` when the latest plan is `approved`; this status comes from casting-plan context, not job recency or job status.
+  - **Character Voices guidance**: the panel now shows plan revision/status in place, a short `Review assignments before rendering` reminder for draft plans, jump shortcuts to pending-review rows and approval controls, and a persistent note that speaker-review decisions stay local until final approval.
+  - **Active-audio warning**: when a chapter already has active playback, Character Voices now identifies the bound active Job / Casting Plan and warns when the operator is reviewing a newer draft that has not yet produced the current audio.
+  - **Historical diagnostics shortcut**: historical job diagnostics now provide `Open current Character Voices` so the operator can jump straight from old evidence back to the authoritative casting workspace.
+  - **Verification**: `node --check ui/app.js` passed; focused active-output/speaker-review/runtime UI coverage passed at 22/22; full offline suite passed at 879/879 with 1 expected Windows symlink-privilege skip.
+  - **Live verification**: restarted only Story Audio on `http://127.0.0.1:8772`, confirmed `/api/runtime` still reports canonical production root `D:\Youtube\Story Trans And Audio\data`, verified the new CTA opens the chapter directly into `Character Voices`, and preserved the 4-voice Custom Voice Library plus `ACTIVE OUTPUT` / `HISTORICAL` labels. Port `8765` (YouTube Auto) remained untouched.
+  - **Migration**: none.
+
 - **Task 11D3C - Final production GO decision**: Recorded the final readiness verdict after the runtime-safety and active-output-clarity rollout work.
   - **Decision**: official verdict is `PRODUCTION_GO`.
   - **Basis**: Task 11D3B1 and Task 11D3B2 are pushed and complete, canonical production on `http://127.0.0.1:8772` is verified, and Chapter 357 Job 2 already passed full human listening.

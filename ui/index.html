@@ -221,7 +221,7 @@
   </main>
 
   <dialog id="textDialog">
-    <div class="dialog-head"><h2 id="dialogTitle">Nội dung chương</h2><button id="closeDialog" class="ghost">Đóng</button></div>
+    <div class="dialog-head"><h2 id="dialogTitle">Nội dung chương</h2><div class="dialog-head-actions"><button id="openCastingShortcut" class="secondary">Character Voices</button><button id="closeDialog" class="ghost">Đóng</button></div></div>
     <div id="qaIssues"></div>
     <div id="audioBox" class="audio-box hidden">
       <audio id="chapterAudio" controls preload="metadata"></audio>
@@ -267,13 +267,16 @@
       </section>
       <div class="casting-toolbar">
         <label>Giọng narrator<select id="castingNarratorVoice"></select><small id="castingNarratorSource" class="muted"></small></label>
-        <div><span id="castingPlanStatus" class="pill">Chưa có plan</span></div>
+        <div class="casting-toolbar-status"><span id="castingPlanStatus" class="pill">Chưa có plan</span><span id="castingPlanGuidance" class="muted"></span></div>
       </div>
+      <div id="castingActiveAudioNotice" class="casting-callout hidden"></div>
+      <div id="castingActiveAudioWarning" class="issue warning hidden"></div>
       <section class="speaker-review-panel">
         <div class="section-head">
           <div><p class="eyebrow">AI Speaker Review</p><h3>Speaker Assignment Draft</h3></div>
           <span id="speakerReviewStatus" class="pill">No draft</span>
         </div>
+        <div class="speaker-review-guide"><strong>Review flow</strong><ol><li>Select visible</li><li>Accept selected suggestions</li><li>Approve Reviewed Decisions</li></ol><p id="speakerReviewLocalNote" class="muted">Decisions are local until final approval.</p></div>
         <div class="speaker-review-controls">
           <label>Draft<select id="speakerDraftSelect"></select></label>
           <button id="generateSpeakerDraft" class="primary" data-runtime-mutation-control>Generate Draft</button>
@@ -287,6 +290,7 @@
         <div id="speakerReviewMeta" class="speaker-review-meta"></div>
         <div id="speakerReviewStale" class="issue error hidden"></div>
         <div id="speakerReviewWorkspace" class="hidden">
+          <div class="speaker-review-jumps"><button id="jumpToPendingReview" class="ghost">Jump to pending review</button><button id="jumpToApprovalControls" class="ghost">Jump to approval controls</button></div>
           <div class="speaker-review-toolbar">
             <label>Filter<select id="speakerReviewFilter">
               <option value="all">All</option><option value="unreviewed">Unreviewed</option>
@@ -303,10 +307,11 @@
             </div>
           </div>
           <div id="speakerReviewRows" class="speaker-review-list"></div>
-          <div class="speaker-review-approve">
+          <div id="speakerReviewApprovalControls" class="speaker-review-approve">
             <span id="speakerReviewDecisionCount" class="muted">0 reviewed</span>
             <button id="approveSpeakerReview" class="primary" disabled data-runtime-mutation-control>Approve Reviewed Decisions</button>
           </div>
+          <div id="speakerReviewApprovalResult" class="muted"></div>
         </div>
       </section>
       <h3>Nhân vật</h3>

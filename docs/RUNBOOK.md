@@ -45,6 +45,12 @@ Active output labels:
 - `HISTORICAL` on a job means the job completed successfully but no longer backs the chapter's current audio.
 - Source of truth is the existing DB binding `chapters.active_audio_artifact_id -> artifacts -> job_chapters`, not newest job ID or latest completion time.
 
+Casting review entry points:
+
+- From the chapter list, use `Review Character Voices` to open the selected chapter directly on the `Character Voices` workspace.
+- Chapter rows show `CASTING REVIEW NEEDED` when the latest persisted casting plan is still a draft, and `CASTING APPROVED` when the latest plan is approved.
+- Inside the chapter dialog, the `Character Voices` shortcut remains available in the header and the panel shows `Plan vN · draft` or `Plan vN · approved` in context.
+
 ## Production runner
 
 Preflight only:
@@ -116,6 +122,22 @@ Notes:
 - Default workflow outputs live under `data\workflow\job_<JOB_ID>_chapter_<CHAPTER_NUMBER>\`.
 - The workflow never auto-resumes, regenerates, accepts, rejects, or makes the final QA decision; human listening remains the final authority.
 - When comparing an accepted chapter against older evidence jobs, use the UI `ACTIVE OUTPUT` and `HISTORICAL` labels rather than guessing from job recency.
+
+## Casting review flow
+
+Speaker review sequence:
+
+1. `Select visible`
+2. `Accept selected suggestions`
+3. `Approve Reviewed Decisions`
+
+Notes:
+
+- After step 2, decisions are still local-only until `Approve Reviewed Decisions` creates a new immutable Casting Plan revision.
+- Use `Jump to pending review` to reach the next unreviewed target and `Jump to approval controls` to return to the final approval area without scrolling the full utterance list.
+- If Character Voices shows `Current active audio: Job X / Plan vY`, that is the playback source of truth for the current chapter audio.
+- If the panel also warns `Current playback still uses the active historical plan until a new job is rendered`, the draft you are reviewing is newer than the chapter's currently active audio and has not been rendered yet.
+- Historical job diagnostics include `Open current Character Voices` so the operator can jump from an older evidence job back to the authoritative casting workspace for the chapter.
 
 ## Offline audio QA
 

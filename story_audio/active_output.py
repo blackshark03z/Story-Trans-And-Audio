@@ -58,11 +58,47 @@ def get_active_output_bindings(
     return bindings
 
 
+def get_latest_casting_plan_bindings(
+    db: Database, chapter_ids: Iterable[int]
+) -> dict[int, dict[str, Any]]:
+    chapter_id_list = [int(chapter_id) for chapter_id in chapter_ids]
+    if not chapter_id_list:
+        return {}
+    rows = db.fetch_all(
+        f"""
+        SELECT cp.chapter_id,
+               cp.id AS casting_plan_id,
+               cp.plan_revision,
+               cp.status
+        FROM casting_plans cp
+        JOIN (
+            SELECT chapter_id, MAX(plan_revision) AS plan_revision
+            FROM casting_plans
+            WHERE chapter_id IN ({_placeholders(len(chapter_id_list))})
+            GROUP BY chapter_id
+        ) latest
+          ON latest.chapter_id = cp.chapter_id
+         AND latest.plan_revision = cp.plan_revision
+        WHERE cp.chapter_id IN ({_placeholders(len(chapter_id_list))})
+        """,
+        tuple(chapter_id_list + chapter_id_list),
+    )
+    bindings: dict[int, dict[str, Any]] = {}
+    for row in rows:
+        bindings[int(row["chapter_id"])] = {
+            "latest_casting_plan_id": int(row["casting_plan_id"]) if row["casting_plan_id"] else None,
+            "latest_casting_plan_revision": int(row["plan_revision"]) if row["plan_revision"] else None,
+            "latest_casting_plan_status": row["status"],
+        }
+    return bindings
+
+
 def annotate_chapter_rows(
     db: Database, rows: Iterable[dict[str, Any]]
 ) -> list[dict[str, Any]]:
     chapter_rows = [dict(row) for row in rows]
     bindings = get_active_output_bindings(db, [row["id"] for row in chapter_rows])
+    casting_bindings = get_latest_casting_plan_bindings(db, [row["id"] for row in chapter_rows])
     for row in chapter_rows:
         row.update(bindings.get(int(row["id"]), {
             "chapter_id": int(row["id"]),
@@ -76,6 +112,11 @@ def annotate_chapter_rows(
             "has_active_audio": False,
             "active_output_has_trustworthy_binding": False,
             "active_output_source": None,
+        }))
+        row.update(casting_bindings.get(int(row["id"]), {
+            "latest_casting_plan_id": None,
+            "latest_casting_plan_revision": None,
+            "latest_casting_plan_status": None,
         }))
     return chapter_rows
 

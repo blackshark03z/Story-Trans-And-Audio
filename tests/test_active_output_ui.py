@@ -22,6 +22,10 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "chapterAudioMeta",
             "chapter-title-wrap",
             "chapter-title-meta",
+            "chapter-casting-meta",
+            "Review Character Voices",
+            "CASTING REVIEW NEEDED",
+            "CASTING APPROVED",
             "job-output-meta",
             "ACTIVE AUDIO",
             "ACTIVE OUTPUT",
@@ -29,8 +33,18 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "ACTIVE CHAPTER OUTPUT",
             "Historical evidence only - not the current chapter output",
             "Artifact active but job binding unavailable",
+            "Open current Character Voices",
         ):
             self.assertIn(value, self.html + self.js + self.css)
+
+    def test_chapter_summary_mentions_direct_character_voices_cta(self) -> None:
+        for value in (
+            "data-open-casting",
+            "initialTab:'casting'",
+            "openCastingShortcut",
+            "casting-tab-shortcut",
+        ):
+            self.assertIn(value, self.js + self.html + self.css)
 
     def test_chapter_summary_prefers_artifact_binding_metadata(self) -> None:
         script = r"""

@@ -29,12 +29,23 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
         for value in (
             "speakerReviewFilter", "reviewSelectVisible", "reviewAcceptSuggestions",
             "reviewMarkNarrator", "reviewMarkUnknown", "reviewClearSelection",
-            "approveSpeakerReview",
+            "approveSpeakerReview", "jumpToPendingReview", "jumpToApprovalControls",
+            "Review flow", "Decisions are local until final approval.",
         ):
-            self.assertIn(value, self.html)
+            self.assertIn(value, self.html + self.js)
         self.assertIn("draft.stale||count===0", self.js)
         self.assertIn("!row.reviewed&&!decision", self.js)
         self.assertNotIn("Approve all high confidence", self.html)
+
+    def test_active_audio_warning_and_latest_approval_revision_are_rendered(self) -> None:
+        for value in (
+            "Current active audio: Job",
+            "Current playback still uses the active historical plan until a new job is rendered",
+            "Latest approval created Casting Plan v",
+            "castingPlanGuidance",
+            "Review assignments before rendering",
+        ):
+            self.assertIn(value, self.html + self.js)
 
     def test_bulk_review_uses_local_state_for_selection_and_remaining_counts(self) -> None:
         for value in (

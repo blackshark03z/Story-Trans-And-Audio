@@ -1,6 +1,6 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-07T17:35 (Asia/Saigon)
+**Cập nhật:** 2026-07-07T19:05 (Asia/Saigon)
 **Milestone:** Task 11D3C Production GO
 **Trạng thái:** official verdict is `PRODUCTION_GO`; canonical production on `http://127.0.0.1:8772` has runtime safety, active-output clarity, and accepted Chapter 357 evidence sufficient for rollout without a second acceptance chapter
 
@@ -8,14 +8,14 @@ File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối c�
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `0f6cc33c333710e4c1841a5b442d4c9e8125dd5b`
+**Last verified against commit:** `55404fb6aec6b95d071432f5bf9e52c5c2c5c60b`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-07
 
 **Last verified focused Task 11D3 baseline:**
-- Full offline test suite baseline: 877 tests passing, 1 skipped
+- Full offline test suite baseline: 879 tests passing, 1 skipped
 - Verification command: `unittest discover -s tests`
-- Verified at commit: `0f6cc33c333710e4c1841a5b442d4c9e8125dd5b`
+- Verified at commit: `55404fb6aec6b95d071432f5bf9e52c5c2c5c60b`
 - Verified date: 2026-07-07
 
 - EPUB: `Quang_Am_Chi_Ngoai.epub`.
@@ -112,7 +112,12 @@ File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối c�
 - Task 11D3B1 and Task 11D3B2 are pushed and complete on `main` at `0f6cc33c333710e4c1841a5b442d4c9e8125dd5b`; canonical runtime remains `http://127.0.0.1:8772` and YouTube Auto remains isolated on `http://127.0.0.1:8765`.
 - Task 11D3C final readiness re-audit completed with readiness score `8.5/10` and official decision `PRODUCTION_GO`.
 - Chapter 357 Job 2 remains the authoritative acceptance evidence: Text Revision `714`, Casting Plan `#6`, Job `#2`, full human listening PASS.
-- No second acceptance chapter is required before rollout. The next highest-value task is `Task 11D3B3 - Casting Review Discoverability and Active-Audio Operator Guidance`.
+- Task 11D3B3 local implementation ready on top of `55404fb6aec6b95d071432f5bf9e52c5c2c5c60b`: chapter rows now expose a direct `Review Character Voices` CTA plus `CASTING REVIEW NEEDED` / `CASTING APPROVED` badges from latest casting-plan context rather than job heuristics.
+- Task 11D3B3 operator guidance: Character Voices now shows plan revision + status in-context, short draft guidance (`Review assignments before rendering`), jump shortcuts for pending review and approval controls, a local-only note after bulk review (`Decisions are local until final approval.`), and latest approval revision feedback after speaker-review approval.
+- Task 11D3B3 active-audio guardrail: when a chapter already has active playback, Character Voices now surfaces `Current active audio: Job X / Plan vY`; if the operator is reviewing a newer draft than the active plan, the panel warns that playback still uses the historical active plan until a new job is rendered.
+- Task 11D3B3 diagnostics guidance: historical job diagnostics now include a direct `Open current Character Voices` action so the operator can jump from old evidence back to the authoritative casting workspace without guessing.
+- Task 11D3B3 verification: focused active-output/speaker-review/runtime UI coverage passed at 22/22, full offline suite passed at 879/879 with 1 expected Windows symlink-privilege skip, and live production verification on `8772` preserved the canonical runtime banner, 4 active custom voices, and active/historical output labels while leaving YouTube Auto on `8765` untouched.
+- No second acceptance chapter is required before rollout. The next highest-value task is `Task 11D3B3 Final Push Verification`.
 
 ## Shared Gemini cache contract
 

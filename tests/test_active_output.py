@@ -200,9 +200,12 @@ class ActiveOutputTests(IsolatedTestCase):
         pending = rows[1]
         self.assertEqual(active["active_output_job_id"], seeded["job_old"])
         self.assertEqual(active["active_output_casting_plan_revision"], 4)
+        self.assertEqual(active["latest_casting_plan_revision"], 6)
+        self.assertEqual(active["latest_casting_plan_status"], "approved")
         self.assertTrue(active["has_active_audio"])
         self.assertFalse(pending["has_active_audio"])
         self.assertIsNone(pending["active_output_job_id"])
+        self.assertIsNone(pending["latest_casting_plan_id"])
 
     def test_job_rows_mark_only_bound_job_as_active_output(self) -> None:
         seeded = seed_active_output(self.temp_root)

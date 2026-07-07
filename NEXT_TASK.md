@@ -1,15 +1,15 @@
 # Next Task
 
 Current Status:
-Task 11D3C complete. Production is cleared for rollout (`PRODUCTION_GO`). The next approved engineering slice is Task 11D3B3.
+Task 11D3B3 is complete locally on `main` and ready for final push verification. Production remains cleared for rollout (`PRODUCTION_GO`).
 
 Current Baseline:
 - Branch `main`
-- Current HEAD = `0f6cc33c333710e4c1841a5b442d4c9e8125dd5b`
+- Current HEAD = `55404fb6aec6b95d071432f5bf9e52c5c2c5c60b`
 - Task 11D2 acceptance evidence runtime: `D:\Youtube\StoryAudioAcceptanceRun1\data`
 - Canonical production runtime: `http://127.0.0.1:8772` -> `D:\Youtube\Story Trans And Audio\data`
 - YouTube Auto must remain untouched on `http://127.0.0.1:8765`
-- Offline baseline last verified for this line of work: 877 tests passing, 1 skipped
+- Offline baseline last verified for this line of work: 879 tests passing, 1 skipped
 - Official rollout verdict: `PRODUCTION_GO`
 - Second acceptance chapter before rollout: not required
 - Task 11B2 disposable smoke root: `D:\Youtube\StoryAudioTask11B2Smoke\data`
@@ -18,19 +18,19 @@ Current Baseline:
   - `runs/`
 
 Next Task:
-Task 11D3B3 - Casting Review Discoverability and Active-Audio Operator Guidance
+Task 11D3B3 Final Push Verification
 
 Why:
-- Task 11D2 has already proved one real isolated chapter can pass the full operator workflow from approved casting through human listening acceptance, and Task 11D3C concluded no second acceptance run is required before rollout.
-- Task 11D3B1 closed the runtime-identity safety gap, and Task 11D3B2 now makes active chapter output versus historical job evidence explicit.
-- The next most valuable slice is to make casting review entry points and operator guidance easier to discover so users can move from chapter selection to speaker review, casting approval, and active-audio verification without ambiguity.
+- Task 11D3B3 has already been implemented and verified locally: chapter rows now expose `Review Character Voices`, pending draft vs approved casting is labeled directly, Character Voices warns when playback still uses an older active plan, and historical diagnostics link back to the authoritative casting workspace.
+- The immediate next step is to verify the exact local commit identity, keep protected untracked paths untouched, and fast-forward push the discoverability/operator-guidance update without changing runtime data.
+- Production rollout status remains `PRODUCTION_GO`; this slice is about publishing already-verified operator clarity work, not adding new synthesis or approval behavior.
 
 Scope:
-1. Improve operator discoverability around Chapter -> Character Voices -> Speaker Review -> Casting approval without changing backend contracts unless a proven UI blocker demands it.
-2. Preserve both rollout safety additions already in place: runtime identity gating and active-audio-versus-history labeling.
-3. Fix only workflow friction proven by live operator use; avoid speculative architecture work or new synthesis logic.
-4. Do not add automatic QA pass/fail decisions, YouTube Auto handoff changes, or background approval behavior.
-5. Continue to keep human listening and casting judgment as the final authority.
+1. Verify the local Task 11D3B3 commit identity and exact file scope before any push.
+2. Confirm working tree cleanliness except protected untracked `experiment_b_transcript/` and `runs/`.
+3. Fetch `origin`, require a normal fast-forward chain, dry-run `main:main`, then push exactly once without force/rebase/merge/tags.
+4. Reconfirm canonical runtime app `8772`, custom voice visibility, and YouTube Auto isolation on `8765` remain unaffected by the push checkpoint.
+5. Do not introduce additional code, docs, runtime mutations, or workflow changes during the push step.
 
 Prerequisites For Any Next Task:
 - Use the authoritative VieNeu interpreter: `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`.

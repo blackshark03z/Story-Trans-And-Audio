@@ -12,7 +12,13 @@ node --check ui\app.js
 ```
 
 Authoritative interpreter: `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`
-Current offline baseline for the main branch after Task 11D3B2 local active-output clarity changes: `877/877` passing, `1 skipped`.
+Current offline baseline for the main branch after Task 11D3B3 local casting-review discoverability changes: `879/879` passing, `1 skipped`.
+
+Focused Task 11D3B3 casting-review discoverability tests:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' -m unittest tests.test_active_output tests.test_active_output_ui tests.test_speaker_review_ui tests.test_runtime_identity_ui -v
+```
 
 Focused Task 11D3B2 active-output clarity tests:
 
@@ -111,6 +117,8 @@ Task 11D2 then validated the operator workflow in a real isolated acceptance run
 Task 11D3B1 added focused UI safety coverage for runtime identity rendering, canonical/isolated/unknown labeling, fail-closed disabling of primary mutation controls before `/api/runtime` resolves, and re-enabling those controls once canonical or isolated identity is confirmed. Live verification used the canonical production UI on `http://127.0.0.1:8772` while keeping YouTube Auto untouched on `8765`.
 
 Task 11D3B2 added focused API/UI coverage proving active chapter output is derived from the existing artifact binding rather than newest completed job heuristics. Tests cover: one active output among multiple completed jobs for the same chapter, chapter metadata exposing active Job/Casting Plan identity, historical-job diagnostics warnings, playback continuing to use the bound active artifact, and compatibility with pre-existing segment regeneration UI contracts.
+
+Task 11D3B3 added focused operator-guidance coverage for the direct `Review Character Voices` chapter CTA, latest casting-plan draft/approved badges, Character Voices draft-vs-active-audio warning, jump shortcuts back to pending review and approval controls, local-only speaker-review guidance before final approval, and historical diagnostics links back into the authoritative casting workspace. Full offline suite baseline moved to `879/879` passing with 1 expected Windows symlink-privilege skip.
 
 Three-Voice UI smoke dùng isolated book 4/chapter 1983: preview Ngọc Lan/Gia Bảo/Mỹ Duyên đạt 14,16–15,12 giây; jobs 4–5 đạt 24.650/26.090 ms với narrator, male, female, unknown fallback và character override. Controlled retry job 4 render lại đúng segment Gia Bảo và reuse 7 segment verified; timeline mới chứa resolution metadata. Chưa đánh giá cảm nhận bằng tai trong smoke tự động.
 
