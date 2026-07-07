@@ -6,6 +6,13 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 11D3C - Final production GO decision**: Recorded the final readiness verdict after the runtime-safety and active-output-clarity rollout work.
+  - **Decision**: official verdict is `PRODUCTION_GO`.
+  - **Basis**: Task 11D3B1 and Task 11D3B2 are pushed and complete, canonical production on `http://127.0.0.1:8772` is verified, and Chapter 357 Job 2 already passed full human listening.
+  - **Rollout boundary**: no second acceptance chapter is required before production rollout.
+  - **Next task**: `Task 11D3B3 - Casting Review Discoverability and Active-Audio Operator Guidance`.
+  - **Migration**: none.
+
 - **Task 11D3B2 - Active output versus historical job clarity**: surfaced the existing chapter artifact binding throughout the API and operator UI so production users can tell which completed job currently backs chapter playback and which jobs are historical evidence only.
   - **Source of truth**: active output is resolved from `chapters.active_audio_artifact_id`, then joined through `artifacts.job_chapter_id` to the owning `job_id` and `casting_plan_id`; the UI no longer needs to infer "current" audio from newest job ID or latest completion time.
   - **API/view-model additions**: chapter list/detail and job list/detail responses now expose active-output metadata including active artifact ID, active Job ID, JobChapter ID, and Casting Plan revision when the binding is trustworthy.
