@@ -1,22 +1,22 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-06T23:55 (Asia/Saigon)
-**Milestone:** Task 11D2C Complete
-**Trạng thái:** main có local implementation commit `f96ac056a0d213ffc3fb834e7e03917900019b7d` cho Task 11D2C; full suite 863/863 pass, 1 skipped; chua push
+**Cập nhật:** 2026-07-07T00:35 (Asia/Saigon)
+**Milestone:** Task 11D2 Complete
+**Trạng thái:** `main` = `origin/main` = `094a8787e29e2d709b302e8f524b3ed56cb383da`; Chapter 357 production acceptance run passed on isolated runtime; docs update pending local commit only
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `f96ac056a0d213ffc3fb834e7e03917900019b7d`
+**Last verified against commit:** `094a8787e29e2d709b302e8f524b3ed56cb383da`
 **Last verified branch:** `main`
-**Last verified date:** 2026-07-05
+**Last verified date:** 2026-07-07
 
-**Last verified focused Task 11D2C baseline:**
+**Last verified focused Task 11D2 baseline:**
 - Full offline test suite baseline: 863 tests passing, 1 skipped
 - Verification command: `unittest discover -s tests`
-- Verified at commit: `f96ac056a0d213ffc3fb834e7e03917900019b7d`
-- Verified date: 2026-07-06
+- Verified at commit: `094a8787e29e2d709b302e8f524b3ed56cb383da`
+- Verified date: 2026-07-07
 
 - EPUB: `Quang_Am_Chi_Ngoai.epub`.
 - Import: 1 sách, 1.980 chương, khoảng 12,6 triệu ký tự.
@@ -94,6 +94,10 @@ File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối c�
 - Task 11D2C complete tại implementation commit `f96ac056a0d213ffc3fb834e7e03917900019b7d`: utterance splitter bump len `utterance-v3`, uu tien sentence punctuation roi clause punctuation roi whitespace, tranh orphan-tail mot tu/cum rat ngan, va giu deterministic text offsets cho manual offset casting.
 - Task 11D2C verification: focused casting/speaker tests 48/48 pass; full offline suite 863/863 pass, 1 skipped; speaker-assignment request identity pin `CHUNKER_VERSION` moi nen draft/cache khong reuse semantics `utterance-v1`.
 - Chapter 357 isolated review verification: Text Revision `714` duoc rebuild draft voi chunker `utterance-v3`; boundary `... lam duoc dieu nay,` / `chi can ta bo tri mot phen thi cua hang rat kho phat hien.` duoc human review xac nhan; chua approve Casting Plan va chua render TTS.
+- Task 11D2 complete tren runtime isolated `D:\Youtube\StoryAudioAcceptanceRun1\data`: human review approved reviewed speaker decisions tao Casting Plan #6 / revision 6 (`utterance-v3`, 96 utterance, voice distribution Ngoc Lan 90 / Duc Tri 6).
+- Chapter 357 production acceptance PASS: Job #2 / JobChapter #2 render tu Casting Plan #6, 96/96 segment verified, final M4A `D:\Youtube\StoryAudioAcceptanceRun1\data\output\1-quang-am-chi-ngoai\chapter_0357\job_2\render_0001\chapter.m4a`, human nghe toan bo va ket luan PASS.
+- Acceptance evidence xac nhan speaker correctness cho seq 42-44 va 90-92 = Lao to Kim Cuong Tong -> Duc Tri; seq 41, 45, 93 = Narrator -> Ngoc Lan. Job #1 duoc giu nguyen lam evidence cho casting cu va khong phai ban accepted.
+- Unified workflow da duoc validate end-to-end tren chapter that: preflight -> explicit submit -> watch -> manifest -> objective QA -> listening checklist, khong con blocker acceptance.
 
 ## Shared Gemini cache contract
 
@@ -205,6 +209,7 @@ Các hạng mục vận hành/quota và alignment không cấp thiết được 
 - [x] Task 11C2: Deterministic offline HTML listening checklist package with local review state and browser-only review JSON export.
 - [x] Task 11D1: Unified production workflow operator entry point composing preflight, guarded submit/resume, manifest, objective QA, and deterministic listening checklist.
 - [x] Task 11D2C: Punctuation-aware utterance splitter v3 with orphan-tail fix, offset-preserving deterministic boundaries, and Chapter 357 review-ready rebuild.
+- [x] Task 11D2: First production acceptance run passed on Chapter 357 with approved Casting Plan #6, Job #2 completed, objective QA package generated, and human full-chapter listening PASS.
 
 ## Quy tắc cập nhật tiến độ
 
@@ -254,3 +259,4 @@ Các hạng mục vận hành/quota và alignment không cấp thiết được 
 | 2026-07-06 | Task 11C2 Deterministic Listening Checklist | Implementation commit `26b8f50acabed3f5f4a7a8c89e62128469221a1d`; offline HTML listening package, localStorage review state, browser-only review JSON export, Chapter 629 disposable smoke, and 835/835 offline tests pass |
 | 2026-07-06 | Task 11D1 Unified Production Workflow | Implementation commit `8b0d4485301c8aa03ccc447d72ba0991e15c77a1`; unified workflow schema `story-audio-production-workflow/v1`, explicit submit/resume flags, completed-job downstream reuse, Chapter 629 disposable smoke, and 855/855 offline tests pass |
 | 2026-07-06 | Task 11D2C Punctuation-Aware Utterance Split | Implementation commit `f96ac056a0d213ffc3fb834e7e03917900019b7d`; chunker `utterance-v3` prefers sentence punctuation, then clause punctuation, then whitespace; orphan-tail fix preserves offsets and Chapter 357 review boundary; 863/863 offline tests pass, 1 skipped |
+| 2026-07-07 | Task 11D2 Production Acceptance Pass | main/origin `094a8787e29e2d709b302e8f524b3ed56cb383da`; Chapter 357 / Text Revision 714 / Casting Plan #6 / Job #2 completed 96/96; final M4A 13m50.170s; human full-chapter listening PASS; unified workflow validated end-to-end |

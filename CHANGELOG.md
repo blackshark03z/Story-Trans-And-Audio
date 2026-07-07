@@ -6,6 +6,14 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 11D2 - Chapter 357 production acceptance pass**: Recorded the first real end-to-end acceptance run of the unified production workflow on an isolated runtime without changing application code.
+  - **Accepted chapter**: `Quang Âm Chi Ngoại` Chapter `357`, Text Revision `714`, approved Casting Plan `#6` / revision `6`, chunker `utterance-v3`.
+  - **Speaker validation**: human review confirmed seq `42–44` and `90–92` as `Lão tổ Kim Cương Tông -> Đức Trí`; seq `41`, `45`, and `93` remained `Narrator -> Ngọc Lan`.
+  - **Production run**: unified workflow submitted Job `#2`, watched it to completion, then generated production manifest, objective QA JSON, and deterministic listening checklist with matching Job/Text Revision/Casting Plan bindings.
+  - **Acceptance result**: Job `#2` / JobChapter `#2` completed with `96/96` verified segments, voice distribution `Ngọc Lan 90` / `Đức Trí 6`, and final accepted M4A at `D:\Youtube\StoryAudioAcceptanceRun1\data\output\1-quang-am-chi-ngoai\chapter_0357\job_2\render_0001\chapter.m4a`.
+  - **Human authority**: operator listened to the full chapter and marked the run PASS; Job `#1` remains preserved as earlier casting-evidence only and is not the accepted render.
+  - **Migration**: none.
+
 - **Task 11D2C - Punctuation-aware utterance splitter v3**: Improved deterministic utterance splitting so long lines prefer natural punctuation boundaries before raw whitespace and no longer strand one-word or very short orphan tails when a better cut exists.
   - **Chunking behavior**: `story_audio/casting.py` now prefers sentence punctuation (`.?!…`), then clause punctuation (`,;:`), then whitespace within the lookback window before `tts_max_chars`; every chunk still remains within the existing maximum.
   - **Offset safety**: no text is lost or duplicated, offsets remain deterministic, and manual offset-based casting continues to map rebuilt utterances to the same character assignments.
