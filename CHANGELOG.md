@@ -6,6 +6,14 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 13B - Guided operator production flow**: added an operator-facing guide inside Character Voices so a non-developer can tell what to use first, what each major area is for, and what the recommended next step is for the current chapter state.
+  - **Visible flow guide**: Character Voices now opens with `Start Here / Production Flow`, spelling out the normal production path from chapter selection through text review, Character Bible, AI speaker suggestions when needed, Casting Plan review/approval, render, QA checklist, and human QA or targeted segment regeneration.
+  - **Chapter next-action banner**: the workspace now shows `Recommended Next Action` driven by current chapter/casting state, covering `no text`, `text not approved`, `no casting plan`, `casting plan draft`, `casting plan approved`, `job running`, `active audio ready for qa`, and optional `human qa accepted` when that state is present in chapter detail.
+  - **Plain-language area descriptions**: Book Voice Profile, Character Bible, AI Speaker Draft, Casting Plan Review, and Render / Production Output now explain what to use them for, when to use them, and when not to use them.
+  - **Advanced/debug labeling**: AI speaker-draft tooling and diagnostics now read explicitly as `Advanced / Debug`, helping operators distinguish routine production flow from troubleshooting-only tools such as historical jobs, raw diagnostics, and segment attempts.
+  - **Verification**: `node --check ui/app.js` passed; focused Character Voices / active-output UI coverage passed at 20/20; full offline suite passed at 905/905 with 1 expected Windows symlink-privilege skip.
+  - **Migration**: none.
+
 - **Task 13A - Simplified Character Voices production UI**: reshaped the chapter production workspace so operators can distinguish AI speaker suggestions, Casting Plan review, and render-ready production output without confusing one approval step for another.
   - **Clear production stages**: Character Voices now shows a persistent production-step banner plus distinct sections for `AI Draft / Suggestions`, `Casting Plan Review`, and `Render / Production Output`.
   - **Draft-vs-plan warning**: when a Casting Plan already exists, speaker-draft tools are visually de-emphasized and the panel warns `AI Draft tools can create a new plan; use Casting Plan Review to approve the current plan.`

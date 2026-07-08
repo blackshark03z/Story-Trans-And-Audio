@@ -36,6 +36,8 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "Open current Character Voices",
             "Current active audio: Job",
             "Current playback still uses the active historical plan until a new job is rendered",
+            "Advanced / Debug: use this to inspect current or historical jobs.",
+            "Advanced / Debug: segment attempts are for troubleshooting specific audio problems after QA",
         ):
             self.assertIn(value, self.html + self.js + self.css)
 
@@ -57,8 +59,22 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "Render / Production Output",
             "Historical Job",
             "This approved plan is the one Render / Production Output will use until a newer approved plan exists.",
+            "Use this as the source of truth before rendering.",
+            "Use this only after the Casting Plan is approved.",
         ):
             self.assertIn(value, self.html + self.js)
+
+    def test_chapter_ui_mentions_operator_flow_and_next_action(self) -> None:
+        for value in (
+            "Start Here",
+            "Production Flow",
+            "Operator guide",
+            "Recommended Next Action",
+            "castingRecommendedActionTitle",
+            "castingRecommendedActionBody",
+            "castingRecommendedActionState",
+        ):
+            self.assertIn(value, self.html + self.js + self.css)
 
     def test_chapter_summary_prefers_artifact_binding_metadata(self) -> None:
         script = r"""

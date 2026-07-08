@@ -53,11 +53,17 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
     def test_character_voices_layout_separates_draft_plan_and_render_areas(self) -> None:
         for value in (
             "Production step",
+            "Start Here",
+            "Production Flow",
+            "Recommended Next Action",
             "Casting Plan Review",
             "Render / Production Output",
             "speakerDraftExistingPlanWarning",
             "AI Draft tools can create a new plan; use Casting Plan Review to approve the current plan.",
             "castingProductionStep",
+            "castingRecommendedActionTitle",
+            "castingRecommendedActionBody",
+            "castingRecommendedActionState",
             "castingPlanReviewMeta",
             "renderPlanNotice",
             "castingPlanApprovalControls",
@@ -76,8 +82,58 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
             "speakerDraftExistingPlanWarning",
             "$('#speakerReviewPanel').classList.toggle('has-existing-plan',existingPlan)",
             "$('#approveSpeakerReview').textContent=speakerDraftApprovalLabel",
+            "Advanced / AI suggestions",
+            "Do not treat this area as final approval",
         ):
             self.assertIn(value, self.html + self.js + self.css)
+
+    def test_production_flow_guide_lists_core_steps(self) -> None:
+        for value in (
+            "Select chapter",
+            "Check and approve text",
+            "Review Character Bible",
+            "Use AI Speaker Draft if needed",
+            "Review the Casting Plan",
+            "Approve the Casting Plan",
+            "Render with the approved plan",
+            "Open the QA checklist",
+            "Human QA pass or regenerate specific segments",
+        ):
+            self.assertIn(value, self.html)
+
+    def test_recommended_next_action_helper_covers_operator_states(self) -> None:
+        script = r"""
+function chapterHasApprovedText(detail){const approved=detail?.revisions?.filter(r=>r.status==='approved')||[];if(!approved.length)return false;const activeId=Number(detail?.chapter?.active_text_revision_id||0);return approved.some(item=>Number(item.id)===activeId)}
+function humanQaAccepted(detail){const value=String(detail?.chapter?.human_qa_status||'').toLowerCase();return value==='accepted'||value==='pass'||value==='human_qa_pass_with_minor_pronunciation_notes'}
+const runningAudioStatuses=new Set(['scheduled','queued','running','repairing','synthesizing','assembling','paused']);
+function recommendedChapterAction(detail,casting){const chapter=detail?.chapter||{},active=detail?.active_output||{},hasApprovedText=chapterHasApprovedText(detail),planStatus=casting?.status||'',planRevision=casting?.plan_revision||null,activePlan=active?.active_output_casting_plan_revision||null,hasActiveAudio=!!active?.active_output_job_id;if(!(detail?.revisions||[]).length)return {state:'no text'};if(!hasApprovedText)return {state:'text not approved'};if(runningAudioStatuses.has(String(chapter.audio_status||'')))return {state:'job running'};if(!casting?.id)return {state:'no casting plan'};if(planStatus==='draft')return {state:'casting plan draft'};if(planStatus==='approved'&&(!hasActiveAudio||Number(activePlan||0)!==Number(planRevision||0)))return {state:'casting plan approved'};if(hasActiveAudio&&humanQaAccepted(detail))return {state:'human qa accepted'};if(hasActiveAudio)return {state:'active audio ready for qa'};return {state:'no casting plan'}}
+console.log(JSON.stringify({
+  noText: recommendedChapterAction({chapter:{},revisions:[],active_output:{}}, null).state,
+  textNotApproved: recommendedChapterAction({chapter:{active_text_revision_id:7,audio_status:'pending'},revisions:[{id:7,status:'draft'}],active_output:{}}, null).state,
+  noCasting: recommendedChapterAction({chapter:{active_text_revision_id:7,audio_status:'pending'},revisions:[{id:7,status:'approved'}],active_output:{}}, null).state,
+  planDraft: recommendedChapterAction({chapter:{active_text_revision_id:7,audio_status:'pending'},revisions:[{id:7,status:'approved'}],active_output:{}}, {id:4,status:'draft',plan_revision:1}).state,
+  planApproved: recommendedChapterAction({chapter:{active_text_revision_id:7,audio_status:'pending'},revisions:[{id:7,status:'approved'}],active_output:{}}, {id:4,status:'approved',plan_revision:1}).state,
+  running: recommendedChapterAction({chapter:{active_text_revision_id:7,audio_status:'running'},revisions:[{id:7,status:'approved'}],active_output:{}}, {id:4,status:'approved',plan_revision:1}).state,
+  qaReady: recommendedChapterAction({chapter:{active_text_revision_id:7,audio_status:'completed'},revisions:[{id:7,status:'approved'}],active_output:{active_output_job_id:11,active_output_casting_plan_revision:1}}, {id:4,status:'approved',plan_revision:1}).state,
+  accepted: recommendedChapterAction({chapter:{active_text_revision_id:7,audio_status:'completed',human_qa_status:'accepted'},revisions:[{id:7,status:'approved'}],active_output:{active_output_job_id:11,active_output_casting_plan_revision:1}}, {id:4,status:'approved',plan_revision:1}).state,
+}));
+"""
+        result = subprocess.run(
+            ["node", "-e", script],
+            check=True,
+            capture_output=True,
+            text=True,
+            cwd=str(ROOT),
+        )
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["noText"], "no text")
+        self.assertEqual(payload["textNotApproved"], "text not approved")
+        self.assertEqual(payload["noCasting"], "no casting plan")
+        self.assertEqual(payload["planDraft"], "casting plan draft")
+        self.assertEqual(payload["planApproved"], "casting plan approved")
+        self.assertEqual(payload["running"], "job running")
+        self.assertEqual(payload["qaReady"], "active audio ready for qa")
+        self.assertEqual(payload["accepted"], "human qa accepted")
 
     def test_bulk_review_uses_local_state_for_selection_and_remaining_counts(self) -> None:
         for value in (

@@ -1,15 +1,15 @@
 # Next Task
 
 Current Status:
-Task 13A is complete locally on `main`. Chapter 357 canonical Job `17` remains the accepted production evidence, and the Character Voices operator UI has been simplified so AI speaker drafts, Casting Plan review, and Render / Production Output are clearly separated before any production mutation.
+Task 13B is complete locally on `main`. Chapter 357 canonical Job `17` remains the accepted production evidence, and the Character Voices operator UI now includes a visible production-flow guide, plain-language area descriptions, advanced/debug labels, and a chapter-level `Recommended Next Action` banner before any production mutation.
 
 Current Baseline:
 - Branch `main`
-- Current HEAD = `5220905394df1bf87c816f9a934d9794927a1580`
+- Current HEAD = `3c9fa3cbf5bd9370ed2aff1846de50a29b7105d2`
 - Task 11D2 acceptance evidence runtime: `D:\Youtube\StoryAudioAcceptanceRun1\data`
 - Canonical production runtime: `http://127.0.0.1:8772` -> `D:\Youtube\Story Trans And Audio\data`
 - YouTube Auto must remain untouched on `http://127.0.0.1:8765`
-- Offline baseline last verified for this line of work: 902 tests passing, 1 skipped
+- Offline baseline last verified for this line of work: 905 tests passing, 1 skipped
 - Official rollout verdict: `PRODUCTION_GO`
 - Second acceptance chapter before rollout: not required
 - Task 11B2 disposable smoke root: `D:\Youtube\StoryAudioTask11B2Smoke\data`
@@ -18,17 +18,18 @@ Current Baseline:
   - `runs/`
 
 Next Task:
-Task 13B - Live Canonical Operator Walkthrough for Simplified Character Voices
+Task 13C - Live Canonical Operator Walkthrough for Guided Production Flow
 
 Why:
-- The confusing overlap between AI Speaker Draft review and Casting Plan approval was a real operator footgun; Task 13A removes most of that ambiguity in code, but the next highest-value check is a live canonical walkthrough on the real UI.
-- We should verify the simplified panel works the way operators actually move: chapter CTA -> Character Voices -> review current plan -> render only from approved plan identity.
+- Task 13B now explains the intended production path directly in the UI, but we should still verify that a non-developer can follow that path live on the canonical runtime without guessing which panel to use next.
+- The next highest-value check is a live canonical walkthrough of the new guide, next-action banner, and advanced/debug boundaries: chapter CTA -> Character Voices -> follow the recommended next action -> review plan identity -> render only from approved plan identity.
 - Chapter 357 remains the best reference chapter for this walkthrough because it already has accepted evidence and clear active-audio / historical-plan context.
 
 Scope:
 1. Restart only Story Audio on canonical production if needed and verify the runtime banner still shows `CANONICAL PRODUCTION`.
-2. Walk the Chapter 357 `Character Voices` path live and confirm the new production-step banner, the de-emphasized AI Draft area when a plan exists, and the exact `Approve Casting Plan vN` / render identity labels.
-3. Confirm `Jump to Casting Plan approval` lands on the real plan-approval controls rather than the speaker-draft review controls.
+2. Walk the Chapter 357 `Character Voices` path live and confirm the `Start Here / Production Flow` guide, the `Recommended Next Action` banner, and the plain-language descriptions for the major production areas.
+3. Confirm advanced/debug areas are visually clear in context: AI Speaker Draft, historical jobs, segment attempts, and diagnostics should read as non-primary tooling.
+4. Confirm `Jump to Casting Plan approval` lands on the real plan-approval controls rather than the speaker-draft review controls.
 4. Preserve Chapter 357 as the reference production-evidence chapter: Job `17`, Casting Plan `18`, active artifact `48`, final M4A SHA `024e9f8cc1a646095eb84fad71d532fc04875e9eb34609a397e44c6f3153b675`.
 5. Do not mutate canonical production audio or submit any new render during the walkthrough unless a future explicit task authorizes it.
 
