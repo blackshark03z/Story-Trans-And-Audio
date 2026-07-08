@@ -6,6 +6,14 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 13C - Step-by-step production flow UI**: reshaped the Character Voices workspace from a guide-like dashboard into a real operator step flow that mirrors the chapter production order without changing backend behavior.
+  - **Wizard-style flow**: the top of Character Voices now renders `Production Flow` as a stepper with eight explicit steps: `Select Chapter`, `Text Ready`, `Character Bible / Characters`, `Voice Assignment / Casting`, `Approve Casting Plan`, `Render Audio`, `QA Checklist`, and `Human QA Verdict`.
+  - **Actionable step details**: each step now explains its purpose, current status, what the operator needs to do now, what happens after, and whether `Back`, `Continue`, or `Next` is the correct move.
+  - **Blocker-first guidance**: when a step cannot advance, the UI now shows clear reasons such as missing approved text, missing casting plan, draft-only plan state, or existing active audio that should route the operator to QA instead of routine rerender.
+  - **Safer default path**: when a Casting Plan already exists, the step flow prefers reviewing that plan instead of regenerating AI draft suggestions; when active audio already exists, the normal path moves to QA rather than render.
+  - **Verification**: `node --check ui/app.js` passed; focused Character Voices / active-output UI coverage passed at 22/22; full offline suite passed at 907/907 with 1 expected Windows symlink-privilege skip.
+  - **Migration**: none.
+
 - **Task 13B - Guided operator production flow**: added an operator-facing guide inside Character Voices so a non-developer can tell what to use first, what each major area is for, and what the recommended next step is for the current chapter state.
   - **Visible flow guide**: Character Voices now opens with `Start Here / Production Flow`, spelling out the normal production path from chapter selection through text review, Character Bible, AI speaker suggestions when needed, Casting Plan review/approval, render, QA checklist, and human QA or targeted segment regeneration.
   - **Chapter next-action banner**: the workspace now shows `Recommended Next Action` driven by current chapter/casting state, covering `no text`, `text not approved`, `no casting plan`, `casting plan draft`, `casting plan approved`, `job running`, `active audio ready for qa`, and optional `human qa accepted` when that state is present in chapter detail.

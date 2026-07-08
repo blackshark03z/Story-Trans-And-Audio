@@ -221,42 +221,52 @@
   </main>
 
   <dialog id="textDialog">
-    <div class="dialog-head"><h2 id="dialogTitle">Nội dung chương</h2><div class="dialog-head-actions"><button id="openCastingShortcut" class="secondary">Character Voices</button><button id="closeDialog" class="ghost">Đóng</button></div></div>
+    <div class="dialog-head"><h2 id="dialogTitle">Nội dung chương</h2><div class="dialog-head-actions"><button id="openCastingShortcut" class="secondary">Production Flow</button><button id="closeDialog" class="ghost">Đóng</button></div></div>
     <div id="qaIssues"></div>
     <div id="audioBox" class="audio-box hidden">
       <audio id="chapterAudio" controls preload="metadata"></audio>
       <a id="audioFileLink" target="_blank">Mở file audio</a>
     </div>
     <div id="chapterAudioMeta" class="chapter-audio-meta hidden"></div>
-    <div class="tabs"><button data-tab="reflowed" class="active">Reflowed</button><button data-tab="repaired">Gemini</button><button data-tab="raw">Raw</button><button data-tab="diff">Text Diff</button><button data-tab="casting">Character Voices</button></div>
+    <div class="tabs"><button data-tab="reflowed" class="active">Reflowed</button><button data-tab="repaired">Gemini</button><button data-tab="raw">Raw</button><button data-tab="diff">Text Diff</button><button data-tab="casting">Production Flow</button></div>
     <pre id="chapterText"></pre>
     <div id="castingPanel" class="casting-panel hidden">
-      <section class="production-flow-guide">
+      <section id="productionFlowPanel" class="production-flow-guide">
         <div class="section-head">
           <div><p class="eyebrow">Start Here</p><h3>Production Flow</h3></div>
-          <span class="pill">Operator guide</span>
+          <span id="productionFlowCurrentStep" class="pill">Step 1</span>
         </div>
-        <ol class="production-flow-steps">
-          <li>Select chapter</li>
-          <li>Check and approve text</li>
-          <li>Review Character Bible</li>
-          <li>Use AI Speaker Draft if needed</li>
-          <li>Review the Casting Plan</li>
-          <li>Approve the Casting Plan</li>
-          <li>Render with the approved plan</li>
-          <li>Open the QA checklist</li>
-          <li>Human QA pass or regenerate specific segments</li>
-        </ol>
-      </section>
-      <section class="recommended-action-banner">
-        <div>
-          <p class="eyebrow">Recommended Next Action</p>
-          <h3 id="castingRecommendedActionTitle">Select a chapter workflow step</h3>
-          <p id="castingRecommendedActionBody" class="muted">Open Character Voices to see the current production step for this chapter.</p>
+        <div id="productionFlowStepper" class="production-flow-stepper"></div>
+        <div class="recommended-action-banner">
+          <div>
+            <p class="eyebrow">Recommended Next Action</p>
+            <h3 id="castingRecommendedActionTitle">Select a chapter workflow step</h3>
+            <p id="castingRecommendedActionBody" class="muted">Open Production Flow to see the current step for this chapter.</p>
+          </div>
+          <span id="castingRecommendedActionState" class="pill">Needs review</span>
         </div>
-        <span id="castingRecommendedActionState" class="pill">Needs review</span>
+        <div class="production-flow-card">
+          <div class="production-flow-card-head">
+            <div>
+              <p class="eyebrow">Current Step</p>
+              <h3 id="productionFlowStepTitle">Step 1: Select Chapter</h3>
+            </div>
+            <span id="productionFlowStepStatus" class="pill">Ready</span>
+          </div>
+          <p id="productionFlowStepPurpose" class="section-guide">Choose the chapter you want to work on before moving into text, casting, or QA.</p>
+          <div class="production-flow-meta">
+            <div><strong>Do this now</strong><span id="productionFlowStepInputs">Select a chapter from the chapter list, then open Production Flow.</span></div>
+            <div><strong>What happens after</strong><span id="productionFlowStepAfter">The flow will move to the next valid production step for that chapter.</span></div>
+          </div>
+          <div id="productionFlowBlockedReason" class="issue warning hidden"></div>
+          <div class="production-flow-actions">
+            <button id="productionFlowBack" class="ghost">Back</button>
+            <button id="productionFlowContinue" class="secondary">Continue</button>
+            <button id="productionFlowNext" class="primary">Next</button>
+          </div>
+        </div>
       </section>
-      <section class="voice-profile-card">
+      <section id="voiceProfileSection" class="voice-profile-card">
         <div class="section-head">
           <div><p class="eyebrow">Book settings</p><h3>Book Voice Profile</h3></div>
           <span id="voiceProfileMeta" class="pill">Not configured</span>
@@ -353,7 +363,7 @@
           <div id="speakerReviewApprovalResult" class="muted"></div>
         </div>
       </section>
-      <section class="casting-plan-panel">
+      <section id="castingPlanPanel" class="casting-plan-panel">
         <div class="section-head">
           <div><p class="eyebrow">Casting Plan Review</p><h3>Review current Casting Plan</h3></div>
           <span id="castingPlanReviewMeta" class="pill">No plan</span>
@@ -362,7 +372,7 @@
         <p id="castingPlanReviewWarning" class="muted">Review assignments before rendering.</p>
         <div id="castingPlanWarning" class="issue warning hidden"></div>
       <h3>Nhân vật</h3>
-      <section class="character-bible-import">
+      <section id="characterBibleSection" class="character-bible-import">
         <div class="section-head">
           <div><p class="eyebrow">Character Bible</p><h3>Import JSON</h3></div>
           <span id="characterBibleState" class="pill">No file selected</span>
@@ -394,7 +404,7 @@
         <button id="approveCastingPlan" class="secondary" disabled data-runtime-mutation-control>Approve Casting Plan</button>
       </div>
       </section>
-      <section class="render-plan-panel">
+      <section id="renderPlanPanel" class="render-plan-panel">
         <div class="section-head">
           <div><p class="eyebrow">Render / Production Output</p><h3>Render approved chapter audio</h3></div>
         </div>

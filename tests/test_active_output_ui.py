@@ -23,7 +23,7 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "chapter-title-wrap",
             "chapter-title-meta",
             "chapter-casting-meta",
-            "Review Character Voices",
+            "Open Production Flow",
             "CASTING REVIEW NEEDED",
             "CASTING APPROVED",
             "job-output-meta",
@@ -33,7 +33,7 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "ACTIVE CHAPTER OUTPUT",
             "Historical evidence only - not the current chapter output",
             "Artifact active but job binding unavailable",
-            "Open current Character Voices",
+            "Open current Production Flow",
             "Current active audio: Job",
             "Current playback still uses the active historical plan until a new job is rendered",
             "Advanced / Debug: use this to inspect current or historical jobs.",
@@ -49,6 +49,7 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "casting-tab-shortcut",
             "castingProductionStep",
             "castingPlanIdentity",
+            "Production Flow",
         ):
             self.assertIn(value, self.js + self.html + self.css)
 
@@ -68,13 +69,30 @@ class ActiveOutputUiTests(IsolatedTestCase):
         for value in (
             "Start Here",
             "Production Flow",
-            "Operator guide",
             "Recommended Next Action",
+            "productionFlowStepper",
+            "productionFlowBack",
+            "productionFlowContinue",
+            "productionFlowNext",
+            "productionFlowStepTitle",
+            "productionFlowStepStatus",
+            "productionFlowBlockedReason",
             "castingRecommendedActionTitle",
             "castingRecommendedActionBody",
             "castingRecommendedActionState",
+            "PRODUCTION_FLOW_STEPS",
+            "title:'Select Chapter'",
+            "title:'Human QA Verdict'",
         ):
             self.assertIn(value, self.html + self.js + self.css)
+
+    def test_active_audio_state_does_not_push_normal_rerender_path(self) -> None:
+        for value in (
+            "Audio already exists; use QA or replacement workflow instead of normal render.",
+            "A Casting Plan already exists, so the normal path is to review that plan instead of generating a new AI draft.",
+            "Open the active audio and the listening checklist for this chapter.",
+        ):
+            self.assertIn(value, self.html + self.js)
 
     def test_chapter_summary_prefers_artifact_binding_metadata(self) -> None:
         script = r"""

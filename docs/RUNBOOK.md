@@ -52,6 +52,8 @@ Casting review entry points:
 - Inside the chapter dialog, the `Character Voices` shortcut remains available in the header and the panel now separates `AI Draft / Suggestions`, `Casting Plan Review`, and `Render / Production Output`.
 - The production-step banner at the top of Character Voices is the quickest source of truth for what you are looking at: `Draft Plan`, `Approved Plan`, `Active Audio`, or `Historical Job`, plus the current Casting Plan identity and any active Job / Plan binding.
 - The top of Character Voices now also shows `Start Here / Production Flow` plus `Recommended Next Action`; operators should treat those two guides as the primary path before opening any advanced/debug tools.
+- `Production Flow` is now the main wizard-like path for routine work: use `Back`, `Continue`, and `Next` there first, and only drop into advanced/debug sections when the flow explicitly points you to them.
+- If `Next` is disabled or blocked, read the blocker text in the flow card before trying another panel manually. Common blockers include unapproved text, missing casting plans, draft-only casting plans, or active audio that should move to QA instead of rerender.
 
 ## Production runner
 
@@ -153,6 +155,7 @@ Notes:
 - After step 2, decisions are still local-only until `Create/Update Casting Plan from AI Draft` creates a new immutable Casting Plan revision.
 - If a Casting Plan already exists, treat the AI draft area as advanced tooling: it can create a newer plan, but it does not approve the current one and it does not render directly.
 - The AI Speaker Draft area is explicitly `Advanced / AI suggestions`; use it when speaker identity is uncertain, not as the primary place to approve production output.
+- When a Casting Plan already exists, the Production Flow should normally keep you on plan review/approval rather than on AI draft generation. Treat draft tools as optional support for the casting step, not the default next action.
 - Use `Jump to pending review` to reach the next unreviewed target and `Jump to Casting Plan approval` to return to the real plan-approval controls without scrolling the full utterance list.
 - If Character Voices shows `Current active audio: Job X / Plan vY`, that is the playback source of truth for the current chapter audio.
 - If the panel also warns `Current playback still uses the active historical plan until a new job is rendered`, the draft you are reviewing is newer than the chapter's currently active audio and has not been rendered yet.

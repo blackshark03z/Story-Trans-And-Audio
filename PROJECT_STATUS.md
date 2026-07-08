@@ -1,22 +1,22 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-08T22:10 (Asia/Saigon)
-**Milestone:** Task 13B Guided Operator Production Flow
-**Trạng thái:** official verdict remains `PRODUCTION_GO`; Chapter 357 canonical Job `17` remains the accepted production evidence, and the Character Voices operator UI now includes a production-flow guide plus chapter-level next-action guidance before any further production mutation
+**Cập nhật:** 2026-07-08T23:05 (Asia/Saigon)
+**Milestone:** Task 13C Step-by-Step Production Flow UI
+**Trạng thái:** official verdict remains `PRODUCTION_GO`; Chapter 357 canonical Job `17` remains the accepted production evidence, and the Character Voices operator UI now exposes a step-by-step production flow with explicit step status, blockers, and next/continue navigation before any further production mutation
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `3c9fa3cbf5bd9370ed2aff1846de50a29b7105d2`
+**Last verified against commit:** `4b82cdd57c6626b03c086146c4e9a12e5543f60d`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-08
 
-**Last verified focused Task 13B baseline:**
-- Focused Character Voices / operator-guidance UI coverage: 20 tests passing
-- Full offline test suite baseline: 905 tests passing, 1 skipped
+**Last verified focused Task 13C baseline:**
+- Focused Character Voices / production-flow UI coverage: 22 tests passing
+- Full offline test suite baseline: 907 tests passing, 1 skipped
 - Verification command: `unittest discover -s tests`
-- Verified at commit: `3c9fa3cbf5bd9370ed2aff1846de50a29b7105d2`
+- Verified at commit: `4b82cdd57c6626b03c086146c4e9a12e5543f60d`
 - Verified date: 2026-07-08
 
 - EPUB: `Quang_Am_Chi_Ngoai.epub`.
@@ -118,7 +118,7 @@ File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối c�
 - Task 11D3B3 active-audio guardrail: when a chapter already has active playback, Character Voices now surfaces `Current active audio: Job X / Plan vY`; if the operator is reviewing a newer draft than the active plan, the panel warns that playback still uses the historical active plan until a new job is rendered.
 - Task 11D3B3 diagnostics guidance: historical job diagnostics now include a direct `Open current Character Voices` action so the operator can jump from old evidence back to the authoritative casting workspace without guessing.
 - Task 11D3B3 verification: focused active-output/speaker-review/runtime UI coverage passed at 22/22, full offline suite passed at 879/879 with 1 expected Windows symlink-privilege skip, and live production verification on `8772` preserved the canonical runtime banner, 4 active custom voices, and active/historical output labels while leaving YouTube Auto on `8765` untouched.
-- No second acceptance chapter is required before rollout. The next highest-value task is `Task 13C - Live Canonical Operator Walkthrough for Guided Production Flow`.
+- No second acceptance chapter is required before rollout. The next highest-value task is `Task 13D - Live Canonical Operator Walkthrough for Step-by-Step Production Flow`.
 - Task 12C1 added explicit canonical unified-workflow mode behind `--allow-canonical-production`. The mode still fail-closes by default, requires explicit `--submit`, keeps exact approved Casting Plan identity checks, verifies `/api/runtime` canonical binding, and blocks duplicate pending/running jobs before any canonical production mutation.
 - Task 12C2 local implementation extends production workflow voice-availability preflight to accept both preset voices and active usable custom voices (`custom:<id>`). Canonical Chapter 357 Plan 18 style bindings no longer fail just because the plan references `custom:25` / `custom:26`; missing, inactive, or no-revision custom voices still fail closed.
 - Task 12C3 local implementation threads explicit canonical approval through downstream manifest/QA/checklist generation. `audio_qa` and `listening_checklist` still refuse canonical production by default, but the unified workflow can now run downstream-only for an already completed canonical job when the operator passes `--allow-canonical-production` together with an explicit `--job-id`.
@@ -132,6 +132,9 @@ File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối c�
 - Task 13B local implementation adds operator-friendly guided flow without changing backend semantics: Character Voices now opens with a visible `Start Here / Production Flow` guide, plain-language descriptions for Book Voice Profile / Character Bible / AI Speaker Draft / Casting Plan Review / Render areas, and stronger `Advanced / Debug` labeling for diagnostics and speaker-draft tooling.
 - Task 13B next-action guidance: the chapter workspace now shows `Recommended Next Action` based on current chapter/casting state (`no text`, `text not approved`, `no casting plan`, `casting plan draft`, `casting plan approved`, `job running`, `active audio ready for qa`, and optional `human qa accepted` when that state is available in chapter detail).
 - Task 13B verification: `node --check ui/app.js` pass; focused Character Voices / active-output UI tests 20/20 pass; full offline suite 905/905 pass with 1 expected Windows skip. No production DB, audio, artifact, job, or casting-plan data was mutated during this task.
+- Task 13C local implementation turns the top-level Character Voices guide into a true step-by-step operator flow: `Select Chapter`, `Text Ready`, `Character Bible / Characters`, `Voice Assignment / Casting`, `Approve Casting Plan`, `Render Audio`, `QA Checklist`, and `Human QA Verdict`.
+- Task 13C flow behavior: each step now shows plain-language purpose, current status, required operator inputs, what happens after, and explicit `Back` / `Continue` / `Next` controls. `Next` blocks with a visible reason when prerequisites are missing, and the flow no longer suggests AI draft generation or rerender as the normal path when an existing Casting Plan or active audio already exists.
+- Task 13C verification: `node --check ui/app.js` pass; focused Character Voices / active-output UI tests 22/22 pass; full offline suite 907/907 pass with 1 expected Windows skip. No production DB, audio, artifact, job, or casting-plan data was mutated during this task.
 
 ## Shared Gemini cache contract
 
