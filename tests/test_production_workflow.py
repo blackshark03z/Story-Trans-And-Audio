@@ -8,6 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from story_audio.audio_qa import QaArtifactIntegrityError
+from story_audio.files import atomic_write_bytes, sha256_file
 from story_audio.listening_checklist import ChecklistInputMismatchError
 from story_audio.production_runner import BindingMismatchError, RuntimeMismatchError, WatchTimeoutError
 from story_audio.production_workflow import WORKFLOW_SCHEMA, main, run_workflow
@@ -41,13 +42,13 @@ def _preflight_result(*, status: str = "preflight_pass", duplicate: dict | None 
     }
 
 
-def _runner_result(*, status: str = "completed", mutation_performed: bool = False, manifest_path: str = "D:/isolated/data/manifests/job_2_chapter_629.json", manifest_sha: str = "manifest-sha", reused_manifest: bool = False, job_id: int = 2) -> dict:
+def _runner_result(*, status: str = "completed", mutation_performed: bool = False, manifest_path: str = "D:/isolated/data/manifests/job_2_chapter_629.json", manifest_sha: str = "manifest-sha", reused_manifest: bool = False, job_id: int = 2, job_chapter_id: int = 920) -> dict:
     return {
         "status": status,
         "job": {
             "job_id": job_id,
             "job_status": "completed" if status == "completed" else status,
-            "job_chapter_id": 920,
+            "job_chapter_id": job_chapter_id,
             "job_chapter_status": "completed" if status == "completed" else status,
         },
         "manifest": {
@@ -103,6 +104,68 @@ def _final_workflow_result(*, status: str = "success") -> dict:
     }
 
 
+def _write_manifest_fixture(
+    root: Path,
+    *,
+    canonical: bool = False,
+    job_id: int = 2,
+    job_chapter_id: int = 920,
+    chapter_id: int = 629,
+    chapter_number: int = 629,
+    text_revision_id: int = 400,
+    casting_plan_id: int = 2,
+    casting_plan_revision: int = 1,
+    casting_plan_sha256: str = "plan-sha",
+    artifact_id: int = 88,
+) -> Path:
+    data_root = root.resolve()
+    output_dir = data_root / "output" / "book_1" / f"chapter_{chapter_number:04d}" / f"job_{job_id}" / "render_0001"
+    output_dir.mkdir(parents=True, exist_ok=True)
+    final_path = output_dir / "chapter.m4a"
+    atomic_write_bytes(final_path, b"fixture-m4a")
+    final_sha = sha256_file(final_path)
+    manifest_path = data_root / "workflow" / f"job_{job_id}_chapter_{chapter_number}" / "manifest.json"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    root_string = str(data_root if not canonical else (Path.cwd() / "data").resolve())
+    db_string = str((data_root / "app.db").resolve() if not canonical else (Path.cwd() / "data" / "app.db").resolve())
+    manifest = {
+        "schema": "story-audio-production-manifest/v1",
+        "identity": {
+            "data_root": root_string,
+            "db_path": db_string,
+            "book_id": 1,
+            "chapter_id": chapter_id,
+            "chapter_number": chapter_number,
+            "job_id": job_id,
+            "job_chapter_id": job_chapter_id,
+            "output_format": "m4a",
+        },
+        "immutable_bindings": {
+            "text_revision_id": text_revision_id,
+            "text_revision_content_sha256": "rev-sha",
+            "casting_plan_id": casting_plan_id,
+            "casting_plan_revision": casting_plan_revision,
+            "casting_plan_sha256": casting_plan_sha256,
+        },
+        "terminal_state": {
+            "job_status": "completed",
+            "job_chapter_status": "completed",
+        },
+        "artifacts": [
+            {
+                "artifact_id": artifact_id,
+                "artifact_type": "chapter_m4a",
+                "status": "active",
+                "absolute_local_path": str(final_path.resolve()),
+                "computed_sha256": final_sha,
+                "stored_sha256": final_sha,
+            }
+        ],
+    }
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    return manifest_path
+
+
 class ProductionWorkflowTests(unittest.TestCase):
     def test_default_preflight_only(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -125,6 +188,7 @@ class ProductionWorkflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             with patch("story_audio.production_workflow.run_preflight", return_value=_preflight_result(status="already_completed", duplicate={"duplicate": True, "existing_job_id": 2, "existing_job_status": "completed"})), \
                  patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed")), \
+                 patch("story_audio.production_workflow._verify_downstream_manifest_identity", return_value={"final_artifact_id": 88, "final_artifact_path": "D:/isolated/data/output/chapter.m4a", "final_artifact_sha256": "final-sha"}), \
                  patch("story_audio.production_workflow.generate_audio_qa_report", return_value=_qa_result()) as qa_mock, \
                  patch("story_audio.production_workflow.build_listening_checklist", return_value=_checklist_result()) as checklist_mock:
                 result = run_workflow(
@@ -142,11 +206,14 @@ class ProductionWorkflowTests(unittest.TestCase):
         self.assertEqual(result["outputs"]["listening_checklist_path"], "D:/isolated/data/workflow/job_2_chapter_629/checklist/index.html")
         qa_mock.assert_called_once()
         checklist_mock.assert_called_once()
+        self.assertFalse(qa_mock.call_args.kwargs["allow_canonical_production"])
+        self.assertFalse(checklist_mock.call_args.kwargs["allow_canonical_production"])
 
     def test_existing_completed_job_no_new_job(self):
         with tempfile.TemporaryDirectory() as tmp:
             with patch("story_audio.production_workflow.run_preflight", return_value=_preflight_result(status="already_completed", duplicate={"duplicate": True, "existing_job_id": 2, "existing_job_status": "completed"})), \
                  patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed")) as runner_mock, \
+                 patch("story_audio.production_workflow._verify_downstream_manifest_identity", return_value={"final_artifact_id": 88, "final_artifact_path": "D:/isolated/data/output/chapter.m4a", "final_artifact_sha256": "final-sha"}), \
                  patch("story_audio.production_workflow.generate_audio_qa_report", return_value=_qa_result()), \
                  patch("story_audio.production_workflow.build_listening_checklist", return_value=_checklist_result()):
                 run_workflow(
@@ -163,7 +230,8 @@ class ProductionWorkflowTests(unittest.TestCase):
     def test_submit_create_exactly_once(self):
         with tempfile.TemporaryDirectory() as tmp:
             with patch("story_audio.production_workflow.run_preflight", return_value=_preflight_result()), \
-                 patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed", mutation_performed=True)) as runner_mock:
+                 patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed", mutation_performed=True)) as runner_mock, \
+                 patch("story_audio.production_workflow._verify_downstream_manifest_identity", return_value={"final_artifact_id": 88, "final_artifact_path": "D:/isolated/data/output/chapter.m4a", "final_artifact_sha256": "final-sha"}):
                 result = run_workflow(
                     data_root=Path(tmp).resolve(),
                     api_base="http://127.0.0.1:8771",
@@ -180,7 +248,8 @@ class ProductionWorkflowTests(unittest.TestCase):
     def test_resume_exactly_once(self):
         with tempfile.TemporaryDirectory() as tmp:
             with patch("story_audio.production_workflow.run_preflight", return_value=_preflight_result(duplicate={"duplicate": True, "existing_job_id": 2, "existing_job_status": "paused"})), \
-                 patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed", mutation_performed=True)) as runner_mock:
+                 patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed", mutation_performed=True)) as runner_mock, \
+                 patch("story_audio.production_workflow._verify_downstream_manifest_identity", return_value={"final_artifact_id": 88, "final_artifact_path": "D:/isolated/data/output/chapter.m4a", "final_artifact_sha256": "final-sha"}):
                 result = run_workflow(
                     data_root=Path(tmp).resolve(),
                     api_base="http://127.0.0.1:8771",
@@ -211,7 +280,7 @@ class ProductionWorkflowTests(unittest.TestCase):
 
     def test_canonical_mode_requires_explicit_submit(self):
         with tempfile.TemporaryDirectory() as tmp:
-            with self.assertRaisesRegex(Exception, "requires explicit --submit"):
+            with self.assertRaisesRegex(Exception, "requires explicit --submit or --job-id"):
                 run_workflow(
                     data_root=Path(tmp).resolve(),
                     api_base="http://127.0.0.1:8771",
@@ -223,10 +292,36 @@ class ProductionWorkflowTests(unittest.TestCase):
                     stderr=io.StringIO(),
                 )
 
+    def test_canonical_downstream_with_explicit_job_id_is_allowed_and_stays_read_only(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            manifest_path = _write_manifest_fixture(root, job_id=17, job_chapter_id=17, chapter_id=629, chapter_number=629, text_revision_id=400, casting_plan_id=2, casting_plan_sha256="plan-sha")
+            with patch("story_audio.production_workflow.run_preflight", return_value=_preflight_result()), \
+                 patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed", mutation_performed=False, manifest_path=str(manifest_path), job_id=17, job_chapter_id=17)) as runner_mock, \
+                 patch("story_audio.production_workflow.generate_audio_qa_report", return_value=_qa_result()) as qa_mock, \
+                 patch("story_audio.production_workflow.build_listening_checklist", return_value=_checklist_result()) as checklist_mock:
+                result = run_workflow(
+                    data_root=root,
+                    api_base="http://127.0.0.1:8771",
+                    book_id=1,
+                    chapter_number=629,
+                    casting_plan_id=2,
+                    job_id=17,
+                    through="checklist",
+                    allow_canonical_production=True,
+                    stderr=io.StringIO(),
+                )
+        self.assertEqual(result["status"], "success")
+        self.assertFalse(result["mutation_performed"])
+        self.assertFalse(runner_mock.call_args.kwargs["submit"])
+        self.assertTrue(qa_mock.call_args.kwargs["allow_canonical_production"])
+        self.assertTrue(checklist_mock.call_args.kwargs["allow_canonical_production"])
+
     def test_canonical_mode_marks_identity_and_delegates_explicit_flag(self):
         with tempfile.TemporaryDirectory() as tmp:
+            manifest_path = _write_manifest_fixture(Path(tmp).resolve(), job_id=2, job_chapter_id=920)
             with patch("story_audio.production_workflow.run_preflight", return_value=_preflight_result()) as preflight_mock, \
-                 patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed", mutation_performed=True)) as runner_mock:
+                 patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed", mutation_performed=True, manifest_path=str(manifest_path))) as runner_mock:
                 result = run_workflow(
                     data_root=Path(tmp).resolve(),
                     api_base="http://127.0.0.1:8771",
@@ -244,8 +339,9 @@ class ProductionWorkflowTests(unittest.TestCase):
 
     def test_isolated_workflow_default_unchanged_without_canonical_flag(self):
         with tempfile.TemporaryDirectory() as tmp:
+            manifest_path = _write_manifest_fixture(Path(tmp).resolve(), job_id=2, job_chapter_id=920)
             with patch("story_audio.production_workflow.run_preflight", return_value=_preflight_result()) as preflight_mock, \
-                 patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed", mutation_performed=True)) as runner_mock:
+                 patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed", mutation_performed=True, manifest_path=str(manifest_path))) as runner_mock:
                 run_workflow(
                     data_root=Path(tmp).resolve(),
                     api_base="http://127.0.0.1:8771",
@@ -258,6 +354,25 @@ class ProductionWorkflowTests(unittest.TestCase):
                 )
         self.assertFalse(preflight_mock.call_args.kwargs["allow_canonical_production"])
         self.assertFalse(runner_mock.call_args.kwargs["allow_canonical_production"])
+
+    def test_downstream_manifest_identity_mismatch_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp).resolve()
+            manifest_path = _write_manifest_fixture(root, job_id=999, job_chapter_id=17, chapter_id=629, chapter_number=629, text_revision_id=400, casting_plan_id=2)
+            with patch("story_audio.production_workflow.run_preflight", return_value=_preflight_result()), \
+                 patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed", mutation_performed=False, manifest_path=str(manifest_path), job_id=17)):
+                with self.assertRaisesRegex(BindingMismatchError, "Manifest identity field job_id"):
+                    run_workflow(
+                        data_root=root,
+                        api_base="http://127.0.0.1:8771",
+                        book_id=1,
+                        chapter_number=629,
+                        casting_plan_id=2,
+                        job_id=17,
+                        through="qa",
+                        allow_canonical_production=True,
+                        stderr=io.StringIO(),
+                    )
 
     def test_paused_job_no_auto_resume(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -278,7 +393,8 @@ class ProductionWorkflowTests(unittest.TestCase):
     def test_active_job_watched(self):
         with tempfile.TemporaryDirectory() as tmp:
             with patch("story_audio.production_workflow.run_preflight", return_value=_preflight_result(status="existing_job_detected", duplicate={"duplicate": True, "existing_job_id": 2, "existing_job_status": "running"})), \
-                 patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed")) as runner_mock:
+                 patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed")) as runner_mock, \
+                 patch("story_audio.production_workflow._verify_downstream_manifest_identity", return_value={"final_artifact_id": 88, "final_artifact_path": "D:/isolated/data/output/chapter.m4a", "final_artifact_sha256": "final-sha"}):
                 run_workflow(
                     data_root=Path(tmp).resolve(),
                     api_base="http://127.0.0.1:8771",
@@ -323,8 +439,9 @@ class ProductionWorkflowTests(unittest.TestCase):
 
     def test_qa_fail_stops_checklist(self):
         with tempfile.TemporaryDirectory() as tmp:
+            manifest_path = _write_manifest_fixture(Path(tmp).resolve(), job_id=2, job_chapter_id=920)
             with patch("story_audio.production_workflow.run_preflight", return_value=_preflight_result()), \
-                 patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed")), \
+                 patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed", manifest_path=str(manifest_path))), \
                  patch("story_audio.production_workflow.generate_audio_qa_report", return_value=_qa_result(status="artifact_integrity_failure")) as qa_mock, \
                  patch("story_audio.production_workflow.build_listening_checklist") as checklist_mock:
                 result = run_workflow(
@@ -344,6 +461,7 @@ class ProductionWorkflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             with patch("story_audio.production_workflow.run_preflight", return_value=_preflight_result()), \
                  patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed", reused_manifest=True)), \
+                 patch("story_audio.production_workflow._verify_downstream_manifest_identity", return_value={"final_artifact_id": 88, "final_artifact_path": "D:/isolated/data/output/chapter.m4a", "final_artifact_sha256": "final-sha"}), \
                  patch("story_audio.production_workflow.generate_audio_qa_report", return_value=_qa_result(reused_existing=True)), \
                  patch("story_audio.production_workflow.build_listening_checklist", return_value=_checklist_result(reused_existing=True)):
                 result = run_workflow(
@@ -363,6 +481,7 @@ class ProductionWorkflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             with patch("story_audio.production_workflow.run_preflight", return_value=_preflight_result()), \
                  patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed")), \
+                 patch("story_audio.production_workflow._verify_downstream_manifest_identity", return_value={"final_artifact_id": 88, "final_artifact_path": "D:/isolated/data/output/chapter.m4a", "final_artifact_sha256": "final-sha"}), \
                  patch("story_audio.production_workflow.generate_audio_qa_report", side_effect=QaArtifactIntegrityError("conflict")):
                 with self.assertRaises(QaArtifactIntegrityError):
                     run_workflow(
@@ -459,6 +578,27 @@ class ProductionWorkflowTests(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertTrue(workflow_mock.call_args.kwargs["allow_canonical_production"])
 
+    def test_main_allows_canonical_downstream_with_explicit_job_id(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp:
+            live = Path(tmp) / "data"
+            live.mkdir()
+            with patch("story_audio.production_runner.canonical_production_db_path", return_value=live / "app.db"), \
+                 patch("story_audio.production_workflow.run_workflow", return_value=_final_workflow_result()) as workflow_mock:
+                code = main([
+                    "--data-root", str(live.resolve()),
+                    "--api-base", "http://127.0.0.1:8771",
+                    "--book-id", "1",
+                    "--chapter-number", "629",
+                    "--casting-plan-id", "2",
+                    "--job-id", "17",
+                    "--through", "checklist",
+                    "--allow-canonical-production",
+                ], stdout=stdout, stderr=stderr)
+        self.assertEqual(code, 0)
+        self.assertEqual(workflow_mock.call_args.kwargs["job_id"], 17)
+
     def test_main_requires_casting_plan_id_in_canonical_mode(self):
         stdout = io.StringIO()
         stderr = io.StringIO()
@@ -507,6 +647,7 @@ class ProductionWorkflowTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             with patch("story_audio.production_workflow.run_preflight", return_value=_preflight_result()), \
                  patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed")), \
+                 patch("story_audio.production_workflow._verify_downstream_manifest_identity", return_value={"final_artifact_id": 88, "final_artifact_path": "D:/isolated/data/output/chapter.m4a", "final_artifact_sha256": "final-sha"}), \
                  patch("story_audio.production_workflow.generate_audio_qa_report", return_value=_qa_result()), \
                  patch("story_audio.production_workflow.build_listening_checklist", return_value=_checklist_result()):
                 result = run_workflow(
@@ -528,10 +669,11 @@ class ProductionWorkflowTests(unittest.TestCase):
             patches = [
                 patch("story_audio.production_workflow.run_preflight", return_value=_preflight_result(status="already_completed", duplicate={"duplicate": True, "existing_job_id": 2, "existing_job_status": "completed"})),
                 patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed", reused_manifest=True)),
+                patch("story_audio.production_workflow._verify_downstream_manifest_identity", return_value={"final_artifact_id": 88, "final_artifact_path": "D:/isolated/data/output/chapter.m4a", "final_artifact_sha256": "final-sha"}),
                 patch("story_audio.production_workflow.generate_audio_qa_report", return_value=_qa_result(reused_existing=True)),
                 patch("story_audio.production_workflow.build_listening_checklist", return_value=_checklist_result(reused_existing=True)),
             ]
-            with patches[0], patches[1], patches[2], patches[3]:
+            with patches[0], patches[1], patches[2], patches[3], patches[4]:
                 first = run_workflow(
                     data_root=Path(tmp).resolve(),
                     api_base="http://127.0.0.1:8771",
@@ -541,7 +683,7 @@ class ProductionWorkflowTests(unittest.TestCase):
                     through="checklist",
                     stderr=io.StringIO(),
                 )
-            with patches[0], patches[1], patches[2], patches[3]:
+            with patches[0], patches[1], patches[2], patches[3], patches[4]:
                 second = run_workflow(
                     data_root=Path(tmp).resolve(),
                     api_base="http://127.0.0.1:8771",

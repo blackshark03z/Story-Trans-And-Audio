@@ -12,7 +12,13 @@ node --check ui\app.js
 ```
 
 Authoritative interpreter: `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`
-Current offline baseline for the main branch after Task 12C2 local custom-voice workflow guard changes: `893/893` passing, `1 skipped`.
+Current offline baseline for the main branch after Task 12C3 local canonical downstream guard changes: `898/898` passing, `1 skipped`.
+
+Focused Task 12C3 canonical downstream QA/checklist guard tests:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' -m unittest tests.test_production_workflow tests.test_audio_qa tests.test_listening_checklist -v
+```
 
 Focused Task 12C2 production workflow custom-voice tests:
 
@@ -135,6 +141,8 @@ Task 11D3B3 added focused operator-guidance coverage for the direct `Review Char
 Task 12C1 adds focused coverage for the new guarded canonical unified-workflow mode: canonical root stays rejected by default, canonical runtime is allowed only with explicit CLI confirmation, canonical mode still requires exact approved Casting Plan identity and explicit `--submit`, and isolated workflow behavior remains unchanged.
 
 Task 12C2 adds focused coverage for production-runner voice availability across both preset and custom voices: active usable `custom:<id>` voices pass, mixed preset/custom plans pass, and missing, inactive, or revision-less custom voices fail closed with the generic `unavailable voice(s)` error contract. Canonical preflight with Chapter-357-style custom voice bindings now passes without submitting a job.
+
+Task 12C3 adds focused coverage for guarded canonical downstream generation after a canonical job already exists: `audio_qa` and `listening_checklist` still refuse the canonical live root by default, but accept it when explicit canonical approval is threaded through the unified workflow together with an exact existing `--job-id`. The workflow now re-reads the manifest and re-verifies Job / Chapter / Text Revision / Casting Plan / active artifact identity before producing downstream outputs, and downstream-only canonical mode remains read-only against production DB/job state.
 
 Three-Voice UI smoke dùng isolated book 4/chapter 1983: preview Ngọc Lan/Gia Bảo/Mỹ Duyên đạt 14,16–15,12 giây; jobs 4–5 đạt 24.650/26.090 ms với narrator, male, female, unknown fallback và character override. Controlled retry job 4 render lại đúng segment Gia Bảo và reuse 7 segment verified; timeline mới chứa resolution metadata. Chưa đánh giá cảm nhận bằng tai trong smoke tự động.
 

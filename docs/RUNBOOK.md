@@ -122,7 +122,7 @@ Notes:
 - Default workflow outputs live under `data\workflow\job_<JOB_ID>_chapter_<CHAPTER_NUMBER>\`.
 - The workflow never auto-resumes, regenerates, accepts, rejects, or makes the final QA decision; human listening remains the final authority.
 - When comparing an accepted chapter against older evidence jobs, use the UI `ACTIVE OUTPUT` and `HISTORICAL` labels rather than guessing from job recency.
-- Canonical production remains fail-closed by default. To run the unified workflow against `D:\Youtube\Story Trans And Audio\data`, the operator must pass `--allow-canonical-production` together with `--submit`; isolated mode behavior is unchanged.
+- Canonical production remains fail-closed by default. To run the unified workflow against `D:\Youtube\Story Trans And Audio\data`, the operator must pass `--allow-canonical-production`; creating a new canonical job still requires `--submit`, while downstream-only canonical outputs require an exact `--job-id`. Isolated mode behavior is unchanged.
 - Canonical mode still verifies `/api/runtime`, exact data-root match, approved Casting Plan identity, and duplicate pending/running jobs before any submit occurs.
 - Voice availability checks now accept both preset voice IDs and active usable custom voice IDs such as `custom:25`; missing, inactive, or revision-less custom voices still fail closed before submit.
 
@@ -130,6 +130,12 @@ Explicit canonical production submit:
 
 ```powershell
 & 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\run_production_workflow.py --data-root 'D:\Youtube\Story Trans And Audio\data' --api-base 'http://127.0.0.1:8772' --book-id <BOOK_ID> --chapter-number <CHAPTER_NUMBER> --casting-plan-id <CASTING_PLAN_ID> --submit --through checklist --allow-canonical-production
+```
+
+Downstream-only canonical manifest / QA / checklist for an existing completed job:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\run_production_workflow.py --data-root 'D:\Youtube\Story Trans And Audio\data' --api-base 'http://127.0.0.1:8772' --book-id 1 --chapter-number 357 --casting-plan-id 18 --job-id 17 --through checklist --allow-canonical-production
 ```
 
 ## Casting review flow
@@ -162,6 +168,7 @@ Notes:
 - `--output` la optional; neu bo qua, script se dung deterministic default filename duoi `data\qa\`.
 - Script chi dung FFmpeg/FFprobe local va SQLite read-only; khong goi API mutate, Gemini, TTS, regenerate, accept, hay reject.
 - Report la objective signal heuristics only; operator van la authority cho pronunciation, naturalness, va speaker correctness by ear.
+- Canonical production root remains rejected by default; only pass `--allow-canonical-production` when the workflow or operator has already explicitly authorized canonical downstream generation for the exact completed job being audited.
 
 ## Listening checklist
 
@@ -177,6 +184,7 @@ Notes:
 - Default output is deterministic under `data\listening\job_<JOB_ID>_chapter_<CHAPTER_NUMBER>\index.html`.
 - Local review state stays in browser `localStorage`; review JSON export is browser-only and is not imported back into Story Audio.
 - Human listening remains the final authority for pronunciation, naturalness, emotion, and speaker correctness.
+- Canonical production root remains rejected by default; only pass `--allow-canonical-production` when the exact completed canonical job has already been explicitly approved for downstream manifest/QA/checklist generation.
 
 Logs:
 

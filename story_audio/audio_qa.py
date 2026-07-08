@@ -802,12 +802,19 @@ def _load_segment_rows(db_path: Path, job_chapter_id: int) -> list[dict[str, Any
     return [dict(row) for row in rows]
 
 
-def _verify_readonly_runtime_identity(manifest: dict[str, Any]) -> tuple[Path, Path]:
+def _verify_readonly_runtime_identity(
+    manifest: dict[str, Any],
+    *,
+    allow_canonical_production: bool = False,
+) -> tuple[Path, Path]:
     identity = manifest["identity"]
     data_root = _ensure_absolute_path("manifest identity data_root", identity["data_root"])
     db_path = _ensure_absolute_path("manifest identity db_path", identity["db_path"])
     if data_root == _LIVE_ROOT or db_path == canonical_production_db_path().resolve():
-        raise QaRuntimeMismatchError("Refusing canonical live root in audio QA")
+        if not allow_canonical_production:
+            raise QaRuntimeMismatchError(
+                "Refusing canonical live root in audio QA without explicit canonical approval"
+            )
     if not db_path.exists():
         raise QaRuntimeMismatchError("Manifest database path does not exist", details={"db_path": str(db_path)})
     if not data_root.exists():
@@ -1310,6 +1317,7 @@ def generate_audio_qa_report(
     ffmpeg_path: str = "ffmpeg",
     ffprobe_path: str = "ffprobe",
     thresholds: QaThresholds | None = None,
+    allow_canonical_production: bool = False,
 ) -> dict[str, Any]:
     manifest_path = _ensure_absolute_path("--manifest", manifest_path)
     if not manifest_path.exists():
@@ -1322,7 +1330,10 @@ def generate_audio_qa_report(
     if not isinstance(manifest, dict):
         raise QaManifestError("Manifest root must be a JSON object")
     _validate_manifest_structure(manifest)
-    data_root, db_path = _verify_readonly_runtime_identity(manifest)
+    data_root, db_path = _verify_readonly_runtime_identity(
+        manifest,
+        allow_canonical_production=allow_canonical_production,
+    )
 
     manifest_artifacts = {
         "chapter_master_wav": _verify_manifest_artifact(
@@ -1553,6 +1564,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", help="Absolute output path for the deterministic QA JSON")
     parser.add_argument("--ffmpeg-path", default="ffmpeg", help="FFmpeg binary path")
     parser.add_argument("--ffprobe-path", default="ffprobe", help="FFprobe binary path")
+    parser.add_argument("--allow-canonical-production", action="store_true")
     return parser
 
 
@@ -1567,6 +1579,7 @@ def main(argv: list[str] | None = None, *, stdout: Any = None, stderr: Any = Non
             output_path=Path(args.output) if args.output else None,
             ffmpeg_path=str(args.ffmpeg_path),
             ffprobe_path=str(args.ffprobe_path),
+            allow_canonical_production=bool(args.allow_canonical_production),
         )
         payload = {
             "status": result["status"],

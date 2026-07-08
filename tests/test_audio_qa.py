@@ -446,6 +446,18 @@ class AudioQaTests(IsolatedTestCase):
         with self.assertRaises(QaRuntimeMismatchError):
             self._generate()
 
+    def test_canonical_live_root_allowed_only_with_explicit_flag(self):
+        payload = json.loads(self.fixture.manifest_path.read_text(encoding="utf-8"))
+        payload["identity"]["data_root"] = str(self.config.data_dir.resolve())
+        payload["identity"]["db_path"] = str(self.config.db_path.resolve())
+        self.fixture.manifest_path.write_text(json.dumps(payload), encoding="utf-8")
+        with patch("story_audio.audio_qa._LIVE_ROOT", self.config.data_dir.resolve()), \
+             patch("story_audio.audio_qa.canonical_production_db_path", return_value=self.config.db_path.resolve()):
+            with self.assertRaises(QaRuntimeMismatchError):
+                self._generate()
+            result = self._generate(allow_canonical_production=True)
+        self.assertEqual(result["status"], "success")
+
     def test_artifact_hash_mismatch_rejected(self):
         payload = json.loads(self.fixture.manifest_path.read_text(encoding="utf-8"))
         payload["artifacts"][0]["computed_sha256"] = "0" * 64

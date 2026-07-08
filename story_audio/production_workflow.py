@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from .audio_qa import AudioQaError, generate_audio_qa_report
+from .files import sha256_file
 from .listening_checklist import ChecklistOptions, ListeningChecklistError, build_listening_checklist
 from .production_runner import (
     ApiFailureError,
@@ -117,6 +118,15 @@ def _workflow_default_qa_path(*, data_root: Path, job_id: int, chapter_number: i
     ).resolve()
 
 
+def _workflow_default_manifest_path(*, data_root: Path, job_id: int, chapter_number: int) -> Path:
+    return (
+        data_root
+        / "workflow"
+        / f"job_{int(job_id)}_chapter_{int(chapter_number)}"
+        / "manifest.json"
+    ).resolve()
+
+
 def _workflow_default_checklist_path(*, data_root: Path, job_id: int, chapter_number: int) -> Path:
     return (
         data_root
@@ -152,6 +162,128 @@ def _final_payload(
     return payload
 
 
+def _load_json_object(path: Path, *, label: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError as exc:
+        raise BindingMismatchError(f"{label} path does not exist", details={"path": str(path)}) from exc
+    except json.JSONDecodeError as exc:
+        raise BindingMismatchError(f"{label} is not valid UTF-8 JSON", details={"path": str(path)}) from exc
+    if not isinstance(value, dict):
+        raise BindingMismatchError(f"{label} root must be a JSON object", details={"path": str(path)})
+    return value
+
+
+def _verify_downstream_manifest_identity(
+    manifest_path: Path,
+    *,
+    data_root: Path,
+    book_id: int,
+    chapter_number: int,
+    chapter_id: int,
+    text_revision_id: int,
+    text_revision_content_sha256: str,
+    casting_plan_id: int,
+    casting_plan_revision: int,
+    casting_plan_sha256: str,
+    job_id: int,
+    job_chapter_id: int,
+    output_format: str,
+) -> dict[str, Any]:
+    manifest = _load_json_object(manifest_path, label="manifest")
+    if manifest.get("schema") != "story-audio-production-manifest/v1":
+        raise BindingMismatchError(
+            "Manifest schema is invalid for downstream workflow",
+            details={"path": str(manifest_path), "schema": manifest.get("schema")},
+        )
+    identity = manifest.get("identity") or {}
+    bindings = manifest.get("immutable_bindings") or {}
+    terminal_state = manifest.get("terminal_state") or {}
+    artifacts = manifest.get("artifacts") or []
+
+    expected_identity = {
+        "data_root": str(data_root.resolve()),
+        "book_id": int(book_id),
+        "chapter_id": int(chapter_id),
+        "chapter_number": int(chapter_number),
+        "job_id": int(job_id),
+        "job_chapter_id": int(job_chapter_id),
+        "output_format": str(output_format),
+    }
+    for field, expected in expected_identity.items():
+        actual = identity.get(field)
+        if actual != expected:
+            raise BindingMismatchError(
+                f"Manifest identity field {field} does not match workflow expectations",
+                details={"field": field, "expected": expected, "actual": actual, "path": str(manifest_path)},
+            )
+
+    expected_bindings = {
+        "text_revision_id": int(text_revision_id),
+        "text_revision_content_sha256": str(text_revision_content_sha256),
+        "casting_plan_id": int(casting_plan_id),
+        "casting_plan_revision": int(casting_plan_revision),
+        "casting_plan_sha256": str(casting_plan_sha256),
+    }
+    for field, expected in expected_bindings.items():
+        actual = bindings.get(field)
+        if actual != expected:
+            raise BindingMismatchError(
+                f"Manifest binding field {field} does not match workflow expectations",
+                details={"field": field, "expected": expected, "actual": actual, "path": str(manifest_path)},
+            )
+
+    if terminal_state.get("job_status") != "completed" or terminal_state.get("job_chapter_status") != "completed":
+        raise BindingMismatchError(
+            "Manifest terminal state is not completed",
+            details={
+                "job_status": terminal_state.get("job_status"),
+                "job_chapter_status": terminal_state.get("job_chapter_status"),
+                "path": str(manifest_path),
+            },
+        )
+
+    final_artifact = next(
+        (
+            item
+            for item in artifacts
+            if str(item.get("artifact_type")) in {"chapter_m4a", "chapter_mp3", "chapter_final_m4a", "chapter_final_mp3"}
+        ),
+        None,
+    )
+    if final_artifact is None:
+        raise BindingMismatchError("Manifest is missing final chapter artifact", details={"path": str(manifest_path)})
+    if str(final_artifact.get("status")) != "active":
+        raise BindingMismatchError(
+            "Manifest final chapter artifact is not active",
+            details={"artifact_id": final_artifact.get("artifact_id"), "status": final_artifact.get("status")},
+        )
+    final_artifact_path = Path(str(final_artifact.get("absolute_local_path") or "")).resolve()
+    if not final_artifact_path.exists():
+        raise BindingMismatchError(
+            "Manifest final chapter artifact file is missing",
+            details={"artifact_id": final_artifact.get("artifact_id"), "path": str(final_artifact_path)},
+        )
+    computed_sha256 = sha256_file(final_artifact_path)
+    expected_sha256 = str(final_artifact.get("computed_sha256") or final_artifact.get("stored_sha256") or "")
+    if expected_sha256 != computed_sha256:
+        raise BindingMismatchError(
+            "Manifest final chapter artifact hash does not match the file on disk",
+            details={
+                "artifact_id": final_artifact.get("artifact_id"),
+                "path": str(final_artifact_path),
+                "expected_sha256": expected_sha256,
+                "computed_sha256": computed_sha256,
+            },
+        )
+    return {
+        "manifest": manifest,
+        "final_artifact_id": int(final_artifact["artifact_id"]),
+        "final_artifact_path": str(final_artifact_path),
+        "final_artifact_sha256": computed_sha256,
+    }
+
+
 def run_workflow(
     *,
     data_root: Path,
@@ -182,10 +314,10 @@ def run_workflow(
         raise WorkflowError("--through is invalid", details={"allowed": list(THROUGH_CHOICES)})
     if through == "preflight" and (submit or resume):
         raise WorkflowError("--submit/--resume require --through manifest, qa, or checklist")
-    if allow_canonical_production and not submit:
+    if allow_canonical_production and not submit and job_id is None:
         raise WorkflowError(
-            "--allow-canonical-production requires explicit --submit",
-            details={"allow_canonical_production": True},
+            "--allow-canonical-production requires explicit --submit or --job-id for downstream-only canonical outputs",
+            details={"allow_canonical_production": True, "submit": submit, "job_id": job_id},
         )
 
     client = HttpJsonClient(api_base)
@@ -264,6 +396,13 @@ def run_workflow(
     stages["runner"] = _stage_record()
     stages["manifest"] = _stage_record()
     _emit_event(stderr, {"type": "stage_start", "stage": "runner"})
+    runner_manifest_out = manifest_out
+    if runner_manifest_out is None and job_id is not None:
+        runner_manifest_out = _workflow_default_manifest_path(
+            data_root=data_root,
+            job_id=int(job_id),
+            chapter_number=int(chapter_number),
+        )
     runner_result = run_job_flow(
         client,
         data_root=data_root,
@@ -275,7 +414,7 @@ def run_workflow(
         watch=True,
         resume=resume,
         job_id=job_id,
-        manifest_out=manifest_out,
+        manifest_out=runner_manifest_out,
         poll_interval=poll_interval,
         timeout_seconds=timeout_seconds,
         allow_canonical_production=allow_canonical_production,
@@ -304,6 +443,24 @@ def run_workflow(
 
     manifest_info = runner_result.get("manifest")
     if manifest_info:
+        downstream_manifest = _verify_downstream_manifest_identity(
+            Path(manifest_info["path"]),
+            data_root=data_root,
+            book_id=int(book_id),
+            chapter_number=int(chapter_number),
+            chapter_id=int(identity["chapter_id"]),
+            text_revision_id=int(identity["text_revision_id"]),
+            text_revision_content_sha256=str(identity["text_revision_content_sha256"]),
+            casting_plan_id=int(casting_plan_id),
+            casting_plan_revision=int(identity["casting_plan_revision"]),
+            casting_plan_sha256=str(identity["casting_plan_sha256"]),
+            job_id=int(identity["job_id"]),
+            job_chapter_id=int(identity["job_chapter_id"]),
+            output_format="m4a",
+        )
+        identity["active_audio_artifact_id"] = int(downstream_manifest["final_artifact_id"])
+        identity["active_final_artifact_path"] = str(downstream_manifest["final_artifact_path"])
+        identity["active_final_artifact_sha256"] = str(downstream_manifest["final_artifact_sha256"])
         _finish_stage(
             stages["manifest"],
             status="success",
@@ -368,6 +525,7 @@ def run_workflow(
         output_path=qa_target,
         ffmpeg_path=ffmpeg_path,
         ffprobe_path=ffprobe_path,
+        allow_canonical_production=allow_canonical_production,
     )
     _finish_stage(
         stages["qa"],
@@ -422,6 +580,7 @@ def run_workflow(
         Path(outputs["qa_report_path"]),
         output_path=checklist_target,
         options=ChecklistOptions(max_risk_items=max_risk_items, title=checklist_title),
+        allow_canonical_production=allow_canonical_production,
     )
     _finish_stage(
         stages["checklist"],

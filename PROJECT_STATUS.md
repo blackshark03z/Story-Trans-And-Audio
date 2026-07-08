@@ -1,21 +1,21 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-08T12:05 (Asia/Saigon)
-**Milestone:** Task 12C2 Custom Voice Availability Guard
-**Trạng thái:** official verdict remains `PRODUCTION_GO`; unified workflow keeps canonical mode fail-closed by default and now also accepts active usable custom voice references during production preflight while still rejecting missing, inactive, or unusable voices
+**Cập nhật:** 2026-07-08T16:05 (Asia/Saigon)
+**Milestone:** Task 12C3 Canonical Downstream Guard
+**Trạng thái:** official verdict remains `PRODUCTION_GO`; unified workflow still fail-closes canonical production by default, now accepts active usable custom voices during preflight, and can generate canonical manifest/QA/checklist outputs only when the operator passes explicit canonical approval
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `5909edafbc7bf6ec5f38f59c3d0b6c4c0186d081`
+**Last verified against commit:** `760d1f193933731fa1dfe3d17d098502127217a7`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-08
 
-**Last verified focused Task 12C2 baseline:**
-- Full offline test suite baseline: 893 tests passing, 1 skipped
+**Last verified focused Task 12C3 baseline:**
+- Full offline test suite baseline: 898 tests passing, 1 skipped
 - Verification command: `unittest discover -s tests`
-- Verified at commit: `5909edafbc7bf6ec5f38f59c3d0b6c4c0186d081`
+- Verified at commit: `760d1f193933731fa1dfe3d17d098502127217a7`
 - Verified date: 2026-07-08
 
 - EPUB: `Quang_Am_Chi_Ngoai.epub`.
@@ -120,6 +120,8 @@ File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối c�
 - No second acceptance chapter is required before rollout. The next highest-value task is `Task 12C - Run Canonical Production Job for Chapter 357`.
 - Task 12C1 added explicit canonical unified-workflow mode behind `--allow-canonical-production`. The mode still fail-closes by default, requires explicit `--submit`, keeps exact approved Casting Plan identity checks, verifies `/api/runtime` canonical binding, and blocks duplicate pending/running jobs before any canonical production mutation.
 - Task 12C2 local implementation extends production workflow voice-availability preflight to accept both preset voices and active usable custom voices (`custom:<id>`). Canonical Chapter 357 Plan 18 style bindings no longer fail just because the plan references `custom:25` / `custom:26`; missing, inactive, or no-revision custom voices still fail closed.
+- Task 12C3 local implementation threads explicit canonical approval through downstream manifest/QA/checklist generation. `audio_qa` and `listening_checklist` still refuse canonical production by default, but the unified workflow can now run downstream-only for an already completed canonical job when the operator passes `--allow-canonical-production` together with an explicit `--job-id`.
+- Task 12C3 downstream safety remains fail-closed: before QA/checklist, the workflow now re-reads the manifest and verifies job/chapter/Text Revision/Casting Plan identity, final active artifact ID/path/hash, and completed terminal state; downstream-only canonical mode does not submit, render, retry, regenerate, accept, or reject anything.
 
 ## Shared Gemini cache contract
 

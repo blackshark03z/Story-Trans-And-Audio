@@ -278,6 +278,7 @@ def _validate_manifest_report_identity(
     qa_report_path: Path,
     manifest_sha256: str,
     qa_report_sha256: str,
+    allow_canonical_production: bool = False,
 ) -> tuple[Path, Path]:
     manifest_identity = manifest.get("identity") or {}
     report_identity = report.get("identity") or {}
@@ -288,10 +289,11 @@ def _validate_manifest_report_identity(
             "Manifest and QA report data roots do not match",
             details={"manifest_data_root": str(data_root), "qa_data_root": str(qa_data_root)},
         )
-    if data_root == _LIVE_ROOT:
-        raise ChecklistRuntimeMismatchError("Refusing canonical live data root")
-    if _ensure_absolute_path("manifest identity.db_path", str(manifest_identity.get("db_path"))).resolve() == canonical_production_db_path().resolve():
-        raise ChecklistRuntimeMismatchError("Refusing canonical live database path")
+    manifest_db_path = _ensure_absolute_path("manifest identity.db_path", str(manifest_identity.get("db_path"))).resolve()
+    if data_root == _LIVE_ROOT and not allow_canonical_production:
+        raise ChecklistRuntimeMismatchError("Refusing canonical live data root without explicit canonical approval")
+    if manifest_db_path == canonical_production_db_path().resolve() and not allow_canonical_production:
+        raise ChecklistRuntimeMismatchError("Refusing canonical live database path without explicit canonical approval")
     if report_identity.get("source_manifest_schema") != MANIFEST_SCHEMA:
         raise ChecklistInputMismatchError(
             "QA report references an unexpected manifest schema",
@@ -1263,6 +1265,7 @@ def build_listening_checklist(
     *,
     output_path: Path | None = None,
     options: ChecklistOptions | None = None,
+    allow_canonical_production: bool = False,
 ) -> dict[str, Any]:
     manifest_path = _ensure_absolute_path("--manifest", manifest_path)
     qa_report_path = _ensure_absolute_path("--qa-report", qa_report_path)
@@ -1286,6 +1289,7 @@ def build_listening_checklist(
         qa_report_path=qa_report_path,
         manifest_sha256=manifest_sha256,
         qa_report_sha256=qa_report_sha256,
+        allow_canonical_production=allow_canonical_production,
     )
     master_artifact = _artifact_by_type(manifest, "chapter_master_wav")
     timeline_artifact = _artifact_by_type(manifest, "segment_timeline_json")
@@ -1369,6 +1373,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--output", help="Absolute HTML output path inside the isolated data root")
     parser.add_argument("--max-risk-items", type=int, default=_DEFAULT_MAX_RISK_ITEMS, help="Maximum ordinary ranked risks to include")
     parser.add_argument("--title", help="Optional deterministic page title override")
+    parser.add_argument("--allow-canonical-production", action="store_true")
     return parser
 
 
@@ -1382,6 +1387,7 @@ def main(argv: list[str] | None = None, *, stdout: Any = None, stderr: Any = Non
             Path(args.qa_report),
             output_path=Path(args.output) if args.output else None,
             options=ChecklistOptions(max_risk_items=int(args.max_risk_items), title=args.title),
+            allow_canonical_production=bool(args.allow_canonical_production),
         )
         payload = {
             "status": result["status"],

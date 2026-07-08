@@ -652,6 +652,22 @@ class ListeningChecklistTests(IsolatedTestCase):
         with self.assertRaises(ChecklistRuntimeMismatchError):
             self._build()
 
+    def test_live_root_allowed_only_with_explicit_flag(self):
+        manifest = json.loads(self.fixture.manifest_path.read_text(encoding="utf-8"))
+        report = json.loads(self.fixture.qa_report_path.read_text(encoding="utf-8"))
+        manifest["identity"]["data_root"] = str(self.fixture.data_root)
+        manifest["identity"]["db_path"] = str((self.fixture.data_root / "app.db").resolve())
+        report["identity"]["data_root"] = str(self.fixture.data_root)
+        report["identity"]["db_path"] = str((self.fixture.data_root / "app.db").resolve())
+        self.fixture.manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        self.fixture.qa_report_path.write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
+        with mock.patch("story_audio.listening_checklist._LIVE_ROOT", self.fixture.data_root), \
+             mock.patch("story_audio.listening_checklist.canonical_production_db_path", return_value=(self.fixture.data_root / "app.db").resolve()):
+            with self.assertRaises(ChecklistRuntimeMismatchError):
+                self._build()
+            result = self._build(allow_canonical_production=True)
+        self.assertEqual(result["status"], "success")
+
     def test_missing_chapter_artifact_or_selected_segment_audio_rejected(self):
         self.fixture.final_path.unlink()
         with self.assertRaisesRegex(Exception, "Final chapter artifact"):

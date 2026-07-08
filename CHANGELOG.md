@@ -6,6 +6,14 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 12C3 - Canonical downstream QA/checklist guard**: extended the existing explicit canonical-production opt-in so downstream manifest/QA/listening-checklist generation can run against a completed canonical job without weakening the default fail-closed guardrails.
+  - **Default refusal preserved**: `story_audio/audio_qa.py` and `story_audio/listening_checklist.py` still reject the canonical production root unless the operator passes explicit canonical approval through `--allow-canonical-production`.
+  - **Downstream-only canonical path**: `story_audio/production_workflow.py` now permits canonical downstream generation for an already completed job only when the operator provides both `--allow-canonical-production` and an exact `--job-id`; new canonical job creation still requires `--submit`.
+  - **Identity re-verification**: before writing downstream outputs, the workflow now re-reads the manifest and re-checks Job / Chapter / Text Revision / Casting Plan identity, completed terminal state, and the active final artifact path plus SHA-256 so canonical downstream runs stay fail-closed on mismatches.
+  - **Read-only boundary**: downstream-only canonical mode writes expected workflow outputs under `data\workflow\job_<JOB_ID>_chapter_<CHAPTER_NUMBER>\` without submitting, rendering, retrying, regenerating, accepting, or rejecting anything in production state.
+  - **Verification**: focused production-workflow/audio-QA/listening-checklist coverage passed at 92/92 with 1 expected Windows symlink-privilege skip, and the full offline suite passed at 898/898 with 1 skipped.
+  - **Migration**: none.
+
 - **Task 12C2 - Custom voices in production workflow checks**: extended canonical/unified workflow preflight so Casting Plans can reference both preset voice IDs and active usable custom voice IDs without weakening the existing fail-closed guardrails.
   - **Voice catalog expansion**: `story_audio/production_runner.py` now resolves availability from both `/api/voices` and `/api/custom-voices`, then verifies that custom IDs such as `custom:25` and `custom:26` point to active voices with a usable preferred or latest synthesis revision.
   - **Strict failures preserved**: missing custom voices, inactive custom voices, or custom voices without a usable revision still stop preflight before submit; the error now reports generic `unavailable voice(s)` rather than incorrectly calling them preset-only failures.
