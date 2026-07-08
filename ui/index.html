@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Story Audio</title>
-  <link rel="stylesheet" href="/assets/styles.css">
+  <link rel="stylesheet" href="/assets/styles.css?v=20260709-guided-production-flow-polish">
 </head>
 <body>
   <header class="topbar">
@@ -223,11 +223,6 @@
   <dialog id="textDialog">
     <div class="dialog-head"><h2 id="dialogTitle">Nội dung chương</h2><div class="dialog-head-actions"><button id="openCastingShortcut" class="secondary">Production Flow</button><button id="closeDialog" class="ghost">Đóng</button></div></div>
     <div id="qaIssues"></div>
-    <div id="audioBox" class="audio-box hidden">
-      <audio id="chapterAudio" controls preload="metadata"></audio>
-      <a id="audioFileLink" target="_blank">Mở file audio</a>
-    </div>
-    <div id="chapterAudioMeta" class="chapter-audio-meta hidden"></div>
     <div class="tabs"><button data-tab="reflowed" class="active">Reflowed</button><button data-tab="repaired">Gemini</button><button data-tab="raw">Raw</button><button data-tab="diff">Text Diff</button><button data-tab="casting">Production Flow</button></div>
     <pre id="chapterText"></pre>
     <div id="castingPanel" class="casting-panel hidden">
@@ -266,154 +261,223 @@
           </div>
         </div>
       </section>
-      <section id="voiceProfileSection" class="voice-profile-card">
-        <div class="section-head">
-          <div><p class="eyebrow">Book settings</p><h3>Book Voice Profile</h3></div>
-          <span id="voiceProfileMeta" class="pill">Not configured</span>
-        </div>
-        <p class="section-guide">Use this to set the default narrator and dialogue voices for the whole book before building or reviewing a plan. Do not use it to change one line inside the current plan.</p>
-        <div id="voiceProfileEmpty" class="profile-empty">
-          <strong>No Book Voice Profile configured.</strong>
-          <span>Create one before using automatic three-voice resolution.</span>
-        </div>
-        <div class="profile-grid">
-          <label>Narrator voice<select id="profileNarratorVoice"></select><button class="ghost profile-preview" data-profile-preview="narrator">▶ Preview Narrator</button></label>
-          <label>Default male dialogue<select id="profileMaleVoice"></select><button class="ghost profile-preview" data-profile-preview="male">▶ Preview Male</button></label>
-          <label>Default female dialogue<select id="profileFemaleVoice"></select><button class="ghost profile-preview" data-profile-preview="female">▶ Preview Female</button></label>
-          <label>Unknown fallback
-            <select id="profileUnknownFallback">
-              <option value="narrator">Narrator</option>
-              <option value="male_dialogue">Male dialogue</option>
-              <option value="female_dialogue">Female dialogue</option>
-              <option value="explicit_voice">Explicit voice</option>
-            </select>
-            <button class="ghost profile-preview" data-profile-preview="fallback">▶ Preview Fallback</button>
-          </label>
-          <label id="profileExplicitVoiceLabel" class="hidden">Explicit fallback voice<select id="profileExplicitVoice"></select></label>
-        </div>
-        <div id="profileValidation" class="profile-validation muted"></div>
-        <div id="profilePreviewBox" class="voice-preview hidden">
-          <audio id="profilePreviewAudio" controls preload="metadata"></audio>
-          <span id="profilePreviewStatus" class="muted"></span>
-        </div>
-        <div class="profile-actions">
-          <span class="muted">Changes apply only to new casting plans and jobs.</span>
-          <button id="saveVoiceProfile" class="secondary" data-runtime-mutation-control>Create Voice Profile</button>
-        </div>
-      </section>
-      <section class="casting-step-banner">
-        <div>
-          <p class="eyebrow">Production step</p>
-          <h3 id="castingProductionStep">Draft Plan</h3>
-          <p id="castingProductionDetail" class="muted">Review the current casting plan before rendering.</p>
-        </div>
-        <div class="casting-toolbar-status">
-          <span id="castingPlanStatus" class="pill">Chưa có plan</span>
-          <span id="castingPlanIdentity" class="muted"></span>
-          <span id="castingPlanGuidance" class="muted"></span>
-        </div>
-      </section>
-      <div class="casting-toolbar">
-        <label>Giọng narrator<select id="castingNarratorVoice"></select><small id="castingNarratorSource" class="muted"></small></label>
-      </div>
-      <div id="castingActiveAudioNotice" class="casting-callout hidden"></div>
-      <div id="castingActiveAudioWarning" class="issue warning hidden"></div>
-      <section id="speakerReviewPanel" class="speaker-review-panel">
-        <div class="section-head">
-          <div><p class="eyebrow">Advanced / AI suggestions</p><h3>Speaker Assignment Draft</h3></div>
-          <span id="speakerReviewStatus" class="pill">No draft</span>
-        </div>
-        <p class="section-guide">Use this when you need AI help deciding who is speaking. Do not treat this area as final approval; it only prepares suggestions for a Casting Plan.</p>
-        <div id="speakerDraftExistingPlanWarning" class="issue warning hidden">AI Draft tools can create a new plan; use Casting Plan Review to approve the current plan.</div>
-        <div class="speaker-review-guide"><strong>AI Draft / Suggestions</strong><ol><li>Select visible</li><li>Accept selected suggestions</li><li>Create/Update Casting Plan from AI Draft</li></ol><p id="speakerReviewLocalNote" class="muted">Decisions are local until final approval.</p></div>
-        <div class="speaker-review-controls">
-          <label>Draft<select id="speakerDraftSelect"></select></label>
-          <button id="generateSpeakerDraft" class="primary" data-runtime-mutation-control>Generate Draft</button>
-          <button id="regenerateSpeakerDraft" class="secondary" disabled data-runtime-mutation-control>Regenerate Draft</button>
-          <button id="refreshSpeakerDrafts" class="ghost">Refresh Draft List</button>
-        </div>
-        <div id="speakerReviewEmpty" class="profile-empty">
-          <strong>No speaker-assignment draft exists for this chapter.</strong>
-          <span>Generate a draft to begin review.</span>
-        </div>
-        <div id="speakerReviewMeta" class="speaker-review-meta"></div>
-        <div id="speakerReviewStale" class="issue error hidden"></div>
-        <div id="speakerReviewWorkspace" class="hidden">
-          <div class="speaker-review-jumps"><button id="jumpToPendingReview" class="ghost">Jump to pending review</button><button id="jumpToApprovalControls" class="ghost">Jump to Casting Plan approval</button></div>
-          <div class="speaker-review-toolbar">
-            <label>Filter<select id="speakerReviewFilter">
-              <option value="all">All</option><option value="unreviewed">Unreviewed</option>
-              <option value="high">High confidence</option><option value="medium">Medium confidence</option>
-              <option value="low">Low confidence</option><option value="invalid">Invalid</option>
-              <option value="needs_review">Needs review</option>
-            </select></label>
-            <div class="speaker-review-bulk">
-              <button id="reviewSelectVisible" class="ghost">Select visible</button>
-              <button id="reviewAcceptSuggestions" class="ghost">Accept selected suggestions</button>
-              <button id="reviewMarkNarrator" class="ghost">Mark selected as narrator</button>
-              <button id="reviewMarkUnknown" class="ghost">Mark selected as unknown</button>
-              <button id="reviewClearSelection" class="ghost">Clear selection</button>
+      <div id="productionFlowMainPanel" class="production-flow-main">
+        <section id="flowStepSelectChapter" class="flow-step-panel">
+          <div class="section-head">
+            <div><p class="eyebrow">Step 1</p><h3>Select Chapter</h3></div>
+            <span id="flowSelectStatus" class="pill">Ready</span>
+          </div>
+          <p class="section-guide">Choose the chapter you want to produce. This step should answer only one question: are we on the right chapter, and are we continuing fresh or from existing output?</p>
+          <div id="flowSelectSummary" class="flow-summary-grid"></div>
+          <div id="flowSelectWarnings"></div>
+        </section>
+
+        <section id="flowStepReviewText" class="flow-step-panel hidden">
+          <div class="section-head">
+            <div><p class="eyebrow">Step 2</p><h3>Review Text</h3></div>
+            <span id="flowTextStatus" class="pill">Pending</span>
+          </div>
+          <p class="section-guide">Confirm the text is ready before assigning any voices.</p>
+          <div id="flowTextSummary" class="flow-summary-grid"></div>
+          <div id="flowTextWarnings"></div>
+          <div class="flow-text-preview">
+            <pre id="flowTextPreview"></pre>
+          </div>
+        </section>
+
+        <section id="flowStepAssignVoices" class="flow-step-panel hidden">
+          <div class="section-head">
+            <div><p class="eyebrow">Step 3</p><h3>Assign Voices</h3></div>
+            <span id="flowAssignStatus" class="pill">Pending</span>
+          </div>
+          <p class="section-guide">Review discovered speakers, set defaults, and make sure every important voice has a safe mapping before plan review.</p>
+          <div id="flowAssignWarnings"></div>
+          <div id="flowSpeakerSummary" class="flow-speaker-list"></div>
+          <div class="casting-toolbar">
+            <label>Giọng narrator<select id="castingNarratorVoice"></select><small id="castingNarratorSource" class="muted"></small></label>
+          </div>
+          <section id="voiceProfileSection" class="voice-profile-card">
+            <div class="section-head">
+              <div><p class="eyebrow">Book settings</p><h3>Book Voice Profile</h3></div>
+              <span id="voiceProfileMeta" class="pill">Not configured</span>
             </div>
+            <p class="section-guide">Use this to set the default narrator and dialogue voices for the whole book before building or reviewing a plan. Do not use it to change one line inside the current plan.</p>
+            <div id="voiceProfileEmpty" class="profile-empty">
+              <strong>No Book Voice Profile configured.</strong>
+              <span>Create one before using automatic three-voice resolution.</span>
+            </div>
+            <div class="profile-grid">
+              <label>Narrator voice<select id="profileNarratorVoice"></select><button class="ghost profile-preview" data-profile-preview="narrator">▶ Preview Narrator</button></label>
+              <label>Default male dialogue<select id="profileMaleVoice"></select><button class="ghost profile-preview" data-profile-preview="male">▶ Preview Male</button></label>
+              <label>Default female dialogue<select id="profileFemaleVoice"></select><button class="ghost profile-preview" data-profile-preview="female">▶ Preview Female</button></label>
+              <label>Unknown fallback
+                <select id="profileUnknownFallback">
+                  <option value="narrator">Narrator</option>
+                  <option value="male_dialogue">Male dialogue</option>
+                  <option value="female_dialogue">Female dialogue</option>
+                  <option value="explicit_voice">Explicit voice</option>
+                </select>
+                <button class="ghost profile-preview" data-profile-preview="fallback">▶ Preview Fallback</button>
+              </label>
+              <label id="profileExplicitVoiceLabel" class="hidden">Explicit fallback voice<select id="profileExplicitVoice"></select></label>
+            </div>
+            <div id="profileValidation" class="profile-validation muted"></div>
+            <div id="profilePreviewBox" class="voice-preview hidden">
+              <audio id="profilePreviewAudio" controls preload="metadata"></audio>
+              <span id="profilePreviewStatus" class="muted"></span>
+            </div>
+            <div class="profile-actions">
+              <span class="muted">Changes apply only to new casting plans and jobs.</span>
+              <button id="saveVoiceProfile" class="secondary" data-runtime-mutation-control>Create Voice Profile</button>
+            </div>
+          </section>
+          <section id="characterBibleSection" class="character-bible-import">
+            <div class="section-head">
+              <div><p class="eyebrow">Character Bible</p><h3>Import JSON</h3></div>
+              <span id="characterBibleState" class="pill">No file selected</span>
+            </div>
+            <p class="section-guide">Use this to keep character names, aliases, and roles consistent across chapters. Do not use it for one-off line fixes inside a single speaker draft.</p>
+            <div class="character-bible-controls">
+              <input id="characterBibleFile" type="file" accept="application/json,.json">
+              <label class="check"><input id="characterBibleUpdateExisting" type="checkbox"> Update existing metadata</label>
+              <button id="characterBibleDryRun" class="secondary" disabled>Run Dry-Run</button>
+              <button id="characterBibleApply" class="primary" disabled data-runtime-mutation-control>Apply Import</button>
+              <button id="characterBibleClear" class="ghost" disabled data-runtime-mutation-control>Clear</button>
+            </div>
+            <div id="characterBibleFileInfo" class="muted">No file selected.</div>
+            <div id="characterBibleSummary" class="import-summary"></div>
+            <div id="characterBiblePlan" class="import-plan"></div>
+          </section>
+          <div class="character-add row">
+            <input id="newCharacterName" placeholder="Tên nhân vật">
+            <select id="newCharacterGender"><option value="unknown">Unknown</option><option value="male">Male</option><option value="female">Female</option></select>
+            <select id="newCharacterAssignment"><option value="default">Use book default</option><option value="custom">Use custom voice</option></select>
+            <select id="newCharacterVoice"></select>
+            <button id="addCharacterBtn" class="secondary" data-runtime-mutation-control>Thêm nhân vật</button>
           </div>
-          <div id="speakerReviewRows" class="speaker-review-list"></div>
-          <div id="speakerReviewApprovalControls" class="speaker-review-approve">
-            <span id="speakerReviewDecisionCount" class="muted">0 reviewed</span>
-            <button id="approveSpeakerReview" class="primary" disabled data-runtime-mutation-control>Create Casting Plan from AI Draft</button>
+          <div id="characterList" class="character-list"></div>
+          <details id="flowAdvancedDraftTools" class="flow-advanced-tools">
+            <summary>Advanced / Debug: AI speaker draft tools</summary>
+            <section id="speakerReviewPanel" class="speaker-review-panel">
+              <div class="section-head">
+                <div><p class="eyebrow">Advanced / AI suggestions</p><h3>Speaker Assignment Draft</h3></div>
+                <span id="speakerReviewStatus" class="pill">No draft</span>
+              </div>
+              <p class="section-guide">Use this when you need AI help deciding who is speaking. Do not treat this area as final approval; it only prepares suggestions for a Casting Plan.</p>
+              <div id="speakerDraftExistingPlanWarning" class="issue warning hidden">AI Draft tools can create a new plan; use Casting Plan Review to approve the current plan.</div>
+              <div class="speaker-review-guide"><strong>AI Draft / Suggestions</strong><ol><li>Select visible</li><li>Accept selected suggestions</li><li>Create/Update Casting Plan from AI Draft</li></ol><p id="speakerReviewLocalNote" class="muted">Decisions are local until final approval.</p></div>
+              <div class="speaker-review-controls">
+                <label>Draft<select id="speakerDraftSelect"></select></label>
+                <button id="generateSpeakerDraft" class="primary" data-runtime-mutation-control>Generate Draft</button>
+                <button id="regenerateSpeakerDraft" class="secondary" disabled data-runtime-mutation-control>Regenerate Draft</button>
+                <button id="refreshSpeakerDrafts" class="ghost">Refresh Draft List</button>
+              </div>
+              <div id="speakerReviewEmpty" class="profile-empty">
+                <strong>No speaker-assignment draft exists for this chapter.</strong>
+                <span>Generate a draft to begin review.</span>
+              </div>
+              <div id="speakerReviewMeta" class="speaker-review-meta"></div>
+              <div id="speakerReviewStale" class="issue error hidden"></div>
+              <div id="speakerReviewWorkspace" class="hidden">
+                <div class="speaker-review-jumps"><button id="jumpToPendingReview" class="ghost">Jump to pending review</button><button id="jumpToApprovalControls" class="ghost">Jump to Casting Plan approval</button></div>
+                <div class="speaker-review-toolbar">
+                  <label>Filter<select id="speakerReviewFilter">
+                    <option value="all">All</option><option value="unreviewed">Unreviewed</option>
+                    <option value="high">High confidence</option><option value="medium">Medium confidence</option>
+                    <option value="low">Low confidence</option><option value="invalid">Invalid</option>
+                    <option value="needs_review">Needs review</option>
+                  </select></label>
+                  <div class="speaker-review-bulk">
+                    <button id="reviewSelectVisible" class="ghost">Select visible</button>
+                    <button id="reviewAcceptSuggestions" class="ghost">Accept selected suggestions</button>
+                    <button id="reviewMarkNarrator" class="ghost">Mark selected as narrator</button>
+                    <button id="reviewMarkUnknown" class="ghost">Mark selected as unknown</button>
+                    <button id="reviewClearSelection" class="ghost">Clear selection</button>
+                  </div>
+                </div>
+                <div id="speakerReviewRows" class="speaker-review-list"></div>
+                <div id="speakerReviewApprovalControls" class="speaker-review-approve">
+                  <span id="speakerReviewDecisionCount" class="muted">0 reviewed</span>
+                  <button id="approveSpeakerReview" class="primary" disabled data-runtime-mutation-control>Create Casting Plan from AI Draft</button>
+                </div>
+                <div id="speakerReviewApprovalResult" class="muted"></div>
+              </div>
+            </section>
+          </details>
+        </section>
+
+        <section id="flowStepReviewVoiceMap" class="flow-step-panel hidden">
+          <div class="section-head">
+            <div><p class="eyebrow">Step 4</p><h3>Review Voice Map</h3></div>
+            <span id="flowVoiceMapStatus" class="pill">Pending</span>
           </div>
-          <div id="speakerReviewApprovalResult" class="muted"></div>
-        </div>
-      </section>
-      <section id="castingPlanPanel" class="casting-plan-panel">
-        <div class="section-head">
-          <div><p class="eyebrow">Casting Plan Review</p><h3>Review current Casting Plan</h3></div>
-          <span id="castingPlanReviewMeta" class="pill">No plan</span>
-        </div>
-        <p class="section-guide">Use this as the source of truth before rendering. This is where you verify the exact assignments and approve the plan that production will use.</p>
-        <p id="castingPlanReviewWarning" class="muted">Review assignments before rendering.</p>
-        <div id="castingPlanWarning" class="issue warning hidden"></div>
-      <h3>Nhân vật</h3>
-      <section id="characterBibleSection" class="character-bible-import">
-        <div class="section-head">
-          <div><p class="eyebrow">Character Bible</p><h3>Import JSON</h3></div>
-          <span id="characterBibleState" class="pill">No file selected</span>
-        </div>
-        <p class="section-guide">Use this to keep character names, aliases, and roles consistent across chapters. Do not use it for one-off line fixes inside a single speaker draft.</p>
-        <div class="character-bible-controls">
-          <input id="characterBibleFile" type="file" accept="application/json,.json">
-          <label class="check"><input id="characterBibleUpdateExisting" type="checkbox"> Update existing metadata</label>
-          <button id="characterBibleDryRun" class="secondary" disabled>Run Dry-Run</button>
-          <button id="characterBibleApply" class="primary" disabled data-runtime-mutation-control>Apply Import</button>
-          <button id="characterBibleClear" class="ghost" disabled data-runtime-mutation-control>Clear</button>
-        </div>
-        <div id="characterBibleFileInfo" class="muted">No file selected.</div>
-        <div id="characterBibleSummary" class="import-summary"></div>
-        <div id="characterBiblePlan" class="import-plan"></div>
-      </section>
-      <div class="character-add row">
-        <input id="newCharacterName" placeholder="Tên nhân vật">
-        <select id="newCharacterGender"><option value="unknown">Unknown</option><option value="male">Male</option><option value="female">Female</option></select>
-        <select id="newCharacterAssignment"><option value="default">Use book default</option><option value="custom">Use custom voice</option></select>
-        <select id="newCharacterVoice"></select>
-        <button id="addCharacterBtn" class="secondary" data-runtime-mutation-control>Thêm nhân vật</button>
+          <p class="section-guide">Confirm the final speaker-to-voice map before rendering.</p>
+          <div id="flowVoiceMapWarnings"></div>
+          <div id="flowVoiceMapTable" class="flow-voice-map"></div>
+          <section id="castingPlanPanel" class="casting-plan-panel">
+            <div class="section-head">
+              <div><p class="eyebrow">Casting Plan Review</p><h3>Review current Casting Plan</h3></div>
+              <span id="castingPlanReviewMeta" class="pill">No plan</span>
+            </div>
+            <p class="section-guide">Use this as the source of truth before rendering. This is where you verify the exact assignments and approve the plan that production will use.</p>
+            <p id="castingPlanReviewWarning" class="muted">Review assignments before rendering.</p>
+            <div id="castingPlanWarning" class="issue warning hidden"></div>
+            <details class="flow-secondary-details">
+              <summary>Line-by-line assignments</summary>
+              <div class="casting-section-head"><h3>Utterances</h3><span id="utteranceCount" class="muted"></span></div>
+              <div id="utteranceList" class="utterance-list"></div>
+            </details>
+            <div id="castingPlanApprovalControls" class="casting-actions">
+              <button id="saveCastingDraft" class="secondary" data-runtime-mutation-control>Save Draft</button>
+              <button id="approveCastingPlan" class="primary" disabled data-runtime-mutation-control>Approve Voice Map & Continue to Render</button>
+            </div>
+          </section>
+        </section>
+
+        <section id="flowStepRenderChapter" class="flow-step-panel hidden">
+          <div class="section-head">
+            <div><p class="eyebrow">Step 5</p><h3>Render Chapter</h3></div>
+            <span id="flowRenderStatus" class="pill">Pending</span>
+          </div>
+          <p class="section-guide">Start or resume the chapter render only after the voice map is approved.</p>
+          <div id="flowRenderSummary" class="flow-summary-grid"></div>
+          <div id="flowRenderWarnings"></div>
+          <section id="renderPlanPanel" class="render-plan-panel">
+            <div class="section-head">
+              <div><p class="eyebrow">Render / Production Output</p><h3>Render approved chapter audio</h3></div>
+            </div>
+          <p class="section-guide">Use this only after the Casting Plan is approved. Do not render from an AI Speaker Draft or from a plan you have not reviewed yet.</p>
+          <p id="renderPlanNotice" class="muted">Rendering is enabled only for an approved casting plan.</p>
+          <p class="muted hidden">Render / Production Output will use the exact approved Casting Plan below.</p>
+          <div class="casting-actions render-actions">
+            <button id="renderCastingPlan" class="primary" disabled data-runtime-mutation-control>Start Render</button>
+          </div>
+          </section>
+        </section>
+
+        <section id="flowStepReviewAudio" class="flow-step-panel hidden">
+          <div class="section-head">
+            <div><p class="eyebrow">Step 6</p><h3>Review Audio / Finalize</h3></div>
+            <span id="flowAudioStatus" class="pill">Pending</span>
+          </div>
+          <p class="section-guide">Review the active audio, use QA tools only if needed, and finalize the output when listening is complete.</p>
+          <div id="flowAudioWarnings"></div>
+          <div id="flowAudioSummary" class="flow-summary-grid"></div>
+          <div id="audioBox" class="audio-box hidden">
+            <audio id="chapterAudio" controls preload="metadata"></audio>
+            <a id="audioFileLink" target="_blank">Mở file audio</a>
+          </div>
+          <div id="chapterAudioMeta" class="chapter-audio-meta hidden"></div>
+          <div class="flow-finalize-actions">
+            <button id="flowFinalizeOutput" class="primary" disabled>Finalize Output</button>
+            <span id="flowFinalizeHint" class="muted">If human QA state is not stored in the app, record the final verdict in docs or exported review notes.</span>
+          </div>
+          <details class="flow-advanced-tools">
+            <summary>Advanced / Debug: QA and segment troubleshooting</summary>
+            <p class="diagnostic-guide">Use diagnostics, historical jobs, and segment attempts only when human QA finds a real issue. They are not part of the normal chapter setup path.</p>
+          </details>
+        </section>
       </div>
-      <div id="characterList" class="character-list"></div>
-      <div class="casting-section-head"><h3>Utterances</h3><span id="utteranceCount" class="muted"></span></div>
-      <div id="utteranceList" class="utterance-list"></div>
-      <div id="castingPlanApprovalControls" class="casting-actions">
-        <button id="saveCastingDraft" class="secondary" data-runtime-mutation-control>Save Draft</button>
-        <button id="approveCastingPlan" class="secondary" disabled data-runtime-mutation-control>Approve Casting Plan</button>
-      </div>
-      </section>
-      <section id="renderPlanPanel" class="render-plan-panel">
-        <div class="section-head">
-          <div><p class="eyebrow">Render / Production Output</p><h3>Render approved chapter audio</h3></div>
-        </div>
-        <p class="section-guide">Use this only after the Casting Plan is approved. Do not render from an AI Speaker Draft or from a plan you have not reviewed yet.</p>
-        <p id="renderPlanNotice" class="muted">Rendering is enabled only for an approved casting plan.</p>
-        <div class="casting-actions render-actions">
-          <button id="renderCastingPlan" class="primary" disabled data-runtime-mutation-control>Render approved Casting Plan</button>
-        </div>
-      </section>
     </div>
     <div id="textDiffPanel" class="text-diff-panel hidden">
       <div class="diff-selectors">
@@ -466,6 +530,6 @@
     <div id="segmentDiagnosticBody" class="diagnostic-body"></div>
   </dialog>
   <div id="toast" class="toast hidden"></div>
-  <script src="/assets/app.js?v=20260708-guided-production-flow"></script>
+  <script src="/assets/app.js?v=20260709-guided-production-flow-polish"></script>
 </body>
 </html>

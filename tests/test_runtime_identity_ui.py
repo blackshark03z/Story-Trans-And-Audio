@@ -58,7 +58,7 @@ class RuntimeIdentityUiTests(IsolatedTestCase):
             'id="approveSpeakerReview" class="primary" disabled data-runtime-mutation-control',
             'id="characterBibleApply" class="primary" disabled data-runtime-mutation-control',
             'id="saveCastingDraft" class="secondary" data-runtime-mutation-control',
-            'id="approveCastingPlan" class="secondary" disabled data-runtime-mutation-control',
+            'id="approveCastingPlan" class="primary" disabled data-runtime-mutation-control',
             'id="renderCastingPlan" class="primary" disabled data-runtime-mutation-control',
         ):
             self.assertIn(value, self.html)

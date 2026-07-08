@@ -47,7 +47,6 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "initialTab:'casting'",
             "openCastingShortcut",
             "casting-tab-shortcut",
-            "castingProductionStep",
             "castingPlanIdentity",
             "Production Flow",
         ):
@@ -82,15 +81,28 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "castingRecommendedActionState",
             "PRODUCTION_FLOW_STEPS",
             "title:'Select Chapter'",
-            "title:'Human QA Verdict'",
+            "title:'Review Audio / Finalize'",
         ):
             self.assertIn(value, self.html + self.js + self.css)
 
     def test_active_audio_state_does_not_push_normal_rerender_path(self) -> None:
         for value in (
             "Audio already exists; use QA or replacement workflow instead of normal render.",
-            "A Casting Plan already exists, so the normal path is to review that plan instead of generating a new AI draft.",
-            "Open the active audio and the listening checklist for this chapter.",
+            "Open the active artifact, listening checklist, and segment QA only for specific problems.",
+            "Finalize Output",
+        ):
+            self.assertIn(value, self.html + self.js)
+
+    def test_primary_operator_flow_emphasizes_main_steps_over_debug(self) -> None:
+        for value in (
+            "Select Chapter",
+            "Review Text",
+            "Assign Voices",
+            "Review Voice Map",
+            "Render Chapter",
+            "Review Audio / Finalize",
+            "Advanced / Debug: AI speaker draft tools",
+            "Advanced / Debug: QA and segment troubleshooting",
         ):
             self.assertIn(value, self.html + self.js)
 
