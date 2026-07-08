@@ -34,6 +34,8 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "Historical evidence only - not the current chapter output",
             "Artifact active but job binding unavailable",
             "Open current Character Voices",
+            "Current active audio: Job",
+            "Current playback still uses the active historical plan until a new job is rendered",
         ):
             self.assertIn(value, self.html + self.js + self.css)
 
@@ -43,8 +45,20 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "initialTab:'casting'",
             "openCastingShortcut",
             "casting-tab-shortcut",
+            "castingProductionStep",
+            "castingPlanIdentity",
         ):
             self.assertIn(value, self.js + self.html + self.css)
+
+    def test_active_output_and_plan_identity_are_explained_in_character_voices(self) -> None:
+        for value in (
+            "Casting Plan #",
+            "Current active audio: Job",
+            "Render / Production Output",
+            "Historical Job",
+            "This approved plan is the one Render / Production Output will use until a newer approved plan exists.",
+        ):
+            self.assertIn(value, self.html + self.js)
 
     def test_chapter_summary_prefers_artifact_binding_metadata(self) -> None:
         script = r"""

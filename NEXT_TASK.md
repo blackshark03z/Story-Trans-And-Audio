@@ -1,15 +1,15 @@
 # Next Task
 
 Current Status:
-Task 12D is complete locally on `main`. Chapter 357 canonical Job `17` is now officially recorded as `HUMAN_QA_PASS_WITH_MINOR_PRONUNCIATION_NOTES`; downstream manifest / QA / checklist evidence exists, active artifact `48` remains unchanged, and no production audio or DB mutation was needed beyond the existing Job 17 evidence.
+Task 13A is complete locally on `main`. Chapter 357 canonical Job `17` remains the accepted production evidence, and the Character Voices operator UI has been simplified so AI speaker drafts, Casting Plan review, and Render / Production Output are clearly separated before any production mutation.
 
 Current Baseline:
 - Branch `main`
-- Current HEAD = `f6200797ab270a0bcd3a5ddec55bcc9de9610dba`
+- Current HEAD = `5220905394df1bf87c816f9a934d9794927a1580`
 - Task 11D2 acceptance evidence runtime: `D:\Youtube\StoryAudioAcceptanceRun1\data`
 - Canonical production runtime: `http://127.0.0.1:8772` -> `D:\Youtube\Story Trans And Audio\data`
 - YouTube Auto must remain untouched on `http://127.0.0.1:8765`
-- Offline baseline last verified for this line of work: 898 tests passing, 1 skipped
+- Offline baseline last verified for this line of work: 902 tests passing, 1 skipped
 - Official rollout verdict: `PRODUCTION_GO`
 - Second acceptance chapter before rollout: not required
 - Task 11B2 disposable smoke root: `D:\Youtube\StoryAudioTask11B2Smoke\data`
@@ -18,18 +18,19 @@ Current Baseline:
   - `runs/`
 
 Next Task:
-Task 12E - Capture Detailed Pronunciation Notes or Select the Next Routine Canonical Production Chapter
+Task 13B - Live Canonical Operator Walkthrough for Simplified Character Voices
 
 Why:
-- Chapter 357 canonical Job `17` has now been listened to end-to-end and accepted overall, with only minor pronunciation notes.
-- The canonical downstream evidence package already exists, but detailed human notes are not persisted unless the operator exports review JSON or pastes the notes separately.
-- The next highest-value step is either to preserve those detailed pronunciation notes explicitly, or move on to the first routine canonical production chapter with the now-validated workflow.
+- The confusing overlap between AI Speaker Draft review and Casting Plan approval was a real operator footgun; Task 13A removes most of that ambiguity in code, but the next highest-value check is a live canonical walkthrough on the real UI.
+- We should verify the simplified panel works the way operators actually move: chapter CTA -> Character Voices -> review current plan -> render only from approved plan identity.
+- Chapter 357 remains the best reference chapter for this walkthrough because it already has accepted evidence and clear active-audio / historical-plan context.
 
 Scope:
-1. If the operator wants the minor pronunciation notes preserved, export the Chapter 357 checklist review JSON or paste the note text into the task thread so it can be recorded explicitly.
-2. If no detailed note capture is needed, select the next routine canonical production chapter using the production-go workflow and existing rollout guardrails.
-3. Preserve Chapter 357 as the first canonical human-QA-passed production evidence set: Job `17`, Casting Plan `18`, active artifact `48`, final M4A SHA `024e9f8cc1a646095eb84fad71d532fc04875e9eb34609a397e44c6f3153b675`.
-4. Do not mutate canonical production audio for Chapter 357 unless a future explicit task requests a corrective rerender.
+1. Restart only Story Audio on canonical production if needed and verify the runtime banner still shows `CANONICAL PRODUCTION`.
+2. Walk the Chapter 357 `Character Voices` path live and confirm the new production-step banner, the de-emphasized AI Draft area when a plan exists, and the exact `Approve Casting Plan vN` / render identity labels.
+3. Confirm `Jump to Casting Plan approval` lands on the real plan-approval controls rather than the speaker-draft review controls.
+4. Preserve Chapter 357 as the reference production-evidence chapter: Job `17`, Casting Plan `18`, active artifact `48`, final M4A SHA `024e9f8cc1a646095eb84fad71d532fc04875e9eb34609a397e44c6f3153b675`.
+5. Do not mutate canonical production audio or submit any new render during the walkthrough unless a future explicit task authorizes it.
 
 Prerequisites For Any Next Task:
 - Use the authoritative VieNeu interpreter: `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`.

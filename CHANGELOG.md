@@ -6,6 +6,15 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 13A - Simplified Character Voices production UI**: reshaped the chapter production workspace so operators can distinguish AI speaker suggestions, Casting Plan review, and render-ready production output without confusing one approval step for another.
+  - **Clear production stages**: Character Voices now shows a persistent production-step banner plus distinct sections for `AI Draft / Suggestions`, `Casting Plan Review`, and `Render / Production Output`.
+  - **Draft-vs-plan warning**: when a Casting Plan already exists, speaker-draft tools are visually de-emphasized and the panel warns `AI Draft tools can create a new plan; use Casting Plan Review to approve the current plan.`
+  - **Safer labels**: the speaker-draft approval action now reads as creating/updating a Casting Plan from the AI draft, the plan-approval button includes the exact revision identity (`Approve Casting Plan vN`), and the render action shows the exact Casting Plan identity that will be rendered.
+  - **Correct jump target**: `Jump to Casting Plan approval` now scrolls to the real plan-approval controls instead of the speaker-draft review controls.
+  - **Production-output guidance**: when active audio already exists, Character Voices now keeps the active Job / Plan context visible while clarifying that speaker drafts do not render directly and that playback stays on the active historical plan until a newer approved plan is rendered.
+  - **Verification**: `node --check ui/app.js` passed; focused Character Voices UI coverage passed at 17/17; full offline suite passed at 902/902 with 1 expected Windows symlink-privilege skip.
+  - **Migration**: none.
+
 - **Task 12D - Canonical Chapter 357 human QA result recorded**: officially recorded the operator's full-chapter listening verdict for canonical Chapter 357 without modifying production audio, artifacts, or database state.
   - **Recorded verdict**: canonical Chapter 357 Job `17` is now marked `HUMAN_QA_PASS_WITH_MINOR_PRONUNCIATION_NOTES`.
   - **Binding preserved**: the recorded acceptance is tied to Casting Plan `18`, active artifact `48`, and final M4A SHA `024e9f8cc1a646095eb84fad71d532fc04875e9eb34609a397e44c6f3153b675`.

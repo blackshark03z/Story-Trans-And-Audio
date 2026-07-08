@@ -30,7 +30,9 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
             "speakerReviewFilter", "reviewSelectVisible", "reviewAcceptSuggestions",
             "reviewMarkNarrator", "reviewMarkUnknown", "reviewClearSelection",
             "approveSpeakerReview", "jumpToPendingReview", "jumpToApprovalControls",
-            "Review flow", "Decisions are local until final approval.",
+            "AI Draft / Suggestions", "Decisions are local until final approval.",
+            "Create/Update Casting Plan from AI Draft",
+            "Jump to Casting Plan approval",
         ):
             self.assertIn(value, self.html + self.js)
         self.assertIn("draft.stale||count===0", self.js)
@@ -43,9 +45,39 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
             "Current playback still uses the active historical plan until a new job is rendered",
             "Latest approval created Casting Plan v",
             "castingPlanGuidance",
-            "Review assignments before rendering",
+            "Render / Production Output will use the exact approved Casting Plan below.",
+            "Render will use",
         ):
             self.assertIn(value, self.html + self.js)
+
+    def test_character_voices_layout_separates_draft_plan_and_render_areas(self) -> None:
+        for value in (
+            "Production step",
+            "Casting Plan Review",
+            "Render / Production Output",
+            "speakerDraftExistingPlanWarning",
+            "AI Draft tools can create a new plan; use Casting Plan Review to approve the current plan.",
+            "castingProductionStep",
+            "castingPlanReviewMeta",
+            "renderPlanNotice",
+            "castingPlanApprovalControls",
+            "Approve Casting Plan v",
+            "Render ${planIdentity}",
+        ):
+            self.assertIn(value, self.html + self.js)
+
+    def test_jump_to_approval_controls_targets_real_casting_plan_area(self) -> None:
+        self.assertIn("#castingPlanApprovalControls", self.js)
+        self.assertNotIn("#speakerReviewApprovalControls')?.scrollIntoView", self.js)
+
+    def test_existing_plan_deemphasizes_draft_tools(self) -> None:
+        for value in (
+            "has-existing-plan",
+            "speakerDraftExistingPlanWarning",
+            "$('#speakerReviewPanel').classList.toggle('has-existing-plan',existingPlan)",
+            "$('#approveSpeakerReview').textContent=speakerDraftApprovalLabel",
+        ):
+            self.assertIn(value, self.html + self.js + self.css)
 
     def test_bulk_review_uses_local_state_for_selection_and_remaining_counts(self) -> None:
         for value in (

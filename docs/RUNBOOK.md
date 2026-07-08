@@ -49,7 +49,8 @@ Casting review entry points:
 
 - From the chapter list, use `Review Character Voices` to open the selected chapter directly on the `Character Voices` workspace.
 - Chapter rows show `CASTING REVIEW NEEDED` when the latest persisted casting plan is still a draft, and `CASTING APPROVED` when the latest plan is approved.
-- Inside the chapter dialog, the `Character Voices` shortcut remains available in the header and the panel shows `Plan vN · draft` or `Plan vN · approved` in context.
+- Inside the chapter dialog, the `Character Voices` shortcut remains available in the header and the panel now separates `AI Draft / Suggestions`, `Casting Plan Review`, and `Render / Production Output`.
+- The production-step banner at the top of Character Voices is the quickest source of truth for what you are looking at: `Draft Plan`, `Approved Plan`, `Active Audio`, or `Historical Job`, plus the current Casting Plan identity and any active Job / Plan binding.
 
 ## Production runner
 
@@ -144,14 +145,16 @@ Speaker review sequence:
 
 1. `Select visible`
 2. `Accept selected suggestions`
-3. `Approve Reviewed Decisions`
+3. `Create/Update Casting Plan from AI Draft`
 
 Notes:
 
-- After step 2, decisions are still local-only until `Approve Reviewed Decisions` creates a new immutable Casting Plan revision.
-- Use `Jump to pending review` to reach the next unreviewed target and `Jump to approval controls` to return to the final approval area without scrolling the full utterance list.
+- After step 2, decisions are still local-only until `Create/Update Casting Plan from AI Draft` creates a new immutable Casting Plan revision.
+- If a Casting Plan already exists, treat the AI draft area as advanced tooling: it can create a newer plan, but it does not approve the current one and it does not render directly.
+- Use `Jump to pending review` to reach the next unreviewed target and `Jump to Casting Plan approval` to return to the real plan-approval controls without scrolling the full utterance list.
 - If Character Voices shows `Current active audio: Job X / Plan vY`, that is the playback source of truth for the current chapter audio.
 - If the panel also warns `Current playback still uses the active historical plan until a new job is rendered`, the draft you are reviewing is newer than the chapter's currently active audio and has not been rendered yet.
+- The plan approval button now includes the plan revision (`Approve Casting Plan vN`), and the render action shows the exact Casting Plan identity that will be rendered. Use those labels as the authoritative boundary between review and production output.
 - Historical job diagnostics include `Open current Character Voices` so the operator can jump from an older evidence job back to the authoritative casting workspace for the chapter.
 
 ## Offline audio QA
