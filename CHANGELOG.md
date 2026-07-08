@@ -6,6 +6,13 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 12D - Canonical Chapter 357 human QA result recorded**: officially recorded the operator's full-chapter listening verdict for canonical Chapter 357 without modifying production audio, artifacts, or database state.
+  - **Recorded verdict**: canonical Chapter 357 Job `17` is now marked `HUMAN_QA_PASS_WITH_MINOR_PRONUNCIATION_NOTES`.
+  - **Binding preserved**: the recorded acceptance is tied to Casting Plan `18`, active artifact `48`, and final M4A SHA `024e9f8cc1a646095eb84fad71d532fc04875e9eb34609a397e44c6f3153b675`.
+  - **Evidence package preserved**: downstream manifest / QA / listening checklist under `data\workflow\job_17_chapter_357\` remain the supporting package for that accepted run.
+  - **Notes boundary**: detailed pronunciation notes are not persisted by Story Audio automatically; checklist review notes remain browser-local unless the operator explicitly exports review JSON or pastes the notes elsewhere for archival.
+  - **Migration**: none.
+
 - **Task 12C3 - Canonical downstream QA/checklist guard**: extended the existing explicit canonical-production opt-in so downstream manifest/QA/listening-checklist generation can run against a completed canonical job without weakening the default fail-closed guardrails.
   - **Default refusal preserved**: `story_audio/audio_qa.py` and `story_audio/listening_checklist.py` still reject the canonical production root unless the operator passes explicit canonical approval through `--allow-canonical-production`.
   - **Downstream-only canonical path**: `story_audio/production_workflow.py` now permits canonical downstream generation for an already completed job only when the operator provides both `--allow-canonical-production` and an exact `--job-id`; new canonical job creation still requires `--submit`.
