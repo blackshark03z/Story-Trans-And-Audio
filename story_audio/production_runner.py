@@ -142,7 +142,7 @@ def build_unicode_safe_json_bytes(
     return payload_bytes
 
 
-def canonicalize_data_root(value: str) -> Path:
+def canonicalize_data_root(value: str, *, allow_canonical_production: bool = False) -> Path:
     path = Path(value)
     if not path.is_absolute():
         raise ArgumentError("--data-root must be an absolute path")
@@ -150,7 +150,7 @@ def canonicalize_data_root(value: str) -> Path:
     if not resolved.exists():
         raise ArgumentError("--data-root must already exist")
     live_root = canonical_production_db_path().resolve().parent
-    if resolved == live_root:
+    if resolved == live_root and not allow_canonical_production:
         raise RuntimeMismatchError("Refusing canonical live data root")
     return resolved
 
@@ -255,7 +255,12 @@ class HttpJsonClient:
             ) from exc
 
 
-def fetch_runtime_identity(client: HttpJsonClient, expected_data_root: Path) -> RuntimeIdentity:
+def fetch_runtime_identity(
+    client: HttpJsonClient,
+    expected_data_root: Path,
+    *,
+    allow_canonical_production: bool = False,
+) -> RuntimeIdentity:
     payload = client.get_json("/api/runtime")
     identity = RuntimeIdentity(
         api_base=client.api_base,
@@ -274,7 +279,7 @@ def fetch_runtime_identity(client: HttpJsonClient, expected_data_root: Path) -> 
             "API server is using a different data root",
             details={"expected_data_root": str(expected_data_root), "api_data_root": identity.data_root},
         )
-    if identity.is_canonical_live_data_root or identity.is_canonical_live_db:
+    if (identity.is_canonical_live_data_root or identity.is_canonical_live_db) and not allow_canonical_production:
         raise RuntimeMismatchError("API server is pointing at canonical live storage")
     return identity
 
@@ -576,8 +581,13 @@ def run_preflight(
     chapter_number: int,
     casting_plan_id: int,
     output_format: str,
+    allow_canonical_production: bool = False,
 ) -> dict[str, Any]:
-    runtime = fetch_runtime_identity(client, data_root)
+    runtime = fetch_runtime_identity(
+        client,
+        data_root,
+        allow_canonical_production=allow_canonical_production,
+    )
     chapter = _chapter_from_number(client, book_id, chapter_number)
     chapter_detail = client.get_json(f"/api/chapters/{int(chapter['id'])}")
     revision = _active_revision(chapter_detail)
@@ -703,6 +713,7 @@ def run_submit(
     chapter_number: int,
     casting_plan_id: int,
     output_format: str,
+    allow_canonical_production: bool = False,
 ) -> dict[str, Any]:
     preflight = run_preflight(
         client,
@@ -711,6 +722,7 @@ def run_submit(
         chapter_number=chapter_number,
         casting_plan_id=casting_plan_id,
         output_format=output_format,
+        allow_canonical_production=allow_canonical_production,
     )
     duplicate = preflight["duplicate_job"]
     if duplicate["duplicate"]:
@@ -1311,6 +1323,7 @@ def run_job_flow(
     manifest_out: Path | None,
     poll_interval: float,
     timeout_seconds: float | None,
+    allow_canonical_production: bool = False,
     emit_progress: Callable[[dict[str, Any]], None] = _emit_progress_to_stderr,
 ) -> dict[str, Any]:
     preflight = run_preflight(
@@ -1320,6 +1333,7 @@ def run_job_flow(
         chapter_number=chapter_number,
         casting_plan_id=casting_plan_id,
         output_format=output_format,
+        allow_canonical_production=allow_canonical_production,
     )
     mutation_performed = False
     created_job_id = None
@@ -1332,6 +1346,7 @@ def run_job_flow(
             chapter_number=chapter_number,
             casting_plan_id=casting_plan_id,
             output_format=output_format,
+            allow_canonical_production=allow_canonical_production,
         )
         preflight = submitted
         mutation_performed = True

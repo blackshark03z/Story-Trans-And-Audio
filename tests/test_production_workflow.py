@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 from story_audio.audio_qa import QaArtifactIntegrityError
 from story_audio.listening_checklist import ChecklistInputMismatchError
-from story_audio.production_runner import BindingMismatchError, WatchTimeoutError
+from story_audio.production_runner import BindingMismatchError, RuntimeMismatchError, WatchTimeoutError
 from story_audio.production_workflow import WORKFLOW_SCHEMA, main, run_workflow
 
 
@@ -87,6 +87,19 @@ def _checklist_result(*, reused_existing: bool = False) -> dict:
         "hard_clipping_count": 0,
         "integrity_failure_count": 0,
         "report": {},
+    }
+
+
+def _final_workflow_result(*, status: str = "success") -> dict:
+    return {
+        "schema": WORKFLOW_SCHEMA,
+        "implementation_version": "production-workflow/v1",
+        "status": status,
+        "through": "manifest",
+        "mutation_performed": True,
+        "identity": {"mode": "CANONICAL PRODUCTION MODE"},
+        "stages": {"preflight": {"status": "preflight_pass"}},
+        "outputs": {},
     }
 
 
@@ -195,6 +208,56 @@ class ProductionWorkflowTests(unittest.TestCase):
                     resume=True,
                     stderr=io.StringIO(),
                 )
+
+    def test_canonical_mode_requires_explicit_submit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with self.assertRaisesRegex(Exception, "requires explicit --submit"):
+                run_workflow(
+                    data_root=Path(tmp).resolve(),
+                    api_base="http://127.0.0.1:8771",
+                    book_id=1,
+                    chapter_number=629,
+                    casting_plan_id=2,
+                    through="manifest",
+                    allow_canonical_production=True,
+                    stderr=io.StringIO(),
+                )
+
+    def test_canonical_mode_marks_identity_and_delegates_explicit_flag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("story_audio.production_workflow.run_preflight", return_value=_preflight_result()) as preflight_mock, \
+                 patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed", mutation_performed=True)) as runner_mock:
+                result = run_workflow(
+                    data_root=Path(tmp).resolve(),
+                    api_base="http://127.0.0.1:8771",
+                    book_id=1,
+                    chapter_number=629,
+                    casting_plan_id=2,
+                    through="manifest",
+                    submit=True,
+                    allow_canonical_production=True,
+                    stderr=io.StringIO(),
+                )
+        self.assertEqual(result["identity"]["mode"], "CANONICAL PRODUCTION MODE")
+        self.assertTrue(preflight_mock.call_args.kwargs["allow_canonical_production"])
+        self.assertTrue(runner_mock.call_args.kwargs["allow_canonical_production"])
+
+    def test_isolated_workflow_default_unchanged_without_canonical_flag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            with patch("story_audio.production_workflow.run_preflight", return_value=_preflight_result()) as preflight_mock, \
+                 patch("story_audio.production_workflow.run_job_flow", return_value=_runner_result(status="completed", mutation_performed=True)) as runner_mock:
+                run_workflow(
+                    data_root=Path(tmp).resolve(),
+                    api_base="http://127.0.0.1:8771",
+                    book_id=1,
+                    chapter_number=629,
+                    casting_plan_id=2,
+                    through="manifest",
+                    submit=True,
+                    stderr=io.StringIO(),
+                )
+        self.assertFalse(preflight_mock.call_args.kwargs["allow_canonical_production"])
+        self.assertFalse(runner_mock.call_args.kwargs["allow_canonical_production"])
 
     def test_paused_job_no_auto_resume(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -357,6 +420,58 @@ class ProductionWorkflowTests(unittest.TestCase):
                 ], stdout=stdout, stderr=io.StringIO())
         self.assertNotEqual(code, 0)
         self.assertEqual(json.loads(stdout.getvalue())["status"], "watch_timeout")
+
+    def test_main_rejects_canonical_root_by_default(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp:
+            live = Path(tmp) / "data"
+            live.mkdir()
+            with patch("story_audio.production_runner.canonical_production_db_path", return_value=live / "app.db"):
+                code = main([
+                    "--data-root", str(live.resolve()),
+                    "--api-base", "http://127.0.0.1:8771",
+                    "--book-id", "1",
+                    "--chapter-number", "629",
+                    "--casting-plan-id", "2",
+                ], stdout=stdout, stderr=stderr)
+        self.assertEqual(code, 3)
+        self.assertEqual(json.loads(stdout.getvalue())["status"], "runtime_mismatch")
+
+    def test_main_allows_canonical_root_only_with_explicit_flag(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with tempfile.TemporaryDirectory() as tmp:
+            live = Path(tmp) / "data"
+            live.mkdir()
+            with patch("story_audio.production_runner.canonical_production_db_path", return_value=live / "app.db"), \
+                 patch("story_audio.production_workflow.run_workflow", return_value=_final_workflow_result()) as workflow_mock:
+                code = main([
+                    "--data-root", str(live.resolve()),
+                    "--api-base", "http://127.0.0.1:8771",
+                    "--book-id", "1",
+                    "--chapter-number", "629",
+                    "--casting-plan-id", "2",
+                    "--submit",
+                    "--through", "manifest",
+                    "--allow-canonical-production",
+                ], stdout=stdout, stderr=stderr)
+        self.assertEqual(code, 0)
+        self.assertTrue(workflow_mock.call_args.kwargs["allow_canonical_production"])
+
+    def test_main_requires_casting_plan_id_in_canonical_mode(self):
+        stdout = io.StringIO()
+        stderr = io.StringIO()
+        with self.assertRaises(SystemExit):
+            main([
+                "--data-root", "D:/tmp/data",
+                "--api-base", "http://127.0.0.1:8771",
+                "--book-id", "1",
+                "--chapter-number", "629",
+                "--submit",
+                "--through", "manifest",
+                "--allow-canonical-production",
+            ], stdout=stdout, stderr=stderr)
 
     def test_structured_internal_error(self):
         with tempfile.TemporaryDirectory() as tmp:

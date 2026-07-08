@@ -6,6 +6,15 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 12C1 - Explicit canonical mode for unified production workflow**: added a strongly-guarded opt-in path for running the existing unified workflow against canonical production without weakening the default isolated fail-closed behavior.
+  - **Default safety preserved**: `scripts/run_production_workflow.py` still refuses the canonical live root unless the operator passes explicit CLI confirmation `--allow-canonical-production`.
+  - **Canonical submit guard**: canonical mode also requires explicit `--submit`; it does not auto-enable from environment alone and does not permit a silent watch-only or resume-only canonical path.
+  - **Runtime/binding checks preserved**: canonical mode still runs the same `/api/runtime` identity check, exact data-root match, approved Casting Plan verification, Text Revision/chapter binding verification, voice availability checks, and duplicate pending/running job detection before any submit occurs.
+  - **Operator evidence**: final workflow payload now records `CANONICAL PRODUCTION MODE`, canonical data root, casting-plan revision/SHA, and created job identity when submission succeeds.
+  - **Isolated mode unchanged**: isolated production workflow semantics, output paths, and fail-closed behavior are unchanged.
+  - **Verification**: focused workflow/runner tests passed at 69/69, and the full offline suite passed at 887/887 with 1 expected Windows symlink-privilege skip. Coverage includes canonical rejection by default, explicit canonical allow path, canonical runtime mismatch rejection, missing casting-plan CLI rejection, and unchanged isolated behavior.
+  - **Migration**: none.
+
 - **Task 11D3B3 - Casting review discoverability and active-audio operator guidance**: improved the operator path from chapter selection into Character Voices and made it harder to confuse a fresh casting draft with the chapter's currently active audio.
   - **Direct chapter CTA**: chapter rows now expose a `Review Character Voices` button that opens the selected chapter directly on the `Character Voices` workspace instead of requiring row-open plus manual tab discovery.
   - **Casting-state badges**: chapter rows surface `CASTING REVIEW NEEDED` when the latest persisted casting plan is still `draft`, and `CASTING APPROVED` when the latest plan is `approved`; this status comes from casting-plan context, not job recency or job status.

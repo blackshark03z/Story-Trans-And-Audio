@@ -172,6 +172,7 @@ def run_workflow(
     ffprobe_path: str = "ffprobe",
     checklist_title: str | None = None,
     max_risk_items: int = 20,
+    allow_canonical_production: bool = False,
     stderr: Any = None,
 ) -> dict[str, Any]:
     stderr = stderr or sys.stderr
@@ -181,6 +182,11 @@ def run_workflow(
         raise WorkflowError("--through is invalid", details={"allowed": list(THROUGH_CHOICES)})
     if through == "preflight" and (submit or resume):
         raise WorkflowError("--submit/--resume require --through manifest, qa, or checklist")
+    if allow_canonical_production and not submit:
+        raise WorkflowError(
+            "--allow-canonical-production requires explicit --submit",
+            details={"allow_canonical_production": True},
+        )
 
     client = HttpJsonClient(api_base)
     stages = {
@@ -206,6 +212,8 @@ def run_workflow(
         casting_plan_id=casting_plan_id,
         job_id=job_id,
     )
+    if allow_canonical_production:
+        identity["mode"] = "CANONICAL PRODUCTION MODE"
     mutation_performed = False
 
     preflight_started = time.perf_counter()
@@ -217,6 +225,7 @@ def run_workflow(
         chapter_number=chapter_number,
         casting_plan_id=casting_plan_id,
         output_format="m4a",
+        allow_canonical_production=allow_canonical_production,
     )
     _finish_stage(
         stages["preflight"],
@@ -226,7 +235,9 @@ def run_workflow(
             "chapter_id": preflight["chapter"]["id"],
             "text_revision_id": preflight["text_revision"]["id"],
             "casting_plan_revision": preflight["casting_plan"]["revision"],
+            "casting_plan_sha256": preflight["casting_plan"]["sha256"],
             "duplicate_job": preflight["duplicate_job"],
+            "canonical_production_mode": allow_canonical_production,
         },
     )
     _emit_event(stderr, {"type": "stage_complete", "stage": "preflight", "status": preflight["status"]})
@@ -267,6 +278,7 @@ def run_workflow(
         manifest_out=manifest_out,
         poll_interval=poll_interval,
         timeout_seconds=timeout_seconds,
+        allow_canonical_production=allow_canonical_production,
         emit_progress=lambda event: _emit_event(stderr, {"type": "progress", "stage": "runner", **event}),
     )
     mutation_performed = bool(runner_result.get("mutation_performed"))
@@ -280,7 +292,13 @@ def run_workflow(
         status=runner_result["status"],
         started=runner_started,
         created=True if submit and mutation_performed else False if submit else None,
-        details={"job": runner_result.get("job"), "progress": runner_result.get("progress")},
+        details={
+            "job": runner_result.get("job"),
+            "progress": runner_result.get("progress"),
+            "canonical_production_mode": allow_canonical_production,
+            "casting_plan_id": int(casting_plan_id),
+            "casting_plan_sha256": identity.get("casting_plan_sha256"),
+        },
     )
     _emit_event(stderr, {"type": "stage_complete", "stage": "runner", "status": runner_result["status"]})
 
@@ -451,6 +469,7 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ffprobe-path", default="ffprobe")
     parser.add_argument("--checklist-title")
     parser.add_argument("--max-risk-items", type=int, default=20)
+    parser.add_argument("--allow-canonical-production", action="store_true")
     return parser
 
 
@@ -459,7 +478,10 @@ def main(argv: list[str] | None = None, *, stdout: Any = None, stderr: Any = Non
     stderr = stderr or sys.stderr
     try:
         args = build_arg_parser().parse_args(argv)
-        data_root = canonicalize_data_root(args.data_root)
+        data_root = canonicalize_data_root(
+            args.data_root,
+            allow_canonical_production=bool(args.allow_canonical_production),
+        )
         api_base = normalize_api_base(args.api_base)
         manifest_out = normalize_manifest_path(args.manifest_out)
         qa_out = _normalize_output_path(args.qa_out, label="--qa-out")
@@ -485,6 +507,7 @@ def main(argv: list[str] | None = None, *, stdout: Any = None, stderr: Any = Non
             ffprobe_path=str(args.ffprobe_path),
             checklist_title=args.checklist_title,
             max_risk_items=int(args.max_risk_items),
+            allow_canonical_production=bool(args.allow_canonical_production),
             stderr=stderr,
         )
         print(_canonical_json(result, ensure_ascii=True), file=stdout)

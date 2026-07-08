@@ -263,6 +263,36 @@ class ProductionRunnerTests(unittest.TestCase):
                 with self.assertRaises(RuntimeMismatchError):
                     canonicalize_data_root(str(live))
 
+    def test_canonical_live_root_allowed_only_with_explicit_flag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            live = Path(tmp) / "data"
+            live.mkdir()
+            with patch("story_audio.production_runner.canonical_production_db_path", return_value=live / "app.db"):
+                resolved = canonicalize_data_root(str(live), allow_canonical_production=True)
+        self.assertEqual(resolved, live.resolve())
+
+    def test_api_runtime_canonical_allowed_only_with_explicit_flag(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data_root = Path(tmp).resolve()
+            responses = make_base_responses(data_root=str(data_root))
+            responses[("GET", "/api/runtime")]["canonical_live_data_root"] = str(data_root)
+            responses[("GET", "/api/runtime")]["canonical_live_db_path"] = str(data_root / "app.db")
+            responses[("GET", "/api/runtime")]["is_canonical_live_data_root"] = True
+            responses[("GET", "/api/runtime")]["is_canonical_live_db"] = True
+            client = FakeClient(responses)
+            with self.assertRaises(RuntimeMismatchError):
+                run_preflight(client, data_root=data_root, book_id=1, chapter_number=629, casting_plan_id=55, output_format="m4a")
+            result = run_preflight(
+                client,
+                data_root=data_root,
+                book_id=1,
+                chapter_number=629,
+                casting_plan_id=55,
+                output_format="m4a",
+                allow_canonical_production=True,
+            )
+        self.assertTrue(result["runtime_identity"]["is_canonical_live_data_root"])
+
     def test_api_runtime_root_mismatch_rejected(self):
         with tempfile.TemporaryDirectory() as tmp:
             responses = make_base_responses(data_root=str(Path(tmp).resolve()))

@@ -122,6 +122,14 @@ Notes:
 - Default workflow outputs live under `data\workflow\job_<JOB_ID>_chapter_<CHAPTER_NUMBER>\`.
 - The workflow never auto-resumes, regenerates, accepts, rejects, or makes the final QA decision; human listening remains the final authority.
 - When comparing an accepted chapter against older evidence jobs, use the UI `ACTIVE OUTPUT` and `HISTORICAL` labels rather than guessing from job recency.
+- Canonical production remains fail-closed by default. To run the unified workflow against `D:\Youtube\Story Trans And Audio\data`, the operator must pass `--allow-canonical-production` together with `--submit`; isolated mode behavior is unchanged.
+- Canonical mode still verifies `/api/runtime`, exact data-root match, approved Casting Plan identity, and duplicate pending/running jobs before any submit occurs.
+
+Explicit canonical production submit:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\run_production_workflow.py --data-root 'D:\Youtube\Story Trans And Audio\data' --api-base 'http://127.0.0.1:8772' --book-id <BOOK_ID> --chapter-number <CHAPTER_NUMBER> --casting-plan-id <CASTING_PLAN_ID> --submit --through checklist --allow-canonical-production
+```
 
 ## Casting review flow
 
