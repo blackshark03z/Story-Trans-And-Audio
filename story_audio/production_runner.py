@@ -392,7 +392,29 @@ def _verify_plan(plan_detail: dict[str, Any], chapter_id: int, revision: dict[st
 def _voice_catalog(client: HttpJsonClient) -> dict[str, str]:
     payload = client.get_json("/api/voices")
     items = payload.get("items", [])
-    return {str(item["id"]): str(item.get("label") or item["id"]) for item in items}
+    catalog = {str(item["id"]): str(item.get("label") or item["id"]) for item in items}
+
+    custom_items = client.get_json("/api/custom-voices", params={"active_only": "true"})
+    if not isinstance(custom_items, list):
+        raise BindingMismatchError("Custom voice catalog response is invalid")
+    for item in custom_items:
+        voice_id = item.get("id")
+        if voice_id is None:
+            raise BindingMismatchError("Custom voice catalog entry is missing id")
+        logical_ref = f"custom:{int(voice_id)}"
+        revisions = client.get_json(f"/api/custom-voices/{int(voice_id)}/revisions")
+        if not isinstance(revisions, list):
+            raise BindingMismatchError("Custom voice revisions response is invalid")
+        preferred_revision_id = item.get("preferred_synthesis_revision_id")
+        has_usable_revision = bool(revisions)
+        if preferred_revision_id is not None:
+            has_usable_revision = any(int(revision["id"]) == int(preferred_revision_id) for revision in revisions)
+            if not has_usable_revision and revisions:
+                has_usable_revision = True
+        if not has_usable_revision:
+            continue
+        catalog[logical_ref] = str(item.get("display_name") or logical_ref)
+    return catalog
 
 
 def _verify_voice_availability(plan_detail: dict[str, Any], voice_catalog: dict[str, str]) -> None:
@@ -402,7 +424,7 @@ def _verify_voice_availability(plan_detail: dict[str, Any], voice_catalog: dict[
     missing = sorted(voice_id for voice_id in required if voice_id not in voice_catalog)
     if missing:
         raise BindingMismatchError(
-            "Casting Plan contains unavailable preset voice(s)",
+            "Casting Plan contains unavailable voice(s)",
             details={"missing_voice_ids": missing},
         )
 

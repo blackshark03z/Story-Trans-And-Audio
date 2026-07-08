@@ -1,15 +1,15 @@
 # Next Task
 
 Current Status:
-Task 12C1 is complete locally on `main` and ready for final push verification. Production remains cleared for rollout (`PRODUCTION_GO`), and the unified workflow now has an explicit guarded canonical-production mode.
+Task 12C2 is complete locally on `main` and ready for final push verification. Production remains cleared for rollout (`PRODUCTION_GO`), the unified workflow already has an explicit guarded canonical-production mode, and production preflight now accepts active usable custom voice IDs alongside preset voices.
 
 Current Baseline:
 - Branch `main`
-- Current HEAD = `d4a2afe455f2a9a2f7afaa689f2d9bc3243b249a`
+- Current HEAD = `5909edafbc7bf6ec5f38f59c3d0b6c4c0186d081`
 - Task 11D2 acceptance evidence runtime: `D:\Youtube\StoryAudioAcceptanceRun1\data`
 - Canonical production runtime: `http://127.0.0.1:8772` -> `D:\Youtube\Story Trans And Audio\data`
 - YouTube Auto must remain untouched on `http://127.0.0.1:8765`
-- Offline baseline last verified for this line of work: 887 tests passing, 1 skipped
+- Offline baseline last verified for this line of work: 893 tests passing, 1 skipped
 - Official rollout verdict: `PRODUCTION_GO`
 - Second acceptance chapter before rollout: not required
 - Task 11B2 disposable smoke root: `D:\Youtube\StoryAudioTask11B2Smoke\data`
@@ -21,9 +21,9 @@ Next Task:
 Task 12C - Run Canonical Production Job for Chapter 357
 
 Why:
-- Chapter 357 already has canonical approved Casting Plan `18`, but the unified workflow previously refused the canonical live root unconditionally.
-- Task 12C1 adds an explicit opt-in guard `--allow-canonical-production` so the operator can submit one canonical production job only when they also pass `--submit`, exact casting-plan identity, and matching canonical `/api/runtime`.
-- The immediate next step is to use that guarded path for the first canonical Chapter 357 production run without falling back to UI Render or ad hoc API calls.
+- Chapter 357 already has canonical approved Casting Plan `18`, and Task 12C1 added the explicit canonical submit guard `--allow-canonical-production`.
+- Task 12C2 removes the remaining blocker in runner preflight by teaching production voice-availability checks to accept active usable custom voices such as `custom:25` and `custom:26` instead of treating them as missing preset voices.
+- The immediate next step is to rerun the guarded canonical workflow for the first real Chapter 357 production submit without falling back to UI Render or ad hoc API calls.
 
 Scope:
 1. Verify canonical runtime on `http://127.0.0.1:8772` still points to `D:\Youtube\Story Trans And Audio\data`.
@@ -38,6 +38,7 @@ Prerequisites For Any Next Task:
 - Keep `STORY_AUDIO_ALLOW_LIVE_DB=1` process-local via `run_app.ps1`; do not persist it at user or machine scope.
 - Require an explicit isolated `STORY_AUDIO_DATA_DIR` / data root for any new smoke or production-style run.
 - For unified canonical production workflow runs, require explicit `--allow-canonical-production` together with `--submit`; canonical mode must never auto-enable from environment alone.
+- Custom voice bindings in approved canonical plans are now valid only when they resolve to active usable library entries with a preferred or latest usable revision; inactive or revision-less custom voices must still fail closed.
 - Preserve live DB guardrails.
 - Do not stop or repurpose port `8765`; it belongs to YouTube Auto.
 - Do not mutate `experiment_b_transcript/` or `runs/`.

@@ -6,6 +6,12 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 12C2 - Custom voices in production workflow checks**: extended canonical/unified workflow preflight so Casting Plans can reference both preset voice IDs and active usable custom voice IDs without weakening the existing fail-closed guardrails.
+  - **Voice catalog expansion**: `story_audio/production_runner.py` now resolves availability from both `/api/voices` and `/api/custom-voices`, then verifies that custom IDs such as `custom:25` and `custom:26` point to active voices with a usable preferred or latest synthesis revision.
+  - **Strict failures preserved**: missing custom voices, inactive custom voices, or custom voices without a usable revision still stop preflight before submit; the error now reports generic `unavailable voice(s)` rather than incorrectly calling them preset-only failures.
+  - **Canonical preflight coverage**: focused runner/workflow/custom-voice tests passed at 85/85, and the full offline suite passed at 893/893 with 1 expected Windows symlink-privilege skip. Coverage includes preset-only plans, mixed preset/custom plans, missing custom IDs, inactive custom voices, revision-less custom voices, and canonical preflight passing with Chapter 357 style voice bindings without submitting a job.
+  - **Migration**: none.
+
 - **Task 12C1 - Explicit canonical mode for unified production workflow**: added a strongly-guarded opt-in path for running the existing unified workflow against canonical production without weakening the default isolated fail-closed behavior.
   - **Default safety preserved**: `scripts/run_production_workflow.py` still refuses the canonical live root unless the operator passes explicit CLI confirmation `--allow-canonical-production`.
   - **Canonical submit guard**: canonical mode also requires explicit `--submit`; it does not auto-enable from environment alone and does not permit a silent watch-only or resume-only canonical path.

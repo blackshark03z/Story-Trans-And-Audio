@@ -66,7 +66,14 @@ class FakeClient:
         return f"{path}?{items}"
 
 
-def make_base_responses(*, data_root: str = "D:/isolated/data", jobs: list[dict] | None = None, job_details: dict[int, dict] | None = None) -> dict[tuple[str, str], object]:
+def make_base_responses(
+    *,
+    data_root: str = "D:/isolated/data",
+    jobs: list[dict] | None = None,
+    job_details: dict[int, dict] | None = None,
+    custom_voices: list[dict] | None = None,
+    custom_voice_revisions: dict[int, list[dict]] | None = None,
+) -> dict[tuple[str, str], object]:
     chapter_list_item = {
         "id": 100,
         "chapter_number": 629,
@@ -154,9 +161,12 @@ def make_base_responses(*, data_root: str = "D:/isolated/data", jobs: list[dict]
         ("GET", "/api/casting/55"): plan,
         ("GET", "/api/books/1/voice-profile"): profile,
         ("GET", "/api/voices"): voices,
+        ("GET", "/api/custom-voices?active_only=true"): custom_voices or [],
         ("GET", "/api/jobs"): jobs or [],
         ("POST", "/api/jobs"): {"job_id": 900, "selected_chapters": 1, "skipped_completed": 0},
     }
+    for voice_id, revisions in (custom_voice_revisions or {}).items():
+        responses[("GET", f"/api/custom-voices/{voice_id}/revisions")] = revisions
     for job_id, detail in (job_details or {}).items():
         responses[("GET", f"/api/jobs/{job_id}")] = detail
     return responses
@@ -332,6 +342,139 @@ class ProductionRunnerTests(unittest.TestCase):
             client = FakeClient(responses)
             with self.assertRaises(BindingMismatchError):
                 run_preflight(client, data_root=Path(tmp).resolve(), book_id=1, chapter_number=629, casting_plan_id=55, output_format="m4a")
+
+    def test_active_usable_custom_voices_are_available(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            responses = make_base_responses(
+                data_root=str(Path(tmp).resolve()),
+                custom_voices=[
+                    {"id": 25, "display_name": "Hua Thanh", "is_active": True, "preferred_synthesis_revision_id": 101},
+                    {"id": 26, "display_name": "Chanlee", "is_active": True, "preferred_synthesis_revision_id": 102},
+                ],
+                custom_voice_revisions={
+                    25: [{"id": 101, "revision_number": 1}],
+                    26: [{"id": 102, "revision_number": 3}],
+                },
+            )
+            responses[("GET", "/api/casting/55")]["plan"]["narrator_voice_id"] = "custom:26"
+            responses[("GET", "/api/casting/55")]["plan"]["book_voice_profile"]["narrator_voice_id"] = "custom:26"
+            responses[("GET", "/api/casting/55")]["plan"]["book_voice_profile"]["male_dialogue_voice_id"] = "custom:25"
+            responses[("GET", "/api/casting/55")]["plan"]["book_voice_profile"]["female_dialogue_voice_id"] = "custom:26"
+            responses[("GET", "/api/casting/55")]["plan"]["utterances"] = [
+                {"utterance_id": "u1", "role": "narrator", "resolved_voice_id": "custom:26"},
+                {"utterance_id": "u2", "role": "character", "character_id": 81, "resolved_voice_id": "custom:25"},
+                {"utterance_id": "u3", "role": "character", "character_id": 82, "resolved_voice_id": "custom:26"},
+            ]
+            responses[("GET", "/api/books/1/voice-profile")]["profile"]["narrator_voice_id"] = "custom:26"
+            responses[("GET", "/api/books/1/voice-profile")]["profile"]["male_dialogue_voice_id"] = "custom:25"
+            responses[("GET", "/api/books/1/voice-profile")]["profile"]["female_dialogue_voice_id"] = "custom:26"
+            client = FakeClient(responses)
+            result = run_preflight(client, data_root=Path(tmp).resolve(), book_id=1, chapter_number=629, casting_plan_id=55, output_format="m4a")
+            self.assertEqual(result["derived_default_voice"]["voice_id"], "custom:26")
+            self.assertEqual(result["derived_default_voice"]["label"], "Chanlee")
+
+    def test_missing_custom_voice_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            responses = make_base_responses(data_root=str(Path(tmp).resolve()))
+            responses[("GET", "/api/casting/55")]["plan"]["narrator_voice_id"] = "custom:26"
+            responses[("GET", "/api/casting/55")]["plan"]["book_voice_profile"]["narrator_voice_id"] = "custom:26"
+            responses[("GET", "/api/casting/55")]["plan"]["utterances"] = [
+                {"utterance_id": "u1", "role": "narrator", "resolved_voice_id": "custom:26"},
+            ]
+            responses[("GET", "/api/books/1/voice-profile")]["profile"]["narrator_voice_id"] = "custom:26"
+            client = FakeClient(responses)
+            with self.assertRaisesRegex(BindingMismatchError, "unavailable voice"):
+                run_preflight(client, data_root=Path(tmp).resolve(), book_id=1, chapter_number=629, casting_plan_id=55, output_format="m4a")
+
+    def test_inactive_custom_voice_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            responses = make_base_responses(
+                data_root=str(Path(tmp).resolve()),
+                custom_voices=[],
+                custom_voice_revisions={25: [{"id": 101, "revision_number": 1}]},
+            )
+            responses[("GET", "/api/casting/55")]["plan"]["utterances"] = [
+                {"utterance_id": "u1", "role": "narrator", "resolved_voice_id": "ngoc_lan"},
+                {"utterance_id": "u2", "role": "character", "character_id": 81, "resolved_voice_id": "custom:25"},
+            ]
+            client = FakeClient(responses)
+            with self.assertRaisesRegex(BindingMismatchError, "unavailable voice"):
+                run_preflight(client, data_root=Path(tmp).resolve(), book_id=1, chapter_number=629, casting_plan_id=55, output_format="m4a")
+
+    def test_custom_voice_without_usable_revision_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            responses = make_base_responses(
+                data_root=str(Path(tmp).resolve()),
+                custom_voices=[{"id": 25, "display_name": "Hua Thanh", "is_active": True, "preferred_synthesis_revision_id": None}],
+                custom_voice_revisions={25: []},
+            )
+            responses[("GET", "/api/casting/55")]["plan"]["utterances"] = [
+                {"utterance_id": "u1", "role": "narrator", "resolved_voice_id": "ngoc_lan"},
+                {"utterance_id": "u2", "role": "character", "character_id": 81, "resolved_voice_id": "custom:25"},
+            ]
+            client = FakeClient(responses)
+            with self.assertRaisesRegex(BindingMismatchError, "unavailable voice"):
+                run_preflight(client, data_root=Path(tmp).resolve(), book_id=1, chapter_number=629, casting_plan_id=55, output_format="m4a")
+
+    def test_mixed_preset_and_custom_voices_pass(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            responses = make_base_responses(
+                data_root=str(Path(tmp).resolve()),
+                custom_voices=[{"id": 25, "display_name": "Hua Thanh", "is_active": True, "preferred_synthesis_revision_id": 101}],
+                custom_voice_revisions={25: [{"id": 101, "revision_number": 1}]},
+            )
+            responses[("GET", "/api/casting/55")]["plan"]["utterances"] = [
+                {"utterance_id": "u1", "role": "narrator", "resolved_voice_id": "ngoc_lan"},
+                {"utterance_id": "u2", "role": "character", "character_id": 81, "resolved_voice_id": "custom:25"},
+                {"utterance_id": "u3", "role": "character", "character_id": 82, "resolved_voice_id": "my_duyen"},
+            ]
+            client = FakeClient(responses)
+            result = run_preflight(client, data_root=Path(tmp).resolve(), book_id=1, chapter_number=629, casting_plan_id=55, output_format="m4a")
+            distribution = {item["voice_id"] for item in result["speaker_voice_distribution"]}
+            self.assertIn("custom:25", distribution)
+            self.assertIn("ngoc_lan", distribution)
+            self.assertIn("my_duyen", distribution)
+
+    def test_canonical_custom_voice_preflight_can_pass_without_submit(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data_root = Path(tmp).resolve()
+            responses = make_base_responses(
+                data_root=str(data_root),
+                custom_voices=[
+                    {"id": 25, "display_name": "Hua Thanh", "is_active": True, "preferred_synthesis_revision_id": 101},
+                    {"id": 26, "display_name": "Chanlee", "is_active": True, "preferred_synthesis_revision_id": 102},
+                ],
+                custom_voice_revisions={
+                    25: [{"id": 101, "revision_number": 1}],
+                    26: [{"id": 102, "revision_number": 3}],
+                },
+            )
+            responses[("GET", "/api/runtime")]["canonical_live_data_root"] = str(data_root)
+            responses[("GET", "/api/runtime")]["canonical_live_db_path"] = str(data_root / "app.db")
+            responses[("GET", "/api/runtime")]["is_canonical_live_data_root"] = True
+            responses[("GET", "/api/runtime")]["is_canonical_live_db"] = True
+            responses[("GET", "/api/casting/55")]["plan"]["narrator_voice_id"] = "custom:26"
+            responses[("GET", "/api/casting/55")]["plan"]["book_voice_profile"]["narrator_voice_id"] = "custom:26"
+            responses[("GET", "/api/casting/55")]["plan"]["book_voice_profile"]["male_dialogue_voice_id"] = "custom:25"
+            responses[("GET", "/api/casting/55")]["plan"]["book_voice_profile"]["female_dialogue_voice_id"] = "custom:26"
+            responses[("GET", "/api/casting/55")]["plan"]["utterances"] = [
+                {"utterance_id": "u1", "role": "narrator", "resolved_voice_id": "custom:26"},
+                {"utterance_id": "u2", "role": "character", "character_id": 81, "resolved_voice_id": "custom:25"},
+            ]
+            responses[("GET", "/api/books/1/voice-profile")]["profile"]["narrator_voice_id"] = "custom:26"
+            responses[("GET", "/api/books/1/voice-profile")]["profile"]["male_dialogue_voice_id"] = "custom:25"
+            responses[("GET", "/api/books/1/voice-profile")]["profile"]["female_dialogue_voice_id"] = "custom:26"
+            client = FakeClient(responses)
+            result = run_preflight(
+                client,
+                data_root=data_root,
+                book_id=1,
+                chapter_number=629,
+                casting_plan_id=55,
+                output_format="m4a",
+                allow_canonical_production=True,
+            )
+            self.assertEqual(result["status"], "preflight_pass")
 
     def test_default_voice_derived_correctly_from_profile_and_plan(self):
         with tempfile.TemporaryDirectory() as tmp:
