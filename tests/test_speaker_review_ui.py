@@ -159,12 +159,54 @@ console.log(JSON.stringify({
 
     def test_select_chapter_step_resets_on_open_and_does_not_close_on_stepper_click(self) -> None:
         for value in (
-            "state.productionFlow={chapterId:id,selectedStepId:'select-chapter'}",
+            "state.productionFlow={chapterId:id,selectedStepId:null,autoSelected:true}",
             "focusProductionFlowStep(button.dataset.flowStep,{exitToChapterList:false})",
             "$('#productionFlowContinue').onclick=()=>focusProductionFlowStep(selected.id,{exitToChapterList:selected.id==='select-chapter'})",
             "$('#productionFlowPanel')?.scrollIntoView({behavior:'smooth',block:'start'})",
         ):
             self.assertIn(value, self.js)
+
+    def test_opening_flow_aligns_selected_step_with_recommended_step_without_breaking_manual_navigation(self) -> None:
+        script = r"""
+const PRODUCTION_FLOW_STEPS=[
+  {id:'select-chapter',number:1,title:'Select Chapter'},
+  {id:'review-text',number:2,title:'Review Text'},
+  {id:'assign-voices',number:3,title:'Assign Voices'},
+  {id:'review-voice-map',number:4,title:'Review Voice Map'},
+  {id:'render-chapter',number:5,title:'Render Chapter'},
+  {id:'review-audio',number:6,title:'Review Audio / Finalize'},
+];
+const state={productionFlow:null};
+function ensureProductionFlowSelection(chapterId,recommendedStepId='select-chapter',reset=false){if(reset||state.productionFlow?.chapterId!==chapterId)state.productionFlow={chapterId,selectedStepId:null,autoSelected:true};if(state.productionFlow?.autoSelected||!state.productionFlow?.selectedStepId)state.productionFlow.selectedStepId=recommendedStepId||'select-chapter';if(!state.productionFlow?.selectedStepId)state.productionFlow.selectedStepId='select-chapter';if(state.productionFlow?.autoSelected===undefined)state.productionFlow.autoSelected=false}
+function selectProductionFlowStep(stepId,{auto=false}={}){state.productionFlow={...(state.productionFlow||{}),selectedStepId:stepId||'select-chapter',autoSelected:auto}}
+function renderProductionFlow(model,chapterId){ensureProductionFlowSelection(chapterId,model.currentStepId);const recommended=model.steps.find(step=>step.id===model.currentStepId)||model.steps[0];if(!model.steps.some(step=>step.id===state.productionFlow?.selectedStepId)){selectProductionFlowStep(recommended.id,{auto:true})}return {selected:state.productionFlow.selectedStepId,recommended:recommended.id,autoSelected:state.productionFlow.autoSelected}}
+const reviewAudioModel={currentStepId:'review-audio',steps:PRODUCTION_FLOW_STEPS};
+const renderModel={currentStepId:'render-chapter',steps:PRODUCTION_FLOW_STEPS};
+const castingModel={currentStepId:'assign-voices',steps:PRODUCTION_FLOW_STEPS};
+const firstOpen=renderProductionFlow(reviewAudioModel,357);
+selectProductionFlowStep('review-text');
+const manualNav=renderProductionFlow(reviewAudioModel,357);
+const reopenSameChapter=(()=>{state.productionFlow={chapterId:357,selectedStepId:null,autoSelected:true};return renderProductionFlow(reviewAudioModel,357)})();
+const differentChapter=(()=>{state.productionFlow={chapterId:357,selectedStepId:'review-audio',autoSelected:false};return renderProductionFlow(renderModel,358)})();
+const staleReset=(()=>{state.productionFlow={chapterId:358,selectedStepId:'render-chapter',autoSelected:true};return renderProductionFlow(castingModel,358)})();
+console.log(JSON.stringify({firstOpen,manualNav,reopenSameChapter,differentChapter,staleReset}));
+"""
+        result = subprocess.run(
+            ["node", "-e", script],
+            check=True,
+            capture_output=True,
+            text=True,
+            cwd=str(ROOT),
+        )
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["firstOpen"]["selected"], "review-audio")
+        self.assertTrue(payload["firstOpen"]["autoSelected"])
+        self.assertEqual(payload["manualNav"]["selected"], "review-text")
+        self.assertFalse(payload["manualNav"]["autoSelected"])
+        self.assertEqual(payload["reopenSameChapter"]["selected"], "review-audio")
+        self.assertTrue(payload["reopenSameChapter"]["autoSelected"])
+        self.assertEqual(payload["differentChapter"]["selected"], "render-chapter")
+        self.assertEqual(payload["staleReset"]["selected"], "assign-voices")
 
     def test_primary_flow_panels_match_guided_operator_steps(self) -> None:
         for value in (
