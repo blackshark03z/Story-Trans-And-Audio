@@ -23,7 +23,7 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "chapter-title-wrap",
             "chapter-title-meta",
             "chapter-casting-meta",
-            "Open Production Flow",
+            "Mở quy trình sản xuất",
             "CASTING REVIEW NEEDED",
             "CASTING APPROVED",
             "job-output-meta",
@@ -36,8 +36,8 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "Open current Production Flow",
             "Current active audio: Job",
             "Current playback still uses the active historical plan until a new job is rendered",
-            "Advanced / Debug: use this to inspect current or historical jobs.",
-            "Advanced / Debug: segment attempts are for troubleshooting specific audio problems after QA",
+            "Nâng cao / Gỡ lỗi: dùng phần này để xem job hiện tại hoặc job lịch sử.",
+            "Nâng cao / Gỡ lỗi: segment attempts chỉ dùng để xử lý lỗi audio cụ thể sau QA",
         ):
             self.assertIn(value, self.html + self.js + self.css)
 
@@ -48,7 +48,7 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "openCastingShortcut",
             "casting-tab-shortcut",
             "castingPlanIdentity",
-            "Production Flow",
+            "Quy trình sản xuất",
         ):
             self.assertIn(value, self.js + self.html + self.css)
 
@@ -58,18 +58,18 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "Current active audio: Job",
             "Render / Production Output",
             "Historical Job",
-            "This approved Final Voice Map is the one Render / Production Output will use until a newer approved map exists.",
-            "This is the source of truth before rendering.",
-            "Use this only after the Casting Plan is approved.",
-            "This is the Final Voice Map render will use.",
+            "Bản đồ giọng cuối đã duyệt này là bản Render / Production Output sẽ dùng cho đến khi có một plan mới hơn được duyệt.",
+            "Đây là nguồn sự thật trước khi tạo audio.",
+            "Chỉ dùng phần này sau khi Casting Plan đã được duyệt.",
+            "Đây là bản đồ giọng cuối mà hệ thống sẽ dùng khi tạo audio.",
         ):
             self.assertIn(value, self.html + self.js)
 
     def test_chapter_ui_mentions_operator_flow_and_next_action(self) -> None:
         for value in (
-            "Start Here",
-            "Production Flow",
-            "Recommended Next Action",
+            "Bắt đầu ở đây",
+            "Quy trình sản xuất",
+            "Bước nên làm tiếp theo",
             "productionFlowStepper",
             "productionFlowBack",
             "productionFlowContinue",
@@ -81,29 +81,29 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "castingRecommendedActionBody",
             "castingRecommendedActionState",
             "PRODUCTION_FLOW_STEPS",
-            "title:'Select Chapter'",
-            "title:'Review Audio / Finalize'",
+            "title:'Chọn chương'",
+            "title:'Nghe kiểm tra / Chốt bản cuối'",
         ):
             self.assertIn(value, self.html + self.js + self.css)
 
     def test_active_audio_state_does_not_push_normal_rerender_path(self) -> None:
         for value in (
-            "Audio already exists; use QA or replacement workflow instead of normal render.",
-            "Open the active artifact, listening checklist, and segment QA only for specific problems.",
-            "Finalize Output",
+            "Chương này đã có audio; hãy dùng QA hoặc replacement workflow thay vì render thường.",
+            "Hãy mở active artifact, listening checklist, và segment QA chỉ cho các lỗi thật sự cụ thể.",
+            "Chốt bản audio cuối",
         ):
             self.assertIn(value, self.html + self.js)
 
     def test_primary_operator_flow_emphasizes_main_steps_over_debug(self) -> None:
         for value in (
-            "Select Chapter",
-            "Review Text",
-            "Assign Voices",
-            "Review Final Voice Map",
-            "Render Chapter",
-            "Review Audio / Finalize",
-            "Advanced / Debug: AI speaker draft tools",
-            "Advanced / Debug: QA and segment troubleshooting",
+            "Chọn chương",
+            "Kiểm tra văn bản",
+            "Gán giọng",
+            "Duyệt bản đồ giọng cuối",
+            "Tạo audio chương",
+            "Nghe kiểm tra / Chốt bản cuối",
+            "Nâng cao / Gỡ lỗi: công cụ nháp AI cho người nói",
+            "Nâng cao / Gỡ lỗi: QA và xử lý sự cố segment",
         ):
             self.assertIn(value, self.html + self.js)
 

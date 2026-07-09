@@ -30,9 +30,9 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
             "speakerReviewFilter", "reviewSelectVisible", "reviewAcceptSuggestions",
             "reviewMarkNarrator", "reviewMarkUnknown", "reviewClearSelection",
             "approveSpeakerReview", "jumpToPendingReview", "jumpToApprovalControls",
-            "AI Draft / Suggestions", "Decisions are local until final approval.",
-            "Create/Update Casting Plan from AI Draft",
-            "Jump to Casting Plan approval",
+            "Nháp AI / Gợi ý", "Các quyết định ở đây chỉ là tạm thời cho đến khi bạn duyệt cuối.",
+            "Tạo / cập nhật Casting Plan từ nháp AI",
+            "Nhảy đến phần duyệt Casting Plan",
         ):
             self.assertIn(value, self.html + self.js)
         self.assertIn("draft.stale||count===0", self.js)
@@ -42,18 +42,18 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
     def test_active_audio_warning_and_latest_approval_revision_are_rendered(self) -> None:
         for value in (
             "Current playback still uses the active historical plan until a new job is rendered",
-            "Latest approval created Casting Plan v",
-            "Render will use this approved Final Voice Map.",
-            "Start Render (",
-            "Finalize Output",
+            "Lần duyệt gần nhất đã tạo Casting Plan v",
+            "Render sẽ dùng đúng Bản đồ giọng cuối đã duyệt này.",
+            "Bắt đầu tạo audio (",
+            "Chốt bản audio cuối",
         ):
             self.assertIn(value, self.html + self.js)
 
     def test_character_voices_layout_separates_draft_plan_and_render_areas(self) -> None:
         for value in (
-            "Start Here",
-            "Production Flow",
-            "Recommended Next Action",
+            "Bắt đầu ở đây",
+            "Quy trình sản xuất",
+            "Bước nên làm tiếp theo",
             "productionFlowStepper",
             "productionFlowBack",
             "productionFlowContinue",
@@ -67,51 +67,51 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
             "flowStepReviewVoiceMap",
             "flowStepRenderChapter",
             "flowStepReviewAudio",
-            "Detected speakers in this chapter",
-            "Book voice defaults and character memory",
+            "Nhân vật / người nói được phát hiện trong chương",
+            "Giọng mặc định và bộ nhớ nhân vật của sách",
             "flowVoiceMemoryDetails",
             "speakerDraftExistingPlanWarning",
-            "AI Draft tools can create a new plan; use Casting Plan Review to approve the current plan.",
+            "Công cụ nháp AI có thể tạo một plan mới; nếu bạn chỉ muốn duyệt plan hiện tại, hãy quay lại phần Bản đồ giọng cuối.",
             "castingRecommendedActionTitle",
             "castingRecommendedActionBody",
             "castingRecommendedActionState",
             "castingPlanReviewMeta",
             "renderPlanNotice",
             "castingPlanApprovalControls",
-            "Approve Final Voice Map & Continue to Render",
-            "Review Audio / Finalize",
-            "Advanced / Debug: AI speaker draft tools",
+            "Duyệt bản đồ giọng cuối & tiếp tục tạo audio",
+            "Nghe kiểm tra / Chốt bản cuối",
+            "Nâng cao / Gỡ lỗi: công cụ nháp AI cho người nói",
         ):
             self.assertIn(value, self.html + self.js)
 
     def test_review_voice_map_uses_final_voice_map_as_primary_label(self) -> None:
         for value in (
-            "Review Final Voice Map",
-            "This is the Final Voice Map render will use.",
-            "Final Voice Map details",
-            "Review the Final Voice Map, then approve it before rendering.",
-            "This Final Voice Map is stored as the approved Casting Plan.",
-            "Approve Final Voice Map & Continue to Render",
+            "Duyệt bản đồ giọng cuối",
+            "Đây là bản đồ giọng cuối mà hệ thống sẽ dùng khi tạo audio.",
+            "Chi tiết bản đồ giọng cuối",
+            "Hãy duyệt Bản đồ giọng cuối, rồi mới duyệt plan trước khi tạo audio.",
+            "Bản đồ giọng cuối này hiện đang được lưu dưới dạng Casting Plan đã duyệt.",
+            "Duyệt bản đồ giọng cuối & tiếp tục tạo audio",
             "Technical: Casting Plan #",
         ):
             self.assertIn(value, self.html + self.js)
 
     def test_assign_voices_uses_operator_language_for_detected_speakers(self) -> None:
         for value in (
-            "Detected speakers in this chapter",
-            "Most voices are assigned automatically from narrator/male/female defaults and known character memory.",
-            "Review only speakers marked Needs review, then approve the Voice Map before rendering.",
-            "who the tool found in this chapter",
-            "Voice to use",
-            "Known character",
-            "New or unclear speaker",
-            "Using default voice",
-            "Review required before render",
+            "Nhân vật / người nói được phát hiện trong chương",
+            "Hầu hết giọng được tự gán từ giọng kể chuyện, giọng nam/nữ mặc định và bộ nhớ nhân vật đã biết.",
+            "Bạn chỉ cần kiểm tra các dòng được đánh dấu Cần kiểm tra, rồi duyệt bản đồ giọng trước khi tạo audio.",
+            "Danh sách này cho biết công cụ phát hiện ai trong chương",
+            "Giọng sẽ dùng",
+            "Nhân vật đã biết",
+            "Người nói mới hoặc chưa rõ",
+            "Đang dùng giọng mặc định",
+            "Cần kiểm tra trước khi tạo audio",
         ):
             self.assertIn(value, self.html + self.js)
 
     def test_assign_voices_keeps_backend_terms_out_of_primary_labels(self) -> None:
-        self.assertIn("AI speaker draft and review tools", self.html)
+        self.assertIn("Công cụ nháp AI và rà soát người nói", self.html)
         self.assertIn("Character Bible import", self.html)
         self.assertNotIn(">Speaker Assignment Draft</h3>", self.html)
         self.assertNotIn("Current assigned voice", self.js)
@@ -128,8 +128,8 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
             "speakerDraftExistingPlanWarning",
             "$('#speakerReviewPanel').classList.toggle('has-existing-plan',existingPlan)",
             "$('#approveSpeakerReview').textContent=speakerDraftApprovalLabel",
-            "Advanced / AI suggestions",
-            "Do not treat this area as final approval",
+            "Nâng cao / gợi ý AI",
+            "Đừng xem đây là bước duyệt cuối",
         ):
             self.assertIn(value, self.html + self.js + self.css)
 
@@ -137,12 +137,12 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
         for value in (
             "PRODUCTION_FLOW_STEPS",
             "productionStepTitle",
-            "title:'Select Chapter'",
-            "title:'Review Text'",
-            "title:'Assign Voices'",
-            "title:'Review Final Voice Map'",
-            "title:'Render Chapter'",
-            "title:'Review Audio / Finalize'",
+            "title:'Chọn chương'",
+            "title:'Kiểm tra văn bản'",
+            "title:'Gán giọng'",
+            "title:'Duyệt bản đồ giọng cuối'",
+            "title:'Tạo audio chương'",
+            "title:'Nghe kiểm tra / Chốt bản cuối'",
         ):
             self.assertIn(value, self.js + self.html)
 
@@ -185,12 +185,12 @@ console.log(JSON.stringify({
             "productionFlowStepInputs",
             "productionFlowStepAfter",
             "productionFlowBlockedReason",
-            "Choose another chapter",
-            "Text revision is not approved yet.",
-            "No casting plan exists yet.",
-            "Render stays blocked until the Voice Map is approved.",
-            "Audio already exists; use QA or replacement workflow instead of normal render.",
-            "Human QA state is not stored in the database here; record the verdict separately if needed.",
+            "Chọn chương khác",
+            "Text revision hiện tại chưa được duyệt.",
+            "Chưa có Casting Plan.",
+            "Bước tạo audio vẫn bị chặn cho đến khi Bản đồ giọng cuối được duyệt.",
+            "Chương này đã có audio; hãy dùng QA hoặc replacement workflow thay vì render thường.",
+            "App chưa lưu trạng thái human QA trong database; hãy ghi verdict riêng nếu cần.",
         ):
             self.assertIn(value, self.html + self.js)
 
@@ -206,12 +206,12 @@ console.log(JSON.stringify({
     def test_opening_flow_aligns_selected_step_with_recommended_step_without_breaking_manual_navigation(self) -> None:
         script = r"""
 const PRODUCTION_FLOW_STEPS=[
-  {id:'select-chapter',number:1,title:'Select Chapter'},
-  {id:'review-text',number:2,title:'Review Text'},
-  {id:'assign-voices',number:3,title:'Assign Voices'},
-  {id:'review-voice-map',number:4,title:'Review Final Voice Map'},
-  {id:'render-chapter',number:5,title:'Render Chapter'},
-  {id:'review-audio',number:6,title:'Review Audio / Finalize'},
+  {id:'select-chapter',number:1,title:'Chọn chương'},
+  {id:'review-text',number:2,title:'Kiểm tra văn bản'},
+  {id:'assign-voices',number:3,title:'Gán giọng'},
+  {id:'review-voice-map',number:4,title:'Duyệt bản đồ giọng cuối'},
+  {id:'render-chapter',number:5,title:'Tạo audio chương'},
+  {id:'review-audio',number:6,title:'Nghe kiểm tra / Chốt bản cuối'},
 ];
 const state={productionFlow:null};
 function ensureProductionFlowSelection(chapterId,recommendedStepId='select-chapter',reset=false){if(reset||state.productionFlow?.chapterId!==chapterId)state.productionFlow={chapterId,selectedStepId:null,autoSelected:true};if(state.productionFlow?.autoSelected||!state.productionFlow?.selectedStepId)state.productionFlow.selectedStepId=recommendedStepId||'select-chapter';if(!state.productionFlow?.selectedStepId)state.productionFlow.selectedStepId='select-chapter';if(state.productionFlow?.autoSelected===undefined)state.productionFlow.autoSelected=false}
@@ -264,9 +264,9 @@ console.log(JSON.stringify({firstOpen,manualNav,reopenSameChapter,differentChapt
 
     def test_review_audio_keeps_candidate_controls_out_of_primary_flow(self) -> None:
         for value in (
-            "Candidate/original A/B tools and segment troubleshooting belong only to QA context and Advanced / Debug.",
-            "Advanced / Debug: QA and segment troubleshooting",
-            "Finalize Output",
+            "Công cụ A/B candidate/original và xử lý segment chỉ thuộc ngữ cảnh QA và phần Nâng cao / Gỡ lỗi.",
+            "Nâng cao / Gỡ lỗi: QA và xử lý sự cố segment",
+            "Chốt bản audio cuối",
         ):
             self.assertIn(value, self.html + self.js)
 
