@@ -61,6 +61,7 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "This approved plan is the one Render / Production Output will use until a newer approved plan exists.",
             "Use this as the source of truth before rendering.",
             "Use this only after the Casting Plan is approved.",
+            "This is the final voice map the render step will use.",
         ):
             self.assertIn(value, self.html + self.js)
 

@@ -67,6 +67,9 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
             "flowStepReviewVoiceMap",
             "flowStepRenderChapter",
             "flowStepReviewAudio",
+            "Detected speakers in this chapter",
+            "Book voice defaults and character memory",
+            "flowVoiceMemoryDetails",
             "speakerDraftExistingPlanWarning",
             "AI Draft tools can create a new plan; use Casting Plan Review to approve the current plan.",
             "castingRecommendedActionTitle",
@@ -80,6 +83,28 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
             "Advanced / Debug: AI speaker draft tools",
         ):
             self.assertIn(value, self.html + self.js)
+
+    def test_assign_voices_uses_operator_language_for_detected_speakers(self) -> None:
+        for value in (
+            "Detected speakers in this chapter",
+            "Most voices are assigned automatically from narrator/male/female defaults and known character memory.",
+            "Review only speakers marked Needs review, then approve the Voice Map before rendering.",
+            "who the tool found in this chapter",
+            "Voice to use",
+            "Known character",
+            "New or unclear speaker",
+            "Using default voice",
+            "Review required before render",
+        ):
+            self.assertIn(value, self.html + self.js)
+
+    def test_assign_voices_keeps_backend_terms_out_of_primary_labels(self) -> None:
+        self.assertIn("AI speaker draft and review tools", self.html)
+        self.assertIn("Character Bible import", self.html)
+        self.assertNotIn(">Speaker Assignment Draft</h3>", self.html)
+        self.assertNotIn("Current assigned voice", self.js)
+        self.assertNotIn("Role / gender", self.js)
+        self.assertNotIn("Assigned voice", self.js)
 
     def test_jump_to_approval_controls_targets_real_casting_plan_area(self) -> None:
         self.assertIn("#castingPlanApprovalControls", self.js)
@@ -151,7 +176,7 @@ console.log(JSON.stringify({
             "Choose another chapter",
             "Text revision is not approved yet.",
             "No casting plan exists yet.",
-            "Render stays blocked until the voice map is approved.",
+            "Render stays blocked until the Voice Map is approved.",
             "Audio already exists; use QA or replacement workflow instead of normal render.",
             "Human QA state is not stored in the database here; record the verdict separately if needed.",
         ):

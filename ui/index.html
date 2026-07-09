@@ -290,13 +290,20 @@
             <div><p class="eyebrow">Step 3</p><h3>Assign Voices</h3></div>
             <span id="flowAssignStatus" class="pill">Pending</span>
           </div>
-          <p class="section-guide">Review discovered speakers, set defaults, and make sure every important voice has a safe mapping before plan review.</p>
+          <p class="section-guide">Most voices are assigned automatically from narrator/male/female defaults and known character memory. Review only speakers marked Needs review, then approve the Voice Map before rendering.</p>
           <div id="flowAssignWarnings"></div>
-          <div id="flowSpeakerSummary" class="flow-speaker-list"></div>
-          <div class="casting-toolbar">
-            <label>Giọng narrator<select id="castingNarratorVoice"></select><small id="castingNarratorSource" class="muted"></small></label>
+          <div class="section-head compact">
+            <div><p class="eyebrow">Main</p><h3>Detected speakers in this chapter</h3></div>
           </div>
-          <section id="voiceProfileSection" class="voice-profile-card">
+          <p class="muted">This list shows who the tool found in this chapter, what role they appear to have, which voice will be used, and whether you need to review anything before render.</p>
+          <div id="flowSpeakerSummary" class="flow-speaker-list"></div>
+          <details id="flowVoiceMemoryDetails" class="flow-secondary-details">
+            <summary>Book voice defaults and character memory</summary>
+            <p class="muted">Use this section when you need to change whole-book defaults, import known character memory, or add a recurring character. Most routine chapter work should start with the detected speaker list above.</p>
+            <div class="casting-toolbar">
+              <label>Giọng narrator<select id="castingNarratorVoice"></select><small id="castingNarratorSource" class="muted"></small></label>
+            </div>
+            <section id="voiceProfileSection" class="voice-profile-card">
             <div class="section-head">
               <div><p class="eyebrow">Book settings</p><h3>Book Voice Profile</h3></div>
               <span id="voiceProfileMeta" class="pill">Not configured</span>
@@ -330,13 +337,13 @@
               <span class="muted">Changes apply only to new casting plans and jobs.</span>
               <button id="saveVoiceProfile" class="secondary" data-runtime-mutation-control>Create Voice Profile</button>
             </div>
-          </section>
-          <section id="characterBibleSection" class="character-bible-import">
+            </section>
+            <section id="characterBibleSection" class="character-bible-import">
             <div class="section-head">
-              <div><p class="eyebrow">Character Bible</p><h3>Import JSON</h3></div>
+              <div><p class="eyebrow">Character memory</p><h3>Character Bible import</h3></div>
               <span id="characterBibleState" class="pill">No file selected</span>
             </div>
-            <p class="section-guide">Use this to keep character names, aliases, and roles consistent across chapters. Do not use it for one-off line fixes inside a single speaker draft.</p>
+            <p class="section-guide">Use this to keep character names, aliases, and roles consistent across chapters. It is background memory for the book, not a one-off chapter fix.</p>
             <div class="character-bible-controls">
               <input id="characterBibleFile" type="file" accept="application/json,.json">
               <label class="check"><input id="characterBibleUpdateExisting" type="checkbox"> Update existing metadata</label>
@@ -347,20 +354,21 @@
             <div id="characterBibleFileInfo" class="muted">No file selected.</div>
             <div id="characterBibleSummary" class="import-summary"></div>
             <div id="characterBiblePlan" class="import-plan"></div>
-          </section>
-          <div class="character-add row">
-            <input id="newCharacterName" placeholder="Tên nhân vật">
-            <select id="newCharacterGender"><option value="unknown">Unknown</option><option value="male">Male</option><option value="female">Female</option></select>
-            <select id="newCharacterAssignment"><option value="default">Use book default</option><option value="custom">Use custom voice</option></select>
-            <select id="newCharacterVoice"></select>
-            <button id="addCharacterBtn" class="secondary" data-runtime-mutation-control>Thêm nhân vật</button>
-          </div>
-          <div id="characterList" class="character-list"></div>
+            </section>
+            <div class="character-add row">
+              <input id="newCharacterName" placeholder="Tên nhân vật">
+              <select id="newCharacterGender"><option value="unknown">Unknown</option><option value="male">Male</option><option value="female">Female</option></select>
+              <select id="newCharacterAssignment"><option value="default">Use book default</option><option value="custom">Use custom voice</option></select>
+              <select id="newCharacterVoice"></select>
+              <button id="addCharacterBtn" class="secondary" data-runtime-mutation-control>Thêm nhân vật</button>
+            </div>
+            <div id="characterList" class="character-list"></div>
+          </details>
           <details id="flowAdvancedDraftTools" class="flow-advanced-tools">
             <summary>Advanced / Debug: AI speaker draft tools</summary>
             <section id="speakerReviewPanel" class="speaker-review-panel">
               <div class="section-head">
-                <div><p class="eyebrow">Advanced / AI suggestions</p><h3>Speaker Assignment Draft</h3></div>
+                <div><p class="eyebrow">Advanced / AI suggestions</p><h3>AI speaker draft and review tools</h3></div>
                 <span id="speakerReviewStatus" class="pill">No draft</span>
               </div>
               <p class="section-guide">Use this when you need AI help deciding who is speaking. Do not treat this area as final approval; it only prepares suggestions for a Casting Plan.</p>
@@ -411,7 +419,7 @@
             <div><p class="eyebrow">Step 4</p><h3>Review Voice Map</h3></div>
             <span id="flowVoiceMapStatus" class="pill">Pending</span>
           </div>
-          <p class="section-guide">Confirm the final speaker-to-voice map before rendering.</p>
+          <p class="section-guide">This is the final voice map the render step will use. Review it here, then approve it before rendering.</p>
           <div id="flowVoiceMapWarnings"></div>
           <div id="flowVoiceMapTable" class="flow-voice-map"></div>
           <section id="castingPlanPanel" class="casting-plan-panel">
