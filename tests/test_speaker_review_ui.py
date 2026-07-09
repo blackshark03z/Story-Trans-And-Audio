@@ -43,7 +43,7 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
         for value in (
             "Current playback still uses the active historical plan until a new job is rendered",
             "Latest approval created Casting Plan v",
-            "Render / Production Output will use the exact approved Casting Plan below.",
+            "Render will use this approved Final Voice Map.",
             "Start Render (",
             "Finalize Output",
         ):
@@ -78,9 +78,21 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
             "castingPlanReviewMeta",
             "renderPlanNotice",
             "castingPlanApprovalControls",
-            "Approve Voice Map & Continue to Render",
+            "Approve Final Voice Map & Continue to Render",
             "Review Audio / Finalize",
             "Advanced / Debug: AI speaker draft tools",
+        ):
+            self.assertIn(value, self.html + self.js)
+
+    def test_review_voice_map_uses_final_voice_map_as_primary_label(self) -> None:
+        for value in (
+            "Review Final Voice Map",
+            "This is the Final Voice Map render will use.",
+            "Final Voice Map details",
+            "Review the Final Voice Map, then approve it before rendering.",
+            "This Final Voice Map is stored as the approved Casting Plan.",
+            "Approve Final Voice Map & Continue to Render",
+            "Technical: Casting Plan #",
         ):
             self.assertIn(value, self.html + self.js)
 
@@ -128,7 +140,7 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
             "title:'Select Chapter'",
             "title:'Review Text'",
             "title:'Assign Voices'",
-            "title:'Review Voice Map'",
+            "title:'Review Final Voice Map'",
             "title:'Render Chapter'",
             "title:'Review Audio / Finalize'",
         ):
@@ -197,7 +209,7 @@ const PRODUCTION_FLOW_STEPS=[
   {id:'select-chapter',number:1,title:'Select Chapter'},
   {id:'review-text',number:2,title:'Review Text'},
   {id:'assign-voices',number:3,title:'Assign Voices'},
-  {id:'review-voice-map',number:4,title:'Review Voice Map'},
+  {id:'review-voice-map',number:4,title:'Review Final Voice Map'},
   {id:'render-chapter',number:5,title:'Render Chapter'},
   {id:'review-audio',number:6,title:'Review Audio / Finalize'},
 ];

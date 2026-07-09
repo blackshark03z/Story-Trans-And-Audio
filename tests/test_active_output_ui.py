@@ -54,14 +54,14 @@ class ActiveOutputUiTests(IsolatedTestCase):
 
     def test_active_output_and_plan_identity_are_explained_in_character_voices(self) -> None:
         for value in (
-            "Casting Plan #",
+            "Technical: Casting Plan #",
             "Current active audio: Job",
             "Render / Production Output",
             "Historical Job",
-            "This approved plan is the one Render / Production Output will use until a newer approved plan exists.",
-            "Use this as the source of truth before rendering.",
+            "This approved Final Voice Map is the one Render / Production Output will use until a newer approved map exists.",
+            "This is the source of truth before rendering.",
             "Use this only after the Casting Plan is approved.",
-            "This is the final voice map the render step will use.",
+            "This is the Final Voice Map render will use.",
         ):
             self.assertIn(value, self.html + self.js)
 
@@ -99,7 +99,7 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "Select Chapter",
             "Review Text",
             "Assign Voices",
-            "Review Voice Map",
+            "Review Final Voice Map",
             "Render Chapter",
             "Review Audio / Finalize",
             "Advanced / Debug: AI speaker draft tools",

@@ -416,18 +416,18 @@
 
         <section id="flowStepReviewVoiceMap" class="flow-step-panel hidden">
           <div class="section-head">
-            <div><p class="eyebrow">Step 4</p><h3>Review Voice Map</h3></div>
+            <div><p class="eyebrow">Step 4</p><h3>Review Final Voice Map</h3></div>
             <span id="flowVoiceMapStatus" class="pill">Pending</span>
           </div>
-          <p class="section-guide">This is the final voice map the render step will use. Review it here, then approve it before rendering.</p>
+          <p class="section-guide">This is the Final Voice Map render will use. Review it here, confirm each speaker and voice, then approve it before rendering.</p>
           <div id="flowVoiceMapWarnings"></div>
           <div id="flowVoiceMapTable" class="flow-voice-map"></div>
           <section id="castingPlanPanel" class="casting-plan-panel">
             <div class="section-head">
-              <div><p class="eyebrow">Casting Plan Review</p><h3>Review current Casting Plan</h3></div>
+              <div><p class="eyebrow">Technical</p><h3>Final Voice Map details</h3></div>
               <span id="castingPlanReviewMeta" class="pill">No plan</span>
             </div>
-            <p class="section-guide">Use this as the source of truth before rendering. This is where you verify the exact assignments and approve the plan that production will use.</p>
+            <p class="section-guide">This is the source of truth before rendering. Technical note: the Final Voice Map is stored as an immutable Casting Plan.</p>
             <p id="castingPlanReviewWarning" class="muted">Review assignments before rendering.</p>
             <div id="castingPlanWarning" class="issue warning hidden"></div>
             <details class="flow-secondary-details">
@@ -437,7 +437,7 @@
             </details>
             <div id="castingPlanApprovalControls" class="casting-actions">
               <button id="saveCastingDraft" class="secondary" data-runtime-mutation-control>Save Draft</button>
-              <button id="approveCastingPlan" class="primary" disabled data-runtime-mutation-control>Approve Voice Map & Continue to Render</button>
+              <button id="approveCastingPlan" class="primary" disabled data-runtime-mutation-control>Approve Final Voice Map & Continue to Render</button>
             </div>
           </section>
         </section>
@@ -456,7 +456,7 @@
             </div>
           <p class="section-guide">Use this only after the Casting Plan is approved. Do not render from an AI Speaker Draft or from a plan you have not reviewed yet.</p>
           <p id="renderPlanNotice" class="muted">Rendering is enabled only for an approved casting plan.</p>
-          <p class="muted hidden">Render / Production Output will use the exact approved Casting Plan below.</p>
+          <p class="muted hidden">Render / Production Output will use the exact approved Final Voice Map below.</p>
           <div class="casting-actions render-actions">
             <button id="renderCastingPlan" class="primary" disabled data-runtime-mutation-control>Start Render</button>
           </div>
