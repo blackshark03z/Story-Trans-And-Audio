@@ -91,6 +91,9 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "Chương này đã có audio; hãy dùng QA hoặc replacement workflow thay vì render thường.",
             "Hãy mở active artifact, listening checklist, và segment QA chỉ cho các lỗi thật sự cụ thể.",
             "Chốt bản audio cuối",
+            "Đánh dấu cần sửa",
+            "Trạng thái chốt bản audio cuối",
+            "Bản audio hiện tại khác với bản đã chốt trước đó. Cần kiểm tra lại.",
         ):
             self.assertIn(value, self.html + self.js)
 

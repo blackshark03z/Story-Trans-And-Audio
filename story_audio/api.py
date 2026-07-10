@@ -210,6 +210,11 @@ class SpeakerReviewApprovalRequest(BaseModel):
     idempotency_key: str = Field(min_length=1, max_length=200)
 
 
+class HumanApprovalRequest(BaseModel):
+    status: str = Field(pattern="^(approved|needs_fixes)$")
+    notes: str | None = Field(default=None, max_length=4000)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     db.initialize()
@@ -223,6 +228,87 @@ app = FastAPI(title="Story Audio", version="0.1.0", lifespan=lifespan)
 
 def as_dict(row) -> dict[str, Any]:
     return dict(row) if row is not None else {}
+
+
+def _parse_human_approval(raw: Any) -> dict[str, Any] | None:
+    if raw in (None, ""):
+        return None
+    try:
+        payload = json.loads(raw)
+    except (TypeError, ValueError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _active_artifact_snapshot(chapter: dict[str, Any]) -> dict[str, Any] | None:
+    artifact_id = int(chapter.get("active_audio_artifact_id") or 0)
+    if not artifact_id:
+        return None
+    artifact = db.fetch_one(
+        """
+        SELECT a.id,
+               a.path,
+               a.sha256,
+               a.duration_ms,
+               a.job_chapter_id,
+               jc.job_id
+        FROM artifacts a
+        LEFT JOIN job_chapters jc ON jc.id = a.job_chapter_id
+        WHERE a.id = ?
+        """,
+        (artifact_id,),
+    )
+    if not artifact:
+        return None
+    return {
+        "artifact_id": int(artifact["id"]),
+        "job_id": int(artifact["job_id"]) if artifact["job_id"] else None,
+        "output_path": artifact["path"],
+        "sha256": artifact["sha256"],
+        "duration_ms": int(artifact["duration_ms"]) if artifact["duration_ms"] is not None else None,
+    }
+
+
+def _decorate_human_approval(
+    chapter: dict[str, Any], approval: dict[str, Any] | None, active_output: dict[str, Any]
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    chapter_data = dict(chapter)
+    active_artifact_id = int(
+        active_output.get("active_output_artifact_id")
+        or chapter_data.get("active_audio_artifact_id")
+        or 0
+    )
+    normalized = dict(approval) if approval else None
+    warning = None
+    if normalized:
+        stored_artifact_id = int(normalized.get("artifact_id") or 0)
+        matches_active = bool(stored_artifact_id and active_artifact_id and stored_artifact_id == active_artifact_id)
+        normalized["matches_active_artifact"] = matches_active
+        if normalized.get("status") == "approved" and not matches_active:
+            warning = "Bản audio hiện tại khác với bản đã chốt trước đó. Cần kiểm tra lại."
+        if warning:
+            normalized["warning"] = warning
+    else:
+        matches_active = False
+
+    status = "pending"
+    label = "Chưa chốt"
+    if normalized:
+        raw_status = str(normalized.get("status") or "").lower()
+        if raw_status == "approved" and normalized.get("matches_active_artifact", matches_active):
+            status = "accepted"
+            label = "Đã chốt"
+        elif raw_status == "approved":
+            status = "approved_stale"
+            label = "Đã chốt"
+        elif raw_status == "needs_fixes":
+            status = "needs_fixes"
+            label = "Cần sửa"
+    chapter_data["human_qa_status"] = status
+    chapter_data["human_approval_status"] = normalized.get("status") if normalized else "pending"
+    chapter_data["human_approval_label"] = label
+    chapter_data["human_approval_warning"] = warning
+    return chapter_data, normalized
 
 
 def _character_bible_plan(book_id: int, request: CharacterBibleImportRequest) -> dict[str, Any]:
@@ -341,16 +427,64 @@ def chapter_detail(chapter_id: int) -> dict[str, Any]:
             (chapter["active_audio_artifact_id"],),
         )
     active_output = get_active_output_bindings(db, [chapter_id]).get(chapter_id, {})
+    chapter_data, human_approval = _decorate_human_approval(
+        dict(chapter),
+        _parse_human_approval(chapter["human_approval_json"]),
+        active_output,
+    )
     revision_data = []
     for row in revisions:
         item = dict(row)
         item["text"] = store.read_text(row["content_path"])
         revision_data.append(item)
     return {
-        "chapter": dict(chapter),
+        "chapter": chapter_data,
         "revisions": revision_data,
         "qa_issues": [dict(row) for row in issues],
         "audio_artifact": dict(artifact) if artifact else None,
+        "active_output": active_output,
+        "human_approval": human_approval,
+    }
+
+
+@app.put("/api/chapters/{chapter_id}/human-approval")
+def set_human_approval(chapter_id: int, request: HumanApprovalRequest) -> dict[str, Any]:
+    chapter = db.fetch_one(
+        "SELECT c.*,b.title AS book_title FROM chapters c JOIN books b ON b.id=c.book_id WHERE c.id=?",
+        (chapter_id,),
+    )
+    if not chapter:
+        raise HTTPException(404, "Không tìm thấy chương.")
+    chapter_data = dict(chapter)
+    snapshot = _active_artifact_snapshot(chapter_data)
+    if not snapshot:
+        raise HTTPException(400, "Chưa có active audio để chốt hoặc đánh dấu cần sửa.")
+    recorded_at = utcnow()
+    approval = {
+        "status": request.status,
+        "recorded_at": recorded_at,
+        "approved_at": recorded_at if request.status == "approved" else None,
+        "notes": (request.notes or "").strip(),
+        "artifact_id": snapshot["artifact_id"],
+        "job_id": snapshot["job_id"],
+        "output_path": snapshot["output_path"],
+        "sha256": snapshot["sha256"],
+        "duration_ms": snapshot["duration_ms"],
+    }
+    with db.transaction() as connection:
+        connection.execute(
+            "UPDATE chapters SET human_approval_json=?, updated_at=? WHERE id=?",
+            (json.dumps(approval, ensure_ascii=False), recorded_at, chapter_id),
+        )
+    refreshed = db.fetch_one(
+        "SELECT c.*,b.title AS book_title FROM chapters c JOIN books b ON b.id=c.book_id WHERE c.id=?",
+        (chapter_id,),
+    )
+    active_output = get_active_output_bindings(db, [chapter_id]).get(chapter_id, {})
+    chapter_view, human_approval = _decorate_human_approval(dict(refreshed), approval, active_output)
+    return {
+        "chapter": chapter_view,
+        "human_approval": human_approval,
         "active_output": active_output,
     }
 

@@ -476,9 +476,23 @@
             <a id="audioFileLink" target="_blank">Mở file audio</a>
           </div>
           <div id="chapterAudioMeta" class="chapter-audio-meta hidden"></div>
+          <section id="flowFinalApprovalPanel" class="flow-final-approval">
+            <div class="section-head">
+              <div><p class="eyebrow">Production record</p><h3>Trạng thái chốt bản audio cuối</h3></div>
+              <span id="flowFinalApprovalStatus" class="pill">Chưa chốt</span>
+            </div>
+            <div id="flowFinalApprovalSummary" class="flow-summary-grid"></div>
+            <div id="flowFinalApprovalWarning"></div>
+            <label class="flow-notes-label" for="flowFinalApprovalNotes">Ghi chú QA cuối</label>
+            <textarea id="flowFinalApprovalNotes" rows="3" placeholder="Ví dụ: Nghe kiểm tra xong, chốt bản audio cuối."></textarea>
+            <div class="flow-finalize-actions">
+              <button id="flowFinalizeOutput" class="primary" disabled data-runtime-mutation-control>Chốt bản audio cuối</button>
+              <button id="flowNeedsFixes" class="secondary" disabled data-runtime-mutation-control>Đánh dấu cần sửa</button>
+            </div>
+            <span id="flowFinalizeHint" class="muted">Record này chỉ ghi nhận kết luận human QA cho bản audio active hiện tại, không tự render lại audio.</span>
+          </section>
           <div class="flow-finalize-actions">
-            <button id="flowFinalizeOutput" class="primary" disabled>Chốt bản audio cuối</button>
-            <span id="flowFinalizeHint" class="muted">Nếu trạng thái human QA chưa được lưu trong app, hãy ghi kết luận cuối vào tài liệu hoặc file review export.</span>
+            <span id="flowFinalApprovalDetail" class="muted"></span>
           </div>
           <details class="flow-advanced-tools">
             <summary>Nâng cao / Gỡ lỗi: QA và xử lý sự cố segment</summary>
