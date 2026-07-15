@@ -6,6 +6,17 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18J - Chapter 365 draft-only Final Voice Map created on canonical production**: completed the first production use of the staged speaker-review workflow by reviewing Draft `11` and creating exactly one unapproved Final Voice Map / Casting Plan draft for Chapter 365.
+  - **Repository/runtime baseline**: task started on branch `main` with `HEAD == origin/main == de23c16c4a82401558ec6c72186b3d04ac0ea77e`; tracked worktree was clean and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
+  - **Runtime recovery**: canonical runtime `http://127.0.0.1:8772` initially exposed stale pre-Task-18I API code, so that process was replaced through the supported repository launcher before mutation; only after restart did `POST /api/chapters/{chapter_id}/speaker-review/casting-plan-draft` become available on the live API.
+  - **Exact reviewed assignments**: reused existing speaker draft `11` on Text Revision `3983` and accepted all five targets as character `42` (`Hứa Thanh`): `u0017-d3809b48d599`, `u0032-fe2bc9743573`, `u0034-9634d7a009f0`, `u0039-99e8b095900e`, and `u0046-8cad60adce11`.
+  - **Voice resolution verified**: narrator remained `custom:26`, Hứa Thanh resolved to `custom:25`, and unused unknown fallback remained narrator `custom:26` under Book Voice Profile `5` version `2`.
+  - **Draft-only plan creation**: exactly one staged request created Casting Plan `20` revision `1` with `status = draft`, `approved_at = null`, `text_revision_id = 3983`, and provenance `source_speaker_draft_id = 11`.
+  - **Plan counts**: the resulting immutable Final Voice Map contains `47` assignments with narrator `42`, Hứa Thanh `5`, unknown `0`, effective voice counts `custom:26 -> 42` and `custom:25 -> 5`, and `unresolved_count = 0`.
+  - **UI readiness**: Chapter 365 Production Flow now opens the existing unapproved Final Voice Map instead of prompting to regenerate speaker assignments; the separate approval action exposed to the operator is `Duyệt bản đồ giọng cuối & tiếp tục tạo audio (v1)`.
+  - **Production safety**: after Task 18J, Chapter 365 still has approved Casting Plans `0`, jobs `0`, job_chapters `0`, segments `0`, segment attempts `0`, artifacts `0`, repair blocks `0`, no new Text Revision after `3983`, and no TTS preview/synthesis or audio output.
+  - **Migration**: none.
+
 - **Task 18I - Staged speaker review and draft-only Final Voice Map workflow**: separated operator speaker-review completion from Casting Plan approval so Chapter 365 and future chapters can produce a draft-only Final Voice Map before any approval or render step.
   - **Root cause fixed**: `story_audio.speaker_review.approve_speaker_review(...)` previously created a Casting Plan draft and immediately called `approve_plan(...)`, collapsing review, draft creation, and approval into one mutation path.
   - **New staged service**: added `create_casting_plan_draft_from_speaker_review(...)`, which reuses existing draft/base identity rules, requires all review rows to be covered, creates exactly one draft-only Casting Plan, verifies that every utterance has a resolved voice, and never auto-approves.

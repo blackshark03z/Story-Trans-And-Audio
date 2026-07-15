@@ -1,16 +1,27 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-15T21:05 (Asia/Saigon)
-**Milestone:** Task 18I Staged Speaker Review + Draft-Only Casting Plan Workflow
-**Trạng thái:** code now separates speaker-review completion from Final Voice Map approval: speaker review can create one draft-only Casting Plan through a new staged endpoint, but it does not auto-approve, does not create jobs, and does not touch canonical Chapter 365 production state
+**Cập nhật:** 2026-07-15T20:33 (Asia/Saigon)
+**Milestone:** Task 18J Chapter 365 Draft-Only Final Voice Map Prepared
+**Trạng thái:** canonical Chapter 365 now has one unapproved Final Voice Map draft created from staged speaker review: Text Revision `3983`, source speaker draft `11`, Casting Plan `20` rev `1` in `draft` state, approved `false`, and no provider/job/audio activity was created
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `32214791089b2667be2eae45fd3618f5a40c8078`
+**Last verified against commit:** `de23c16c4a82401558ec6c72186b3d04ac0ea77e`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-15
+
+**Task 18J canonical production outcome:**
+- Repository/runtime baseline before mutation matched the required Task 18J checkpoint: branch `main`, `HEAD == origin/main == de23c16c4a82401558ec6c72186b3d04ac0ea77e`, tracked tree clean, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
+- Canonical runtime `http://127.0.0.1:8772` initially exposed stale pre-Task-18I API code, so the old process was replaced through the supported repository launcher on the required port before any Chapter 365 mutation; after restart, the staged route `POST /api/chapters/365/speaker-review/casting-plan-draft` was confirmed present.
+- Chapter 365 baseline before review remained correct: active approved Text Revision `3983`, draft `11` bound to revision `3983` with `target_count = 5`, `valid_count = 5`, `invalid_count = 0`, `remaining_unreviewed_count = 5`, and stale historical draft `10` still bound to revision `730`.
+- Editorial review accepted all five Draft `11` targets exactly as suggested for character `42` (`Hứa Thanh`): `u0017-d3809b48d599`, `u0032-fe2bc9743573`, `u0034-9634d7a009f0`, `u0039-99e8b095900e`, and `u0046-8cad60adce11`.
+- Voice resolution remained canonical and deterministic at review time: narrator resolves to `custom:26`, Hứa Thanh resolves to `custom:25`, and unused unknown fallback also resolves to narrator `custom:26` under Book Voice Profile `5` version `2`.
+- Exactly one staged review submission created exactly one immutable draft-only Casting Plan: plan `20`, revision `1`, `status = draft`, `approved_at = null`, `text_revision_id = 3983`, and provenance `source_speaker_draft_id = 11`.
+- The resulting Final Voice Map contains `47` assignments with `role_counts = narrator 42 / character 5 / unknown 0`, `effective_voice_counts = custom:26 -> 42 / custom:25 -> 5`, and `unresolved_count = 0`.
+- UI operator readiness was verified in canonical Production Flow for Chapter 365: the workflow now opens directly to the existing draft Final Voice Map instead of asking to regenerate speaker assignments, shows narrator mapped to `Chanlee (Custom)` / `custom:26`, shows Hứa Thanh mapped to `Hứa Thanh (Custom)` / `custom:25`, and exposes the separate approval action `Duyệt bản đồ giọng cuối & tiếp tục tạo audio (v1)` without clicking it.
+- Safety verification after Task 18J remained clean: no new Text Revision after `3983`, no new speaker draft beyond `10` and `11`, no approved Casting Plan, no job, no job_chapter, no segment, no segment attempt, no repair block, no artifact, no synthesis preview, no TTS synthesis call, and no audio output for Chapter 365.
 
 **Task 18I implementation baseline:**
 - Repository baseline before Task 18I edits: branch `main`, `HEAD == origin/main == 32214791089b2667be2eae45fd3618f5a40c8078`, tracked tree clean, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
@@ -338,3 +349,4 @@ Các hạng mục vận hành/quota và alignment không cấp thiết được 
 | 2026-07-07 | Task 11D2 Production Acceptance Pass | main/origin `094a8787e29e2d709b302e8f524b3ed56cb383da`; Chapter 357 / Text Revision 714 / Casting Plan #6 / Job #2 completed 96/96; final M4A 13m50.170s; human full-chapter listening PASS; unified workflow validated end-to-end |
 | 2026-07-15 | Task 18A/18B Chapter 364 Production Pilot | Canonical Chapter 364 / Text Revision 728 / Casting Plan #19 / Job #18 completed; Segment 498 attempt 36 accepted; final artifact #69 SHA `3B9748DE4B1F5E8259B7BB0498A996D53F4E52428B0CB68E4633EA25D66BFDCC`; human full-artifact listening verdict `HUMAN_QA_PASS` |
 | 2026-07-15 | Task 18G Chapter 365 targeted correction + speaker draft | Canonical Chapter 365 active Text Revision `730` corrected once to new active Text Revision `3983`; exact malformed punctuation removed; stale draft `10` preserved; new speaker draft `11` generated with 5/5 valid targets and no casting/job/audio state created |
+| 2026-07-15 | Task 18J Chapter 365 draft Final Voice Map ready | Canonical Chapter 365 speaker draft `11` reviewed with five accepted Hứa Thanh assignments; staged workflow created unapproved Casting Plan `20` rev `1` pinned to Text Revision `3983`; UI shows existing draft plan and separate approval action; no provider/job/audio activity occurred |
