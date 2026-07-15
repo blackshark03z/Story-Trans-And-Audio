@@ -63,9 +63,11 @@ from .speaker_assignment import (
     get_speaker_assignment_draft,
 )
 from .speaker_review import (
+    SpeakerReviewNotFound,
     SpeakerReviewConflict,
     SpeakerReviewError,
     approve_speaker_review,
+    create_casting_plan_draft_from_speaker_review,
     get_speaker_review_draft,
     list_speaker_review_drafts,
 )
@@ -214,6 +216,16 @@ class SpeakerReviewApprovalRequest(BaseModel):
     expected_text_revision_id: int
     decisions: list[SpeakerReviewDecision] = Field(min_length=1)
     idempotency_key: str = Field(min_length=1, max_length=200)
+
+
+class SpeakerReviewCastingPlanDraftRequest(BaseModel):
+    speaker_draft_id: int = Field(gt=0)
+    base_casting_plan_revision_id: int | None = None
+    expected_draft_fingerprint: str = Field(min_length=64, max_length=64)
+    expected_text_revision_id: int
+    decisions: list[SpeakerReviewDecision] = Field(min_length=1)
+    idempotency_key: str = Field(min_length=1, max_length=200)
+    operator_note: str | None = Field(default=None, max_length=4000)
 
 
 class HumanApprovalRequest(BaseModel):
@@ -835,6 +847,34 @@ def approve_speaker_assignment_review(
             allowed_voice_ids=_preset_voice_ids(),
             custom_voice_context=_build_custom_voice_context(),
         )
+    except SpeakerReviewConflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except (SpeakerReviewError, CastingError, SpeakerAssignmentError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/chapters/{chapter_id}/speaker-review/casting-plan-draft")
+def create_speaker_review_casting_plan_draft(
+    chapter_id: int, request: SpeakerReviewCastingPlanDraftRequest
+) -> dict[str, Any]:
+    try:
+        return create_casting_plan_draft_from_speaker_review(
+            db,
+            store,
+            settings,
+            chapter_id=chapter_id,
+            draft_id=request.speaker_draft_id,
+            base_casting_plan_revision_id=request.base_casting_plan_revision_id,
+            expected_draft_fingerprint=request.expected_draft_fingerprint,
+            expected_text_revision_id=request.expected_text_revision_id,
+            decisions=[item.model_dump() for item in request.decisions],
+            idempotency_key=request.idempotency_key,
+            operator_note=request.operator_note,
+            allowed_voice_ids=_preset_voice_ids(),
+            custom_voice_context=_build_custom_voice_context(),
+        )
+    except SpeakerReviewNotFound as exc:
+        raise HTTPException(404, str(exc)) from exc
     except SpeakerReviewConflict as exc:
         raise HTTPException(409, str(exc)) from exc
     except (SpeakerReviewError, CastingError, SpeakerAssignmentError) as exc:

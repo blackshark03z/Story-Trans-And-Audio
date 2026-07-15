@@ -1,16 +1,27 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-15T19:19 (Asia/Saigon)
-**Milestone:** Task 18G Chapter 365 Targeted Correction + Speaker Draft Regeneration
-**Trạng thái:** canonical Chapter 365 production text was corrected exactly once through the supported targeted-correction API, active Text Revision moved from `730` to `3983`, stale draft `10` was preserved unchanged, and exactly one fresh speaker-assignment draft `11` was generated with five clean review targets; no casting plan, job, segment, synthesis attempt, artifact, or audio state was created
+**Cập nhật:** 2026-07-15T21:05 (Asia/Saigon)
+**Milestone:** Task 18I Staged Speaker Review + Draft-Only Casting Plan Workflow
+**Trạng thái:** code now separates speaker-review completion from Final Voice Map approval: speaker review can create one draft-only Casting Plan through a new staged endpoint, but it does not auto-approve, does not create jobs, and does not touch canonical Chapter 365 production state
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `6776c257e86e2f06d01d4f1be509b45c0e946a5a`
+**Last verified against commit:** `32214791089b2667be2eae45fd3618f5a40c8078`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-15
+
+**Task 18I implementation baseline:**
+- Repository baseline before Task 18I edits: branch `main`, `HEAD == origin/main == 32214791089b2667be2eae45fd3618f5a40c8078`, tracked tree clean, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
+- Root cause confirmed: `story_audio.speaker_review.approve_speaker_review(...)` still combined operator row review, Casting Plan draft creation, and immediate `approve_plan(...)`, which prevented a canonical staged workflow where the operator can inspect a Final Voice Map draft before approval.
+- Added staged backend service `create_casting_plan_draft_from_speaker_review(...)` that reuses the same immutable draft/base-plan identity rules, requires all review rows to be addressed, creates exactly one draft-only Casting Plan, verifies every utterance resolves to a voice, and never calls `approve_plan(...)`.
+- Added API contract `POST /api/chapters/{chapter_id}/speaker-review/casting-plan-draft` with explicit `speaker_draft_id`, `expected_draft_fingerprint`, `expected_text_revision_id`, `decisions`, `idempotency_key`, optional `operator_note`, and duplicate-safe reuse when the same review identity already produced a draft.
+- Legacy one-step route `/api/chapters/{chapter_id}/speaker-assignment/drafts/{draft_id}/approve` remains intact for backward compatibility, but the new staged route is now the canonical operator path for producing a Final Voice Map draft.
+- Review summaries now report draft/approval state explicitly (`casting_plan_status`, `approved`, `approved_at`, `assignment_count`, `unresolved_count`, `effective_voice_counts`) so the UI and operators can distinguish a draft-only Final Voice Map from an approved one.
+- UI copy and behavior now treat AI speaker review as a draft-only step: the button text became `Tạo Final Voice Map draft`, enablement depends on all review rows being locally covered, and success messaging tells the operator to move to the Final Voice Map section for separate approval.
+- Added focused coverage for staged service behavior, API classification/idempotent reuse, and UI contract boundaries. Verification passed with `node --check ui/app.js` and focused unittest suite `tests.test_speaker_assignment`, `tests.test_speaker_review_api`, `tests.test_speaker_review_ui` at `42/42`.
+- Production safety preserved during Task 18I implementation: no canonical Chapter 365 mutation, no new Text Revision, no new speaker draft, no Casting Plan creation in live DB, no job, no segment, no synthesis attempt, no artifact, and no audio render.
 
 **Task 18G canonical production outcome:**
 - Git baseline before mutation was clean on tracked files: branch `main`, `HEAD == origin/main == 6776c257e86e2f06d01d4f1be509b45c0e946a5a`, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.

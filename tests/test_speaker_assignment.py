@@ -21,7 +21,9 @@ from story_audio.speaker_assignment import (
 from story_audio.speaker_review import (
     SpeakerReviewConflict,
     SpeakerReviewError,
+    SpeakerReviewNotFound,
     approve_speaker_review,
+    create_casting_plan_draft_from_speaker_review,
     get_speaker_review_draft,
     list_speaker_review_drafts,
 )
@@ -286,6 +288,16 @@ class SpeakerReviewTests(unittest.TestCase):
             expected_draft_fingerprint=draft["input_fingerprint"],
             expected_text_revision_id=draft["text_revision_id"],
             decisions=decisions, idempotency_key=key, allowed_voice_ids=self.voices,
+        )
+
+    def stage(self, db, store, config, chapter, draft, decisions, *, base=None, key="review-draft-1", note=None):
+        return create_casting_plan_draft_from_speaker_review(
+            db, store, config, chapter_id=chapter, draft_id=draft["id"],
+            base_casting_plan_revision_id=base,
+            expected_draft_fingerprint=draft["input_fingerprint"],
+            expected_text_revision_id=draft["text_revision_id"],
+            decisions=decisions, idempotency_key=key, operator_note=note,
+            allowed_voice_ids=self.voices,
         )
 
     def test_list_and_load_include_context_summary_and_safe_stale_state(self) -> None:
@@ -556,6 +568,155 @@ class SpeakerReviewTests(unittest.TestCase):
             )
             self.assertEqual(broken_finding.level, "WARN")
             self.assertEqual(broken_finding.detail, "plans=1 invalid=1")
+
+    def test_staged_creation_requires_complete_review_and_stays_unapproved(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config, db, store, _book, chapter, revision, character = seed(Path(directory))
+            draft = self.generate(db, store, config, chapter, character)
+            decisions = [self.decision(item) for item in draft["draft"]["assignments"]]
+            with patch("story_audio.speaker_review.approve_plan") as mock_approve:
+                result = self.stage(
+                    db, store, config, chapter, draft, decisions,
+                    key="stage-complete", note="All five rows reviewed.",
+                )
+            mock_approve.assert_not_called()
+            self.assertEqual(result["chapter_id"], chapter)
+            self.assertEqual(result["text_revision_id"], revision)
+            self.assertEqual(result["speaker_draft_id"], draft["id"])
+            self.assertEqual(result["casting_plan_status"], "draft")
+            self.assertFalse(result["approved"])
+            self.assertIsNone(result["approved_at"])
+            self.assertEqual(result["remaining_unreviewed_count"], 0)
+            self.assertEqual(result["assignment_count"], len(split_utterances(TEXT)))
+            self.assertEqual(result["role_counts"]["character"], len(draft["draft"]["assignments"]))
+            self.assertEqual(result["effective_voice_counts"]["male"], len(draft["draft"]["assignments"]))
+            self.assertEqual(result["unresolved_count"], 0)
+            self.assertEqual(db.fetch_one("SELECT COUNT(*) AS n FROM jobs")["n"], 0)
+            self.assertEqual(db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans WHERE status='approved'")["n"], 0)
+            plan = get_plan(db, store, result["casting_plan_id"])
+            self.assertEqual(plan["status"], "draft")
+            self.assertEqual(int(plan["text_revision_id"]), revision)
+            self.assertEqual(plan["plan"]["source_metadata"]["review"]["operator_note"], "All five rows reviewed.")
+            detail = get_speaker_review_draft(db, store, config, chapter_id=chapter, draft_id=draft["id"])
+            self.assertEqual(detail["remaining_unreviewed_count"], 0)
+            self.assertTrue(all(row["reviewed"] for row in detail["review_rows"]))
+
+    def test_staged_creation_rejects_incomplete_review_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config, db, store, _book, chapter, _revision, character = seed(Path(directory))
+            draft = self.generate(db, store, config, chapter, character)
+            before = int(db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans WHERE chapter_id=?", (chapter,))["n"])
+            with self.assertRaises(SpeakerReviewError):
+                self.stage(
+                    db, store, config, chapter, draft,
+                    [self.decision(draft["draft"]["assignments"][0])],
+                    key="stage-incomplete",
+                )
+            after = int(db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans WHERE chapter_id=?", (chapter,))["n"])
+            self.assertEqual(before, after)
+
+    def test_staged_creation_reuses_same_identity_without_duplicate_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config, db, store, _book, chapter, _revision, character = seed(Path(directory))
+            draft = self.generate(db, store, config, chapter, character)
+            decisions = [self.decision(item) for item in draft["draft"]["assignments"]]
+            first = self.stage(db, store, config, chapter, draft, decisions, key="stage-reuse")
+            second = self.stage(db, store, config, chapter, draft, list(reversed(decisions)), key="stage-reuse")
+            self.assertTrue(second["idempotent_reused"])
+            self.assertEqual(first["casting_plan_id"], second["casting_plan_id"])
+            self.assertEqual(
+                int(db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans WHERE chapter_id=?", (chapter,))["n"]),
+                1,
+            )
+
+    def test_staged_creation_rejects_duplicate_decisions_and_unknown_character(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config, db, store, _book, chapter, _revision, character = seed(Path(directory))
+            draft = self.generate(db, store, config, chapter, character)
+            decision = self.decision(draft["draft"]["assignments"][0])
+            with self.assertRaises(SpeakerReviewError):
+                self.stage(db, store, config, chapter, draft, [decision, decision], key="dup-stage")
+            bad = [dict(item, speaker_type="character", character_id=999, decision_source="manual_character")
+                   for item in [self.decision(item) for item in draft["draft"]["assignments"]]]
+            with self.assertRaises(SpeakerReviewNotFound):
+                self.stage(db, store, config, chapter, draft, bad, key="missing-character")
+
+    def test_staged_creation_blocks_stale_draft_and_text_revision_mismatch(self) -> None:
+        for mutation in ("text", "fingerprint"):
+            with self.subTest(mutation=mutation), tempfile.TemporaryDirectory() as directory:
+                config, db, store, _book, chapter, revision, character = seed(Path(directory))
+                draft = self.generate(db, store, config, chapter, character)
+                decisions = [self.decision(item) for item in draft["draft"]["assignments"]]
+                if mutation == "text":
+                    changed = TEXT + " Them moi."
+                    path, digest = store.put_text(changed)
+                    with db.connect() as connection:
+                        new_id = int(connection.execute(
+                            """INSERT INTO text_revisions(
+                               chapter_id,parent_revision_id,kind,content_path,content_sha256,
+                               lexical_sha256,char_count,processor_version,status,created_at
+                               ) VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                            (chapter, revision, "reflowed", path, digest, lexical_sha256(changed), len(changed), "changed", "approved", utcnow()),
+                        ).lastrowid)
+                        connection.execute("UPDATE chapters SET active_text_revision_id=? WHERE id=?", (new_id, chapter))
+                    with self.assertRaises(SpeakerReviewConflict):
+                        self.stage(db, store, config, chapter, draft, decisions, key=f"stale-{mutation}")
+                else:
+                    with self.assertRaises(SpeakerReviewConflict):
+                        create_casting_plan_draft_from_speaker_review(
+                            db, store, config, chapter_id=chapter, draft_id=draft["id"],
+                            base_casting_plan_revision_id=None,
+                            expected_draft_fingerprint="0" * 64,
+                            expected_text_revision_id=draft["text_revision_id"],
+                            decisions=decisions, idempotency_key="bad-fingerprint",
+                            allowed_voice_ids=self.voices,
+                        )
+
+    def test_staged_creation_rolls_back_when_plan_character_insert_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config, db, store, _book, chapter, _revision, character = seed(Path(directory))
+            draft = self.generate(db, store, config, chapter, character)
+            decisions = [self.decision(item) for item in draft["draft"]["assignments"]]
+            real_transaction = db.transaction
+
+            class Proxy:
+                def __init__(self, connection):
+                    self._connection = connection
+                def execute(self, sql, params=()):
+                    if "INSERT INTO casting_plan_characters" in sql:
+                        raise RuntimeError("forced insert failure")
+                    return self._connection.execute(sql, params)
+                def __getattr__(self, name):
+                    return getattr(self._connection, name)
+
+            from contextlib import contextmanager
+            @contextmanager
+            def failing_transaction():
+                with real_transaction() as connection:
+                    yield Proxy(connection)
+
+            with patch.object(db, "transaction", failing_transaction):
+                with self.assertRaises(RuntimeError):
+                    self.stage(db, store, config, chapter, draft, decisions, key="rollback-stage")
+            self.assertEqual(
+                int(db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans WHERE chapter_id=?", (chapter,))["n"]),
+                0,
+            )
+
+    def test_staged_creation_and_legacy_approval_remain_separate(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config, db, store, _book, chapter, _revision, character = seed(Path(directory))
+            draft = self.generate(db, store, config, chapter, character)
+            decisions = [self.decision(item) for item in draft["draft"]["assignments"]]
+            staged = self.stage(db, store, config, chapter, draft, decisions, key="separate-stage")
+            self.assertFalse(staged["approved"])
+            approved = approve_plan(db, store, staged["casting_plan_id"])
+            self.assertEqual(approved["status"], "approved")
+            legacy = self.approve(
+                db, store, config, chapter, draft, decisions,
+                base=staged["casting_plan_id"], key="legacy-after-stage",
+            )
+            self.assertTrue(legacy["approved"])
 
 
 if __name__ == "__main__":

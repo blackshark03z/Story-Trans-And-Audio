@@ -378,9 +378,9 @@
                 <div><p class="eyebrow">Nâng cao / gợi ý AI</p><h3>Công cụ nháp AI và rà soát người nói</h3></div>
                 <span id="speakerReviewStatus" class="pill">Chưa có nháp</span>
               </div>
-              <p class="section-guide">Dùng phần này khi bạn cần AI hỗ trợ xác định ai đang nói. Đừng xem đây là bước duyệt cuối; nó chỉ chuẩn bị gợi ý để tạo hoặc cập nhật Casting Plan.</p>
-              <div id="speakerDraftExistingPlanWarning" class="issue warning hidden">Công cụ nháp AI có thể tạo một plan mới; nếu bạn chỉ muốn duyệt plan hiện tại, hãy quay lại phần Bản đồ giọng cuối.</div>
-              <div class="speaker-review-guide"><strong>Nháp AI / Gợi ý</strong><ol><li>Chọn các dòng đang thấy</li><li>Chấp nhận các gợi ý đã chọn</li><li>Tạo / cập nhật Casting Plan từ nháp AI</li></ol><p id="speakerReviewLocalNote" class="muted">Các quyết định ở đây chỉ là tạm thời cho đến khi bạn duyệt cuối.</p></div>
+              <p class="section-guide">Dùng phần này khi bạn cần AI hỗ trợ xác định ai đang nói. Bước này chỉ tạo Bản đồ giọng cuối ở trạng thái nháp; việc duyệt plan vẫn là một bước riêng sau đó.</p>
+              <div id="speakerDraftExistingPlanWarning" class="issue warning hidden">Bản đồ giọng cuối đã tồn tại. Nếu bạn chỉ muốn kiểm tra hoặc duyệt plan hiện tại, hãy chuyển sang phần Bản đồ giọng cuối thay vì tạo thêm từ nháp AI.</div>
+              <div class="speaker-review-guide"><strong>Nháp AI / Gợi ý</strong><ol><li>Rà soát toàn bộ các dòng cần review</li><li>Chốt quyết định cho từng dòng</li><li>Tạo Bản đồ giọng cuối dạng nháp</li><li>Chuyển sang bước duyệt Final Voice Map riêng</li></ol><p id="speakerReviewLocalNote" class="muted">Các quyết định review chỉ trở thành dữ liệu chính thức khi bạn tạo được Bản đồ giọng cuối dạng nháp.</p></div>
               <div class="speaker-review-controls">
                 <label>Draft<select id="speakerDraftSelect"></select></label>
                 <button id="generateSpeakerDraft" class="primary" data-runtime-mutation-control>Tạo draft</button>
@@ -394,7 +394,7 @@
               <div id="speakerReviewMeta" class="speaker-review-meta"></div>
               <div id="speakerReviewStale" class="issue error hidden"></div>
               <div id="speakerReviewWorkspace" class="hidden">
-                <div class="speaker-review-jumps"><button id="jumpToPendingReview" class="ghost">Nhảy đến chỗ còn cần rà soát</button><button id="jumpToApprovalControls" class="ghost">Nhảy đến phần duyệt Casting Plan</button></div>
+                <div class="speaker-review-jumps"><button id="jumpToPendingReview" class="ghost">Nhảy đến chỗ còn cần rà soát</button><button id="jumpToApprovalControls" class="ghost">Nhảy đến phần tạo Final Voice Map draft</button></div>
                 <div class="speaker-review-toolbar">
                   <label>Filter<select id="speakerReviewFilter">
                     <option value="all">All</option><option value="unreviewed">Unreviewed</option>
@@ -413,7 +413,7 @@
                 <div id="speakerReviewRows" class="speaker-review-list"></div>
                 <div id="speakerReviewApprovalControls" class="speaker-review-approve">
                   <span id="speakerReviewDecisionCount" class="muted">0 reviewed</span>
-                  <button id="approveSpeakerReview" class="primary" disabled data-runtime-mutation-control>Tạo Casting Plan từ nháp AI</button>
+                  <button id="approveSpeakerReview" class="primary" disabled data-runtime-mutation-control>Tạo Final Voice Map draft</button>
                 </div>
                 <div id="speakerReviewApprovalResult" class="muted"></div>
               </div>

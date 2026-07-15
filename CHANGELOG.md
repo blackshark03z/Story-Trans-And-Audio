@@ -6,6 +6,17 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18I - Staged speaker review and draft-only Final Voice Map workflow**: separated operator speaker-review completion from Casting Plan approval so Chapter 365 and future chapters can produce a draft-only Final Voice Map before any approval or render step.
+  - **Root cause fixed**: `story_audio.speaker_review.approve_speaker_review(...)` previously created a Casting Plan draft and immediately called `approve_plan(...)`, collapsing review, draft creation, and approval into one mutation path.
+  - **New staged service**: added `create_casting_plan_draft_from_speaker_review(...)`, which reuses existing draft/base identity rules, requires all review rows to be covered, creates exactly one draft-only Casting Plan, verifies that every utterance has a resolved voice, and never auto-approves.
+  - **New API route**: added `POST /api/chapters/{chapter_id}/speaker-review/casting-plan-draft` with `speaker_draft_id`, `expected_draft_fingerprint`, `expected_text_revision_id`, `decisions`, `idempotency_key`, and optional `operator_note`.
+  - **Duplicate/retry behavior**: exact same review identity reuses the existing draft-only plan instead of creating duplicates; conflicting idempotency reuse still fails closed.
+  - **Compatibility preserved**: legacy route `/api/chapters/{chapter_id}/speaker-assignment/drafts/{draft_id}/approve` remains available and still performs the old one-step approval path for callers that explicitly use it.
+  - **UI separation**: the speaker-review action is now presented as `Tạo Final Voice Map draft`, enablement requires complete local row coverage via `reviewReadyForCastingPlan(...)`, and success messaging tells the operator to inspect/approve separately in the Final Voice Map section.
+  - **Verification**: `node --check ui/app.js` passed; focused tests `tests.test_speaker_assignment`, `tests.test_speaker_review_api`, and `tests.test_speaker_review_ui` passed at `42/42`.
+  - **Production safety**: Task 18I was implementation-only. No canonical Chapter 365 mutation, no new speaker draft, no live Casting Plan, no approval, no job, and no audio render were performed while verifying this change.
+  - **Migration**: none.
+
 - **Task 18G - Canonical Chapter 365 targeted correction and one fresh speaker draft**: recorded the exact supported production mutation that repaired the malformed internal-thought punctuation on Chapter 365 and regenerated one clean speaker-assignment draft without creating casting or audio state.
   - **Repository/runtime baseline**: task started on branch `main` with `HEAD == origin/main == 6776c257e86e2f06d01d4f1be509b45c0e946a5a`; tracked worktree was clean and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
   - **Runtime recovery**: canonical runtime `http://127.0.0.1:8772` was first confirmed to be serving pre-Task-18F code, so that stale process was replaced with the repository runtime before mutation; only after restart did the supported route `POST /api/chapters/{chapter_id}/text-revisions/targeted-correction` appear in the loaded API surface.
