@@ -1,16 +1,29 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-15T22:25 (Asia/Saigon)
-**Milestone:** Task 18F Canonical Targeted Text Correction Workflow
-**Trạng thái:** backend/API support now exists for exact immutable targeted text correction on the active approved chapter revision without creating jobs, repair blocks, casting plans, segments, synthesis attempts, or audio; Chapter 365 itself remains intentionally unmodified in production during Task 18F
+**Cập nhật:** 2026-07-15T19:19 (Asia/Saigon)
+**Milestone:** Task 18G Chapter 365 Targeted Correction + Speaker Draft Regeneration
+**Trạng thái:** canonical Chapter 365 production text was corrected exactly once through the supported targeted-correction API, active Text Revision moved from `730` to `3983`, stale draft `10` was preserved unchanged, and exactly one fresh speaker-assignment draft `11` was generated with five clean review targets; no casting plan, job, segment, synthesis attempt, artifact, or audio state was created
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `506a7f83a2dd9c555539e36a58f40ff333cf0583`
+**Last verified against commit:** `6776c257e86e2f06d01d4f1be509b45c0e946a5a`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-15
+
+**Task 18G canonical production outcome:**
+- Git baseline before mutation was clean on tracked files: branch `main`, `HEAD == origin/main == 6776c257e86e2f06d01d4f1be509b45c0e946a5a`, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
+- Canonical runtime on `http://127.0.0.1:8772` initially served pre-Task-18F code, so the stale process was replaced with the repository runtime before mutation; the supported route `POST /api/chapters/{chapter_id}/text-revisions/targeted-correction` was then confirmed loaded.
+- Production backup was created before mutation at `backups\task18g_pre_ch365_targeted_correction_20260715_191351.sqlite3`; backup DB SHA-256 `7138beefed3480032e6cf8d6abceaeab4d94d2e169e87d2e0a8984ab6b29323e`, backup DB size `3178496` bytes, backup directory size `1044105996` bytes, and SQLite `quick_check` returned `ok`.
+- The exact malformed thought line in active approved Text Revision `730` matched exactly once and was corrected through the supported API from `"Không biết so với đội trưởng, sức mạnh của ta bây giờ đã như thế nào.... ."` to `"Không biết so với đội trưởng, sức mạnh của ta bây giờ đã như thế nào..."`.
+- The authoritative correction response created one new immutable approved Text Revision `3983` for Chapter `365`, with `parent_revision_id = 730`, `kind = repaired`, `processor_version = targeted-correction-v1`, `content_sha256 = e0e76f8d80a2c2fbee49676db4175cac1bb3e6e779d343021e8cfc3e174bd1a6`, `lexical_sha256 = 72115486b4e139682fc9388f48e58d39633a1c9475ceaf19e4a5f46efbb609cc`, `char_count = 6480`, and `replacement_occurrence_count = 1`.
+- Diff verification between revisions `730` and `3983` showed `blocks_changed = 1`, `lexical_integrity = true`, `punctuation_removed = 2`, and character count changed from `6483` to `6480` with no lexical wording change outside the malformed punctuation removal.
+- Existing speaker draft `10` remained immutable on Text Revision `730` and now resolves stale through normal revision mismatch: `status = generated`, `target_count = 6`, `valid_count = 6`, `invalid_count = 0`, `review_row_count = 6`, `remaining_unreviewed_count = 6`, stale reason `TextRevision changed after this draft was generated.`
+- Read-only pre-provider validation on active Text Revision `3983` produced exactly five quote/thought targets, no punctuation-only utterance, and the corrected internal-thought line now appears as a single complete target at utterance `u0032-fe2bc9743573` offsets `4399-4472`.
+- Exactly one new speaker-assignment draft `11` was generated through the supported canonical workflow for Text Revision `3983`; provider result was `reused = false`, `cache_hit_count = 0`, `cache_miss_count = 1`, `status = generated`, `target_count = 5`, `valid_count = 5`, and `invalid_count = 0`.
+- Draft `11` is not stale, reconstructs exactly five review rows, has `remaining_unreviewed_count = 5`, and all five rows currently suggest character `42` (`Hứa Thanh`) with resolved voice `custom:25` via Book Voice Profile `5` version `2`.
+- Chapter 365 safety counts after Task 18G remain: Casting Plans `0`, approved Casting Plans `0`, jobs `0`, job chapters `0`, segments `0`, segment attempts `0`, artifacts `0`, repair blocks `0`, active audio artifact `null`; only one targeted-correction audit event exists for this chapter.
 
 **Task 18F local implementation baseline:**
 - Render-time Gemini repair was confirmed to be the wrong vehicle for Chapter 365 punctuation remediation because it is job-driven, AI-mediated, and coupled to runtime repair state.
@@ -313,3 +326,4 @@ Các hạng mục vận hành/quota và alignment không cấp thiết được 
 | 2026-07-06 | Task 11D2C Punctuation-Aware Utterance Split | Implementation commit `f96ac056a0d213ffc3fb834e7e03917900019b7d`; chunker `utterance-v3` prefers sentence punctuation, then clause punctuation, then whitespace; orphan-tail fix preserves offsets and Chapter 357 review boundary; 863/863 offline tests pass, 1 skipped |
 | 2026-07-07 | Task 11D2 Production Acceptance Pass | main/origin `094a8787e29e2d709b302e8f524b3ed56cb383da`; Chapter 357 / Text Revision 714 / Casting Plan #6 / Job #2 completed 96/96; final M4A 13m50.170s; human full-chapter listening PASS; unified workflow validated end-to-end |
 | 2026-07-15 | Task 18A/18B Chapter 364 Production Pilot | Canonical Chapter 364 / Text Revision 728 / Casting Plan #19 / Job #18 completed; Segment 498 attempt 36 accepted; final artifact #69 SHA `3B9748DE4B1F5E8259B7BB0498A996D53F4E52428B0CB68E4633EA25D66BFDCC`; human full-artifact listening verdict `HUMAN_QA_PASS` |
+| 2026-07-15 | Task 18G Chapter 365 targeted correction + speaker draft | Canonical Chapter 365 active Text Revision `730` corrected once to new active Text Revision `3983`; exact malformed punctuation removed; stale draft `10` preserved; new speaker draft `11` generated with 5/5 valid targets and no casting/job/audio state created |
