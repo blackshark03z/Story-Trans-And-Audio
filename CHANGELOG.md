@@ -6,6 +6,14 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18A/18B - Chapter 364 canonical production pilot closeout**: recorded the completed production pilot, targeted remediation result, and final human sequential listening verdict for canonical Chapter 364 without changing source code or creating any further render attempts.
+  - **Canonical evidence**: Book `Quang Âm Chi Ngoại`, Chapter `364`, Text Revision `728`, approved Casting Plan `19` rev `1`, Job `18` completed, active artifact `69`.
+  - **Final accepted output**: `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0364\job_18\render_0002\chapter_final.m4a` with SHA-256 `3B9748DE4B1F5E8259B7BB0498A996D53F4E52428B0CB68E4633EA25D66BFDCC` and authoritative duration `363590 ms`.
+  - **Duration note**: independently decoded duration `363605 ms` differs by `15 ms`, which was accepted as normal container/decoder rounding rather than a content defect.
+  - **Targeted remediation evidence**: only Segment `498` / seq `42` was regenerated; candidate attempt `36` was accepted after improving local loudness continuity without introducing clipped samples. No other reviewed marker required regeneration.
+  - **Final QA verdict**: `HUMAN_QA_PASS`. The complete final artifact was reviewed sequentially, all seven flagged review locations were checked, and no remaining audible issue justified further remediation.
+  - **Migration**: none.
+
 - **Task 13C - Step-by-step production flow UI**: reshaped the Character Voices workspace from a guide-like dashboard into a real operator step flow that mirrors the chapter production order without changing backend behavior.
   - **Wizard-style flow**: the top of Character Voices now renders `Production Flow` as a stepper with eight explicit steps: `Select Chapter`, `Text Ready`, `Character Bible / Characters`, `Voice Assignment / Casting`, `Approve Casting Plan`, `Render Audio`, `QA Checklist`, and `Human QA Verdict`.
   - **Actionable step details**: each step now explains its purpose, current status, what the operator needs to do now, what happens after, and whether `Back`, `Continue`, or `Next` is the correct move.

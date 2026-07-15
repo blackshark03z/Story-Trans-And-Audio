@@ -1,52 +1,51 @@
 # Next Task
 
 Current Status:
-Task 13C is complete locally on `main`. Chapter 357 canonical Job `17` remains the accepted production evidence, and the Character Voices operator UI now includes a step-by-step `Production Flow` wizard with explicit step status, blocker reasons, and `Back` / `Continue` / `Next` navigation before any production mutation.
+Task 18A and Task 18B are complete on `main`. Chapter 364 is now the completed canonical production pilot after targeted audio remediation and final sequential human review.
 
 Current Baseline:
 - Branch `main`
-- Current HEAD = `4b82cdd57c6626b03c086146c4e9a12e5543f60d`
-- Task 11D2 acceptance evidence runtime: `D:\Youtube\StoryAudioAcceptanceRun1\data`
+- Current HEAD = `506a7f83a2dd9c555539e36a58f40ff333cf0583`
 - Canonical production runtime: `http://127.0.0.1:8772` -> `D:\Youtube\Story Trans And Audio\data`
 - YouTube Auto must remain untouched on `http://127.0.0.1:8765`
-- Offline baseline last verified for this line of work: 907 tests passing, 1 skipped
-- Official rollout verdict: `PRODUCTION_GO`
-- Second acceptance chapter before rollout: not required
-- Task 11B2 disposable smoke root: `D:\Youtube\StoryAudioTask11B2Smoke\data`
 - Protected untracked paths must remain untouched:
   - `experiment_b_transcript/`
   - `runs/`
 
-Next Task:
-Task 13D - Live Canonical Operator Walkthrough for Step-by-Step Production Flow
+Authoritative Chapter 364 Evidence:
+- Book: `Quang Âm Chi Ngoại`
+- Chapter ID: `364`
+- Text Revision: `728`
+- Casting Plan: `19` rev `1` approved
+- Job: `18` completed
+- Active artifact: `69`
+- Final audio: `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0364\job_18\render_0002\chapter_final.m4a`
+- SHA-256: `3B9748DE4B1F5E8259B7BB0498A996D53F4E52428B0CB68E4633EA25D66BFDCC`
+- Authoritative duration: `363590 ms`
+- Independent decoded duration: `363605 ms`
+- Human verdict: `HUMAN_QA_PASS`
+- Accepted remediation: Segment `498` / seq `42`, candidate attempt `36`
+- No other reviewed segment was regenerated
+
+Next Recommended Task:
+Task 18C - Select and Prepare the Next Routine Canonical Production Chapter
 
 Why:
-- Task 13C now turns the operator path into a real stepper, but we should still verify live that a non-developer can follow it chapter-by-chapter without falling back to dashboard-style hunting.
-- The next highest-value check is a canonical walkthrough of the new step flow, blocker messages, and step-to-section navigation: chapter CTA -> Production Flow stepper -> follow the next valid step -> review plan identity -> stop before any unintended production mutation.
-- Chapter 357 remains the best reference chapter for this walkthrough because it already has accepted evidence and clear active-audio / historical-plan context.
+- Chapter 364 closes the current pilot loop: canonical production flow, targeted remediation, and final human QA are all now proven on a second real chapter.
+- The highest-value next step is to move from pilot validation into routine operation by selecting the next real canonical chapter and preparing it up to review-ready production state without reworking the finished 357/364 evidence.
+- This should confirm that the workflow is repeatable chapter-to-chapter, not only recoverable on already-known pilot material.
 
 Scope:
-1. Restart only Story Audio on canonical production if needed and verify the runtime banner still shows `CANONICAL PRODUCTION`.
-2. Walk the Chapter 357 `Production Flow` path live and confirm the stepper advances in the expected order: chapter selection -> text -> characters -> casting -> approval -> render -> QA -> human verdict.
-3. Confirm blocker messages are understandable when a later step is not the valid next action, and that `Next` / `Continue` land on the intended existing UI section.
-4. Confirm advanced/debug areas are still accessible but visually secondary to the main flow: AI Speaker Draft, historical jobs, segment attempts, and diagnostics should read as non-primary tooling.
-5. Preserve Chapter 357 as the reference production-evidence chapter: Job `17`, Casting Plan `18`, active artifact `48`, final M4A SHA `024e9f8cc1a646095eb84fad71d532fc04875e9eb34609a397e44c6f3153b675`.
-6. Do not mutate canonical production audio or submit any new render during the walkthrough unless a future explicit task authorizes it.
+1. Audit canonical production chapters read-only and shortlist the next real candidate with approved text, no conflicting running job, and no ambiguous active output state.
+2. Prefer a chapter with clear production value and manageable casting complexity rather than synthetic or already-accepted evidence chapters.
+3. Prepare the selected chapter through the existing guided production flow up to casting/voice review readiness.
+4. Do not mutate finished evidence chapters 357 or 364 unless a later explicit remediation task requires it.
+5. Preserve the Chapter 364 acceptance evidence exactly as recorded above.
 
 Prerequisites For Any Next Task:
+- Verify `GET /api/runtime` points to canonical production before any mutation.
 - Use the authoritative VieNeu interpreter: `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`.
-- Use `.\run_app.ps1 --host 127.0.0.1 --port 8772 --no-browser` for canonical production startup and verify `GET /api/runtime` before mutating.
-- Keep `STORY_AUDIO_ALLOW_LIVE_DB=1` process-local via `run_app.ps1`; do not persist it at user or machine scope.
-- Require an explicit isolated `STORY_AUDIO_DATA_DIR` / data root for any new smoke or production-style run.
-- For unified canonical production workflow runs, require explicit `--allow-canonical-production`; creation of a new canonical job still requires `--submit`, while downstream-only canonical outputs require an exact `--job-id`.
-- Custom voice bindings in approved canonical plans are now valid only when they resolve to active usable library entries with a preferred or latest usable revision; inactive or revision-less custom voices must still fail closed.
-- Remember that checklist review state and detailed human notes are browser-local by default; use the checklist's `Export review JSON` if the notes need to become durable evidence outside the browser.
-- Preserve live DB guardrails.
-- Do not stop or repurpose port `8765`; it belongs to YouTube Auto.
+- Keep `STORY_AUDIO_ALLOW_LIVE_DB=1` process-local only.
+- Do not touch port `8765`.
 - Do not mutate `experiment_b_transcript/` or `runs/`.
 - Re-verify Git baseline before implementation.
-- Preserve Chapter 357 acceptance evidence:
-  - Text Revision `714`
-  - Casting Plan `#6`
-  - Job `#2`
-  - final M4A under `D:\Youtube\StoryAudioAcceptanceRun1\data\output\1-quang-am-chi-ngoai\chapter_0357\job_2\render_0001\`
