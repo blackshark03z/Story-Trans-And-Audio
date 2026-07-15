@@ -55,7 +55,15 @@ from .diagnostics import (
 )
 from .epub import import_epub
 from .gemini import GeminiSpeakerAssignmentError
-from .pipeline import PipelineWorker, create_job
+from .pipeline import (
+    JOB_PREPARED_STATUS,
+    JobPreparationConflict,
+    JobStartConflict,
+    PipelineWorker,
+    create_job,
+    prepare_job,
+    start_prepared_job,
+)
 from .storage import ContentStore
 from .speaker_assignment import (
     SpeakerAssignmentError,
@@ -128,6 +136,14 @@ class JobRequest(BaseModel):
     output_format: str = "m4a"
     skip_completed: bool = True
     casting_plan_id: int | None = None
+
+
+def _job_http_error(exc: Exception) -> HTTPException:
+    if isinstance(exc, LookupError):
+        return HTTPException(404, str(exc))
+    if isinstance(exc, (JobPreparationConflict, JobStartConflict)):
+        return HTTPException(409, str(exc))
+    return HTTPException(400, str(exc))
 
 
 class VoicePreviewRequest(BaseModel):
@@ -1017,11 +1033,53 @@ def preview_job(book_id: int, from_chapter: int, to_chapter: int) -> dict[str, A
     }
 
 
+def _validated_job_payload(request: JobRequest) -> dict[str, Any]:
+    payload = request.model_dump()
+    payload["voice_name"] = unicodedata.normalize("NFC", payload["voice_name"]).strip()
+
+    voice_name = payload["voice_name"]
+    if is_custom_ref(voice_name):
+        ctx = CustomVoiceContext.from_repository(custom_voice_repo)
+        try:
+            resolve_custom_ref(voice_name, ctx, repository=custom_voice_repo)
+        except Exception as exc:
+            raise ValueError(f"Giá»ng '{voice_name}' khÃ´ng kháº£ dá»¥ng: {str(exc)}") from exc
+    else:
+        valid_voices = _preset_voice_ids()
+        if voice_name not in valid_voices:
+            raise ValueError(f"Giá»ng '{voice_name}' khÃ´ng tá»“n táº¡i trong VieNeu.")
+
+    if payload.get("casting_plan_id") is not None:
+        validate_approved_plan(
+            db,
+            store,
+            int(payload["casting_plan_id"]),
+            _preset_voice_ids(),
+            custom_voice_context=_build_custom_voice_context(),
+        )
+    return payload
+
+
+@app.post("/api/jobs/prepare")
+def prepare_job_route(request: JobRequest) -> dict[str, Any]:
+    if request.repair_mode != "off" and not settings.gemini_key():
+        raise HTTPException(400, "ChÆ°a cÃ³ GEMINI_API_KEY hoáº·c gemini_api_key.txt.")
+    try:
+        payload = _validated_job_payload(request)
+        return prepare_job(db, settings, store=store, **payload)
+    except Exception as exc:
+        raise _job_http_error(exc) from exc
+
+
 @app.post("/api/jobs")
 def submit_job(request: JobRequest) -> dict[str, Any]:
     if request.repair_mode != "off" and not settings.gemini_key():
         raise HTTPException(400, "Chưa có GEMINI_API_KEY hoặc gemini_api_key.txt.")
     try:
+        payload = _validated_job_payload(request)
+        result = create_job(db, settings, store=store, **payload)
+        worker.wake()
+        return result
         payload = request.model_dump()
         payload["voice_name"] = unicodedata.normalize("NFC", payload["voice_name"]).strip()
 
@@ -1053,7 +1111,7 @@ def submit_job(request: JobRequest) -> dict[str, Any]:
         worker.wake()
         return result
     except Exception as exc:
-        raise HTTPException(400, str(exc)) from exc
+        raise _job_http_error(exc) from exc
 
 
 @app.get("/api/jobs")
@@ -1100,6 +1158,16 @@ def job_detail(job_id: int) -> dict[str, Any]:
         item["active_output_casting_plan_revision"] = binding.get("active_output_casting_plan_revision")
         chapter_rows.append(item)
     return {"job": job_row, "chapters": chapter_rows}
+
+
+@app.post("/api/jobs/{job_id}/start")
+def start_job(job_id: int) -> dict[str, Any]:
+    try:
+        result = start_prepared_job(db, settings, job_id=job_id)
+    except Exception as exc:
+        raise _job_http_error(exc) from exc
+    worker.wake()
+    return result
 
 
 def _diagnostic_error(exc: Exception) -> HTTPException:

@@ -6,6 +6,21 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18M - Prepared job lifecycle separated from render start**: added a canonical two-stage production lifecycle so production jobs can be prepared durably before any worker execution begins.
+  - **Root cause fixed**: `POST /api/jobs` previously created `jobs.status='scheduled'` and immediately called `worker.wake()`, while the worker actively selected scheduled jobs. There was no durable non-executable preparation state.
+  - **New lifecycle**: added explicit backend services `prepare_job(...)` and `start_prepared_job(...)`.
+  - **Prepared state**: prepare now creates exactly one `jobs` row plus one `job_chapters` row with `jobs.status='prepared'`, pinned Text Revision / Casting Plan / voice snapshot identity, and no worker wake, no Gemini call, no TTS call, no segment, no attempt, no artifact, and no audio output.
+  - **Start state**: `start_prepared_job(...)` atomically transitions the same prepared row to `scheduled`, preserves the existing undo window, and only then allows the worker to consume it.
+  - **New API routes**: added `POST /api/jobs/prepare` and `POST /api/jobs/{job_id}/start` with explicit `400/404/409` handling for stale inputs, missing jobs, duplicate prepares, conflicting live jobs, and repeated or invalid starts.
+  - **Worker exclusion**: prepared jobs are durable and restart-safe because the worker still selects only `scheduled`, `queued`, and `interrupted`; `prepared` is never executable until explicit start occurs.
+  - **Segmentation boundary**: chose **Option B**. Prepare stores immutable pins only; deterministic segmentation still occurs after explicit start, so the execution boundary stays single-source and cannot silently diverge from a preview/prepared boundary.
+  - **Legacy compatibility**: legacy `POST /api/jobs` still creates exactly one executable job, but it now internally reuses the same row through prepare-then-start rather than relying on immediate create-and-wake coupling.
+  - **UI separation**: approved plans with no job now surface `Chuẩn bị job audio`; prepared jobs surface the pinned prepared state plus `Bắt đầu render`; rendering no longer starts automatically during preparation.
+  - **Retry/duplicate safety**: duplicate prepare and conflicting live jobs now fail closed instead of creating overlapping production identity rows, while repeated start on the same prepared job returns conflict safely.
+  - **Verification**: `tests.test_prepared_jobs`, `tests.test_speaker_review_ui`, `tests.test_casting`, `tests.test_voice_profile`, and `tests.test_diagnostics` passed; `node --check ui/app.js` passed.
+  - **Production safety**: Task 18M changed code/tests/docs only. Canonical Chapter 365 production data was not mutated.
+  - **Migration**: none.
+
 - **Task 18K - Chapter 365 Final Voice Map approved on canonical production**: approved the already-existing Chapter 365 Final Voice Map through the dedicated existing-plan approval workflow without creating any render-side state.
   - **Repository/runtime baseline**: task started on branch `main` with `HEAD == origin/main == 0ce4e6446fbb76950d35d2828305b58cd7563a7e`; tracked worktree was clean and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
   - **Pre-approval state verified**: canonical runtime `http://127.0.0.1:8772` still pointed to the live Story Audio data root/DB, Chapter 365 still had active Text Revision `3983`, reviewed non-stale speaker draft `11`, stale historical draft `10`, and exactly one draft Casting Plan `20` revision `1`.

@@ -157,6 +157,12 @@ class VoiceProfileTests(unittest.TestCase):
             snapshot = json.loads(after)
             self.assertEqual(snapshot["book_voice_profile"]["config_version"], 1)
             self.assertEqual(snapshot["utterances"][1]["resolved_voice_id"], "male")
+            with db.connect() as connection:
+                connection.execute("UPDATE jobs SET status='completed' WHERE id=?", (created["job_id"],))
+                connection.execute(
+                    "UPDATE job_chapters SET status='completed' WHERE job_id=?",
+                    (created["job_id"],),
+                )
 
             new_draft = create_casting_draft(
                 db, store, chapter_id=chapter, text_revision_id=revision,

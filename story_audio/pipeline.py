@@ -64,8 +64,58 @@ class ChapterNeedsReview(RuntimeError):
     pass
 
 
+class JobPreparationConflict(RuntimeError):
+    pass
+
+
+class JobStartConflict(RuntimeError):
+    pass
+
+
+JOB_PREPARED_STATUS = "prepared"
+JOB_ACTIVE_STATUSES = {
+    "scheduled",
+    "queued",
+    "running",
+    "repairing",
+    "synthesizing",
+    "assembling",
+    "paused",
+    "interrupted",
+}
+WORKER_PICKUP_STATUSES = ("scheduled", "queued", "interrupted")
+
+
 def _repair_validation_error(block_index: int, reason: str) -> ChapterNeedsReview:
     return ChapterNeedsReview(f"Gemini block {block_index} changed content: {reason}")
+
+
+def _find_conflicting_job(
+    db: Database,
+    *,
+    chapter_ids: list[int],
+    exclude_job_id: int | None = None,
+) -> dict[str, Any] | None:
+    if not chapter_ids:
+        return None
+    placeholders = ",".join("?" for _ in chapter_ids)
+    status_params = [JOB_PREPARED_STATUS, *sorted(JOB_ACTIVE_STATUSES)]
+    params: list[Any] = [*chapter_ids, *status_params]
+    sql = f"""
+        SELECT j.id,j.status,j.casting_plan_id,j.from_chapter,j.to_chapter,j.output_format,
+               jc.chapter_id,jc.text_revision_id,jc.casting_plan_sha256
+        FROM jobs j
+        JOIN job_chapters jc ON jc.job_id=j.id
+        WHERE jc.chapter_id IN ({placeholders})
+          AND j.status IN ({",".join("?" for _ in status_params)})
+    """
+    if exclude_job_id is not None:
+        sql += " AND j.id<>?"
+        params.append(exclude_job_id)
+    sql += " ORDER BY CASE WHEN j.status=? THEN 0 ELSE 1 END,j.id LIMIT 1"
+    params.append(JOB_PREPARED_STATUS)
+    row = db.fetch_one(sql, tuple(params))
+    return dict(row) if row else None
 
 
 def create_job(
@@ -81,6 +131,7 @@ def create_job(
     skip_completed: bool,
     casting_plan_id: int | None = None,
     store: ContentStore | None = None,
+    start_immediately: bool = True,
 ) -> dict[str, Any]:
     if from_chapter > to_chapter:
         raise ValueError("ChÆ°Æ¡ng báº¯t Ä‘áº§u pháº£i nhá» hÆ¡n hoáº·c báº±ng chÆ°Æ¡ng káº¿t thÃºc.")
@@ -129,6 +180,8 @@ def create_job(
             raise ValueError("A manual casting job must target exactly its casting-plan chapter")
         if repair_mode != "off":
             raise ValueError("A manual casting job must use its pinned approved TextRevision")
+        if int(matching[0]["active_text_revision_id"] or 0) != int(casting_row["text_revision_id"]):
+            raise ValueError("Approved Casting Plan is stale because the chapter active Text Revision changed")
         selected = chapters
         voice_name = str(casting_plan["narrator_voice_id"])
         casting_snapshot = {
@@ -147,6 +200,21 @@ def create_job(
             "tts_settings": settings_snapshot,
             "chunker_version": CHUNKER_VERSION,
         }
+    conflict = _find_conflicting_job(db, chapter_ids=[int(row["id"]) for row in selected])
+    if conflict:
+        if (
+            casting_plan_id is not None
+            and int(conflict.get("casting_plan_id") or 0) == int(casting_plan_id)
+            and int(conflict.get("text_revision_id") or 0) == int(casting_row["text_revision_id"])
+            and str(conflict.get("casting_plan_sha256") or "") == str(casting_row["plan_sha256"])
+            and str(conflict["status"]) == JOB_PREPARED_STATUS
+        ):
+            raise JobPreparationConflict(
+                f"Prepared job #{int(conflict['id'])} already exists for this approved Casting Plan"
+            )
+        raise JobPreparationConflict(
+            f"Chapter already has job #{int(conflict['id'])} in status '{conflict['status']}'"
+        )
     with db.transaction() as connection:
         cursor = connection.execute(
             """INSERT INTO jobs(
@@ -156,7 +224,11 @@ def create_job(
             ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
             (
                 book_id,
-                "scheduled" if selected else "completed",
+                (
+                    "scheduled"
+                    if selected and start_immediately
+                    else JOB_PREPARED_STATUS if selected else "completed"
+                ),
                 from_chapter,
                 to_chapter,
                 voice_name,
@@ -165,7 +237,7 @@ def create_job(
                 json.dumps(settings_snapshot, ensure_ascii=False),
                 int(skip_completed),
                 len(selected),
-                scheduled.isoformat(),
+                (scheduled if selected and start_immediately else now).isoformat(),
                 now.isoformat(),
                 now.isoformat(),
                 casting_plan_id,
@@ -192,7 +264,7 @@ def create_job(
                     (job_id, chapter["id"], sequence),
                 )
     db.audit(
-        "job_created",
+        "job_created" if selected and start_immediately else "job_prepared",
         job_id=job_id,
         details={
             "from": from_chapter,
@@ -208,8 +280,85 @@ def create_job(
         "job_id": job_id,
         "selected_chapters": len(selected),
         "skipped_completed": len(chapters) - len(selected),
-        "undo_until": scheduled.isoformat(),
+        "status": (
+            "scheduled"
+            if selected and start_immediately
+            else JOB_PREPARED_STATUS if selected else "completed"
+        ),
+        "undo_until": scheduled.isoformat() if selected and start_immediately else None,
     }
+
+
+def prepare_job(
+    db: Database,
+    config: Settings,
+    *,
+    book_id: int,
+    from_chapter: int,
+    to_chapter: int,
+    voice_name: str,
+    repair_mode: str,
+    output_format: str,
+    skip_completed: bool,
+    casting_plan_id: int | None = None,
+    store: ContentStore | None = None,
+) -> dict[str, Any]:
+    return create_job(
+        db,
+        config,
+        book_id=book_id,
+        from_chapter=from_chapter,
+        to_chapter=to_chapter,
+        voice_name=voice_name,
+        repair_mode=repair_mode,
+        output_format=output_format,
+        skip_completed=skip_completed,
+        casting_plan_id=casting_plan_id,
+        store=store,
+        start_immediately=False,
+    )
+
+
+def start_prepared_job(
+    db: Database,
+    config: Settings,
+    *,
+    job_id: int,
+) -> dict[str, Any]:
+    now = datetime.now(timezone.utc)
+    scheduled = now + timedelta(seconds=config.undo_seconds)
+    with db.transaction() as connection:
+        job = connection.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
+        if not job:
+            raise LookupError("KhÃ´ng tÃ¬m tháº¥y prepared job.")
+        if str(job["status"]) != JOB_PREPARED_STATUS:
+            raise JobStartConflict(f"Job #{job_id} is not in '{JOB_PREPARED_STATUS}' status")
+        chapters = connection.execute(
+            "SELECT chapter_id FROM job_chapters WHERE job_id=? ORDER BY sequence",
+            (job_id,),
+        ).fetchall()
+        if not chapters:
+            raise JobStartConflict(f"Prepared job #{job_id} has no pinned chapters")
+        conflict = _find_conflicting_job(
+            db,
+            chapter_ids=[int(row["chapter_id"]) for row in chapters],
+            exclude_job_id=job_id,
+        )
+        if conflict:
+            raise JobStartConflict(
+                f"Chapter already has job #{int(conflict['id'])} in status '{conflict['status']}'"
+            )
+        updated = connection.execute(
+            """UPDATE jobs
+               SET status='scheduled',scheduled_at=?,pause_requested=0,cancel_requested=0,
+                   error_message=NULL,finished_at=NULL,updated_at=?
+               WHERE id=? AND status=?""",
+            (scheduled.isoformat(), now.isoformat(), job_id, JOB_PREPARED_STATUS),
+        )
+        if updated.rowcount != 1:
+            raise JobStartConflict(f"Prepared job #{job_id} could not be started safely")
+    db.audit("job_start_requested", job_id=job_id, details={"undo_until": scheduled.isoformat()})
+    return {"job_id": job_id, "status": "scheduled", "undo_until": scheduled.isoformat()}
 
 
 def _effective_synthesis_settings(settings_snapshot: dict) -> str:
@@ -296,7 +445,8 @@ class PipelineWorker:
 
     def _next_job(self):
         rows = self.db.fetch_all(
-            "SELECT * FROM jobs WHERE status IN ('scheduled','queued','interrupted') ORDER BY id"
+            f"SELECT * FROM jobs WHERE status IN ({','.join('?' for _ in WORKER_PICKUP_STATUSES)}) ORDER BY id",
+            WORKER_PICKUP_STATUSES,
         )
         now = datetime.now(timezone.utc)
         for row in rows:

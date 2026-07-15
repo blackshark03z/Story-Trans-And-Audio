@@ -1,16 +1,28 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-15T20:39 (Asia/Saigon)
-**Milestone:** Task 18K Chapter 365 Final Voice Map Approved
-**Trạng thái:** canonical Chapter 365 now has exactly one approved Final Voice Map: Casting Plan `20` rev `1` on Text Revision `3983`, sourced from speaker draft `11`, approved at `2026-07-15T13:39:48.199756+00:00`, with unchanged assignment/voice counts and still no provider/job/audio activity
+**Cập nhật:** 2026-07-15T22:05 (Asia/Saigon)
+**Milestone:** Task 18M Prepared Job Lifecycle Implemented
+**Trạng thái:** canonical code now supports a durable two-stage Chapter 365 production lifecycle: one explicit `prepare` step that pins immutable inputs without waking the worker, and one explicit `start` step that transitions the same prepared job into the normal render queue. Chapter 365 production data remains unchanged: active Text Revision `3983`, approved Casting Plan `20` rev `1`, and jobs/segments/attempts/artifacts/audio all remain `0`.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `0ce4e6446fbb76950d35d2828305b58cd7563a7e`
+**Last verified against commit:** `060edcda32e0a0c2ae1ec8cfc7268b4604f47601`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-15
+
+**Task 18M local implementation baseline:**
+- Repository baseline before edits matched the requested checkpoint: branch `main`, `HEAD == origin/main == 060edcda32e0a0c2ae1ec8cfc7268b4604f47601`, no unrelated tracked changes, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
+- Root cause confirmed in code before mutation: `POST /api/jobs` directly called `create_job(...)`, persisted `jobs.status='scheduled'`, and immediately called `worker.wake()`, while `PipelineWorker._next_job()` selected `scheduled`, `queued`, and `interrupted` jobs. There was no durable preparation-only state.
+- Added canonical two-stage lifecycle in code only: `prepare_job(...)` now creates exactly one immutable-input job plus one `job_chapter` with `jobs.status='prepared'`; `start_prepared_job(...)` atomically transitions that same row to `scheduled`, preserves the existing undo window, and only then allows the worker to consume it.
+- Worker safety is now explicit and durable: prepared jobs are excluded from worker pickup because `_next_job()` still selects only `scheduled`, `queued`, and `interrupted`; restart recovery leaves `prepared` untouched, so preparation survives app/worker restarts without relying on stopping the worker.
+- API contract now exposes explicit supported routes `POST /api/jobs/prepare` and `POST /api/jobs/{job_id}/start`, with `400/404/409` classification for stale input, missing jobs, duplicate prepare, conflicting live jobs, and invalid repeated starts.
+- Legacy compatibility is preserved: `POST /api/jobs` still creates exactly one executable job, but it now reuses the same internal job row through prepare-then-start logic instead of requiring two jobs or waking the worker before the durable transition exists.
+- Segmentation boundary for the new lifecycle is intentionally **Option B**: prepare stores only immutable pins (chapter, active approved Text Revision, approved Casting Plan, voice snapshot/settings snapshot). Deterministic segmentation still happens only after explicit start, so there is no silent divergence between preview and execution boundaries and no double-segmentation pass.
+- UI flow now separates operator intent: approved plans with no job show `Chuẩn bị job audio`, prepared jobs show the pinned prepared state plus `Bắt đầu render`, and render no longer starts automatically at preparation time.
+- Focused verification passed locally: `tests.test_prepared_jobs`, `tests.test_speaker_review_ui`, `tests.test_casting`, `tests.test_voice_profile`, and `tests.test_diagnostics`; `node --check ui/app.js` also passed.
+- Production safety for Task 18M remained clean: no canonical `data/app.db` mutation, no real Chapter 365 job creation, no provider call, no Gemini/TTS synthesis, no segment/attempt/artifact/audio creation, and no edits to `experiment_b_transcript/` or `runs/`.
 
 **Task 18K canonical production outcome:**
 - Repository/runtime baseline before mutation matched the required Task 18K checkpoint: branch `main`, `HEAD == origin/main == 0ce4e6446fbb76950d35d2828305b58cd7563a7e`, tracked tree clean, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.

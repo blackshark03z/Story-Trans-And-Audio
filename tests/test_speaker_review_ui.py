@@ -168,6 +168,17 @@ console.log(JSON.stringify({
         ):
             self.assertIn(value, self.html + self.js)
 
+    def test_render_stage_supports_prepare_then_start(self) -> None:
+        for value in (
+            "/api/jobs/prepare",
+            "/api/jobs/${preparedJob.id}/start",
+            "Chuáº©n bá»‹ job audio",
+            "Báº¯t Ä‘áº§u render",
+            "preparedJob=preparedCastingJob",
+            "Job #${preparedJob.id}",
+        ):
+            self.assertIn(value, self.js)
+
     def test_production_flow_structure_and_navigation_exist(self) -> None:
         for value in (
             "PRODUCTION_FLOW_STEPS",
