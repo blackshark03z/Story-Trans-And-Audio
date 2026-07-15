@@ -68,8 +68,11 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
             "flowStepRenderChapter",
             "flowStepReviewAudio",
             "Nhân vật / người nói được phát hiện trong chương",
-            "Giọng mặc định và bộ nhớ nhân vật của sách",
+            "Thiết lập giọng cho sách",
             "flowVoiceMemoryDetails",
+            "flowAssignChapterSummary",
+            "flowAssignBookSummary",
+            "flowAssignReadinessCopy",
             "speakerDraftExistingPlanWarning",
             "Công cụ nháp AI có thể tạo một plan mới; nếu bạn chỉ muốn duyệt plan hiện tại, hãy quay lại phần Bản đồ giọng cuối.",
             "castingRecommendedActionTitle",
@@ -99,9 +102,11 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
     def test_assign_voices_uses_operator_language_for_detected_speakers(self) -> None:
         for value in (
             "Nhân vật / người nói được phát hiện trong chương",
-            "Hầu hết giọng được tự gán từ giọng kể chuyện, giọng nam/nữ mặc định và bộ nhớ nhân vật đã biết.",
-            "Bạn chỉ cần kiểm tra các dòng được đánh dấu Cần kiểm tra, rồi duyệt bản đồ giọng trước khi tạo audio.",
+            "Bước này tập trung vào người nói trong riêng chương hiện tại",
+            "Đã tự gán giọng cho",
             "Danh sách này cho biết công cụ phát hiện ai trong chương",
+            "Tổng người nói",
+            "Người kể chuyện",
             "Giọng sẽ dùng",
             "Nhân vật đã biết",
             "Người nói mới hoặc chưa rõ",
@@ -113,10 +118,25 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
     def test_assign_voices_keeps_backend_terms_out_of_primary_labels(self) -> None:
         self.assertIn("Công cụ nháp AI và rà soát người nói", self.html)
         self.assertIn("Character Bible import", self.html)
+        self.assertIn("<details id=\"flowVoiceMemoryDetails\"", self.html)
+        self.assertIn("<summary>Thiết lập giọng cho sách</summary>", self.html)
         self.assertNotIn(">Speaker Assignment Draft</h3>", self.html)
         self.assertNotIn("Current assigned voice", self.js)
         self.assertNotIn("Role / gender", self.js)
         self.assertNotIn("Assigned voice", self.js)
+
+    def test_book_level_voice_setup_is_secondary_and_reusable(self) -> None:
+        for value in (
+            "Thiết lập giọng cho sách",
+            "Phần này áp dụng lại cho nhiều chương trong cùng cuốn sách.",
+            "Book Voice Profile",
+            "Character Bible import",
+            "Narrator mặc định",
+            "Giọng nam mặc định",
+            "Giọng nữ mặc định",
+            "Bộ nhớ nhân vật",
+        ):
+            self.assertIn(value, self.html + self.js)
 
     def test_jump_to_approval_controls_targets_real_casting_plan_area(self) -> None:
         self.assertIn("#castingPlanApprovalControls", self.js)

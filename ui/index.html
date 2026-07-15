@@ -290,16 +290,18 @@
             <div><p class="eyebrow">Bước 3</p><h3>Gán giọng</h3></div>
             <span id="flowAssignStatus" class="pill">Chờ</span>
           </div>
-          <p class="section-guide">Hầu hết giọng được tự gán từ giọng kể chuyện, giọng nam/nữ mặc định và bộ nhớ nhân vật đã biết. Bạn chỉ cần kiểm tra các dòng được đánh dấu Cần kiểm tra, rồi duyệt bản đồ giọng trước khi tạo audio.</p>
+          <p class="section-guide">Bước này tập trung vào người nói trong riêng chương hiện tại: hệ thống đã tìm thấy ai, đang định dùng giọng nào, và còn mục nào bạn cần rà trước khi duyệt bản đồ giọng cuối.</p>
           <div id="flowAssignWarnings"></div>
           <div class="section-head compact">
             <div><p class="eyebrow">Chính</p><h3>Nhân vật / người nói được phát hiện trong chương</h3></div>
           </div>
-          <p class="muted">Danh sách này cho biết công cụ phát hiện ai trong chương, họ có vai trò gì, hệ thống sẽ dùng giọng nào, và bạn có cần kiểm tra gì thêm trước khi tạo audio hay không.</p>
+          <p id="flowAssignReadinessCopy" class="muted">Danh sách này cho biết công cụ phát hiện ai trong chương, họ có vai trò gì, hệ thống sẽ dùng giọng nào, và bạn có cần kiểm tra gì thêm trước khi tạo audio hay không.</p>
+          <div id="flowAssignChapterSummary" class="flow-summary-grid"></div>
           <div id="flowSpeakerSummary" class="flow-speaker-list"></div>
           <details id="flowVoiceMemoryDetails" class="flow-secondary-details">
-            <summary>Giọng mặc định và bộ nhớ nhân vật của sách</summary>
-            <p class="muted">Dùng phần này khi bạn cần đổi mặc định cho cả cuốn sách, nhập bộ nhớ nhân vật đã biết, hoặc thêm nhân vật lặp lại. Với đa số chương thường ngày, hãy bắt đầu từ danh sách người nói ở phía trên.</p>
+            <summary>Thiết lập giọng cho sách</summary>
+            <p class="muted">Phần này áp dụng lại cho nhiều chương trong cùng cuốn sách. Chỉ mở khi bạn muốn chỉnh giọng mặc định, bộ nhớ nhân vật, alias, hoặc custom voice ở cấp sách; còn với một chương cụ thể, hãy bắt đầu từ danh sách người nói ở phía trên.</p>
+            <div id="flowAssignBookSummary" class="flow-summary-grid"></div>
             <div class="casting-toolbar">
               <label>Giọng narrator<select id="castingNarratorVoice"></select><small id="castingNarratorSource" class="muted"></small></label>
             </div>
