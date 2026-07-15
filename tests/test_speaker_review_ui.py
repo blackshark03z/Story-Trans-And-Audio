@@ -104,6 +104,7 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
             "Nhân vật / người nói được phát hiện trong chương",
             "Bước này tập trung vào người nói trong riêng chương hiện tại",
             "Đã tự gán giọng cho",
+            "Tất cả người nói đã được gán giọng. Bạn có thể tiếp tục duyệt bản đồ giọng cuối.",
             "Danh sách này cho biết công cụ phát hiện ai trong chương",
             "Tổng người nói",
             "Người kể chuyện",
@@ -137,6 +138,33 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
             "Bộ nhớ nhân vật",
         ):
             self.assertIn(value, self.html + self.js)
+
+    def test_assign_voices_is_exception_first_with_ready_rows_collapsed(self) -> None:
+        for value in (
+            "flowReadySpeakersDetails",
+            "flowReadySpeakersSummary",
+            "flowReadySpeakerSummary",
+            "Vai trò tool đang hiểu",
+            "Giọng dự kiến / thiếu giọng",
+            "Không còn người nói nào cần kiểm tra trong bước này.",
+            "người nói đã sẵn sàng",
+            "$('#flowReadySpeakersDetails').open=false",
+            "Cần xử lý ${reviewRows.length} người nói trước khi duyệt bản đồ giọng cuối.",
+        ):
+            self.assertIn(value, self.html + self.js)
+
+    def test_speaker_reason_classification_uses_existing_state_only(self) -> None:
+        for value in (
+            "function speakerReviewReason",
+            "Chưa có giọng phù hợp",
+            "Đang dùng fallback cần xác nhận",
+            "Nhân vật mới hoặc vai trò chưa rõ",
+            "Chưa hoàn tất manual assignment",
+            "Chưa rõ nam/nữ hoặc còn thiếu xác nhận",
+            "reviewRows=speakerRows.filter(row=>row.status.className==='missing')",
+            "readyRows=speakerRows.filter(row=>row.status.className!=='missing')",
+        ):
+            self.assertIn(value, self.js)
 
     def test_jump_to_approval_controls_targets_real_casting_plan_area(self) -> None:
         self.assertIn("#castingPlanApprovalControls", self.js)
