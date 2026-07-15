@@ -6,6 +6,17 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18K - Chapter 365 Final Voice Map approved on canonical production**: approved the already-existing Chapter 365 Final Voice Map through the dedicated existing-plan approval workflow without creating any render-side state.
+  - **Repository/runtime baseline**: task started on branch `main` with `HEAD == origin/main == 0ce4e6446fbb76950d35d2828305b58cd7563a7e`; tracked worktree was clean and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
+  - **Pre-approval state verified**: canonical runtime `http://127.0.0.1:8772` still pointed to the live Story Audio data root/DB, Chapter 365 still had active Text Revision `3983`, reviewed non-stale speaker draft `11`, stale historical draft `10`, and exactly one draft Casting Plan `20` revision `1`.
+  - **Approval boundary verified**: UI action `Duyệt bản đồ giọng cuối & tiếp tục tạo audio (v1)` uses `POST /api/casting/{casting_plan_id}/approve`; backend `approve_plan(...)` only archives any older approved plan, marks the requested draft approved, and re-validates the plan. It does not create jobs, job_chapters, segments, attempts, artifacts, manifests, or audio.
+  - **Final Voice Map inspection**: plan content was re-verified before approval with `47` assignments, narrator `42`, Hứa Thanh `5`, unknown `0`, unresolved `0`, effective voices `custom:26 -> 42` and `custom:25 -> 5`, no punctuation-only utterance, and stable offsets preserved for the five Hứa Thanh targets.
+  - **Exact approval result**: approved exactly Plan `20` revision `1`; no successor revision and no duplicate plan were created. `approved_at` is `2026-07-15T13:39:48.199756+00:00`.
+  - **Provenance preserved**: approved plan remains pinned to Text Revision `3983`, and plan source metadata still records staged speaker-review provenance from draft `11` plus the same five reviewed utterance IDs.
+  - **UI next-step state**: after approval the canonical chapter state now satisfies the Production Flow branch that advances to `Bước 5: Tạo audio chương`; no render action was invoked during Task 18K.
+  - **Production safety**: after approval, Chapter 365 still has jobs `0`, job_chapters `0`, segments `0`, segment attempts `0`, artifacts `0`, repair blocks `0`, manifests `0`, provider calls `0`, TTS previews `0`, TTS synthesis calls `0`, audio outputs `0`, and no new Text Revision.
+  - **Migration**: none.
+
 - **Task 18J - Chapter 365 draft-only Final Voice Map created on canonical production**: completed the first production use of the staged speaker-review workflow by reviewing Draft `11` and creating exactly one unapproved Final Voice Map / Casting Plan draft for Chapter 365.
   - **Repository/runtime baseline**: task started on branch `main` with `HEAD == origin/main == de23c16c4a82401558ec6c72186b3d04ac0ea77e`; tracked worktree was clean and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
   - **Runtime recovery**: canonical runtime `http://127.0.0.1:8772` initially exposed stale pre-Task-18I API code, so that process was replaced through the supported repository launcher before mutation; only after restart did `POST /api/chapters/{chapter_id}/speaker-review/casting-plan-draft` become available on the live API.

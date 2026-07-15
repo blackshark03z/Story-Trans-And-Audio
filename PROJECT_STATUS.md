@@ -1,16 +1,27 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-15T20:33 (Asia/Saigon)
-**Milestone:** Task 18J Chapter 365 Draft-Only Final Voice Map Prepared
-**Trạng thái:** canonical Chapter 365 now has one unapproved Final Voice Map draft created from staged speaker review: Text Revision `3983`, source speaker draft `11`, Casting Plan `20` rev `1` in `draft` state, approved `false`, and no provider/job/audio activity was created
+**Cập nhật:** 2026-07-15T20:39 (Asia/Saigon)
+**Milestone:** Task 18K Chapter 365 Final Voice Map Approved
+**Trạng thái:** canonical Chapter 365 now has exactly one approved Final Voice Map: Casting Plan `20` rev `1` on Text Revision `3983`, sourced from speaker draft `11`, approved at `2026-07-15T13:39:48.199756+00:00`, with unchanged assignment/voice counts and still no provider/job/audio activity
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `de23c16c4a82401558ec6c72186b3d04ac0ea77e`
+**Last verified against commit:** `0ce4e6446fbb76950d35d2828305b58cd7563a7e`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-15
+
+**Task 18K canonical production outcome:**
+- Repository/runtime baseline before mutation matched the required Task 18K checkpoint: branch `main`, `HEAD == origin/main == 0ce4e6446fbb76950d35d2828305b58cd7563a7e`, tracked tree clean, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
+- Canonical runtime `http://127.0.0.1:8772` still pointed to `D:\Youtube\Story Trans And Audio\data` and `D:\Youtube\Story Trans And Audio\data\app.db`, and authoritative Chapter 365 pre-approval state still matched Task 18J: active approved Text Revision `3983`, non-stale reviewed speaker draft `11`, stale historical speaker draft `10`, and exactly one draft Casting Plan `20` revision `1`.
+- Approval boundary was verified in code before mutation: UI action `Duyệt bản đồ giọng cuối & tiếp tục tạo audio (v1)` calls `POST /api/casting/{casting_plan_id}/approve`, and the backend `approve_plan(...)` only archives any older approved plan for the chapter, marks the requested draft plan approved, and re-validates voices. It does not create jobs, job_chapters, segments, attempts, artifacts, manifests, or audio.
+- Final Voice Map inspection passed on canonical state: Plan `20` revision `1` still belonged to Chapter `365`, remained pinned to Text Revision `3983`, carried speaker-review provenance from draft `11`, and preserved the five Hứa Thanh assignments with their stable utterance IDs and offsets: `u0017-d3809b48d599` (`2316-2356`), `u0032-fe2bc9743573` (`4399-4472`), `u0034-9634d7a009f0` (`4611-4665`), `u0039-99e8b095900e` (`5423-5469`), and `u0046-8cad60adce11` (`6419-6451`), all resolved to `custom:25`.
+- Book Voice Profile remained unchanged at approval time: narrator `custom:26`, male dialogue `custom:25`, female dialogue `custom:26`, and unknown fallback to narrator `custom:26`.
+- Approval mutated exactly one production object through the supported existing-plan route: Casting Plan `20` revision `1` became `approved` with `approved_at = 2026-07-15T13:39:48.199756+00:00`; no successor revision or duplicate plan was created.
+- Approved plan content remained unchanged after approval: `47` total assignments, `role_counts = narrator 42 / character 5 / unknown 0`, `effective_voice_counts = custom:26 -> 42 / custom:25 -> 5`, `unresolved_count = 0`, and review provenance still records `draft_id = 11`, `review_completed = true`, and the same five reviewed utterance IDs.
+- Post-approval production safety remained clean: no new Text Revision after `3983`, no new speaker draft beyond `10` and `11`, Chapter 365 Casting Plans `1` approved / `0` draft, jobs `0`, job_chapters `0`, segments `0`, segment attempts `0`, repair blocks `0`, artifacts `0`, manifests `0`, synthesis previews `0`, TTS synthesis calls `0`, provider calls `0`, and audio outputs `0`.
+- UI post-approval intent is now the next Production Flow step `Tạo audio chương`: after approval the chapter state is `casting.status='approved'` with no active audio, which is the exact branch the verified UI flow uses to advance from `Duyệt bản đồ giọng cuối` to render readiness. No render action was invoked during Task 18K.
 
 **Task 18J canonical production outcome:**
 - Repository/runtime baseline before mutation matched the required Task 18J checkpoint: branch `main`, `HEAD == origin/main == de23c16c4a82401558ec6c72186b3d04ac0ea77e`, tracked tree clean, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
@@ -350,3 +361,4 @@ Các hạng mục vận hành/quota và alignment không cấp thiết được 
 | 2026-07-15 | Task 18A/18B Chapter 364 Production Pilot | Canonical Chapter 364 / Text Revision 728 / Casting Plan #19 / Job #18 completed; Segment 498 attempt 36 accepted; final artifact #69 SHA `3B9748DE4B1F5E8259B7BB0498A996D53F4E52428B0CB68E4633EA25D66BFDCC`; human full-artifact listening verdict `HUMAN_QA_PASS` |
 | 2026-07-15 | Task 18G Chapter 365 targeted correction + speaker draft | Canonical Chapter 365 active Text Revision `730` corrected once to new active Text Revision `3983`; exact malformed punctuation removed; stale draft `10` preserved; new speaker draft `11` generated with 5/5 valid targets and no casting/job/audio state created |
 | 2026-07-15 | Task 18J Chapter 365 draft Final Voice Map ready | Canonical Chapter 365 speaker draft `11` reviewed with five accepted Hứa Thanh assignments; staged workflow created unapproved Casting Plan `20` rev `1` pinned to Text Revision `3983`; UI shows existing draft plan and separate approval action; no provider/job/audio activity occurred |
+| 2026-07-15 | Task 18K Chapter 365 Final Voice Map approved | Canonical Chapter 365 approved existing Casting Plan `20` rev `1` on Text Revision `3983`; source speaker draft `11` and all assignment/voice counts remained unchanged; UI state now moves to render readiness and no provider/job/audio activity occurred |
