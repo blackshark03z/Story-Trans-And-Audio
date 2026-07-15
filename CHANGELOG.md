@@ -6,6 +6,19 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18F - Canonical targeted text correction workflow**: added a supported operator/API path for exact immutable chapter-text correction without using the render-time Gemini repair pipeline.
+  - **Architecture gap closed**: before this task, Story Audio could inspect and diff chapter TextRevisions, but the only built-in path that created a new approved revision was the job-driven Gemini repair pipeline. That path was unsuitable for exact operator fixes because it is AI-mediated, runtime-coupled, and can create repair/job state.
+  - **New backend workflow**: added `story_audio.text_correction.apply_targeted_text_correction(...)`, which validates one exact literal match against the current active approved TextRevision, applies one substitution, creates one new immutable approved TextRevision, and activates it atomically.
+  - **API contract**: added `POST /api/chapters/{chapter_id}/text-revisions/targeted-correction` with `base_revision_id`, `expected_text`, `replacement_text`, and `reason`.
+  - **Immutability and provenance**: the workflow reuses revision kind `repaired`, preserves provenance through `parent_revision_id`, marks the new revision `approved`, and tags its origin with processor version `targeted-correction-v1`.
+  - **Retry and stale-base safety**: zero-match and multi-match requests fail without mutation; a base revision from another chapter returns not found; unapproved or non-active base revisions fail safely; retrying after success against the old base returns conflict instead of creating a duplicate revision.
+  - **Downstream compatibility**: existing speaker-assignment drafts remain immutable. When the active TextRevision changes, draft stale detection continues to work through the existing revision-mismatch mechanism without mutating historical draft rows.
+  - **Audit boundary**: the correction reason is recorded through `audit_events` together with revision provenance and hashed replacement identifiers, without logging full chapter text or invoking any external provider.
+  - **UI scope**: backend/API support only for Task 18F. Minimal operator UI was deferred to keep the implementation focused and avoid broad production-flow redesign.
+  - **Verification**: focused isolated tests passed for success, validation failures, rollback safety, API contract/classification, retry conflict behavior, and speaker-draft stale compatibility; existing speaker-assignment review coverage remained green.
+  - **Production safety**: no real Chapter 365 correction was executed during this task, and canonical `data/app.db` / jobs / artifacts / output state were left untouched.
+  - **Migration**: none.
+
 - **Task 18A/18B - Chapter 364 canonical production pilot closeout**: recorded the completed production pilot, targeted remediation result, and final human sequential listening verdict for canonical Chapter 364 without changing source code or creating any further render attempts.
   - **Canonical evidence**: Book `Quang Âm Chi Ngoại`, Chapter `364`, Text Revision `728`, approved Casting Plan `19` rev `1`, Job `18` completed, active artifact `69`.
   - **Final accepted output**: `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0364\job_18\render_0002\chapter_final.m4a` with SHA-256 `3B9748DE4B1F5E8259B7BB0498A996D53F4E52428B0CB68E4633EA25D66BFDCC` and authoritative duration `363590 ms`.

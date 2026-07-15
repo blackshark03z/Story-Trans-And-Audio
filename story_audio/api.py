@@ -70,6 +70,12 @@ from .speaker_review import (
     list_speaker_review_drafts,
 )
 from .tts import tts_service
+from .text_correction import (
+    TextCorrectionConflict,
+    TextCorrectionError,
+    TextCorrectionNotFound,
+    apply_targeted_text_correction,
+)
 from .text_diff import TextDiffError, build_revision_diff, list_revision_metadata
 from .voice_preview import VoicePreviewService
 from .voice_profile import (
@@ -213,6 +219,13 @@ class SpeakerReviewApprovalRequest(BaseModel):
 class HumanApprovalRequest(BaseModel):
     status: str = Field(pattern="^(approved|needs_fixes)$")
     notes: str | None = Field(default=None, max_length=4000)
+
+
+class TargetedTextCorrectionRequest(BaseModel):
+    base_revision_id: int = Field(gt=0)
+    expected_text: str
+    replacement_text: str
+    reason: str = Field(max_length=4000)
 
 
 @asynccontextmanager
@@ -506,6 +519,29 @@ def chapter_revision_diff(
     try:
         return build_revision_diff(db, store, chapter_id, revision_a, revision_b)
     except TextDiffError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/chapters/{chapter_id}/text-revisions/targeted-correction")
+def create_targeted_text_correction(
+    chapter_id: int,
+    request: TargetedTextCorrectionRequest,
+) -> dict[str, Any]:
+    try:
+        return apply_targeted_text_correction(
+            db,
+            store,
+            chapter_id=chapter_id,
+            base_revision_id=request.base_revision_id,
+            expected_text=request.expected_text,
+            replacement_text=request.replacement_text,
+            reason=request.reason,
+        )
+    except TextCorrectionNotFound as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except TextCorrectionConflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except TextCorrectionError as exc:
         raise HTTPException(400, str(exc)) from exc
 
 

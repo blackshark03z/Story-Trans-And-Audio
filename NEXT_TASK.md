@@ -1,46 +1,41 @@
 # Next Task
 
 Current Status:
-Task 18A and Task 18B are complete on `main`. Chapter 364 is now the completed canonical production pilot after targeted audio remediation and final sequential human review.
+Task 18F is complete locally. Story Audio now has a supported backend/API workflow for exact immutable targeted text correction on the active approved chapter revision, and no real Chapter 365 production data was mutated during implementation.
 
 Current Baseline:
 - Branch `main`
-- Current HEAD = `506a7f83a2dd9c555539e36a58f40ff333cf0583`
+- Verify current `HEAD` with `git log -1` before starting the next task
 - Canonical production runtime: `http://127.0.0.1:8772` -> `D:\Youtube\Story Trans And Audio\data`
 - YouTube Auto must remain untouched on `http://127.0.0.1:8765`
 - Protected untracked paths must remain untouched:
   - `experiment_b_transcript/`
   - `runs/`
 
-Authoritative Chapter 364 Evidence:
-- Book: `Quang Âm Chi Ngoại`
-- Chapter ID: `364`
-- Text Revision: `728`
-- Casting Plan: `19` rev `1` approved
-- Job: `18` completed
-- Active artifact: `69`
-- Final audio: `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0364\job_18\render_0002\chapter_final.m4a`
-- SHA-256: `3B9748DE4B1F5E8259B7BB0498A996D53F4E52428B0CB68E4633EA25D66BFDCC`
-- Authoritative duration: `363590 ms`
-- Independent decoded duration: `363605 ms`
-- Human verdict: `HUMAN_QA_PASS`
-- Accepted remediation: Segment `498` / seq `42`, candidate attempt `36`
-- No other reviewed segment was regenerated
+Task 18F Outcome:
+- Added `POST /api/chapters/{chapter_id}/text-revisions/targeted-correction`
+- Added service `story_audio.text_correction.apply_targeted_text_correction(...)`
+- Correction path creates exactly one new immutable approved TextRevision and activates it atomically
+- Existing speaker drafts remain immutable and become stale through normal active-revision mismatch rules
+- UI support was deferred intentionally to keep the change focused
+- No real Chapter 365 correction was executed during Task 18F
 
 Next Recommended Task:
-Task 18C - Select and Prepare the Next Routine Canonical Production Chapter
+Task 18G - Apply the Canonical Targeted Text Correction Workflow to Chapter 365 and Regenerate Exactly One Speaker Draft
 
 Why:
-- Chapter 364 closes the current pilot loop: canonical production flow, targeted remediation, and final human QA are all now proven on a second real chapter.
-- The highest-value next step is to move from pilot validation into routine operation by selecting the next real canonical chapter and preparing it up to review-ready production state without reworking the finished 357/364 evidence.
-- This should confirm that the workflow is repeatable chapter-to-chapter, not only recoverable on already-known pilot material.
+- Chapter 365 remains blocked before casting because approved Text Revision `730` still contains malformed punctuation that splits one internal-thought span into a standalone punctuation utterance.
+- Task 18F delivered the missing supported workflow needed to fix that issue safely without going through the Gemini repair/render pipeline.
+- The next highest-value step is to use the new canonical correction route operationally on Chapter 365, verify one corrected active revision, and regenerate exactly one fresh speaker-assignment draft bound to that new revision.
 
 Scope:
-1. Audit canonical production chapters read-only and shortlist the next real candidate with approved text, no conflicting running job, and no ambiguous active output state.
-2. Prefer a chapter with clear production value and manageable casting complexity rather than synthetic or already-accepted evidence chapters.
-3. Prepare the selected chapter through the existing guided production flow up to casting/voice review readiness.
-4. Do not mutate finished evidence chapters 357 or 364 unless a later explicit remediation task requires it.
-5. Preserve the Chapter 364 acceptance evidence exactly as recorded above.
+1. Re-verify Git and canonical runtime baseline before any mutation.
+2. Read Chapter 365 active approved Text Revision `730` through the supported workflow only.
+3. Apply the exact one-match targeted correction that removes the malformed extra punctuation.
+4. Verify one new immutable approved active revision is created and that draft `10` remains immutable but stale.
+5. Generate exactly one new Chapter 365 speaker-assignment draft from the corrected active revision.
+6. Verify the corrected internal-thought span rebuilds as one utterance and that target count returns from `6` to `5`.
+7. Stop before reviewing assignments, creating a Casting Plan, rendering audio, or creating any job/artifact state.
 
 Prerequisites For Any Next Task:
 - Verify `GET /api/runtime` points to canonical production before any mutation.
