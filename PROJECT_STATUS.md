@@ -1,16 +1,30 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-16T16:55 (Asia/Saigon)
-**Milestone:** Task 18Z Chapter 367 Human Audio QA Closeout
-**Trạng thái:** `HUMAN_QA_PASS` for Chapter `367`. The completed final artifact was reviewed sequentially, the recovered Segment `573` was accepted, no remediation was required, and the routine production cycle is now closed.
+**Cập nhật:** 2026-07-16T17:40 (Asia/Saigon)
+**Milestone:** Task 18AA Chapter 366 Quote-Boundary Remediation
+**Trạng thái:** Chapter `366` text blocker is fixed through the supported targeted-correction workflow and Speaker Assignment Draft `13` is ready for operator review. No Casting Plan, job, TTS, artifact, or audio was created.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `2030698d81362aaa07aa7978f346370ed6166361`
+**Last verified against commit:** `ebb7ead38ba1e46ed04d56fc933e37059d6908fe`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-16
+
+**Task 18AA canonical text-remediation and speaker-draft outcome:**
+- Repository/runtime baseline before mutation matched the required checkpoint: branch `main`, `HEAD == origin/main == ebb7ead38ba1e46ed04d56fc933e37059d6908fe`, runtime `http://127.0.0.1:8772`, canonical data root `D:\Youtube\Story Trans And Audio\data`, and canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`.
+- Chapter `366` started on active approved Text Revision `732` (`reflowed`, parent/source `731`, processor `lossless-reflow-v1`, content SHA-256 `52092d179d7831c7c0ab1fe06c6b83b7e3854818c6eb1967996eb31fb3df2d6d`, lexical SHA-256 `465273d394e81fc6c72ade75d463c552717db31bff076c4b3e07b70376eae3a6`, char count `6896`).
+- Source comparison showed the malformed quote-boundary spacing already existed in raw revision `731`, not introduced by reflow: before `"Ăn...Hải Thi tộc...sắp đột phá... đột phá ngay."`; after `"Ăn...Hải Thi tộc...sắp đột phá...đột phá ngay."`
+- A pre-mutation backup was created before the correction. Validated SQLite copy: `D:\Youtube\Story Trans And Audio\backups\task18aa_pre_ch366_correction_20260716_172843.sqlite3\files\app.db`; size `3608576` bytes; SHA-256 `8c2ff467425cf04c3080b343df7b7a023ded0f32e695acc280f648ef7712c278`; `quick_check = ok`.
+- Exactly one supported targeted correction was applied through `POST /api/chapters/366/text-revisions/targeted-correction`, creating active Text Revision `3984` with parent `732`, `kind = repaired`, `status = approved`, processor `targeted-correction-v1`, replacement occurrence count `1`, content SHA-256 `4febd781f26a50c1a602ad5d14c092f41f472ecddc222d38ad66dfe0bd7ab1e8`, lexical SHA-256 unchanged at `465273d394e81fc6c72ade75d463c552717db31bff076c4b3e07b70376eae3a6`, and char count `6895`.
+- Minimal-diff validation passed: the only text delta was one U+0020 space removed between `...` and `đột phá ngay`; no lexical token changed, revision `732` remains immutable, title/chapter number stayed unchanged, and paragraph structure stayed unchanged outside the local boundary.
+- Boundary validation passed: quote-span count stayed `8`, utterance count changed `52 -> 51`, speaker target count changed `11 -> 10`, and the previous split targets `u0004-a47e93d44da7` / seq `4` plus `u0005-3a156dbf3197` / seq `5` were replaced by one complete merged target `u0004-c739867fa093` / seq `4` / offsets `364-412` / `"Ăn...Hải Thi tộc...sắp đột phá...đột phá ngay."`
+- Character and voice readiness stayed canonical: Book `1` still has active candidate characters `Hứa Thanh` (`42`) and `Lão tổ Kim Cương Tông` (`43`); book voice strategy remains narrator `custom:26`, male dialogue `custom:25`, female dialogue `custom:26`, unknown fallback narrator/custom `custom:26`.
+- Exactly one speaker-assignment generation was issued for corrected revision `3984`. Draft `13` is current, non-stale, `status = generated`, `model_id = gemini-2.5-flash`, `prompt_version = speaker-assignment-v2`, `mode = unassigned_only`, `target_count = 10`, `valid_count = 10`, `invalid_count = 0`, `remaining_unreviewed_count = 10`, `cache_hit_count = 0`, and `cache_miss_count = 1`.
+- Draft `13` rows are ready for operator review: the corrected merged quote is proposed as `unknown` because the speaker is `cái bóng`; Lão tổ Kim Cương Tông rows are proposed for `u0008`, `u0009`, `u0010`, `u0011`, `u0012`, and `u0043`; Hứa Thanh rows are proposed for `u0015`, `u0034`, and `u0046`.
+- Safety stayed clean after completion: Chapter `366` has Casting Plans `0`, jobs `0`, JobChapters `0`, segments `0`, segment attempts `0`, repair blocks `0`, artifacts `0`, and active audio `none`. Chapters `364`, `365`, and `367` remain unchanged at active artifacts `69`, `72`, and `75`.
+- The next task is Task `18AB` - Review Chapter `366` Speaker Assignments and Create an Unapproved Final Voice Map.
 
 **Task 18Z canonical closeout outcome:**
 - Repository/runtime baseline at closeout remained canonical: branch `main`, `HEAD == origin/main == 2030698d81362aaa07aa7978f346370ed6166361`, runtime `http://127.0.0.1:8772`, and the only protected untracked paths remained `experiment_b_transcript/` and `runs/`.

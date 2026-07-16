@@ -6,6 +6,18 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AA - Chapter 366 quote-boundary text blocker resolved**: applied one supported targeted text correction to Chapter `366` and generated exactly one speaker-assignment draft for operator review.
+  - **Original revision**: active approved Text Revision `732` (`reflowed`, parent/source `731`, processor `lossless-reflow-v1`) had the quote `"Ăn...Hải Thi tộc...sắp đột phá... đột phá ngay."` reconstructed as two speaker targets: `u0004-a47e93d44da7` / seq `4` and `u0005-3a156dbf3197` / seq `5`.
+  - **Source comparison**: raw revision `731` already contained the same spacing boundary, so the correction was limited to punctuation-adjacent spacing and did not remove any lexical token.
+  - **Backup**: pre-mutation backup copy validated at `D:\Youtube\Story Trans And Audio\backups\task18aa_pre_ch366_correction_20260716_172843.sqlite3\files\app.db`; size `3608576` bytes; SHA-256 `8c2ff467425cf04c3080b343df7b7a023ded0f32e695acc280f648ef7712c278`; SQLite `quick_check = ok`.
+  - **Correction**: exactly one `POST /api/chapters/366/text-revisions/targeted-correction` call created Text Revision `3984` (`repaired`, parent `732`, processor `targeted-correction-v1`, status `approved`) by changing `"Ăn...Hải Thi tộc...sắp đột phá... đột phá ngay."` to `"Ăn...Hải Thi tộc...sắp đột phá...đột phá ngay."`
+  - **Minimal diff**: content SHA-256 is `4febd781f26a50c1a602ad5d14c092f41f472ecddc222d38ad66dfe0bd7ab1e8`; lexical SHA-256 remains `465273d394e81fc6c72ade75d463c552717db31bff076c4b3e07b70376eae3a6`; character count changed `6896 -> 6895`.
+  - **Boundary validation**: quote-span count stayed `8`, utterance count changed `52 -> 51`, target count changed `11 -> 10`, and merged quote `u0004-c739867fa093` / seq `4` / offsets `364-412` is now one complete target.
+  - **Draft result**: exactly one `POST /api/chapters/366/speaker-assignment/draft` call created Draft `13` on revision `3984` using `gemini-2.5-flash` and `speaker-assignment-v2`; `target_count = 10`, `valid_count = 10`, `invalid_count = 0`, `remaining_unreviewed_count = 10`, `cache_hit_count = 0`, `cache_miss_count = 1`.
+  - **Safety**: Chapter `366` still has Casting Plans `0`, jobs `0`, JobChapters `0`, segments `0`, attempts `0`, repair blocks `0`, artifacts `0`, and active audio `none`; Chapters `364`, `365`, and `367` remained unchanged.
+  - **Next step**: Review Chapter `366` Speaker Assignments and Create an Unapproved Final Voice Map.
+  - **Migration**: none.
+
 - **Task 18Z - Chapter 367 human QA closeout**: recorded `HUMAN_QA_PASS` and closed the Chapter `367` routine production cycle after listening through the complete final artifact.
   - **QA verdict**: the final audio was reviewed sequentially; chapter start and end are complete; narrator `custom:26` remained stable; all four character utterances use `custom:25`; and the recovered Segment `573` / sequence `20` / text `"Quá ít."` is now audible and complete after same-job recovery.
   - **Artifact**: `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0367\job_20\render_0001\chapter.m4a`; SHA-256 `376afa0250cc14ce368e36ff3f9842b8c33139d3ab0250b55f3e6ce92938d808`; file size `6765624` bytes; authoritative/container duration `418180 ms`; independent decoded PCM duration `418197 ms`.
