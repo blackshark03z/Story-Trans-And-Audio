@@ -1,16 +1,31 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-16T19:41 (Asia/Saigon)
-**Milestone:** Task 18AI Chapter 368 Zero-Target Speaker Draft Created
-**Trạng thái:** Chapter `368` now has exactly one provider-free zero-target Speaker Assignment Draft, Draft `14`, pinned to Text Revision `736`. No Gemini/provider/TTS/audio/render activity occurred. The next workflow boundary is blocked until the zero-target narrator-only Final Voice Map path supports empty review decisions.
+**Cập nhật:** 2026-07-16T20:26 (Asia/Saigon)
+**Milestone:** Task 18AJ Chapter 368 Narrator-Only Final Voice Map Draft Ready
+**Trạng thái:** Chapter `368` now has exactly one unapproved narrator-only Final Voice Map / Casting Plan draft, Plan `23` revision `1`, created from zero-target Speaker Draft `14` on active Text Revision `736`. The plan is ready for operator approval. No approval, job preparation, job start, TTS, render, or audio artifact was created.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `e31b12d58943b56ca0c42bf32d1eb51ce6a96905`
+**Last verified against commit:** `0fbcc984391c6dcc4b5f4c2101bcac026088818d`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-16
+
+**Task 18AJ canonical narrator-only Final Voice Map outcome:**
+- Repository/runtime baseline passed before implementation and live mutation: branch `main`, initial `HEAD == origin/main == 995135d14347c2019fbde6e3c6124acb46e956f8`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, canonical data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`.
+- Implementation commit `0fbcc984391c6dcc4b5f4c2101bcac026088818d` (`fix: support narrator-only casting plans`) added canonical zero-target support for the staged speaker-review-to-Casting-Plan draft route only. The legacy speaker-review approval path still requires at least one reviewed decision and remains separate from draft creation.
+- Backend boundary now permits `decisions = []` only for a non-stale zero-target draft whose stored counts are all zero, whose review rows/assignments/invalid items are empty, whose active Text Revision still rebuilds zero speaker targets, and whose chapter has no unrelated existing Casting Plan. Repeated same-identity requests reuse the same plan instead of creating duplicates.
+- UI boundary now recognizes zero-target review completion, enables the narrator-only draft action without fabricated decisions, and keeps approval/render separated. Live UI showed Chapter `368` as `CASTING REVIEW NEEDED` and `NOT RENDERED`; after plan creation the dialog showed `Technical: Casting Plan #23 / v1`, Production Flow `Bước 4: Duyệt bản đồ giọng cuối`, approve-plan enabled, and `Chuẩn bị job audio` disabled because the plan is still unapproved.
+- Focused validation passed before live mutation: `tests.test_speaker_assignment.SpeakerReviewTests`, `tests.test_speaker_review_api`, `tests.test_speaker_review_ui`, `node --check ui/app.js`, and `git diff --check`. Tests cover zero-target provider-free draft staging, narrator-only draft creation, duplicate/idempotent safety, nonzero empty-decision rejection, API acceptance of `decisions = []`, and UI readiness.
+- Runtime was restarted through `run_app.ps1` after the implementation commit was pushed. The restarted app reported canonical live data root and DB on `http://127.0.0.1:8772`.
+- Pre-mutation live backup was created at `D:\Youtube\Story Trans And Audio\backups\task18aj_pre_ch368_zero_target_plan\app_20260716T132510Z.db`; size `3809280` bytes; SHA-256 `c34df076a0aa353d174e9b3a111c508328b618ddc466063b018868069d61d947`; backup SQLite `quick_check = ok`.
+- Exactly one supported live mutation was issued: `POST /api/chapters/368/speaker-review/casting-plan-draft` with source Speaker Draft `14`, Text Revision `736`, no base plan, `decisions = []`, and idempotency key `task18aj-ch368-draft14-zero-target-plan`.
+- Live result: Casting Plan `23` revision `1`, `status = draft`, `approved = false`, `approved_at = null`, `chapter_id = 368`, `text_revision_id = 736`, `source_speaker_draft_id = 14`, `created_at = 2026-07-16T13:25:39.637907+00:00`, `decision_fingerprint = 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945`, and `remaining_unreviewed_count = 0`.
+- Narrator-only plan shape is canonical: total assignments `49`, narrator `49`, character `0`, unknown `0`, unresolved `0`, effective voice counts `custom:26 -> 49`, `custom:25 -> 0`. The source draft remains Draft `14`, `status = generated`, `stale = false`, `target_count = 0`, `valid_count = 0`, `invalid_count = 0`, and review rows `0`.
+- Post-mutation production safety remained clean: Chapter `368` still has `audio_status = not_created`, active audio artifact `null`, JobChapters `0`, jobs for chapter `0`, segments/attempts tied to the chapter `0`, artifacts `0`, and no output audio. No approval, job preparation, job start, worker render, Gemini/provider call, TTS preview, TTS synthesis, or audio artifact was created.
+- Completed and future chapter safety is preserved: Chapters `364`, `365`, `366`, and `367` remain unchanged at active artifacts `69`, `72`, `78`, and `75`; Chapters `369` and `370` remain untouched with their future text-remediation observations only; `experiment_b_transcript/` and `runs/` remain untouched.
+- Exact next task: Task `18AK` - Inspect and Approve Existing Chapter `368` Narrator-Only Final Voice Map `23`.
 
 **Task 18AI canonical zero-target draft outcome:**
 - Repository/runtime baseline passed before mutation: branch `main`, `HEAD == origin/main == e31b12d58943b56ca0c42bf32d1eb51ce6a96905`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, canonical data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`.
