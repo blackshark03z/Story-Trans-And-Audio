@@ -1,16 +1,28 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-16T19:20 (Asia/Saigon)
-**Milestone:** Task 18AG Chapter 366 Human Audio QA Closeout
-**Trạng thái:** Chapter `366` production cycle is closed with `HUMAN_QA_PASS`. Job `21` / JobChapter `21` completed successfully, active artifact `78` remains bound, and no remediation is required.
+**Cập nhật:** 2026-07-16T19:47 (Asia/Saigon)
+**Milestone:** Task 18AH Next Sequential Production Chapter Selected
+**Trạng thái:** Inspection-only selection completed. Chapter `368` is the first sequential chapter eligible for new production workflow; no production data, provider call, TTS call, draft, plan, job, segment, attempt, artifact, or audio state was created or changed.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `bc795f27ec5d4a9a5942a46cac7995f3c87fc1b0`
+**Last verified against commit:** `cc22c09ba085d2bf7fd353931870648ad4392e14`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-16
+
+**Task 18AH canonical sequential chapter inspection:**
+- Repository/runtime baseline passed before inspection: branch `main`, `HEAD == origin/main == cc22c09ba085d2bf7fd353931870648ad4392e14`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, canonical data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`.
+- Completed-chapter safety was re-verified: Chapter `364` remains completed with active artifact `69`; Chapter `365` remains completed with active artifact `72`; Chapter `366` remains completed with active artifact `78`; Chapter `367` remains completed with active artifact `75`.
+- Chapters inspected: `368`, `369`, `370`, `371`, and `372`. Sequential selection stopped at the first eligible chapter, Chapter `368`; later chapter observations are recorded only as inspection evidence and do not authorize skipping Chapter `368`.
+- Selected chapter: Chapter `368` / ID `368` / title `Chương 368`, active Text Revision `736`, parent/source Revision `735`, `kind = reflowed`, `status = approved`, processor `lossless-reflow-v1`, content SHA-256 `c1e5c935f2df6e411086f87a6ff6c3b03795fe2005382a13cdde1c3376421564`, lexical SHA-256 `f5942c8d31af105fc39c7f0d03c9839d3f534559ee3cd6de56275fb90d230514`, char count `7831`.
+- Chapter `368` text validation passed: content blob exists, non-empty, and hash-matches; deterministic utterance count `49`; sequence range `1-49`; quote-span count `0`; speaker-target count `0`; empty utterances `0`; punctuation-only utterances `0`; malformed quote targets `0`; offset gaps `0`; offset overlaps `0`; duplicate sequence count `0`; duplicate stable utterance ID count `0`.
+- Chapter `368` existing production state is clean: speaker drafts `0`, Casting Plans `0`, jobs `0`, JobChapters `0`, segments `0`, artifacts `0`, active audio `none`, audio status `not_created`.
+- Character and voice readiness passed for Chapter `368`: no speaker targets require character resolution; Book `1` characters remain available for the established profile; voice strategy remains narrator `custom:26`, male dialogue `custom:25`, female dialogue `custom:26`, unknown fallback narrator/custom `custom:26`; custom voices `25` and `26` are active with usable revision rows.
+- Per-chapter classifications: Chapter `368` = `ELIGIBLE_NEW_PRODUCTION`; Chapter `369` = `BLOCKED_TEXT_REMEDIATION` for a split quote around `"Pháp lực màu đỏ! Nhanh phá huỷ trận pháp!"`; Chapter `370` = `BLOCKED_TEXT_REMEDIATION` for multiple split quote fragments including a punctuation-only quote segment; Chapter `371` = `ELIGIBLE_NEW_PRODUCTION`; Chapter `372` = `ELIGIBLE_NEW_PRODUCTION`.
+- Sequential deferral: no earlier chapter before `368` is blocked or resumable. Chapter `369` and Chapter `370` blockers are future observations only and do not block selecting Chapter `368`.
+- Exact next task: Task `18AI` - Generate One Speaker-Assignment Draft for Chapter `368`. The only next allowed mutation is exactly one speaker-assignment draft generation for Chapter `368`; it may invoke one Gemini request, but must not create a Casting Plan, job, TTS call, or audio.
 
 **Task 18AG canonical Human Audio QA closeout:**
 - Final verdict recorded: `HUMAN_QA_PASS`. The complete Chapter `366` final artifact was reviewed sequentially; chapter start and ending are complete and not audibly truncated.

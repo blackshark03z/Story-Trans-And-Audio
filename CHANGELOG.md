@@ -6,6 +6,17 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AH - Next sequential production chapter selected**: completed an inspection-only pass beginning at Chapter `368` and selected Chapter `368` as the first eligible new production chapter.
+  - **Baseline**: branch `main`, `HEAD == origin/main == cc22c09ba085d2bf7fd353931870648ad4392e14`; canonical runtime `http://127.0.0.1:8772` pointed to `D:\Youtube\Story Trans And Audio\data` and `D:\Youtube\Story Trans And Audio\data\app.db`; SQLite `quick_check = ok`.
+  - **Completed chapter safety**: Chapters `364`, `365`, `366`, and `367` remained completed with active artifacts `69`, `72`, `78`, and `75`; none were mutated.
+  - **Selected chapter**: Chapter `368` / ID `368` / `Chương 368`, active Text Revision `736`, parent/source Revision `735`, `kind = reflowed`, `status = approved`, processor `lossless-reflow-v1`, content SHA-256 `c1e5c935f2df6e411086f87a6ff6c3b03795fe2005382a13cdde1c3376421564`, lexical SHA-256 `f5942c8d31af105fc39c7f0d03c9839d3f534559ee3cd6de56275fb90d230514`, char count `7831`.
+  - **Chapter 368 readiness**: content blob exists, is non-empty, and hash-matches; deterministic utterances `49`; quote spans `0`; speaker targets `0`; sequence range `1-49`; empty utterances `0`; punctuation-only utterances `0`; malformed quote targets `0`; offset gaps/overlaps `0`; duplicate sequences and duplicate stable IDs `0`.
+  - **Existing state**: Chapter `368` has speaker drafts `0`, Casting Plans `0`, jobs `0`, JobChapters `0`, segments `0`, artifacts `0`, active audio `none`, and audio status `not_created`.
+  - **Later chapter observations**: Chapter `369` was classified `BLOCKED_TEXT_REMEDIATION` due to a split quote around `"Pháp lực màu đỏ! Nhanh phá huỷ trận pháp!"`; Chapter `370` was classified `BLOCKED_TEXT_REMEDIATION` due to multiple split quote fragments including a punctuation-only quote segment. Chapters `371` and `372` also inspected as eligible, but sequential selection chooses Chapter `368` first.
+  - **Safety**: no Text Revision, speaker draft, Casting Plan, job, JobChapter, segment, attempt, repair block, artifact, active audio, Gemini/provider request, TTS preview, or synthesis was created.
+  - **Next step**: Generate one Speaker Assignment Draft for Chapter `368`.
+  - **Migration**: none.
+
 - **Task 18AG - Chapter 366 Human Audio QA closeout**: recorded `HUMAN_QA_PASS` and closed the Chapter `366` production cycle after sequential review of the complete final artifact.
   - **Accepted production identity**: active Text Revision `3984`, approved Casting Plan `22` revision `1`, source speaker draft `13`, completed Job `21`, completed JobChapter `21`, and active artifact `78`.
   - **Accepted artifact**: `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0366\job_21\render_0001\chapter.m4a`; SHA-256 `40014be7dd74a147cdd3c5c8029b2807a1cb0851b02cbab563e7ea823bcb4793`; file size `7082686` bytes; container duration `431020 ms`; independent decoded PCM duration `431040 ms`.
