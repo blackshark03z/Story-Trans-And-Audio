@@ -6,6 +6,18 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AE - Chapter 366 production render completed**: started the existing prepared Job `21` exactly once, completed the same job without replacement, and left Human Audio QA as the next boundary.
+  - **Start boundary**: `POST /api/jobs/21/start` transitioned Job `21` from `prepared` to the executable lifecycle with no duplicate job creation. Job `21` started at `2026-07-16T11:39:58.986729+00:00`; JobChapter `21` started at `2026-07-16T11:39:59.025735+00:00`.
+  - **Lifecycle**: the canonical transitions observed were `scheduled -> synthesizing -> assembling -> completed`. Job `21` finished at `2026-07-16T11:53:24.514957+00:00`; JobChapter `21` finished at `2026-07-16T11:53:24.498679+00:00`.
+  - **Segmentation**: `51` verified segments, `0` failed, `0` pending, `0` running, attempt total `51`, max attempt `1`, duration min `1110 ms`, max `16550 ms`, median `8470 ms`, and sum `431020 ms`.
+  - **Voice routing**: narrator rows resolved to `custom:26`; all Hứa Thanh and Lão tổ Kim Cương Tông rows resolved to `custom:25`; the anonymous `u0004-c739867fa093` stayed `unknown` with `custom:26` fallback.
+  - **Provider/synthesis**: `vieneu` / `v3turbo`, sample rate `48000`, mono output, no failed segment, no manual retry, no repair block, and no duplicate worker execution.
+  - **Artifacts**: artifact `76` `chapter_master_wav`, artifact `77` `segment_timeline_json`, and active artifact `78` `chapter_m4a` are all bound to Job `21` / JobChapter `21`.
+  - **Final audio**: `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0366\job_21\render_0001\chapter.m4a`; SHA-256 `40014be7dd74a147cdd3c5c8029b2807a1cb0851b02cbab563e7ea823bcb4793`; size `7082686` bytes; FFprobe duration `431.020000 s`; AAC mono 48 kHz; volumedetect max volume about `-0.2 dB`, mean volume about `-19.9 dB`.
+  - **Human QA markers**: chapter start/end; all ten reviewed speaker targets; the anonymous `u0004-c739867fa093` row; the narrator/custom:26 to named/custom:25 boundaries; and the long-duration segments around the middle and tail of the chapter were noted for listening review.
+  - **Safety**: Chapters `364`, `365`, and `367` remained unchanged; `experiment_b_transcript/` and `runs/` remained untouched.
+  - **Next step**: Chapter `366` Human Audio QA and Targeted Remediation Review.
+
 - **Task 18AD - Chapter 366 production job prepared**: created exactly one durable prepared production job for Chapter `366` using the canonical prepare-only workflow and stopped before render execution.
   - **Readiness**: Chapter `366` remained on active approved Text Revision `3984`; approved Casting Plan `22` revision `1` remained pinned to Revision `3984`; source speaker draft `13` stayed review-complete; and the intentional anonymous `cái bóng` assignment remained `unknown` with `custom:26` fallback.
   - **Voice assets**: custom voice `25` exists with preferred synthesis revision `1`; custom voice `26` exists with usable revision `6`; no provider call was made during readiness checks.
