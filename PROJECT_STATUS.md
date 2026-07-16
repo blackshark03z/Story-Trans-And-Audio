@@ -1,16 +1,29 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-16T15:02 (Asia/Saigon)
-**Milestone:** Task 18T Chapter 367 Final Voice Map Draft Ready For Approval
-**Trạng thái:** canonical production moved one step forward to Chapter `367` Final Voice Map review completion. Draft `12` was reviewed in full, exactly one unapproved Casting Plan draft `21` revision `1` was created on active approved Text Revision `734`, and no job, TTS, or audio state was created.
+**Cập nhật:** 2026-07-16T15:16 (Asia/Saigon)
+**Milestone:** Task 18U Chapter 367 Final Voice Map Approved
+**Trạng thái:** canonical production moved one step forward to Chapter `367` Final Voice Map approval. Existing Casting Plan `21` revision `1` was inspected and approved on active approved Text Revision `734` from speaker draft `12`; no job, TTS, segment, artifact, or audio state was created.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `3ec4940e4d831d07f1a58b1d854f64fa98256fad`
+**Last verified against commit:** `bb3ab0a530db181b412d5af539171dbed563447d`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-16
+
+**Task 18U canonical Final Voice Map approval outcome:**
+- Repository/runtime baseline before mutation matched the required checkpoint exactly: branch `main`, `HEAD == origin/main == bb3ab0a530db181b412d5af539171dbed563447d`, no tracked changes, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
+- Canonical runtime identity remained correct on `http://127.0.0.1:8772`: live root/data root/DB still pointed to `D:\Youtube\Story Trans And Audio\data` and `D:\Youtube\Story Trans And Audio\data\app.db`.
+- Existing speaker draft `12` remained non-stale and review-complete on active approved Text Revision `734`, with `remaining_unreviewed_count = 0` and the same four reviewed rows linked to Casting Plan `21` revision `1`.
+- Existing Casting Plan `21` revision `1` was inspected before approval: `status = draft`, `approved_at = null`, `source_speaker_draft_id = 12`, `assignment_count = 47`, narrator `43`, character `4`, unknown `0`, unresolved `0`, and effective voices `custom:26 -> 43`, `custom:25 -> 4`.
+- The four reviewed Final Voice Map decisions remained unchanged: `u0020-125ccd5575ff` `"Quá ít."` -> `Hứa Thanh` (`42`, `custom:25`); `u0022-afff3155c7f8` `"Lần trước không phải ngươi đã tràn ra khí tức Hải Thi Tộc sao, làm lại một lần nữa cho ta."` -> `Hứa Thanh` (`42`, `custom:25`); `u0024-e81a37929088` `"Kêu ngươi làm thì ngươi làm ngay đi."` -> `Lão tổ Kim Cương Tông` (`43`, `custom:25`); `u0028-cd96d6372bc6` `"Quả nhiên giống như ta phán đoán."` -> `Hứa Thanh` (`42`, `custom:25`).
+- Approval used the existing-plan workflow only: UI action called `POST /api/casting/21/approve`, which marks the existing plan approved and re-validates voices without creating jobs, job_chapters, segments, attempts, artifacts, manifests, or audio.
+- Approved plan state is now Casting Plan `21` revision `1`, `status = approved`, `approved_at = 2026-07-16T08:16:25.730916+00:00`, `archived_at = null`, still pinned to Text Revision `734`, and still carrying staged speaker-review provenance from draft `12`.
+- Post-approval UI readiness is correct for the next boundary: the Final Voice Map approval action is disabled, and the separate `Chuẩn bị job audio` action is now enabled for Casting Plan `21` revision `1`; that prepare action was not clicked during Task 18U.
+- Production safety remained clean after approval: Chapter `367` still has jobs `0`, job_chapters `0`, segments `0`, attempts `0`, artifacts `0`, active audio `none`, and no TTS preview/synthesis or audio outputs. Chapters `366`, `364`, and `365` remained unchanged.
+- Chapter `366` remains explicitly deferred for targeted text remediation and was not mutated.
+- The next valid production step is to prepare the real Chapter `367` production job without starting TTS.
 
 **Task 18S canonical speaker-draft outcome:**
 - Repository/runtime baseline before mutation matched the required checkpoint exactly: branch `main`, `HEAD == origin/main == 3ec4940e4d831d07f1a58b1d854f64fa98256fad`, no tracked changes, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.

@@ -6,6 +6,17 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18U - Chapter 367 Final Voice Map approved**: approved the already-existing Chapter `367` Final Voice Map through the dedicated existing-plan approval workflow without creating any render-side state.
+  - **Pre-approval state verified**: speaker draft `12` was non-stale and review-complete on active approved Text Revision `734`; Casting Plan `21` revision `1` existed as the only draft plan with `approved_at = null`.
+  - **Exact approval result**: approved exactly Casting Plan `21` revision `1`; no successor revision and no duplicate plan were created. `approved_at` is `2026-07-16T08:16:25.730916+00:00`.
+  - **Provenance preserved**: approved plan remains pinned to Text Revision `734` and source speaker draft `12`, with staged speaker-review metadata and the same four reviewed utterance IDs.
+  - **Plan counts unchanged**: `assignment_count = 47`, `role_counts = narrator 43 / character 4 / unknown 0`, `unresolved_count = 0`, and `effective_voice_counts = custom:26 -> 43 / custom:25 -> 4`.
+  - **Reviewed voice decisions**: `u0020-125ccd5575ff` -> `Hứa Thanh` (`42`, `custom:25`), `u0022-afff3155c7f8` -> `Hứa Thanh` (`42`, `custom:25`), `u0024-e81a37929088` -> `Lão tổ Kim Cương Tông` (`43`, `custom:25`), and `u0028-cd96d6372bc6` -> `Hứa Thanh` (`42`, `custom:25`).
+  - **UI next-step state**: after approval, Production Flow exposes the separate prepare-only action `Chuẩn bị job audio (Technical: Casting Plan #21 / v1)` and does not start rendering automatically.
+  - **Safety**: Chapter `367` still has no jobs, job chapters, segments, attempts, artifacts, active audio, TTS previews, TTS synthesis, or audio outputs. Chapter `366` remained deferred and unchanged.
+  - **Next step**: prepare the real Chapter `367` production job without starting TTS.
+  - **Migration**: none.
+
 - **Task 18T - Chapter 367 Final Voice Map draft created from reviewed speaker draft**: converted the existing Chapter `367` speaker draft `12` into one unapproved Final Voice Map / Casting Plan draft and stopped before approval.
   - **Review completion**: all four draft rows were addressed exactly once with no overrides required. Decisions were `u0020-125ccd5575ff` -> `Hứa Thanh` (`42`, `custom:25`), `u0022-afff3155c7f8` -> `Hứa Thanh` (`42`, `custom:25`), `u0024-e81a37929088` -> `Lão tổ Kim Cương Tông` (`43`, `custom:25`), and `u0028-cd96d6372bc6` -> `Hứa Thanh` (`42`, `custom:25`).
   - **Plan creation**: exactly one staged request `POST /api/chapters/367/speaker-review/casting-plan-draft` created Casting Plan `21` revision `1` with `status = draft`, `approved_at = null`, `archived_at = null`, `source_speaker_draft_id = 12`, `assignment_count = 47`, `remaining_unreviewed_count = 0`, `unresolved_count = 0`, `role_counts = narrator 43 / character 4 / unknown 0`, and `effective_voice_counts = custom:26 -> 43 / custom:25 -> 4`.

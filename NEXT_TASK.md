@@ -1,7 +1,7 @@
 # Next Task
 
 Current Status:
-Task 18T is complete in canonical production. Chapter `367` now has exactly one unapproved Final Voice Map draft: Casting Plan `21` revision `1`, created from speaker draft `12` on active approved Text Revision `734`. No job, TTS, or audio state exists for Chapter `367`.
+Task 18U is complete in canonical production. Chapter `367` now has exactly one approved Final Voice Map: Casting Plan `21` revision `1`, approved from speaker draft `12` on active approved Text Revision `734`. No job, TTS, segment, artifact, or audio state exists for Chapter `367`.
 
 Current Baseline:
 - Branch `main`
@@ -13,22 +13,23 @@ Current Baseline:
   - `runs/`
 - Chapter `367` active approved Text Revision: `734`
 - Chapter `367` speaker draft state: exactly one draft, Draft `12`
-- Chapter `367` downstream production state: Casting Plans `1` draft, approved Casting Plans `0`, jobs `0`, segments `0`, attempts `0`, artifacts `0`, active audio `none`
+- Chapter `367` approved Casting Plan: `21` revision `1`, approved at `2026-07-16T08:16:25.730916+00:00`
+- Chapter `367` downstream production state: Casting Plans `1` approved / `0` draft, jobs `0`, job_chapters `0`, segments `0`, attempts `0`, artifacts `0`, active audio `none`
 
 Next Recommended Task:
-Task 18U - Inspect and Approve the Existing Chapter 367 Final Voice Map.
+Task 18V - Prepare the Real Chapter 367 Production Job Without Starting TTS.
 
 Why:
-- Chapter `367` now has exactly one canonical speaker draft, and the next workflow boundary is human/operator review rather than regeneration.
-- Draft `12` has already been converted into unapproved Casting Plan `21` revision `1`, so the next safe step is operator inspection and approval of that existing draft plan.
-- Creating another draft or another plan would be a duplicate mutation and is no longer allowed unless the current draft plan is proven absent or invalid.
+- Chapter `367` now has exactly one approved, voice-resolved Final Voice Map.
+- The next workflow boundary is durable prepared-job creation, not rendering.
+- Creating another speaker draft, Casting Plan, or approval would be a duplicate mutation and is no longer allowed unless the approved plan is proven absent or invalid.
 
 Scope:
 1. Re-verify canonical runtime and Chapter `367` baseline before mutation.
-2. Open the existing unapproved Final Voice Map draft `21` revision `1`.
-3. Inspect the reviewed assignments and verify the counts/voices before approval.
-4. Approve the existing plan only if it still matches the review decisions and no stale state exists.
-5. Stop before job preparation, TTS, or audio render.
+2. Re-verify Casting Plan `21` revision `1` is still approved, non-stale, voice-resolved, and pinned to active approved Text Revision `734`.
+3. Create exactly one prepared Chapter `367` production job through the supported prepare-only workflow.
+4. Confirm the prepared job pins Chapter `367`, Text Revision `734`, and Casting Plan `21` revision `1`.
+5. Stop before job start, worker execution, TTS, segment creation, artifact creation, or audio render.
 
 Prerequisites For Any Next Task:
 - Verify `GET /api/runtime` points to canonical production before any mutation.
@@ -37,7 +38,8 @@ Prerequisites For Any Next Task:
 - Do not touch port `8765`.
 - Do not mutate `experiment_b_transcript/` or `runs/`.
 - Do not generate another Chapter `367` speaker draft unless Draft `12` is proven absent or invalid.
-- Do not create another Casting Plan during Task `18U`.
-- Do not create any Chapter `367` job, segment, attempt, artifact, TTS preview, TTS synthesis, or audio output during Task `18U`.
+- Do not create another Casting Plan or approve another plan during Task `18V`.
+- Do not start rendering during Task `18V`.
+- Do not create any Chapter `367` segment, attempt, artifact, TTS preview, TTS synthesis, or audio output during Task `18V`.
 - Keep Chapter `366` deferred and unchanged unless a later explicit targeted-remediation task selects it.
 - Re-verify Git baseline before implementation.
