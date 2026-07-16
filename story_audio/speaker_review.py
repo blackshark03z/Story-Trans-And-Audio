@@ -15,7 +15,11 @@ from .config import Settings
 from .db import Database, utcnow
 from .files import sha256_text
 from .gemini_cache import canonical_json
-from .speaker_assignment import SpeakerAssignmentError, get_speaker_assignment_draft
+from .speaker_assignment import (
+    SpeakerAssignmentError,
+    build_speaker_assignment_request,
+    get_speaker_assignment_draft,
+)
 from .storage import ContentStore
 from .voice_ref import CustomVoiceContext
 from .voice_profile import get_book_voice_profile
@@ -373,6 +377,31 @@ def _resolve_base_plan(
     return base_plan
 
 
+def _ensure_zero_target_review(
+    db: Database,
+    store: ContentStore,
+    config: Settings,
+    *,
+    chapter_id: int,
+    detail: dict[str, Any],
+) -> None:
+    payload = detail.get("draft") or {}
+    if (
+        int(detail.get("target_count") or 0) != 0
+        or int(detail.get("valid_count") or 0) != 0
+        or int(detail.get("invalid_count") or 0) != 0
+        or detail.get("review_rows")
+        or payload.get("assignments")
+        or payload.get("invalid_items")
+    ):
+        raise SpeakerReviewError("Empty decisions are only valid for zero-target speaker drafts")
+    rebuilt = build_speaker_assignment_request(db, store, config, chapter_id=chapter_id)
+    if rebuilt.get("targets"):
+        raise SpeakerReviewConflict("Current TextRevision still contains speaker targets")
+    if db.fetch_one("SELECT id FROM casting_plans WHERE chapter_id=? LIMIT 1", (chapter_id,)):
+        raise SpeakerReviewConflict("A Casting Plan already exists for this chapter")
+
+
 def _prepare_review_submission(
     db: Database,
     store: ContentStore,
@@ -544,8 +573,6 @@ def create_casting_plan_draft_from_speaker_review(
 ) -> dict[str, Any]:
     if not idempotency_key.strip() or len(idempotency_key) > 200:
         raise SpeakerReviewError("A valid idempotency_key is required")
-    if not decisions:
-        raise SpeakerReviewError("At least one reviewed decision is required")
     decision_fingerprint, normalized = _decision_fingerprint(decisions)
     if len({item["utterance_id"] for item in normalized}) != len(normalized):
         raise SpeakerReviewError("Duplicate utterance decision")
@@ -577,6 +604,14 @@ def create_casting_plan_draft_from_speaker_review(
             idempotency_key=idempotency_key,
             require_complete_review=True,
         )
+        if not normalized:
+            _ensure_zero_target_review(
+                db,
+                store,
+                config,
+                chapter_id=chapter_id,
+                detail=prepared["detail"],
+            )
         review_metadata = dict(prepared["review_metadata"])
         if operator_note and operator_note.strip():
             review_metadata["operator_note"] = operator_note.strip()

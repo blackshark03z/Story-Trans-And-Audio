@@ -9,7 +9,8 @@ from fastapi.testclient import TestClient
 
 from story_audio.speaker_assignment import generate_speaker_assignment_draft
 from tests.base import IsolatedTestCase
-from tests.test_speaker_assignment import fake_response, seed
+from story_audio.text import lexical_sha256
+from tests.test_speaker_assignment import ZERO_TARGET_TEXT, fake_response, seed
 
 
 class SpeakerReviewDraftApiTests(IsolatedTestCase):
@@ -111,6 +112,52 @@ class SpeakerReviewDraftApiTests(IsolatedTestCase):
         self.assertEqual(response.status_code, 400)
         after = int(self.db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans WHERE chapter_id=?", (self.chapter_id,))["n"])
         self.assertEqual(before, after)
+
+    def test_zero_target_empty_decisions_create_narrator_only_draft(self) -> None:
+        content_path, digest = self.store.put_text(ZERO_TARGET_TEXT)
+        with self.db.connect() as connection:
+            connection.execute(
+                """UPDATE text_revisions
+                   SET content_path=?,content_sha256=?,lexical_sha256=?,char_count=?
+                   WHERE id=?""",
+                (
+                    content_path,
+                    digest,
+                    lexical_sha256(ZERO_TARGET_TEXT),
+                    len(ZERO_TARGET_TEXT),
+                    self.revision_id,
+                ),
+            )
+            connection.execute(
+                "UPDATE chapters SET char_count=? WHERE id=?",
+                (len(ZERO_TARGET_TEXT), self.chapter_id),
+            )
+        draft = generate_speaker_assignment_draft(
+            self.db,
+            self.store,
+            self.config,
+            chapter_id=self.chapter_id,
+            provider=lambda **_kwargs: (_ for _ in ()).throw(AssertionError("provider called")),
+        )
+        response = self.client.post(
+            f"/api/chapters/{self.chapter_id}/speaker-review/casting-plan-draft",
+            json={
+                "speaker_draft_id": draft["id"],
+                "expected_draft_fingerprint": draft["input_fingerprint"],
+                "expected_text_revision_id": draft["text_revision_id"],
+                "decisions": [],
+                "idempotency_key": "api-zero-target",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["casting_plan_status"], "draft")
+        self.assertFalse(data["approved"])
+        self.assertEqual(data["approved_item_count"], 0)
+        self.assertEqual(data["remaining_unreviewed_count"], 0)
+        self.assertGreater(data["role_counts"]["narrator"], 0)
+        self.assertEqual(data["role_counts"]["character"], 0)
+        self.assertEqual(data["role_counts"]["unknown"], 0)
 
     def test_missing_draft_and_missing_character_classifications(self) -> None:
         missing_draft = self.client.post(

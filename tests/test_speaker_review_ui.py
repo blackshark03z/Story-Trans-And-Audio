@@ -41,6 +41,7 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
             "jumpToPendingReview",
             "jumpToApprovalControls",
             "speakerDraftApprovalLabel",
+            "zeroTargetReviewReady",
             "reviewReadyForCastingPlan",
             "speakerReviewDecisionCount",
             "speakerReviewApprovalResult",
@@ -63,11 +64,14 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
         script = r"""
 function reviewedDecisionCount(review){return Object.keys(review?.decisions||{}).length}
 function localRemainingUnreviewedCount(review){const draft=review?.draft;if(!draft)return 0;const pending=Object.values(review?.decisions||{}).filter(item=>!draft.review_rows.find(row=>row.utterance_id===item.utterance_id)?.reviewed).length;return Math.max(0,(draft.remaining_unreviewed_count??0)-pending)}
-function reviewReadyForCastingPlan(review){const draft=review?.draft;if(!draft||draft.stale)return false;return localRemainingUnreviewedCount(review)===0&&reviewedDecisionCount(review)>0}
+function zeroTargetReviewReady(review){const draft=review?.draft;if(!draft||draft.stale)return false;return localRemainingUnreviewedCount(review)===0&&(draft.target_count??0)===0&&(draft.valid_count??0)===0&&(draft.invalid_count??0)===0&&(draft.review_rows||[]).length===0}
+function reviewReadyForCastingPlan(review){const draft=review?.draft;if(!draft||draft.stale)return false;return localRemainingUnreviewedCount(review)===0&&(reviewedDecisionCount(review)>0||zeroTargetReviewReady(review))}
 const incomplete={draft:{stale:false,remaining_unreviewed_count:2,review_rows:[{utterance_id:'u1',reviewed:false},{utterance_id:'u2',reviewed:false}]},decisions:{u1:{utterance_id:'u1'}}};
 const complete={draft:{stale:false,remaining_unreviewed_count:2,review_rows:[{utterance_id:'u1',reviewed:false},{utterance_id:'u2',reviewed:false}]},decisions:{u1:{utterance_id:'u1'},u2:{utterance_id:'u2'}}};
 const stale={draft:{stale:true,remaining_unreviewed_count:0,review_rows:[{utterance_id:'u1',reviewed:true}]},decisions:{u1:{utterance_id:'u1'}}};
-console.log(JSON.stringify({incomplete:reviewReadyForCastingPlan(incomplete),complete:reviewReadyForCastingPlan(complete),stale:reviewReadyForCastingPlan(stale)}));
+const zeroTarget={draft:{stale:false,target_count:0,valid_count:0,invalid_count:0,remaining_unreviewed_count:0,review_rows:[]},decisions:{}};
+const nonzeroEmpty={draft:{stale:false,target_count:1,valid_count:1,invalid_count:0,remaining_unreviewed_count:0,review_rows:[{utterance_id:'u1',reviewed:true}]},decisions:{}};
+console.log(JSON.stringify({incomplete:reviewReadyForCastingPlan(incomplete),complete:reviewReadyForCastingPlan(complete),stale:reviewReadyForCastingPlan(stale),zeroTarget:reviewReadyForCastingPlan(zeroTarget),nonzeroEmpty:reviewReadyForCastingPlan(nonzeroEmpty)}));
 """
         result = subprocess.run(
             ["node", "-e", script],
@@ -80,6 +84,8 @@ console.log(JSON.stringify({incomplete:reviewReadyForCastingPlan(incomplete),com
         self.assertFalse(payload["incomplete"])
         self.assertTrue(payload["complete"])
         self.assertFalse(payload["stale"])
+        self.assertTrue(payload["zeroTarget"])
+        self.assertFalse(payload["nonzeroEmpty"])
 
     def test_bulk_review_uses_local_state_for_selection_and_remaining_counts(self) -> None:
         for value in (

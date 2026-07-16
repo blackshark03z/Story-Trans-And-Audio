@@ -239,7 +239,7 @@ class SpeakerReviewCastingPlanDraftRequest(BaseModel):
     base_casting_plan_revision_id: int | None = None
     expected_draft_fingerprint: str = Field(min_length=64, max_length=64)
     expected_text_revision_id: int
-    decisions: list[SpeakerReviewDecision] = Field(min_length=1)
+    decisions: list[SpeakerReviewDecision] = Field(default_factory=list)
     idempotency_key: str = Field(min_length=1, max_length=200)
     operator_note: str | None = Field(default=None, max_length=4000)
 
