@@ -6,6 +6,17 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18V - Chapter 367 prepared production job created**: created exactly one durable prepared job for Chapter `367` and stopped before any render-side execution.
+  - **Readiness**: active approved Text Revision `734`, approved Casting Plan `21` revision `1`, speaker draft `12`, custom voice `25`, and custom voice `26` were all re-verified before mutation.
+  - **Backup**: pre-mutation SQLite backup created at `D:\Youtube\Story Trans And Audio\backups\task18v_pre_ch367_prepare_20260716_153900.sqlite3`; size `3411968` bytes, SHA-256 `F777AD6273D8B9061A8D68B9D3161046699578DA0EFE1CC1684ECE6E768A737C`, quick_check `ok`.
+  - **Prepare request**: exactly one `POST /api/jobs/prepare` call created Job `20` / JobChapter `20` with Book `1`, Chapter `367`, `from_chapter = 367`, `to_chapter = 367`, `voice_name = custom:26`, `repair_mode = off`, `output_format = m4a`, `skip_completed = true`, and `casting_plan_id = 21`.
+  - **Prepared state**: Job `20` is `prepared`, `started_at = null`, `finished_at = null`, and pins Chapter `367`, Text Revision `734`, and Casting Plan `21` revision `1`.
+  - **Snapshot**: the job chapter retains casting snapshot data with `47` assignments, narrator `43`, character `4`, unresolved `0`, `custom:26 -> 43`, and `custom:25 -> 4`.
+  - **Safety**: no worker start, no Gemini call, no TTS call, no segment, no attempt, no artifact, and no output audio file were created. Chapter `366` remained deferred and unchanged.
+  - **UI**: the queue visibly shows Job `#20` in prepared state and exposes `Bắt đầu render`; that action was not clicked.
+  - **Next step**: explicitly start and monitor the existing Chapter `367` prepared job.
+  - **Migration**: none.
+
 - **Task 18U - Chapter 367 Final Voice Map approved**: approved the already-existing Chapter `367` Final Voice Map through the dedicated existing-plan approval workflow without creating any render-side state.
   - **Pre-approval state verified**: speaker draft `12` was non-stale and review-complete on active approved Text Revision `734`; Casting Plan `21` revision `1` existed as the only draft plan with `approved_at = null`.
   - **Exact approval result**: approved exactly Casting Plan `21` revision `1`; no successor revision and no duplicate plan were created. `approved_at` is `2026-07-16T08:16:25.730916+00:00`.
