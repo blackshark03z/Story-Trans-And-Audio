@@ -1,16 +1,30 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-16T19:47 (Asia/Saigon)
-**Milestone:** Task 18AH Next Sequential Production Chapter Selected
-**Trạng thái:** Inspection-only selection completed. Chapter `368` is the first sequential chapter eligible for new production workflow; no production data, provider call, TTS call, draft, plan, job, segment, attempt, artifact, or audio state was created or changed.
+**Cập nhật:** 2026-07-16T19:41 (Asia/Saigon)
+**Milestone:** Task 18AI Chapter 368 Zero-Target Speaker Draft Created
+**Trạng thái:** Chapter `368` now has exactly one provider-free zero-target Speaker Assignment Draft, Draft `14`, pinned to Text Revision `736`. No Gemini/provider/TTS/audio/render activity occurred. The next workflow boundary is blocked until the zero-target narrator-only Final Voice Map path supports empty review decisions.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `cc22c09ba085d2bf7fd353931870648ad4392e14`
+**Last verified against commit:** `e31b12d58943b56ca0c42bf32d1eb51ce6a96905`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-16
+
+**Task 18AI canonical zero-target draft outcome:**
+- Repository/runtime baseline passed before mutation: branch `main`, `HEAD == origin/main == e31b12d58943b56ca0c42bf32d1eb51ce6a96905`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, canonical data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`.
+- Pre-mutation Chapter `368` state was exact: active approved Text Revision `736`, parent/source Revision `735`, `kind = reflowed`, `status = approved`, processor `lossless-reflow-v1`, content SHA-256 `c1e5c935f2df6e411086f87a6ff6c3b03795fe2005382a13cdde1c3376421564`, lexical SHA-256 `f5942c8d31af105fc39c7f0d03c9839d3f534559ee3cd6de56275fb90d230514`, char count `7831`, and no existing speaker draft, Casting Plan, job, JobChapter, segment, attempt, repair block, artifact, or active audio.
+- Zero-target text state was reconfirmed before mutation: deterministic utterances `49`, sequence range `1-49`, all roles `narrator`, quote spans `0`, speaker targets `0`, empty utterances `0`, punctuation-only utterances `0`, malformed quote targets `0`, offset gaps `0`, offset overlaps `0`, duplicate sequence count `0`, duplicate stable utterance ID count `0`, utterance character counts min `15`, max `243`, median `175`.
+- Provider boundary was inspected before mutation: `generate_speaker_assignment_draft(...)` batches over `request["targets"]`; with `targets = []` the provider/cache loop is skipped, no Gemini API key is required, and cache hit/miss counters remain `0/0`.
+- Exactly one supported mutation was issued: `POST /api/chapters/368/speaker-assignment/draft` with `mode = unassigned_only`, `utterance_ids = null`, and `force_refresh = false`.
+- Draft result: Speaker Assignment Draft `14`, `status = generated`, `text_revision_id = 736`, `input_fingerprint = 7a26232f37881be9b14591bb6a2d557bafa9ee1901a74ec88ac10ea1115a53e2`, `content_sha256 = 5119124d3972095291f99aee678f2252e5363c88db3d1447d17749ea31553662`, `target_count = 0`, `valid_count = 0`, `invalid_count = 0`, `cache_hit_count = 0`, `cache_miss_count = 0`, `created_at = 2026-07-16T12:38:10.049602+00:00`, `stale = false`, `remaining_unreviewed_count = 0`, review rows `0`, assignments `[]`, invalid items `[]`.
+- Narrator-only readiness is structurally clean: all `49` utterances remain narration; narrator voice resolves to `custom:26`; custom voice `26` is active and structurally usable; no character or unknown assignment is required. Expected future plan shape is total assignments `49`, narrator `49`, character `0`, unknown `0`, unresolved `0`, `custom:26 -> 49`, `custom:25 -> 0`.
+- Post-mutation safety remained clean: Chapter `368` still has Casting Plans `0`, jobs `0`, JobChapters `0`, segments `0`, attempts `0`, repair blocks `0`, artifacts `0`, active audio `none`, audio status `not_created`; provider cache file count stayed `88`; no TTS preview, TTS synthesis, render, job preparation, or audio output occurred.
+- UI state after Draft `14`: Speaker Review shows `Draft #14 · generated`, `0 / 0 / 0` target/valid/invalid, status `generated · còn 0 mục`, and `Draft này không có mục nào cần rà soát.` Production Flow opens Chapter `368` and shows no review rows.
+- Blocker: zero-target Final Voice Map creation cannot safely progress through the current UI/API because `reviewReadyForCastingPlan(review)` requires `reviewedDecisionCount(review) > 0`, `approveSpeakerReview()` refuses empty decisions, and backend `create_casting_plan_draft_from_speaker_review(...)` raises `At least one reviewed decision is required` for `decisions = []`. This is classified as `BLOCKED_ZERO_TARGET_UI_STATE` after the valid Draft `14` creation.
+- Completed and future chapter safety is preserved: Chapters `364`, `365`, `366`, and `367` remain unchanged at active artifacts `69`, `72`, `78`, and `75`; Chapters `369` and `370` remain untouched with their future text-remediation observations only; `experiment_b_transcript/` and `runs/` remain untouched.
+- Exact next task: Task `18AJ` - Implement and validate zero-target narrator-only Final Voice Map workflow for Chapter `368` Draft `14`.
 
 **Task 18AH canonical sequential chapter inspection:**
 - Repository/runtime baseline passed before inspection: branch `main`, `HEAD == origin/main == cc22c09ba085d2bf7fd353931870648ad4392e14`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, canonical data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`.

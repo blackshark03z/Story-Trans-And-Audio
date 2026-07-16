@@ -6,6 +6,18 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AI - Chapter 368 zero-target speaker draft created**: created exactly one canonical provider-free Speaker Assignment Draft for Chapter `368` and stopped at the zero-target Final Voice Map workflow blocker.
+  - **Baseline**: branch `main`, `HEAD == origin/main == e31b12d58943b56ca0c42bf32d1eb51ce6a96905`; canonical runtime `http://127.0.0.1:8772` pointed to `D:\Youtube\Story Trans And Audio\data` and `D:\Youtube\Story Trans And Audio\data\app.db`; SQLite `quick_check = ok`.
+  - **Text state**: Chapter `368` stayed on active approved Text Revision `736`, parent/source Revision `735`, `kind = reflowed`, processor `lossless-reflow-v1`, content SHA-256 `c1e5c935f2df6e411086f87a6ff6c3b03795fe2005382a13cdde1c3376421564`, lexical SHA-256 `f5942c8d31af105fc39c7f0d03c9839d3f534559ee3cd6de56275fb90d230514`, char count `7831`.
+  - **Zero-target validation**: deterministic utterances `49`, sequence range `1-49`, all roles `narrator`, quote spans `0`, speaker targets `0`, empty utterances `0`, punctuation-only utterances `0`, malformed quote targets `0`, gaps/overlaps `0`, duplicate sequence/stable IDs `0`, character counts min `15`, max `243`, median `175`.
+  - **Provider boundary**: `targets = []` caused the provider/cache batch loop to be skipped. No Gemini request, provider request, API key lookup, provider cache hit/miss, or provider cache write occurred.
+  - **Draft result**: exactly one `POST /api/chapters/368/speaker-assignment/draft` call created Draft `14`, `status = generated`, `stale = false`, `text_revision_id = 736`, `target_count = 0`, `valid_count = 0`, `invalid_count = 0`, `remaining_unreviewed_count = 0`, review rows `0`, assignments `[]`, invalid items `[]`, cache hit/miss `0/0`, created_at `2026-07-16T12:38:10.049602+00:00`.
+  - **Narrator-only readiness**: expected future plan shape is total assignments `49`, narrator `49`, character `0`, unknown `0`, unresolved `0`, `custom:26 -> 49`, and `custom:25 -> 0`.
+  - **Workflow blocker**: UI displays Draft `14` and `Draft này không có mục nào cần rà soát`, but `Tạo Final Voice Map draft` is disabled because the UI requires at least one reviewed decision; backend zero-target plan creation is also blocked because `create_casting_plan_draft_from_speaker_review(...)` rejects `decisions = []`.
+  - **Safety**: no Text Revision, Casting Plan, job, JobChapter, segment, attempt, repair block, artifact, active audio, TTS preview, TTS synthesis, or render was created. Chapters `364-367`, `369`, and `370` remained unchanged; `experiment_b_transcript/` and `runs/` remained untouched.
+  - **Next step**: implement and validate the zero-target narrator-only Final Voice Map workflow for Chapter `368` Draft `14`.
+  - **Migration**: none.
+
 - **Task 18AH - Next sequential production chapter selected**: completed an inspection-only pass beginning at Chapter `368` and selected Chapter `368` as the first eligible new production chapter.
   - **Baseline**: branch `main`, `HEAD == origin/main == cc22c09ba085d2bf7fd353931870648ad4392e14`; canonical runtime `http://127.0.0.1:8772` pointed to `D:\Youtube\Story Trans And Audio\data` and `D:\Youtube\Story Trans And Audio\data\app.db`; SQLite `quick_check = ok`.
   - **Completed chapter safety**: Chapters `364`, `365`, `366`, and `367` remained completed with active artifacts `69`, `72`, `78`, and `75`; none were mutated.
