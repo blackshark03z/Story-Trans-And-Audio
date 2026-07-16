@@ -6,6 +6,18 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AC - Chapter 366 Final Voice Map approved**: approved the existing Chapter `366` Final Voice Map / Casting Plan `22` revision `1` through the dedicated existing-plan approval workflow.
+  - **Pre-approval state**: Chapter `366` stayed on active approved Text Revision `3984`; Speaker Assignment Draft `13` remained non-stale and review-complete; exactly one Chapter `366` Casting Plan existed, Plan `22` revision `1`, `status = draft`, `approved_at = null`.
+  - **Approval boundary**: UI approval uses `POST /api/casting/{casting_plan_id}/approve`; job preparation/start remain separate through `POST /api/jobs/prepare` and `POST /api/jobs/{job_id}/start`. Backend approval marks the existing draft approved and validates it without creating jobs, job_chapters, segments, attempts, artifacts, manifests, or audio.
+  - **Exact approval result**: exactly one `POST /api/casting/22/approve` call approved Plan `22` revision `1` in place. No successor revision and no duplicate plan were created. `approved_at = 2026-07-16T11:13:12.223006+00:00`.
+  - **Provenance preserved**: approved plan remains pinned to Text Revision `3984`, source speaker draft `13`, review-complete provenance, and plan SHA-256 `f693e76ce79f9fc76a926e4bf7e9fd69f97e55bdb163aea1fb8ea689bbdda6c8`.
+  - **Decisions preserved**: the intentional anonymous `cái bóng` assignment `u0004-c739867fa093` remains `unknown`, resolves through narrator fallback to `custom:26`, and was not reassigned to `Lão tổ Kim Cương Tông`.
+  - **Counts unchanged**: total assignments `51`, narrator `41`, character `9`, unknown `1`, unresolved `0`, effective voices `custom:26 -> 42` and `custom:25 -> 9`.
+  - **Safety**: Chapter `366` still has jobs `0`, job chapters `0`, segments `0`, segment attempts `0`, repair blocks `0`, artifacts `0`, and active audio `none`; no provider, TTS preview, TTS synthesis, worker wake, manifest, or audio output occurred.
+  - **UI next step**: Production Flow now exposes the separate prepare-only action `Chuẩn bị job audio`; that action was not clicked.
+  - **Next step**: Prepare the real Chapter `366` production job without starting TTS.
+  - **Migration**: none.
+
 - **Task 18AB - Chapter 366 speaker review completed and Final Voice Map draft created**: reviewed all ten rows from Speaker Assignment Draft `13` and created one unapproved Final Voice Map / Casting Plan draft for operator approval.
   - **Speaker draft**: Draft `13` remained non-stale on Text Revision `3984`, with `target_count = 10`, `valid_count = 10`, `invalid_count = 0`, and `remaining_unreviewed_count = 10` before submission; after staged review, `remaining_unreviewed_count = 0` and the draft is linked to review-complete plan provenance.
   - **Merged quote decision**: `u0004-c739867fa093` / seq `4` / `"Ăn...Hải Thi tộc...sắp đột phá...đột phá ngay."` remains `unknown` because the speaker is only identified as `cái bóng` and is not clearly resolved to a named character.

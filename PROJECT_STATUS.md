@@ -1,16 +1,29 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-16T17:55 (Asia/Saigon)
-**Milestone:** Task 18AB Chapter 366 Speaker Review and Draft Final Voice Map
-**Trạng thái:** Chapter `366` review is complete, Speaker Assignment Draft `13` is fully reviewed, and one unapproved Final Voice Map / Casting Plan draft exists as Plan `22` revision `1`. No approval, job, TTS, artifact, or audio was created.
+**Cập nhật:** 2026-07-16T18:13 (Asia/Saigon)
+**Milestone:** Task 18AC Chapter 366 Final Voice Map Approval
+**Trạng thái:** Chapter `366` Final Voice Map / Casting Plan `22` revision `1` is approved for active Text Revision `3984`. No job, TTS, segment, artifact, or audio was created.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `81f0fa6f40833bfc057305c8fea1205a3d9fae85`
+**Last verified against commit:** `fd7fe3ac7d438d63ef94885c627433d21cfdaf22`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-16
+
+**Task 18AC canonical Final Voice Map approval outcome:**
+- Repository/runtime baseline before mutation matched the required checkpoint: branch `main`, `HEAD == origin/main == fd7fe3ac7d438d63ef94885c627433d21cfdaf22`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, canonical data root `D:\Youtube\Story Trans And Audio\data`, and canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`.
+- Approval boundary was verified before mutation: UI action `approveCastingPlan` calls `POST /api/casting/{casting_plan_id}/approve`, while job preparation/start remain separate in `renderCastingPlan` via `POST /api/jobs/prepare` or `POST /api/jobs/{job_id}/start`; backend `approve_plan(...)` marks the existing draft approved and validates it without creating jobs, job_chapters, segments, attempts, artifacts, manifests, or audio.
+- Pre-approval state was exact: Chapter `366` stayed on active approved Text Revision `3984`, Speaker Assignment Draft `13` stayed non-stale and review-complete, and exactly one Chapter `366` Casting Plan existed: Plan `22` revision `1`, `status = draft`, `approved_at = null`, `text_revision_id = 3984`.
+- Exactly one supported approval mutation was issued: `POST /api/casting/22/approve`. The result approved Casting Plan `22` revision `1` in place; no successor revision and no duplicate plan were created.
+- Approved state: Plan `22` revision `1`, `status = approved`, `approved_at = 2026-07-16T11:13:12.223006+00:00`, `plan_sha256 = f693e76ce79f9fc76a926e4bf7e9fd69f97e55bdb163aea1fb8ea689bbdda6c8`, `text_revision_id = 3984`, source review draft `13`, and review provenance remains complete.
+- Final Voice Map decisions remain unchanged: total assignments `51`, narrator `41`, character `9`, unknown `1`, unresolved `0`, effective voice counts `custom:26 -> 42` and `custom:25 -> 9`.
+- Intentional anonymous assignment remains intact: `u0004-c739867fa093` / seq `4` / offsets `364-412` / `"Ăn...Hải Thi tộc...sắp đột phá...đột phá ngay."` is still `unknown`, `character_id = null`, `resolution_source = unknown_fallback`, and resolves to `custom:26` through narrator fallback; it was not reassigned to `Lão tổ Kim Cương Tông`.
+- Named dialogue remains correctly routed: `u0008`, `u0009`, `u0010`, `u0011`, `u0012`, and `u0043` stay on `Lão tổ Kim Cương Tông` (`43`, `custom:25`); `u0015`, `u0034`, and `u0046` stay on `Hứa Thanh` (`42`, `custom:25`). No punctuation-only row exists.
+- Post-approval safety stayed clean: Chapter `366` has exactly `1` approved Casting Plan and `0` draft plans, jobs `0`, JobChapters `0`, segments `0`, segment attempts `0`, repair blocks `0`, artifact refs `0`, active audio `none`, and audio status `not_created`.
+- Production Flow now exposes the separate prepare-only next action `Chuẩn bị job audio`; no `POST /api/jobs/prepare`, worker wake, Gemini/provider call, TTS preview, TTS synthesis, manifest, or audio output occurred during approval.
+- The next task is Task `18AD` - Prepare the Real Chapter `366` Production Job Without Starting TTS.
 
 **Task 18AB canonical review and casting-plan-draft outcome:**
 - Repository/runtime baseline before mutation matched the required checkpoint: branch `main`, `HEAD == origin/main == 81f0fa6f40833bfc057305c8fea1205a3d9fae85`, runtime `http://127.0.0.1:8772`, canonical data root `D:\Youtube\Story Trans And Audio\data`, and canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`.
