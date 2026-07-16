@@ -6,6 +6,16 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18X - Chapter 367 same-job segment recovery completed**: retried the failed Chapter `367` Segment `573` on the same Job `20`, preserved the verified prefix, and completed the chapter without creating a replacement job.
+  - **Recovery backup**: pre-recovery SQLite backup created at `D:\Youtube\Story Trans And Audio\backups\task18x_pre_ch367_segment573_recovery_20260716_163153.sqlite3`; size `3604480` bytes, SHA-256 `ad6015c481a3fe08d0da0cc45a508732b86f587fdf570e7705d6c453aa3d48ac`, quick_check `ok`.
+  - **Root cause**: Segment `573` / sequence `20` / text `"Quá ít."` failed three times on the first render with `Excessive silence in synthesized audio: 83.0% silent (16.1s of 19.4s total), longest continuous silence: 10.1s`. Nearby short `custom:25` segments in Chapters `364` and `365` were normal, so this was classified as `TRUE_PROVIDER_SILENCE`, not a short-utterance policy false positive.
+  - **Supported workflow**: `POST /api/segments/573/retry` was used once. It reset only the failed segment, kept segments `1-19` intact, queued the same Job `20`, and woke the worker. No replacement job, no direct DB edit, and no voice/text/casting mutation were used.
+  - **Recovery result**: Segment `573` was verified successfully with `attempt_count = 1`, `wav_path = D:\Youtube\Story Trans And Audio\data\work\job_20\chapter_0367\segments\000020.wav`, `duration_ms = 1350`, and `audio_sha256 = 1441e15ebc9a944d46255cc5f4e10fb1f6f4d84f1fb88968eaf3eb4543552d80`.
+  - **Final production state**: Job `20` completed, JobChapter `20` completed, all `47` segments verified, artifact `75` active, and Chapter `367` active audio points to artifact `75`.
+  - **Final artifact**: `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0367\job_20\render_0001\chapter.m4a`; SHA-256 `376afa0250cc14ce368e36ff3f9842b8c33139d3ab0250b55f3e6ce92938d808`; size `6765624` bytes; decoded duration `418180 ms`; codec/container `AAC` in `M4A`; sample rate `48000`; channels `1`; peak about `0.6001`; RMS about `0.0678`; clipped samples `0`.
+  - **Safety**: Chapters `364` and `365` remained unchanged, Chapter `366` stayed deferred, and no new Text Revision, Casting Plan, speaker draft, or replacement job was created.
+  - **Next step**: Chapter `367` Human Audio QA and Targeted Remediation Review.
+
 - **Task 18W - Chapter 367 prepared job started and blocked at segment 20**: started the existing prepared Chapter `367` Job `20` exactly once through the canonical start workflow, monitored it to terminal state, and recorded the same-job recovery boundary.
   - **Repository/runtime baseline**: task started on branch `main` with `HEAD == origin/main == 12809fa8cc2280f97f86f58596948baa47ef9910`; tracked worktree was clean and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
   - **Pre-start state verified**: Job `20` was exactly `prepared`, JobChapter `20` was pending and pinned to Chapter `367`, active approved Text Revision `734`, approved Casting Plan `21` revision `1`, and casting plan SHA-256 `90de24d456b14a3e2dbfb0ce53383770c4ea4b356385e58cd0464a234ceb861d`; no segments, artifacts, output audio, or active audio existed.
