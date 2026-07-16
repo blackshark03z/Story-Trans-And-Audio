@@ -1,7 +1,7 @@
 # Next Task
 
 Current Status:
-Task 18O is complete in canonical production. Chapter 365 render Job `19` has finished successfully and produced active artifact `72` from approved Text Revision `3983` and approved Casting Plan `20` revision `1`. The output is now at the Human Audio QA boundary: no duplicate job was created, no render retry was needed, and no text/casting/voice identity changed during execution.
+Task 18Q is complete in canonical production. Chapter 365 is now fully closed with `HUMAN_QA_PASS` on active artifact `72`, built from approved Text Revision `3983`, approved Casting Plan `20` revision `1`, and completed Job `19`. No remediation was required, no segment was regenerated, and the routine production cycle for this chapter is finished.
 
 Current Baseline:
 - Branch `main`
@@ -44,20 +44,28 @@ Task 18O Outcome:
 - Chapter `365` now has `audio_status = completed` and `active_audio_artifact_id = 72`; Chapter `364` remained unchanged at active artifact `69`.
 - Prepared Human Audio QA markers for chapter start/end, all five Hứa Thanh lines, and several duration/loudness outliers that deserve listening review before any targeted remediation.
 
+Task 18Q Outcome:
+- Recorded final verdict `HUMAN_QA_PASS` for Chapter `365`.
+- Accepted final production identity unchanged: Text Revision `3983`, Casting Plan `20` revision `1`, source speaker draft `11`, Job `19`, JobChapter `19`, and active artifact `72`.
+- Final accepted audio remains `D:\\Youtube\\Story Trans And Audio\\data\\output\\1-quang-am-chi-ngoai\\chapter_0365\\job_19\\render_0001\\chapter.m4a`, SHA-256 `4bc75234a5ff804f9dc985af2e46fff2d440f78a061ca749b12e9adcf0375f83`, authoritative duration `408980 ms`, decoded duration `408981 ms`, size `6647393` bytes.
+- Human QA confirmed chapter start/end completeness, all five Hứa Thanh utterances on the expected voice, the corrected internal-thought sentence as one complete utterance, no punctuation-only utterance, and no audible issue justifying targeted regeneration.
+- Closeout confirms `47` verified segments, zero retries, zero targeted remediation, clipped samples `0`, overall level about `-19.93 dBFS`, and seq `34` peak about `-0.90 dBFS` without clipping or distortion.
+- No production mutation was needed during closeout beyond documentation: no new job, no segment regeneration, no revision/casting/voice change, and no Chapter 364 change.
+
 Next Recommended Task:
-Task 18P - Chapter 365 Human Audio QA and Targeted Remediation Review
+Task 18R - Select and Prepare the Next Sequential Canonical Production Chapter
 
 Why:
-- The render boundary is complete and Chapter 365 now has one active production artifact from the canonical pinned inputs.
-- The next safe step is human listening review, not another render mutation.
-- Any remediation decision should now be based on the produced artifact, the prepared QA markers, and the existing targeted recovery workflow rather than creating a replacement job preemptively.
+- Chapter 365 routine production is fully complete and accepted, so the next normal production task is to move forward to the next sequential chapter rather than revisit Chapter 365.
+- The prepared-job lifecycle is now validated in real production from prepare through human acceptance, so the next task should reuse that canonical workflow on the next eligible chapter.
+- The next step should start with chapter selection and readiness verification before any new mutation.
 
 Scope:
-1. Perform a complete Human Audio QA pass on Chapter 365 active artifact `72`.
-2. Use the prepared checklist markers: chapter start/end, all five Hứa Thanh lines, and the recorded duration/loudness outliers.
-3. Decide whether the artifact is an immediate `HUMAN_QA_PASS` or whether any specific segment needs targeted remediation.
-4. If remediation is needed, use only the canonical targeted recovery path on the existing Job `19` / segment identity; do not create a replacement job.
-5. Keep Text Revision `3983`, Casting Plan `20`, and speaker draft provenance unchanged unless a separate authorized workflow explicitly changes them.
+1. Identify the next sequential canonical production chapter after the accepted Chapter 365 closeout.
+2. Verify that chapter’s current text, casting, active audio, and job state before any mutation.
+3. Determine whether the chapter is already production-ready or whether it first needs text/casting workflow steps.
+4. If it is ready, use the canonical prepared-job lifecycle instead of legacy create-and-wake behavior.
+5. Keep Chapter 365 unchanged unless a later explicit maintenance task targets it.
 
 Prerequisites For Any Next Task:
 - Verify `GET /api/runtime` points to canonical production before any mutation.
@@ -67,6 +75,6 @@ Prerequisites For Any Next Task:
 - Do not mutate `experiment_b_transcript/` or `runs/`.
 - Do not generate another speaker draft or another Casting Plan unless plan `20` is proven absent or invalid.
 - Do not create another Chapter 365 job.
-- Do not rerender the whole chapter if review finds only localized issues.
-- Use the existing Job `19` artifact and provenance as the canonical basis for QA or targeted recovery.
+- Do not change accepted Chapter 365 artifact `72` unless a later explicit remediation task authorizes it.
+- Start the next task by selecting the next sequential chapter, not by beginning render immediately.
 - Re-verify Git baseline before implementation.

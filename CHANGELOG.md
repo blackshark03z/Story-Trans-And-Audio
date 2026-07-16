@@ -6,6 +6,18 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18Q - Chapter 365 Human Audio QA closeout**: closed the routine Chapter 365 production cycle with final human acceptance and no remediation.
+  - **Final verdict**: recorded `HUMAN_QA_PASS` for canonical Chapter `365`.
+  - **Accepted production identity**: closeout preserves active Text Revision `3983`, approved Casting Plan `20` revision `1`, source speaker draft `11`, completed Job `19`, completed JobChapter `19`, and active artifact `72`.
+  - **Accepted artifact**: final output remains `D:\\Youtube\\Story Trans And Audio\\data\\output\\1-quang-am-chi-ngoai\\chapter_0365\\job_19\\render_0001\\chapter.m4a`, SHA-256 `4bc75234a5ff804f9dc985af2e46fff2d440f78a061ca749b12e9adcf0375f83`, authoritative duration `408980 ms`, independently decoded duration `408981 ms`, and size `6647393` bytes.
+  - **Human review coverage**: complete final audio was reviewed sequentially; chapter start and ending were confirmed not audibly truncated; the corrected internal-thought sentence rendered as one complete utterance; and no punctuation-only utterance exists in the final audio.
+  - **Five Hứa Thanh QA markers accepted**: segment `523` / seq `17` / `00:02:28.800`, segment `538` / seq `32` / `00:04:37.610`, segment `540` / seq `34` / `00:04:49.270`, segment `545` / seq `39` / `00:05:41.300`, and segment `552` / seq `46` / `00:06:44.510` all used the expected Hứa Thanh voice and were contextually acceptable.
+  - **Technical acceptance**: loudness and duration outliers were reviewed and accepted; seq `34` peaks around `-0.90 dBFS` but is not clipped or distorted; no disruptive loudness transition remains; clipped samples remain `0`; overall level remains about `-19.93 dBFS`; and the `1 ms` duration variance is normal decoder/container rounding.
+  - **No remediation required**: no segment was regenerated, no retry was added, no new job was created, no revision/casting/voice state changed, and Chapter `364` remained untouched.
+  - **Lifecycle validation**: Chapter 365 now serves as real-production validation that the prepared-job lifecycle works end-to-end through prepare, explicit start, successful render, artifact activation, and final `HUMAN_QA_PASS`.
+  - **Next routine step**: move on to selecting and preparing the next sequential canonical production chapter rather than reopening Chapter 365.
+  - **Migration**: none.
+
 - **Task 18O - Existing Chapter 365 prepared job started and rendered to completion**: completed the first canonical production start of the prepared-only lifecycle by starting the already-pinned Chapter 365 Job `19`, monitoring it to completion, and stopping at the Human Audio QA boundary.
   - **Repository/runtime baseline**: task started on branch `main` with `HEAD == origin/main == eebd8650437c850fa324880180fa9dc58f93fb13`; tracked worktree was clean and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
   - **Pre-start state verified**: canonical runtime `http://127.0.0.1:8772` still pointed to the live Story Audio root and DB, `POST /api/jobs/{job_id}/start` was confirmed live, and Job `19` still existed exactly once in `prepared` with JobChapter `19` pinned to Chapter `365`, Text Revision `3983`, Casting Plan `20`, and plan SHA `3186a20b403a7a39a4da064c784f849ae59913156c3f1d667cbc5bc74a845d28`.
