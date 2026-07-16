@@ -1,16 +1,30 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-15T22:05 (Asia/Saigon)
-**Milestone:** Task 18M Prepared Job Lifecycle Implemented
-**Trạng thái:** canonical code now supports a durable two-stage Chapter 365 production lifecycle: one explicit `prepare` step that pins immutable inputs without waking the worker, and one explicit `start` step that transitions the same prepared job into the normal render queue. Chapter 365 production data remains unchanged: active Text Revision `3983`, approved Casting Plan `20` rev `1`, and jobs/segments/attempts/artifacts/audio all remain `0`.
+**Cập nhật:** 2026-07-16T13:18 (Asia/Saigon)
+**Milestone:** Task 18N Real Chapter 365 Job Prepared
+**Trạng thái:** canonical production now contains exactly one real Chapter 365 prepared job created through the new two-stage lifecycle. Chapter 365 is pinned to active approved Text Revision `3983` and approved Casting Plan `20` rev `1` on Job `19`, while render-side state still remains untouched: segments `0`, attempts `0`, repair blocks `0`, artifacts `0`, and audio output `0`.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `060edcda32e0a0c2ae1ec8cfc7268b4604f47601`
+**Last verified against commit:** `3b6f1310fcf1ccbdcf5cb182e27b42b6e4840bde`
 **Last verified branch:** `main`
-**Last verified date:** 2026-07-15
+**Last verified date:** 2026-07-16
+
+**Task 18N canonical production outcome:**
+- Repository baseline before mutation matched the required checkpoint exactly: branch `main`, `HEAD == origin/main == 3b6f1310fcf1ccbdcf5cb182e27b42b6e4840bde`, no unrelated tracked changes, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
+- Canonical runtime identity was re-verified on `http://127.0.0.1:8772` before mutation: `root = D:\Youtube\Story Trans And Audio`, `data_root = D:\Youtube\Story Trans And Audio\data`, `db_path = D:\Youtube\Story Trans And Audio\data\app.db`, `schema_version = latest_schema_version = 10`, and both canonical-live flags were `true`.
+- The live runtime initially served stale pre-Task-18M API code, so the old listener on port `8772` was replaced through the supported repository launcher `run_app.ps1`; after restart, the required routes `POST /api/jobs/prepare` and `POST /api/jobs/{job_id}/start` were confirmed present before any Chapter 365 mutation.
+- Pre-mutation Chapter 365 readiness remained correct on authoritative runtime and read-only SQLite state: active approved Text Revision `3983`, approved Casting Plan `20` rev `1`, Book Voice Profile `5` version `2` with narrator `custom:26` and male dialogue `custom:25`, active audio `null`, Chapter 365 jobs `0`, job_chapters `0`, segments `0`, attempts `0`, repair blocks `0`, and artifacts `0`.
+- Custom voice readiness was re-verified without provider calls: `custom:25` (`Hứa Thanh`) is active with preferred synthesis revision `1`, and `custom:26` (`Chanlee`) is active with available revisions; configured runtime TTS boundary remained `v3turbo`, sample rate `48000`, and max chars `256`.
+- Filesystem and integrity readiness passed before mutation: SQLite `PRAGMA quick_check = ok`, free disk on `D:` was about `19.87 GB`, `data/`, `data/work/`, and `data/output/` were writable, no stale lock files were found under `data/work/`, and no pre-existing Chapter 365 output paths were found under `data/output/`.
+- Exactly one SQLite online backup was created before mutation at `backups\task18n_pre_ch365_prepare_20260716_131349.sqlite3`; size `3178496` bytes, SHA-256 `463711f9cde945d7adc9b32d584afb92c69a989cffd5c160af445ff16959744e`, and backup `quick_check = ok`.
+- Exactly one supported mutation call was made: `POST /api/jobs/prepare` with Book `1`, Chapter `365`, `voice_name = custom:26`, `repair_mode = off`, `output_format = m4a`, `skip_completed = true`, and `casting_plan_id = 20`. The response created Job `19` with `status = prepared`; no second prepare call was sent.
+- Authoritative post-prepare DB state confirms immutable pins on the same job row: `jobs.id = 19`, `jobs.status = prepared`, `jobs.casting_plan_id = 20`, `job_chapters.id = 19`, `job_chapters.chapter_id = 365`, `job_chapters.text_revision_id = 3983`, and `job_chapters.casting_plan_sha256 = 3186a20b403a7a39a4da064c784f849ae59913156c3f1d667cbc5bc74a845d28`.
+- Post-prepare safety remained clean after the app stayed live: Job `19` was still `prepared`, `started_at = null`, `finished_at = null`, Chapter 365 still had `audio_status = not_created`, `active_output_job_id = null`, `segment_count = 0`, `attempt_count = 0`, `repair_block_count = 0`, and `artifact_count = 0`. No Gemini call, no TTS call, no worker start, and no audio render were invoked.
+- UI verification passed in the live app after prepare: the queue shows Job `#19` for `Quang Âm Chi Ngoại` / Chapter `365`, displays the pinned prepared summary (`custom:26`, `off`, `M4A`), labels the state as prepared, and exposes the separate operator action `Bắt đầu render` without starting it.
+- Chapter 365 is now intentionally blocked at the explicit render-start boundary. The next valid production step is to start the existing prepared Job `19`; creating another prepared job would be a duplicate and is no longer allowed.
 
 **Task 18M local implementation baseline:**
 - Repository baseline before edits matched the requested checkpoint: branch `main`, `HEAD == origin/main == 060edcda32e0a0c2ae1ec8cfc7268b4604f47601`, no unrelated tracked changes, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.

@@ -6,6 +6,18 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18N - Real Chapter 365 production job prepared without starting TTS**: completed the first canonical production use of the new two-stage job lifecycle by preparing the real Chapter 365 job and stopping cleanly before render execution.
+  - **Repository/runtime baseline**: task started on branch `main` with `HEAD == origin/main == 3b6f1310fcf1ccbdcf5cb182e27b42b6e4840bde`; tracked worktree was clean and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
+  - **Runtime recovery**: canonical runtime `http://127.0.0.1:8772` still pointed to the live Story Audio root and DB, but initially served stale pre-Task-18M API code. The old listener on port `8772` was replaced through the supported repository launcher before mutation, and the required routes `POST /api/jobs/prepare` plus `POST /api/jobs/{job_id}/start` were then confirmed live.
+  - **Preflight state verified**: Chapter 365 still had active approved Text Revision `3983`, approved Casting Plan `20` revision `1`, Book Voice Profile narrator `custom:26` / male dialogue `custom:25`, and zero Chapter 365 jobs, job_chapters, segments, attempts, repair blocks, artifacts, or audio outputs before mutation.
+  - **Backup evidence**: created `backups\\task18n_pre_ch365_prepare_20260716_131349.sqlite3` before mutation; backup size `3178496` bytes, SHA-256 `463711f9cde945d7adc9b32d584afb92c69a989cffd5c160af445ff16959744e`, and SQLite `quick_check = ok`.
+  - **Exact supported mutation**: exactly one `POST /api/jobs/prepare` call created exactly one real Chapter 365 prepared job using Book `1`, Chapter `365`, `voice_name = custom:26`, `repair_mode = off`, `output_format = m4a`, `skip_completed = true`, and approved `casting_plan_id = 20`.
+  - **Committed prepared state**: the response created Job `19` with `status = prepared`. Authoritative DB state confirms the same row pins Chapter `365`, Text Revision `3983`, Casting Plan `20`, and `job_chapters.casting_plan_sha256 = 3186a20b403a7a39a4da064c784f849ae59913156c3f1d667cbc5bc74a845d28`.
+  - **No execution after prepare**: after creation, Job `19` remained `prepared` with `started_at = null`, `finished_at = null`, and Chapter 365 still had segments `0`, attempts `0`, repair blocks `0`, artifacts `0`, and active audio `null`. No Gemini call, TTS synthesis, render start, or `/api/jobs/{job_id}/start` call was performed.
+  - **UI confirmation**: the live queue now shows Job `#19` for Chapter `365` in prepared state with the pinned summary (`custom:26`, `off`, `M4A`) and the separate operator action `Bắt đầu render`.
+  - **Next boundary**: Chapter 365 now has a durable prepared production identity. The next valid operational step is to start the existing prepared job rather than prepare another one.
+  - **Migration**: none.
+
 - **Task 18M - Prepared job lifecycle separated from render start**: added a canonical two-stage production lifecycle so production jobs can be prepared durably before any worker execution begins.
   - **Root cause fixed**: `POST /api/jobs` previously created `jobs.status='scheduled'` and immediately called `worker.wake()`, while the worker actively selected scheduled jobs. There was no durable non-executable preparation state.
   - **New lifecycle**: added explicit backend services `prepare_job(...)` and `start_prepared_job(...)`.

@@ -1,7 +1,7 @@
 # Next Task
 
 Current Status:
-Task 18M is complete in code and tests. The repository now supports a durable prepared-job lifecycle, while canonical Chapter 365 production data remains unchanged: active approved Text Revision `3983`, approved Casting Plan `20` revision `1`, and jobs / job_chapters / segments / attempts / artifacts / audio all remain `0`.
+Task 18N is complete in canonical production. Chapter 365 now has exactly one real prepared job: Job `19` on approved Text Revision `3983` and approved Casting Plan `20` revision `1`. The worker has not started it, and render-side state remains untouched: segments `0`, attempts `0`, repair blocks `0`, artifacts `0`, audio `0`.
 
 Current Baseline:
 - Branch `main`
@@ -22,20 +22,29 @@ Task 18M Outcome:
 - Segmentation boundary is now explicit: prepare stores immutable pins only; deterministic segmentation still happens only after explicit start.
 - Chapter 365 production data was not mutated during Task 18M.
 
+Task 18N Outcome:
+- Re-verified canonical runtime identity on `http://127.0.0.1:8772` and replaced a stale pre-Task-18M listener through the supported repository launcher before any mutation.
+- Re-verified Chapter 365 baseline: active approved Text Revision `3983`, approved Casting Plan `20` revision `1`, Book Voice Profile narrator `custom:26` / male dialogue `custom:25`, and no pre-existing Chapter 365 job.
+- Created one pre-mutation SQLite online backup at `backups\\task18n_pre_ch365_prepare_20260716_131349.sqlite3` with SHA-256 `463711f9cde945d7adc9b32d584afb92c69a989cffd5c160af445ff16959744e` and `quick_check = ok`.
+- Issued exactly one supported `POST /api/jobs/prepare` call and created exactly one real Chapter 365 prepared job: Job `19`.
+- Verified immutable prepared pins on the committed row: Chapter `365`, Text Revision `3983`, Casting Plan `20`, `voice_name = custom:26`, `repair_mode = off`, `output_format = m4a`.
+- Verified non-execution boundary held after prepare: job stayed `prepared`, no worker pickup, no segments, no attempts, no repair blocks, no artifacts, and no active audio.
+- Verified live UI now shows the prepared Chapter 365 queue item with the separate `Bắt đầu render` action.
+
 Next Recommended Task:
-Task 18N - Prepare the Real Chapter 365 Production Job Without Starting TTS
+Task 18O - Start the Existing Prepared Chapter 365 Production Job
 
 Why:
-- Chapter 365 already has the correct approved Final Voice Map and now the codebase has the required durable preparation-only lifecycle.
-- The next safe operational step is to exercise that lifecycle once on canonical production by preparing the real Chapter 365 job without starting render execution.
-- This keeps the irreversible render boundary separate from the immutable identity-pinning step.
+- Chapter 365 already has the correct approved Final Voice Map and now also has the correct prepared production job pinned in canonical production.
+- The remaining production step is no longer preparation. It is the explicit render-start transition for the already-existing prepared Job `19`.
+- Starting the existing prepared job preserves the two-stage boundary and avoids any duplicate prepare or duplicate job creation.
 
 Scope:
-1. Re-verify canonical runtime identity and Chapter 365 baseline before any mutation.
-2. Use the supported `prepare` workflow only for Chapter 365 with approved Casting Plan `20` revision `1`.
-3. Confirm the created prepared job pins the active approved Text Revision and approved Casting Plan exactly.
-4. Confirm the prepared job does not wake the worker, does not create segments/attempts/artifacts/audio, and remains restart-safe.
-5. Stop before `start`, before any Gemini/TTS call, and before any audio render activity.
+1. Re-verify canonical runtime identity and confirm Job `19` is still `prepared`.
+2. Re-verify Job `19` still pins Chapter `365`, Text Revision `3983`, and approved Casting Plan `20` revision `1`.
+3. Start the existing prepared job through the supported `POST /api/jobs/{job_id}/start` route only.
+4. Confirm the same job transitions to the normal executable state exactly once and that the worker begins from that existing pinned identity.
+5. Track render execution and downstream QA only after the explicit start boundary is crossed; do not create another prepared job.
 
 Prerequisites For Any Next Task:
 - Verify `GET /api/runtime` points to canonical production before any mutation.
@@ -44,5 +53,6 @@ Prerequisites For Any Next Task:
 - Do not touch port `8765`.
 - Do not mutate `experiment_b_transcript/` or `runs/`.
 - Do not generate another speaker draft or another Casting Plan unless plan `20` is proven absent or invalid.
-- Do not start render, preview TTS, synthesize audio, or create a second Chapter 365 prepared job during Task 18N.
+- Do not call `POST /api/jobs/prepare` again for Chapter 365 unless Job `19` is proven absent and no prepared/live Chapter 365 job exists.
+- Use the existing prepared Job `19`; do not create a second Chapter 365 prepared job.
 - Re-verify Git baseline before implementation.
