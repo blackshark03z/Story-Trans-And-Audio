@@ -1,16 +1,30 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-16T18:56 (Asia/Saigon)
-**Milestone:** Task 18AE Chapter 366 Production Render Completed
-**Trạng thái:** Chapter `366` Job `21` / JobChapter `21` completed successfully, active artifact `78` is bound, and Human Audio QA is now pending. No QA verdict was recorded in this task.
+**Cập nhật:** 2026-07-16T19:20 (Asia/Saigon)
+**Milestone:** Task 18AG Chapter 366 Human Audio QA Closeout
+**Trạng thái:** Chapter `366` production cycle is closed with `HUMAN_QA_PASS`. Job `21` / JobChapter `21` completed successfully, active artifact `78` remains bound, and no remediation is required.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `911b1017575615bb319672379bdd31ad2d88f71d`
+**Last verified against commit:** `bc795f27ec5d4a9a5942a46cac7995f3c87fc1b0`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-16
+
+**Task 18AG canonical Human Audio QA closeout:**
+- Final verdict recorded: `HUMAN_QA_PASS`. The complete Chapter `366` final artifact was reviewed sequentially; chapter start and ending are complete and not audibly truncated.
+- Production identity closed: Book `1`, Chapter `366`, active Text Revision `3984`, approved Casting Plan `22` revision `1`, source speaker draft `13`, Job `21` completed, JobChapter `21` completed, and active artifact `78`.
+- Final audio remains `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0366\job_21\render_0001\chapter.m4a`; SHA-256 `40014be7dd74a147cdd3c5c8029b2807a1cb0851b02cbab563e7ea823bcb4793`; file size `7082686` bytes; container duration `431020 ms`; independent decoded PCM duration `431040 ms`.
+- Technical QA accepted: integrated loudness approximately `-20.3 LUFS`, loudness range approximately `4.8 LU`, true peak approximately `-0.1 dBFS`, decoded RMS approximately `-19.85 dBFS`, clipped samples `0`, longest detected silence approximately `1.08 s`, leading silence approximately `140 ms`, and trailing silence approximately `280 ms`.
+- Segment coverage accepted: all `51` segments are present in correct sequence and verified; failed segments `0`, pending segments `0`, retries `0`, repair blocks `0`; no repeated, missing, or reordered sentence was detected.
+- Speaker QA accepted: narrator `custom:26` remains consistent; all named Hứa Thanh and Lão tổ Kim Cương Tông targets use `custom:25`; all ten reviewed speaker targets were checked at the recorded windows.
+- Anonymous quotation accepted: `u0004-c739867fa093` / seq `4` / `00:08.73-00:20.28` / `"Ăn...Hải Thi tộc...sắp đột phá...đột phá ngay."` remains anonymous/unknown and uses `custom:26` through approved fallback. The corrected quotation is audible as one complete utterance and no longer split at the former punctuation-adjacent space.
+- Named character QA marker windows accepted: `u0008` / seq `8` / `00:27.15-00:42.82`; `u0009` / seq `9` / `00:42.82-00:58.48`; `u0010` / seq `10` / `00:58.48-01:09.76`; `u0011` / seq `11` / `01:09.76-01:14.67`; `u0012` / seq `12` / `01:14.67-01:26.78`; `u0015` / seq `15` / `01:35.68-01:37.93`; `u0034` / seq `34` / `04:35.18-04:42.14`; `u0043` / seq `43` / `05:51.88-05:58.92`; `u0046` / seq `46` / `06:03.75-06:20.98`.
+- Minor QA note accepted without remediation: one short Hứa Thanh target around `01:35.68` is more forceful than nearby narration, but remains clean, intelligible, unclipped, and does not justify regeneration.
+- Remediation result: no targeted remediation is required, no segment was regenerated after completion, and no replacement job was created.
+- Completed-chapter safety is preserved: Chapters `364`, `365`, and `367` remain unchanged at active artifacts `69`, `72`, and `75`; `experiment_b_transcript/` and `runs/` remain untouched.
+- The next task is Task `18AH` - Inspect the Next Sequential Production Chapter Beginning at Chapter `368`.
 
 **Task 18AD canonical prepared-job outcome:**
 - Repository/runtime baseline before mutation matched the required checkpoint: branch `main`, `HEAD == origin/main == 911b1017575615bb319672379bdd31ad2d88f71d`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, canonical data root `D:\Youtube\Story Trans And Audio\data`, and canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`.

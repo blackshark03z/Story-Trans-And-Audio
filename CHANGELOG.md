@@ -6,6 +6,19 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AG - Chapter 366 Human Audio QA closeout**: recorded `HUMAN_QA_PASS` and closed the Chapter `366` production cycle after sequential review of the complete final artifact.
+  - **Accepted production identity**: active Text Revision `3984`, approved Casting Plan `22` revision `1`, source speaker draft `13`, completed Job `21`, completed JobChapter `21`, and active artifact `78`.
+  - **Accepted artifact**: `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0366\job_21\render_0001\chapter.m4a`; SHA-256 `40014be7dd74a147cdd3c5c8029b2807a1cb0851b02cbab563e7ea823bcb4793`; file size `7082686` bytes; container duration `431020 ms`; independent decoded PCM duration `431040 ms`.
+  - **Segment state**: all `51` segments were verified in sequence with `0` failed, `0` pending, `0` retries, and `0` repair blocks. No post-completion regeneration and no replacement job occurred.
+  - **Human QA coverage**: chapter start and ending are complete; no repeated, missing, or reordered sentence was detected; no punctuation-only utterance exists; and the corrected quotation is audible as one complete utterance rather than a split target.
+  - **Speaker QA markers**: all ten target windows were checked: `u0004-c739867fa093` seq `4` (`00:08.73-00:20.28`), `u0008` seq `8`, `u0009` seq `9`, `u0010` seq `10`, `u0011` seq `11`, `u0012` seq `12`, `u0015` seq `15`, `u0034` seq `34`, `u0043` seq `43`, and `u0046` seq `46`.
+  - **Voice acceptance**: narrator rows use `custom:26`; named Hứa Thanh and Lão tổ Kim Cương Tông targets use `custom:25`; anonymous `u0004-c739867fa093` remains anonymous/unknown and uses the narrator fallback `custom:26`.
+  - **Technical acceptance**: integrated loudness about `-20.3 LUFS`, LRA `4.8 LU`, true peak about `-0.1 dBFS`, decoded RMS about `-19.85 dBFS`, clipped samples `0`, longest silence about `1.08 s`, leading silence about `140 ms`, and trailing silence about `280 ms`.
+  - **Remediation result**: no clipping, corruption, excessive silence, disruptive transition, loudness discontinuity, or assembly failure justified targeted remediation.
+  - **Safety**: Chapters `364`, `365`, and `367` remained unchanged; `experiment_b_transcript/` and `runs/` remained untouched.
+  - **Next step**: Inspect the next sequential production chapter beginning at Chapter `368`.
+  - **Migration**: none.
+
 - **Task 18AE - Chapter 366 production render completed**: started the existing prepared Job `21` exactly once, completed the same job without replacement, and left Human Audio QA as the next boundary.
   - **Start boundary**: `POST /api/jobs/21/start` transitioned Job `21` from `prepared` to the executable lifecycle with no duplicate job creation. Job `21` started at `2026-07-16T11:39:58.986729+00:00`; JobChapter `21` started at `2026-07-16T11:39:59.025735+00:00`.
   - **Lifecycle**: the canonical transitions observed were `scheduled -> synthesizing -> assembling -> completed`. Job `21` finished at `2026-07-16T11:53:24.514957+00:00`; JobChapter `21` finished at `2026-07-16T11:53:24.498679+00:00`.
