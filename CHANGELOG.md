@@ -6,6 +6,14 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18Z - Chapter 367 human QA closeout**: recorded `HUMAN_QA_PASS` and closed the Chapter `367` routine production cycle after listening through the complete final artifact.
+  - **QA verdict**: the final audio was reviewed sequentially; chapter start and end are complete; narrator `custom:26` remained stable; all four character utterances use `custom:25`; and the recovered Segment `573` / sequence `20` / text `"Quá ít."` is now audible and complete after same-job recovery.
+  - **Artifact**: `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0367\job_20\render_0001\chapter.m4a`; SHA-256 `376afa0250cc14ce368e36ff3f9842b8c33139d3ab0250b55f3e6ce92938d808`; file size `6765624` bytes; authoritative/container duration `418180 ms`; independent decoded PCM duration `418197 ms`.
+  - **Technical validation**: peak approximately `-1.42 dBFS`, RMS approximately `-20.37 dBFS`, clipped samples `0`, and longest detected silence approximately `1.03 s`. No clipping, corruption, repeated line, missing line, or disruptive voice/loudness transition remained.
+  - **Production closeout**: Job `20` and JobChapter `20` are completed, artifact `75` is active, all `47` segments are verified, no replacement job was created, no segment was regenerated after completion, and no further remediation is required.
+  - **QA markers**: `573` / seq `20` / `Hứa Thanh`; `575` / seq `22` / `Hứa Thanh`; `577` / seq `24` / `Lão tổ Kim Cương Tông`; `581` / seq `28` / `Hứa Thanh`.
+  - **Next step**: Resolve Deferred Chapter `366` Quote-Boundary Text Blocker.
+
 - **Task 18X - Chapter 367 same-job segment recovery completed**: retried the failed Chapter `367` Segment `573` on the same Job `20`, preserved the verified prefix, and completed the chapter without creating a replacement job.
   - **Recovery backup**: pre-recovery SQLite backup created at `D:\Youtube\Story Trans And Audio\backups\task18x_pre_ch367_segment573_recovery_20260716_163153.sqlite3`; size `3604480` bytes, SHA-256 `ad6015c481a3fe08d0da0cc45a508732b86f587fdf570e7705d6c453aa3d48ac`, quick_check `ok`.
   - **Root cause**: Segment `573` / sequence `20` / text `"Quá ít."` failed three times on the first render with `Excessive silence in synthesized audio: 83.0% silent (16.1s of 19.4s total), longest continuous silence: 10.1s`. Nearby short `custom:25` segments in Chapters `364` and `365` were normal, so this was classified as `TRUE_PROVIDER_SILENCE`, not a short-utterance policy false positive.

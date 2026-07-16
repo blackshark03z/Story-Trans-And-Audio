@@ -1,16 +1,28 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-16T16:45 (Asia/Saigon)
-**Milestone:** Task 18X Chapter 367 Recovered And Completed
-**Trạng thái:** canonical same-job segment recovery succeeded for Chapter `367` Job `20`. Segment `573` / sequence `20` retried once on the existing job, verified successfully, and the same Job/JobChapter completed with active artifact `75`. No replacement job was created.
+**Cập nhật:** 2026-07-16T16:55 (Asia/Saigon)
+**Milestone:** Task 18Z Chapter 367 Human Audio QA Closeout
+**Trạng thái:** `HUMAN_QA_PASS` for Chapter `367`. The completed final artifact was reviewed sequentially, the recovered Segment `573` was accepted, no remediation was required, and the routine production cycle is now closed.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `74d9b461933c95fdb3d9ee9791f3d651b5a2cd1c`
+**Last verified against commit:** `2030698d81362aaa07aa7978f346370ed6166361`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-16
+
+**Task 18Z canonical closeout outcome:**
+- Repository/runtime baseline at closeout remained canonical: branch `main`, `HEAD == origin/main == 2030698d81362aaa07aa7978f346370ed6166361`, runtime `http://127.0.0.1:8772`, and the only protected untracked paths remained `experiment_b_transcript/` and `runs/`.
+- Chapter `367` production is complete and accepted: active approved Text Revision `734`, approved Casting Plan `21` revision `1`, source speaker draft `12`, Job `20` completed, JobChapter `20` completed, and active artifact `75`.
+- Final artifact remains `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0367\job_20\render_0001\chapter.m4a`; SHA-256 `376afa0250cc14ce368e36ff3f9842b8c33139d3ab0250b55f3e6ce92938d808`; file size `6765624` bytes; authoritative/container duration `418180 ms`; independently decoded PCM duration `418197 ms`.
+- Technical validation is clean: final audio decodes successfully, no clipping was detected, peak is approximately `-1.42 dBFS`, RMS approximately `-20.37 dBFS`, and longest detected silence is about `1.03 s`.
+- Segment coverage is complete: `47` verified segments, `0` failed, `0` pending, no repeated or missing sequence, and no punctuation-only utterance.
+- Segment `573` same-job recovery is accepted as production complete: sequence `20`, text `"Quá ít."`, expected `Hứa Thanh`, voice `custom:25`, verified after one retry, and the recovered speech is audible and complete.
+- Character QA markers accepted: `573` / seq `20` / `"Quá ít."` / `Hứa Thanh`; `575` / seq `22` / `Hứa Thanh`; `577` / seq `24` / `Lão tổ Kim Cương Tông`; `581` / seq `28` / `Hứa Thanh`.
+- No replacement job was created, no segment was regenerated after completion, and no further remediation is required.
+- Chapter `366` remains deferred and unchanged; Chapters `364` and `365` remain unchanged.
+- The next task is Task `18AA` - Resolve Deferred Chapter `366` Quote-Boundary Text Blocker.
 
 **Task 18W canonical start/render outcome:**
 - Repository/runtime baseline before start matched the required checkpoint exactly: branch `main`, `HEAD == origin/main == 12809fa8cc2280f97f86f58596948baa47ef9910`, no tracked changes, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.

@@ -1,7 +1,7 @@
 # Next Task
 
 Current Status:
-Task 18X completed the same-job recovery for Chapter `367`. Job `20` and JobChapter `20` finished successfully after a single targeted retry of segment `573` / sequence `20`, and Chapter `367` now has active artifact `75`.
+Task 18Z closed Chapter `367` with `HUMAN_QA_PASS`. The final audio was reviewed sequentially, Segment `573` was accepted after same-job recovery, and Job `20` remains the completed production artifact for Chapter `367`.
 
 Current Baseline:
 - Branch `main`
@@ -16,21 +16,23 @@ Current Baseline:
 - Chapter `367` approved Casting Plan: `21` revision `1`, approved at `2026-07-16T08:16:25.730916+00:00`
 - Chapter `367` job state: Job `20`, JobChapter `20`, status `completed`, started_at `2026-07-16T08:51:31.019812+00:00`, finished_at `2026-07-16T09:38:49.583451+00:00`
 - Chapter `367` downstream production state: Casting Plans `1` approved / `0` draft, jobs `1` completed, job_chapters `1` completed, segments `47` verified / `0` failed / `0` pending, segment attempt counters total `0`, legacy `segment_attempts` rows `0`, repair blocks `0`, artifacts `3` (`1` active), active audio `artifact 75`
-- Segment 573 recovery: segment `573`, sequence `20`, utterance `20`, character `Hứa Thanh`, voice `custom:25`, retried once through `POST /api/segments/573/retry`, verified successfully at `2026-07-16T09:33:11.441592+00:00`
+- Segment 573 recovery QA: segment `573`, sequence `20`, utterance `20`, character `Hứa Thanh`, voice `custom:25`, retried once through `POST /api/segments/573/retry`, verified successfully, and then reviewed as audible and complete in the final artifact
+- Final audio: `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0367\job_20\render_0001\chapter.m4a`; SHA-256 `376afa0250cc14ce368e36ff3f9842b8c33139d3ab0250b55f3e6ce92938d808`; file size `6765624` bytes; authoritative/container duration `418180 ms`; independent decoded PCM duration `418197 ms`
+- QA findings: chapter start/end complete, narrator `custom:26` stable, all four character utterances use `custom:25`, no punctuation-only utterance, no repeated/missing/reordered sentence, no disruptive voice transition or loudness discontinuity, no clipping or technical corruption, peak approximately `-1.42 dBFS`, RMS approximately `-20.37 dBFS`, longest detected silence approximately `1.03 s`, and no further remediation required
 
 Next Recommended Task:
-Task 18Y - Chapter 367 Human Audio QA and Targeted Remediation Review.
+Task 18AA - Resolve Deferred Chapter 366 Quote-Boundary Text Blocker.
 
 Why:
-- Job `20` is now complete and active audio artifact `75` exists, so the next safe boundary is human audio QA rather than another render mutation.
-- Chapter `367` should be listened to sequentially, with attention on the recovered segment `573` and the three remaining character lines.
-- Creating another speaker draft, Casting Plan, approval, prepared job, or replacement render job would be a duplicate mutation and is no longer needed.
+- Chapter `367` is production-complete and accepted, so the next safe boundary is the deferred Chapter `366` text blocker.
+- Chapter `366` still needs targeted quote-boundary remediation before it can enter the normal draft/review/render flow.
+- Creating another speaker draft, Casting Plan, approval, prepared job, or replacement render job for Chapter `367` would be a duplicate mutation and is no longer needed.
 
 Scope:
-1. Re-verify canonical runtime and Chapter `367` baseline before QA.
-2. Inspect the final artifact, segment timeline, and recovered segment 573 placement.
-3. Prepare the Human Audio QA checklist for chapter start, chapter end, recovered segment 573, and the remaining three character lines.
-4. Stop before any additional remediation unless QA finds a real issue.
+1. Re-verify canonical runtime and Chapter `366` baseline before mutation.
+2. Inspect the quote-boundary text issue and confirm the exact remediation target.
+3. Prepare the smallest safe text-only fix path for Chapter `366`.
+4. Stop before any downstream speaker, casting, or job creation until the text blocker is resolved.
 
 Prerequisites For Any Next Task:
 - Verify `GET /api/runtime` points to canonical production before any mutation.
@@ -39,8 +41,7 @@ Prerequisites For Any Next Task:
 - Do not touch port `8765`.
 - Do not mutate `experiment_b_transcript/` or `runs/`.
 - Do not generate another Chapter `367` speaker draft unless Draft `12` is proven absent or invalid.
-- Do not create another Casting Plan, approval, prepared job, or replacement job during Task `18Y`.
-- Do not start any other job during Task `18Y`.
-- Do not mutate Chapter `366`.
-- Keep Chapter `366` deferred and unchanged unless a later explicit targeted-remediation task selects it.
+- Do not create another Casting Plan, approval, prepared job, or replacement job during Task `18AA`.
+- Do not start any job for Chapter `366` during Task `18AA`.
+- Do not mutate Chapters `364`, `365`, or `367`.
 - Re-verify Git baseline before implementation.
