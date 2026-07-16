@@ -6,6 +6,13 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18T - Chapter 367 Final Voice Map draft created from reviewed speaker draft**: converted the existing Chapter `367` speaker draft `12` into one unapproved Final Voice Map / Casting Plan draft and stopped before approval.
+  - **Review completion**: all four draft rows were addressed exactly once with no overrides required. Decisions were `u0020-125ccd5575ff` -> `Hứa Thanh` (`42`, `custom:25`), `u0022-afff3155c7f8` -> `Hứa Thanh` (`42`, `custom:25`), `u0024-e81a37929088` -> `Lão tổ Kim Cương Tông` (`43`, `custom:25`), and `u0028-cd96d6372bc6` -> `Hứa Thanh` (`42`, `custom:25`).
+  - **Plan creation**: exactly one staged request `POST /api/chapters/367/speaker-review/casting-plan-draft` created Casting Plan `21` revision `1` with `status = draft`, `approved_at = null`, `archived_at = null`, `source_speaker_draft_id = 12`, `assignment_count = 47`, `remaining_unreviewed_count = 0`, `unresolved_count = 0`, `role_counts = narrator 43 / character 4 / unknown 0`, and `effective_voice_counts = custom:26 -> 43 / custom:25 -> 4`.
+  - **Safety**: Chapter `367` still has no jobs, job chapters, segments, attempts, artifacts, active audio, TTS previews, TTS synthesis, or audio outputs. Chapter `366` remained deferred and unchanged.
+  - **Next step**: inspect and approve the existing Chapter `367` Final Voice Map draft `21`.
+  - **Migration**: none.
+
 - **Task 18S - Chapter 367 initial speaker-assignment draft generated**: created exactly one canonical speaker-assignment draft for Chapter `367` and stopped at the operator review boundary.
   - **Repository/runtime baseline**: task started on branch `main` with `HEAD == origin/main == 3ec4940e4d831d07f1a58b1d854f64fa98256fad`; tracked worktree was clean and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
   - **Chapter baseline verified**: Chapter `367` still had active approved Text Revision `734` (parent `733`, `reflowed/approved`, processor `lossless-reflow-v1`), content SHA-256 `75a92fa534d759f4929fb9633827d4aea3a25a59dd50dc566dfd2968da37c4c7`, lexical SHA-256 `d76891b4d57ee88f4fb27fbc6c9afd8848c7a30cd8b03544213f5b061f5cb8ef`, character count `6866`, deterministic utterance count `47`, speaker target count `4`, and zero pre-existing speaker drafts, Casting Plans, jobs, segments, attempts, artifacts, or active audio.
