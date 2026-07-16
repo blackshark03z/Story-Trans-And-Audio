@@ -6,6 +6,19 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18S - Chapter 367 initial speaker-assignment draft generated**: created exactly one canonical speaker-assignment draft for Chapter `367` and stopped at the operator review boundary.
+  - **Repository/runtime baseline**: task started on branch `main` with `HEAD == origin/main == 3ec4940e4d831d07f1a58b1d854f64fa98256fad`; tracked worktree was clean and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
+  - **Chapter baseline verified**: Chapter `367` still had active approved Text Revision `734` (parent `733`, `reflowed/approved`, processor `lossless-reflow-v1`), content SHA-256 `75a92fa534d759f4929fb9633827d4aea3a25a59dd50dc566dfd2968da37c4c7`, lexical SHA-256 `d76891b4d57ee88f4fb27fbc6c9afd8848c7a30cd8b03544213f5b061f5cb8ef`, character count `6866`, deterministic utterance count `47`, speaker target count `4`, and zero pre-existing speaker drafts, Casting Plans, jobs, segments, attempts, artifacts, or active audio.
+  - **Boundary validation passed**: reconstructed exactly four valid target utterances with no empty, punctuation-only, or malformed split target: `u0020-125ccd5575ff` `"Quá ít."`, `u0022-afff3155c7f8` `"Lần trước không phải ngươi đã tràn ra khí tức Hải Thi Tộc sao, làm lại một lần nữa cho ta."`, `u0024-e81a37929088` `"Kêu ngươi làm thì ngươi làm ngay đi."`, and `u0028-cd96d6372bc6` `"Quả nhiên giống như ta phán đoán."`
+  - **Character/voice readiness**: reused existing Book `1` characters `42` `Hứa Thanh` and `43` `Lão tổ Kim Cương Tông`; book voice strategy stayed unchanged with narrator `custom:26`, male dialogue `custom:25`, female dialogue `custom:26`, and narrator fallback for unknown.
+  - **Exact supported mutation**: exactly one `POST /api/chapters/367/speaker-assignment/draft` call created Draft `12` on Text Revision `734` using `model_id = gemini-2.5-flash`, `prompt_version = speaker-assignment-v2`, and `mode = unassigned_only`.
+  - **Draft result**: Draft `12` is `generated`, `stale = false`, `target_count = 4`, `valid_count = 4`, `invalid_count = 0`, `remaining_unreviewed_count = 4`, `cache_hit_count = 0`, and `cache_miss_count = 1`.
+  - **Generated suggestions**: `u0020-125ccd5575ff` and `u0022-afff3155c7f8` both resolve to `Hứa Thanh` (`character_id = 42`, `custom:25`, confidence `1.0`); `u0024-e81a37929088` resolves to `Lão tổ Kim Cương Tông` (`character_id = 43`, `custom:25`, confidence `1.0`); `u0028-cd96d6372bc6` resolves to `Hứa Thanh` (`42`, `custom:25`, confidence `1.0`) in internal-thought context.
+  - **Safety**: post-generation Chapter `367` still has Casting Plans `0`, approved Casting Plans `0`, jobs `0`, job_chapters `0`, segments `0`, attempts `0`, artifacts `0`, active audio `none`, and no TTS preview/synthesis calls or audio outputs. Chapters `366`, `364`, and `365` remained unchanged.
+  - **Deferred chapter note**: Chapter `366` remains intentionally blocked by its malformed quote boundary and was not mutated.
+  - **Next step**: review Draft `12` and create one unapproved Final Voice Map without generating another speaker draft.
+  - **Migration**: none.
+
 - **Task 18Q - Chapter 365 Human Audio QA closeout**: closed the routine Chapter 365 production cycle with final human acceptance and no remediation.
   - **Final verdict**: recorded `HUMAN_QA_PASS` for canonical Chapter `365`.
   - **Accepted production identity**: closeout preserves active Text Revision `3983`, approved Casting Plan `20` revision `1`, source speaker draft `11`, completed Job `19`, completed JobChapter `19`, and active artifact `72`.

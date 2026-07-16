@@ -1,16 +1,29 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-16T14:02 (Asia/Saigon)
-**Milestone:** Task 18Q Chapter 365 Production Cycle Closed
-**Trạng thái:** canonical Chapter 365 routine production is now fully closed with `HUMAN_QA_PASS`. The approved prepared-job lifecycle was validated end-to-end in real production: prepared Job `19` was started exactly once, completed successfully, produced active artifact `72`, and the final audio was accepted without any remediation.
+**Cập nhật:** 2026-07-16T14:55 (Asia/Saigon)
+**Milestone:** Task 18S Chapter 367 Speaker Draft Ready For Review
+**Trạng thái:** canonical production moved forward to Chapter `367` speaker assignment. Exactly one new speaker-assignment draft `12` was generated on active approved Text Revision `734`, all four target utterances validated cleanly, and no Casting Plan, job, TTS, or audio state was created.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `eebd8650437c850fa324880180fa9dc58f93fb13`
+**Last verified against commit:** `3ec4940e4d831d07f1a58b1d854f64fa98256fad`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-16
+
+**Task 18S canonical speaker-draft outcome:**
+- Repository/runtime baseline before mutation matched the required checkpoint exactly: branch `main`, `HEAD == origin/main == 3ec4940e4d831d07f1a58b1d854f64fa98256fad`, no tracked changes, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
+- Canonical runtime identity remained correct on `http://127.0.0.1:8772`: live root/data root/DB still pointed to `D:\Youtube\Story Trans And Audio\data` and `D:\Youtube\Story Trans And Audio\data\app.db`, and the supported route `POST /api/chapters/{chapter_id}/speaker-assignment/draft` was confirmed live before mutation.
+- Chapter `367` baseline was re-verified before the provider call: active approved Text Revision `734`, parent/source revision `733`, `kind = reflowed`, `status = approved`, processor `lossless-reflow-v1`, content SHA-256 `75a92fa534d759f4929fb9633827d4aea3a25a59dd50dc566dfd2968da37c4c7`, lexical SHA-256 `d76891b4d57ee88f4fb27fbc6c9afd8848c7a30cd8b03544213f5b061f5cb8ef`, character count `6866`, deterministic utterance count `47`, target count `4`, and zero existing speaker drafts, Casting Plans, jobs, segments, attempts, artifacts, or active audio.
+- Pre-provider boundary validation passed exactly: target count `4`, empty targets `0`, punctuation-only targets `0`, malformed split targets `0`, and all stable offsets were valid. The reconstructed targets were `u0020-125ccd5575ff` seq `20` `2946-2955` `"Quá ít."`, `u0022-afff3155c7f8` seq `22` `3205-3297` `"Lần trước không phải ngươi đã tràn ra khí tức Hải Thi Tộc sao, làm lại một lần nữa cho ta."`, `u0024-e81a37929088` seq `24` `3379-3417` `"Kêu ngươi làm thì ngươi làm ngay đi."`, and `u0028-cd96d6372bc6` seq `28` `3833-3868` `"Quả nhiên giống như ta phán đoán."`
+- Character/voice readiness remained canonical and unchanged: Book `1` already contained character `42` `Hứa Thanh` and character `43` `Lão tổ Kim Cương Tông`; male dialogue still resolved to `custom:25`, narrator still resolved to `custom:26`, and no character, voice profile, or custom voice mutation was needed.
+- Exactly one supported generation request was issued: `POST /api/chapters/367/speaker-assignment/draft` created Draft `12` for Text Revision `734` with `model_id = gemini-2.5-flash`, `prompt_version = speaker-assignment-v2`, `mode = unassigned_only`, `status = generated`, `reused = false`, `cache_hit_count = 0`, and `cache_miss_count = 1`.
+- Draft `12` is valid and review-ready: `stale = false`, `target_count = 4`, `valid_count = 4`, `invalid_count = 0`, `remaining_unreviewed_count = 4`, confidence counts `high = 4 / medium = 0 / low = 0`, and no punctuation-only review row exists.
+- The four generated suggestions are straightforward for operator review under the current book voice strategy: `u0020-125ccd5575ff` seq `20` `"Quá ít."` -> `Hứa Thanh` (`character_id = 42`, role `main`, resolved voice `custom:25`, confidence `1.0`, reason: narration explicitly identifies Hứa Thanh); `u0022-afff3155c7f8` seq `22` `"Lần trước không phải ngươi đã tràn ra khí tức Hải Thi Tộc sao, làm lại một lần nữa cho ta."` -> `Hứa Thanh` (`42`, `custom:25`, confidence `1.0`); `u0024-e81a37929088` seq `24` `"Kêu ngươi làm thì ngươi làm ngay đi."` -> `Lão tổ Kim Cương Tông` (`character_id = 43`, role `supporting`, resolved voice `custom:25`, confidence `1.0`); `u0028-cd96d6372bc6` seq `28` `"Quả nhiên giống như ta phán đoán."` -> `Hứa Thanh` (`42`, `custom:25`, confidence `1.0`, internal-thought context).
+- Production safety remained clean after generation: Chapter `367` now has exactly one speaker draft and still has Casting Plans `0`, approved Casting Plans `0`, jobs `0`, JobChapters `0`, segments `0`, attempts `0`, artifacts `0`, active audio `none`, new Text Revisions `0`, and no TTS preview/synthesis or audio outputs. Chapters `366`, `364`, and `365` remained unchanged.
+- Chapter `366` remains explicitly deferred for targeted text remediation because of the malformed quote boundary `"Ăn...Hải Thi tộc...sắp đột phá...` / `đột phá ngay."`; no production state was generated for that chapter during Task 18S.
+- The next valid production step is to review Chapter `367` Draft `12` and create exactly one unapproved Final Voice Map without generating another speaker draft.
 
 **Task 18Q canonical production closeout:**
 - Final Human Audio QA verdict for Chapter `365` is `HUMAN_QA_PASS`.
