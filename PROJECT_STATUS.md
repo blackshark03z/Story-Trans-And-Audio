@@ -1,16 +1,28 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-16T17:40 (Asia/Saigon)
-**Milestone:** Task 18AA Chapter 366 Quote-Boundary Remediation
-**Trạng thái:** Chapter `366` text blocker is fixed through the supported targeted-correction workflow and Speaker Assignment Draft `13` is ready for operator review. No Casting Plan, job, TTS, artifact, or audio was created.
+**Cập nhật:** 2026-07-16T17:55 (Asia/Saigon)
+**Milestone:** Task 18AB Chapter 366 Speaker Review and Draft Final Voice Map
+**Trạng thái:** Chapter `366` review is complete, Speaker Assignment Draft `13` is fully reviewed, and one unapproved Final Voice Map / Casting Plan draft exists as Plan `22` revision `1`. No approval, job, TTS, artifact, or audio was created.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `ebb7ead38ba1e46ed04d56fc933e37059d6908fe`
+**Last verified against commit:** `81f0fa6f40833bfc057305c8fea1205a3d9fae85`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-16
+
+**Task 18AB canonical review and casting-plan-draft outcome:**
+- Repository/runtime baseline before mutation matched the required checkpoint: branch `main`, `HEAD == origin/main == 81f0fa6f40833bfc057305c8fea1205a3d9fae85`, runtime `http://127.0.0.1:8772`, canonical data root `D:\Youtube\Story Trans And Audio\data`, and canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`.
+- Chapter `366` stayed on active approved Text Revision `3984` (`repaired`, parent `732`, processor `targeted-correction-v1`, content SHA-256 `4febd781f26a50c1a602ad5d14c092f41f472ecddc222d38ad66dfe0bd7ab1e8`, lexical SHA-256 unchanged from `732`, char count `6895`).
+- Speaker Assignment Draft `13` remained non-stale, bound to Text Revision `3984`, with `target_count = 10`, `valid_count = 10`, `invalid_count = 0`, and `remaining_unreviewed_count = 10` before staged review submission.
+- Full review of the ten rows completed without any text changes or new draft generation. The merged quote `u0004-c739867fa093` / seq `4` remained anonymous by operator decision: the speaker is only identified as `cái bóng`, so it stays `unknown` with narrator/custom `custom:26` fallback rather than being forced to a named character.
+- All remaining rows were confirmed and accepted exactly once: `u0008`, `u0009`, `u0010`, `u0011`, `u0012`, and `u0043` -> `Lão tổ Kim Cương Tông` (`43`, `custom:25`); `u0015`, `u0034`, and `u0046` -> `Hứa Thanh` (`42`, `custom:25`).
+- Exactly one unapproved Casting Plan draft was created through the staged review workflow: Casting Plan `22` revision `1`, `status = draft`, `approved_at = null`, `source_speaker_draft_id = 13`, `text_revision_id = 3984`, `created_at = 2026-07-16T10:51:39.762862+00:00`, `approved_item_count = 10`, `remaining_unreviewed_count = 0`, and `idempotent_reused = false`.
+- Plan provenance is canonical and review-complete: `decision_fingerprint = c5e6839780103b98bb6036847b058680665aab44549e53b58946e1ca34edf0c9`, `operator_note` records that the merged quote remains anonymous because `cái bóng` is not clearly resolved to a named character, and `review_completed = true`.
+- Plan counts are stable: total assignments `51`, narrator `41`, character `9`, unknown `1`, unresolved `0`, effective voice counts `custom:26 -> 42` and `custom:25 -> 9`.
+- Safety stayed clean after completion: Chapter `366` has Casting Plans `1` draft / `0` approved, jobs `0`, JobChapters `0`, segments `0`, segment attempts `0`, repair blocks `0`, artifacts `0`, and active audio `none`. Chapters `364`, `365`, and `367` remain unchanged.
+- The next task is Task `18AC` - Inspect and Approve the Existing Chapter `366` Final Voice Map.
 
 **Task 18AA canonical text-remediation and speaker-draft outcome:**
 - Repository/runtime baseline before mutation matched the required checkpoint: branch `main`, `HEAD == origin/main == ebb7ead38ba1e46ed04d56fc933e37059d6908fe`, runtime `http://127.0.0.1:8772`, canonical data root `D:\Youtube\Story Trans And Audio\data`, and canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`.

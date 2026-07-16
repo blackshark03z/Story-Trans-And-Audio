@@ -6,6 +6,15 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AB - Chapter 366 speaker review completed and Final Voice Map draft created**: reviewed all ten rows from Speaker Assignment Draft `13` and created one unapproved Final Voice Map / Casting Plan draft for operator approval.
+  - **Speaker draft**: Draft `13` remained non-stale on Text Revision `3984`, with `target_count = 10`, `valid_count = 10`, `invalid_count = 0`, and `remaining_unreviewed_count = 10` before submission; after staged review, `remaining_unreviewed_count = 0` and the draft is linked to review-complete plan provenance.
+  - **Merged quote decision**: `u0004-c739867fa093` / seq `4` / `"Ăn...Hải Thi tộc...sắp đột phá...đột phá ngay."` remains `unknown` because the speaker is only identified as `cái bóng` and is not clearly resolved to a named character.
+  - **Accepted rows**: `u0008`, `u0009`, `u0010`, `u0011`, `u0012`, and `u0043` were confirmed as `Lão tổ Kim Cương Tông` (`43`, `custom:25`); `u0015`, `u0034`, and `u0046` were confirmed as `Hứa Thanh` (`42`, `custom:25`).
+  - **Casting Plan draft**: exactly one unapproved Casting Plan draft was created via the staged workflow, not the legacy approval route. Plan `22` revision `1` is `draft`, `approved_at = null`, `source_speaker_draft_id = 13`, `text_revision_id = 3984`, `assignment_count = 51`, narrator count `41`, character count `9`, unknown count `1`, unresolved count `0`, and effective voice counts `custom:26 -> 42` / `custom:25 -> 9`.
+  - **Provenance**: `review_completed = true`, `decision_fingerprint = c5e6839780103b98bb6036847b058680665aab44549e53b58946e1ca34edf0c9`, and the operator note records why the merged quote stayed anonymous.
+  - **Safety**: Chapter `366` still has zero jobs, job chapters, segments, segment attempts, repair blocks, artifacts, and active audio. Chapters `364`, `365`, and `367` remained unchanged.
+  - **Next step**: Inspect and approve the existing Chapter `366` Final Voice Map.
+
 - **Task 18AA - Chapter 366 quote-boundary text blocker resolved**: applied one supported targeted text correction to Chapter `366` and generated exactly one speaker-assignment draft for operator review.
   - **Original revision**: active approved Text Revision `732` (`reflowed`, parent/source `731`, processor `lossless-reflow-v1`) had the quote `"Ăn...Hải Thi tộc...sắp đột phá... đột phá ngay."` reconstructed as two speaker targets: `u0004-a47e93d44da7` / seq `4` and `u0005-3a156dbf3197` / seq `5`.
   - **Source comparison**: raw revision `731` already contained the same spacing boundary, so the correction was limited to punctuation-adjacent spacing and did not remove any lexical token.
