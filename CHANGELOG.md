@@ -6,6 +6,19 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AD - Chapter 366 production job prepared**: created exactly one durable prepared production job for Chapter `366` using the canonical prepare-only workflow and stopped before render execution.
+  - **Readiness**: Chapter `366` remained on active approved Text Revision `3984`; approved Casting Plan `22` revision `1` remained pinned to Revision `3984`; source speaker draft `13` stayed review-complete; and the intentional anonymous `cái bóng` assignment remained `unknown` with `custom:26` fallback.
+  - **Voice assets**: custom voice `25` exists with preferred synthesis revision `1`; custom voice `26` exists with usable revision `6`; no provider call was made during readiness checks.
+  - **Backup**: pre-mutation SQLite backup created at `D:\Youtube\Story Trans And Audio\backups\task18ad_pre_ch366_prepare_20260716_182736.sqlite3`; size `3608576` bytes; SHA-256 `9adafc8faa01f9ae152b8566b20405a2d0c584e0529c6f6092920c5a78a2224d`; quick_check `ok`.
+  - **Prepare request**: exactly one successful `POST /api/jobs/prepare` call created Job `21` / JobChapter `21` with Book `1`, Chapter `366`, `from_chapter = 366`, `to_chapter = 366`, `voice_name = custom:26`, `repair_mode = off`, `output_format = m4a`, `skip_completed = true`, and `casting_plan_id = 22`.
+  - **Prepared state**: Job `21` is `prepared`, `created_at = 2026-07-16T11:28:07.302447+00:00`, `started_at = null`, `finished_at = null`; JobChapter `21` is `pending`, pinned to Text Revision `3984` and Casting Plan `22`.
+  - **Snapshot**: casting snapshot SHA-256 remains `f693e76ce79f9fc76a926e4bf7e9fd69f97e55bdb163aea1fb8ea689bbdda6c8`; assignments remain total `51`, narrator `41`, character `9`, unknown `1`, unresolved `0`, with `custom:26 -> 42` and `custom:25 -> 9`.
+  - **Worker isolation**: Job `21` stayed `prepared` across a polling interval; no worker execution, automatic transition, Gemini call, TTS preview, TTS synthesis, segment, attempt, repair block, artifact, manifest, or audio output occurred.
+  - **UI**: Production Flow now exposes the existing prepared job and the explicit next action `Bắt đầu render`; that action was not clicked.
+  - **Safety**: Chapters `364`, `365`, and `367` remained unchanged; `experiment_b_transcript/` and `runs/` remained untouched.
+  - **Next step**: Explicitly start and monitor the existing Chapter `366` prepared Job `21`.
+  - **Migration**: none.
+
 - **Task 18AC - Chapter 366 Final Voice Map approved**: approved the existing Chapter `366` Final Voice Map / Casting Plan `22` revision `1` through the dedicated existing-plan approval workflow.
   - **Pre-approval state**: Chapter `366` stayed on active approved Text Revision `3984`; Speaker Assignment Draft `13` remained non-stale and review-complete; exactly one Chapter `366` Casting Plan existed, Plan `22` revision `1`, `status = draft`, `approved_at = null`.
   - **Approval boundary**: UI approval uses `POST /api/casting/{casting_plan_id}/approve`; job preparation/start remain separate through `POST /api/jobs/prepare` and `POST /api/jobs/{job_id}/start`. Backend approval marks the existing draft approved and validates it without creating jobs, job_chapters, segments, attempts, artifacts, manifests, or audio.

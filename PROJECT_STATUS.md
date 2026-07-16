@@ -1,16 +1,30 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-16T18:13 (Asia/Saigon)
-**Milestone:** Task 18AC Chapter 366 Final Voice Map Approval
-**Trạng thái:** Chapter `366` Final Voice Map / Casting Plan `22` revision `1` is approved for active Text Revision `3984`. No job, TTS, segment, artifact, or audio was created.
+**Cập nhật:** 2026-07-16T18:30 (Asia/Saigon)
+**Milestone:** Task 18AD Chapter 366 Production Job Prepared
+**Trạng thái:** Chapter `366` now has exactly one durable prepared Job `21` / JobChapter `21` pinned to active Text Revision `3984` and approved Casting Plan `22` revision `1`. No start, TTS, segment, artifact, or audio was created.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `fd7fe3ac7d438d63ef94885c627433d21cfdaf22`
+**Last verified against commit:** `911b1017575615bb319672379bdd31ad2d88f71d`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-16
+
+**Task 18AD canonical prepared-job outcome:**
+- Repository/runtime baseline before mutation matched the required checkpoint: branch `main`, `HEAD == origin/main == 911b1017575615bb319672379bdd31ad2d88f71d`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, canonical data root `D:\Youtube\Story Trans And Audio\data`, and canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`.
+- Readiness checks passed before mutation: Chapter `366` remained on active approved Text Revision `3984`; Casting Plan `22` revision `1` stayed approved and pinned to the same revision; source speaker draft `13` remained non-stale and review-complete; and the book voice profile resolves narrator `custom:26`, male `custom:25`, female `custom:26`, and unknown fallback narrator.
+- Asset readiness passed by direct DB evidence: custom voice `25` exists with preferred synthesis revision `1`, custom voice `26` exists with usable revision `6`, and their stored reference audio rows remain present; no provider call was made.
+- SQLite quick-check was clean and filesystem readiness was good: `quick_check = ok`, `D:` free space was approximately `15.5 GB`, `data/work` and `data/output` remained writable, and no stale Chapter `366` lock or output directory existed before prepare.
+- Pre-mutation backup was created immediately before the prepare call: `D:\Youtube\Story Trans And Audio\backups\task18ad_pre_ch366_prepare_20260716_182736.sqlite3`; size `3608576` bytes; SHA-256 `9adafc8faa01f9ae152b8566b20405a2d0c584e0529c6f6092920c5a78a2224d`; SQLite `quick_check = ok`.
+- Exactly one supported prepare mutation was issued: `POST /api/jobs/prepare` with Book `1`, Chapter `366`, `from_chapter = 366`, `to_chapter = 366`, `voice_name = custom:26`, `repair_mode = off`, `output_format = m4a`, `skip_completed = true`, `casting_plan_id = 22`, and the operator note about the approved Final Voice Map review. No legacy create-and-wake route was used.
+- The resulting durable job is Job `21` with `status = prepared`, `created_at = 2026-07-16T11:28:07.302447+00:00`, `started_at = null`, `finished_at = null`, `from_chapter = 366`, `to_chapter = 366`, `casting_plan_id = 22`, `voice_name = custom:26`, `repair_mode = off`, `output_format = m4a`, `skip_completed = 1`, and JobChapter `21` is `pending` with `text_revision_id = 3984` and `casting_plan_id = 22`.
+- Prepared snapshot is canonical and unchanged: `casting_plan_sha256 = f693e76ce79f9fc76a926e4bf7e9fd69f97e55bdb163aea1fb8ea689bbdda6c8`, `book_voice_profile_id = 5`, `resolved_character_voices = {42: custom:25, 43: custom:25}`, `assignment_count = 51`, narrator `41`, character `9`, unknown `1`, unresolved `0`, and `custom:26 -> 42` / `custom:25 -> 9`.
+- Intentional anonymous assignment remains intact: `u0004-c739867fa093` / seq `4` / offsets `364-412` is still `unknown`, `character_id = null`, `resolution_source = unknown_fallback`, and resolves to `custom:26`; it was not reassigned to `Lão tổ Kim Cương Tông`.
+- Worker isolation stayed clean across a polling interval: the job remained `prepared`, `started_at = null`, `finished_at = null`, and no automatic transition occurred. Chapter `366` still has `0` segments, `0` attempts, `0` repair blocks, `0` artifacts, `0` manifests, and `active audio = none`.
+- UI state now exposes the prepared job and the next explicit action `Bắt đầu render`; that action was not clicked.
+- Chapters `364`, `365`, and `367` remained unchanged, and the next task is Task `18AE` - Explicitly Start and Monitor the Existing Chapter `366` Prepared Job.
 
 **Task 18AC canonical Final Voice Map approval outcome:**
 - Repository/runtime baseline before mutation matched the required checkpoint: branch `main`, `HEAD == origin/main == fd7fe3ac7d438d63ef94885c627433d21cfdaf22`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, canonical data root `D:\Youtube\Story Trans And Audio\data`, and canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`.

@@ -1,7 +1,7 @@
 # Next Task
 
 Current Status:
-Task 18AC approved the existing Chapter `366` Final Voice Map / Casting Plan `22` revision `1`. No job, TTS, segment, artifact, manifest, or audio was created.
+Task 18AD prepared the real Chapter `366` production job in durable `prepared` state. No start, TTS, segment, artifact, manifest, or audio was created.
 
 Current Baseline:
 - Branch `main`
@@ -23,24 +23,25 @@ Current Baseline:
 - Chapter `366` Final Voice Map state: exactly one approved Casting Plan, Plan `22` revision `1`, `status = approved`, `approved_at = 2026-07-16T11:13:12.223006+00:00`, source speaker draft `13`, `text_revision_id = 3984`, `approved_item_count = 10`, `remaining_unreviewed_count = 0`
 - Chapter `366` row decisions: merged quote `u0004-c739867fa093` stays `unknown` / `cái bóng`; `u0008`, `u0009`, `u0010`, `u0011`, `u0012`, and `u0043` -> `Lão tổ Kim Cương Tông`; `u0015`, `u0034`, and `u0046` -> `Hứa Thanh`
 - Chapter `366` assignment counts: total `51`, narrator `41`, character `9`, unknown `1`, unresolved `0`, effective voices `custom:26 -> 42` and `custom:25 -> 9`
-- Chapter `366` downstream state: Casting Plans `0` draft / `1` approved, jobs `0`, job_chapters `0`, segments `0`, segment attempts `0`, repair blocks `0`, artifacts `0`, active audio `none`
+- Chapter `366` prepared job state: Job `21`, JobChapter `21`, status `prepared`, created_at `2026-07-16T11:28:07.302447+00:00`, started_at `null`, finished_at `null`, pinned to Text Revision `3984` and Casting Plan `22` revision `1`
+- Chapter `366` downstream state: Casting Plans `0` draft / `1` approved, jobs `1` prepared / `0` scheduled / `0` running / `0` completed, job_chapters `1` pending / `0` active / `0` completed, segments `0`, segment attempts `0`, repair blocks `0`, artifacts `0`, active audio `none`
 - Segment 573 recovery QA: segment `573`, sequence `20`, utterance `20`, character `Hứa Thanh`, voice `custom:25`, retried once through `POST /api/segments/573/retry`, verified successfully, and then reviewed as audible and complete in the final artifact
 - Final audio: `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0367\job_20\render_0001\chapter.m4a`; SHA-256 `376afa0250cc14ce368e36ff3f9842b8c33139d3ab0250b55f3e6ce92938d808`; file size `6765624` bytes; authoritative/container duration `418180 ms`; independent decoded PCM duration `418197 ms`
 - QA findings: chapter start/end complete, narrator `custom:26` stable, all four character utterances use `custom:25`, no punctuation-only utterance, no repeated/missing/reordered sentence, no disruptive voice transition or loudness discontinuity, no clipping or technical corruption, peak approximately `-1.42 dBFS`, RMS approximately `-20.37 dBFS`, longest detected silence approximately `1.03 s`, and no further remediation required
 
 Next Recommended Task:
-Task 18AD - Prepare the Real Chapter 366 Production Job Without Starting TTS.
+Task 18AE - Explicitly Start and Monitor the Existing Chapter 366 Prepared Job.
 
 Why:
-- Chapter `366` now has one approved Final Voice Map ready to pin into a durable prepared production job.
-- The next safe boundary is preparing the real job only; rendering must not start until a later explicit start task.
-- Creating another Chapter `366` speaker draft, casting plan, or immediate render job would be a duplicate or premature mutation.
+- Chapter `366` now has one durable prepared job ready for explicit start and worker monitoring.
+- The next safe boundary is starting the already-prepared job, not preparing another one.
+- Creating another Chapter `366` speaker draft, casting plan, or duplicate prepared job would be a duplicate or premature mutation.
 
 Scope:
-1. Re-verify canonical runtime and Chapter `366` approved plan state before mutation.
-2. Prepare exactly one real Chapter `366` production job using approved Casting Plan `22` revision `1`.
-3. Confirm the job is durable and `prepared`, with pinned Text Revision `3984` and Casting Plan `22`.
-4. Stop before Start Render, worker execution, TTS preview, TTS synthesis, or audio rendering.
+1. Re-verify canonical runtime and Chapter `366` prepared job state before mutation.
+2. Start the existing Chapter `366` prepared Job `21` exactly once.
+3. Monitor the same job until it transitions cleanly or reports an actionable blocker.
+4. Stop before any duplicate prepare or replacement job creation.
 
 Prerequisites For Any Next Task:
 - Verify `GET /api/runtime` points to canonical production before any mutation.
@@ -50,6 +51,6 @@ Prerequisites For Any Next Task:
 - Do not mutate `experiment_b_transcript/` or `runs/`.
 - Do not generate another Chapter `366` speaker draft unless Draft `13` is proven absent or invalid.
 - Do not create another Casting Plan or approve a different plan.
-- Do not start any job during Task `18AD`; only prepare the existing approved plan if all guards pass.
+- Do not create another prepared job during Task `18AE`; only start and monitor Job `21` if all guards pass.
 - Do not mutate Chapters `364`, `365`, or `367`.
 - Re-verify Git baseline before implementation.
