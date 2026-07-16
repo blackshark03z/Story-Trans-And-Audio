@@ -1,7 +1,7 @@
 # Next Task
 
 Current Status:
-Task 18N is complete in canonical production. Chapter 365 now has exactly one real prepared job: Job `19` on approved Text Revision `3983` and approved Casting Plan `20` revision `1`. The worker has not started it, and render-side state remains untouched: segments `0`, attempts `0`, repair blocks `0`, artifacts `0`, audio `0`.
+Task 18O is complete in canonical production. Chapter 365 render Job `19` has finished successfully and produced active artifact `72` from approved Text Revision `3983` and approved Casting Plan `20` revision `1`. The output is now at the Human Audio QA boundary: no duplicate job was created, no render retry was needed, and no text/casting/voice identity changed during execution.
 
 Current Baseline:
 - Branch `main`
@@ -31,20 +31,33 @@ Task 18N Outcome:
 - Verified non-execution boundary held after prepare: job stayed `prepared`, no worker pickup, no segments, no attempts, no repair blocks, no artifacts, and no active audio.
 - Verified live UI now shows the prepared Chapter 365 queue item with the separate `Bắt đầu render` action.
 
+Task 18O Outcome:
+- Re-verified canonical runtime identity and exact prepared state for Job `19`, then created one immediate pre-start SQLite backup at `backups\\task18o_pre_ch365_start_20260716_132718.sqlite3` with SHA-256 `de2ab05faa6b4ee60dfc33f94a4988d2e94e060ae5178c77f54e0966b46c7e0e`.
+- Issued exactly one supported `POST /api/jobs/19/start` call. No new job or replacement job was created.
+- Canonical lifecycle progressed cleanly as `prepared -> scheduled -> synthesizing -> assembling -> completed`.
+- Job `19` started at `2026-07-16T06:27:33.334422+00:00` and finished at `2026-07-16T06:38:14.802745+00:00`; JobChapter `19` finished at `2026-07-16T06:38:14.776740+00:00`.
+- Rendered exactly `47` utterance segments with no empty segments, no punctuation-only segments, and no invalid offsets.
+- Voice routing stayed correct: narrator `42` via `custom:26`, Hứa Thanh `5` via `custom:25`, unresolved `0`.
+- Segment rows show `attempt_count = 1` for all `47` segments, so the run completed in one pass with no retry/failure path; the legacy `segment_attempts` table still has `0` Chapter 365 rows for this successful render.
+- Final artifact set is `70` master WAV, `71` segment timeline JSON, and active artifact `72` M4A.
+- Final Chapter 365 audio is `D:\\Youtube\\Story Trans And Audio\\data\\output\\1-quang-am-chi-ngoai\\chapter_0365\\job_19\\render_0001\\chapter.m4a`, SHA-256 `4bc75234a5ff804f9dc985af2e46fff2d440f78a061ca749b12e9adcf0375f83`, size `6647393` bytes, duration `408980 ms`, `48000` Hz, mono, AAC-LC in M4A.
+- Chapter `365` now has `audio_status = completed` and `active_audio_artifact_id = 72`; Chapter `364` remained unchanged at active artifact `69`.
+- Prepared Human Audio QA markers for chapter start/end, all five Hứa Thanh lines, and several duration/loudness outliers that deserve listening review before any targeted remediation.
+
 Next Recommended Task:
-Task 18O - Start the Existing Prepared Chapter 365 Production Job
+Task 18P - Chapter 365 Human Audio QA and Targeted Remediation Review
 
 Why:
-- Chapter 365 already has the correct approved Final Voice Map and now also has the correct prepared production job pinned in canonical production.
-- The remaining production step is no longer preparation. It is the explicit render-start transition for the already-existing prepared Job `19`.
-- Starting the existing prepared job preserves the two-stage boundary and avoids any duplicate prepare or duplicate job creation.
+- The render boundary is complete and Chapter 365 now has one active production artifact from the canonical pinned inputs.
+- The next safe step is human listening review, not another render mutation.
+- Any remediation decision should now be based on the produced artifact, the prepared QA markers, and the existing targeted recovery workflow rather than creating a replacement job preemptively.
 
 Scope:
-1. Re-verify canonical runtime identity and confirm Job `19` is still `prepared`.
-2. Re-verify Job `19` still pins Chapter `365`, Text Revision `3983`, and approved Casting Plan `20` revision `1`.
-3. Start the existing prepared job through the supported `POST /api/jobs/{job_id}/start` route only.
-4. Confirm the same job transitions to the normal executable state exactly once and that the worker begins from that existing pinned identity.
-5. Track render execution and downstream QA only after the explicit start boundary is crossed; do not create another prepared job.
+1. Perform a complete Human Audio QA pass on Chapter 365 active artifact `72`.
+2. Use the prepared checklist markers: chapter start/end, all five Hứa Thanh lines, and the recorded duration/loudness outliers.
+3. Decide whether the artifact is an immediate `HUMAN_QA_PASS` or whether any specific segment needs targeted remediation.
+4. If remediation is needed, use only the canonical targeted recovery path on the existing Job `19` / segment identity; do not create a replacement job.
+5. Keep Text Revision `3983`, Casting Plan `20`, and speaker draft provenance unchanged unless a separate authorized workflow explicitly changes them.
 
 Prerequisites For Any Next Task:
 - Verify `GET /api/runtime` points to canonical production before any mutation.
@@ -53,6 +66,7 @@ Prerequisites For Any Next Task:
 - Do not touch port `8765`.
 - Do not mutate `experiment_b_transcript/` or `runs/`.
 - Do not generate another speaker draft or another Casting Plan unless plan `20` is proven absent or invalid.
-- Do not call `POST /api/jobs/prepare` again for Chapter 365 unless Job `19` is proven absent and no prepared/live Chapter 365 job exists.
-- Use the existing prepared Job `19`; do not create a second Chapter 365 prepared job.
+- Do not create another Chapter 365 job.
+- Do not rerender the whole chapter if review finds only localized issues.
+- Use the existing Job `19` artifact and provenance as the canonical basis for QA or targeted recovery.
 - Re-verify Git baseline before implementation.

@@ -1,16 +1,32 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-16T13:18 (Asia/Saigon)
-**Milestone:** Task 18N Real Chapter 365 Job Prepared
-**Trạng thái:** canonical production now contains exactly one real Chapter 365 prepared job created through the new two-stage lifecycle. Chapter 365 is pinned to active approved Text Revision `3983` and approved Casting Plan `20` rev `1` on Job `19`, while render-side state still remains untouched: segments `0`, attempts `0`, repair blocks `0`, artifacts `0`, and audio output `0`.
+**Cập nhật:** 2026-07-16T13:47 (Asia/Saigon)
+**Milestone:** Task 18O Chapter 365 Production Render Completed
+**Trạng thái:** canonical production has now completed the real Chapter 365 render on the existing prepared Job `19`. The job stayed pinned to active approved Text Revision `3983` and approved Casting Plan `20` rev `1`, produced active artifact `72`, and is now waiting for Human Audio QA rather than any further render mutation.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `3b6f1310fcf1ccbdcf5cb182e27b42b6e4840bde`
+**Last verified against commit:** `eebd8650437c850fa324880180fa9dc58f93fb13`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-16
+
+**Task 18O canonical production outcome:**
+- Repository baseline before mutation matched the required checkpoint exactly: branch `main`, `HEAD == origin/main == eebd8650437c850fa324880180fa9dc58f93fb13`, no unrelated tracked changes, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
+- Canonical runtime identity remained correct on `http://127.0.0.1:8772`: live root/data root/DB still pointed to `D:\Youtube\Story Trans And Audio\data` and `D:\Youtube\Story Trans And Audio\data\app.db`, and the explicit route `POST /api/jobs/{job_id}/start` was confirmed live before mutation.
+- Pre-start Chapter 365 state remained exactly correct: Job `19` existed in `prepared`, `started_at = null`, JobChapter `19` still pinned Chapter `365`, Text Revision `3983`, Casting Plan `20`, and `casting_plan_sha256 = 3186a20b403a7a39a4da064c784f849ae59913156c3f1d667cbc5bc74a845d28`; no second Chapter 365 job, no segments, no attempts table rows, no artifacts, and no active audio existed before start.
+- Readiness passed immediately before start: SQLite `PRAGMA quick_check = ok`, no other live jobs were running, and free disk on `D:` was about `19.83 GB`.
+- Exactly one pre-start SQLite online backup was created at `backups\task18o_pre_ch365_start_20260716_132718.sqlite3`; size `3248128` bytes, SHA-256 `de2ab05faa6b4ee60dfc33f94a4988d2e94e060ae5178c77f54e0966b46c7e0e`, and backup `quick_check = ok`.
+- Exactly one supported mutation call was made: `POST /api/jobs/19/start`. No new Job or JobChapter was created; the existing prepared row transitioned into the normal executable lifecycle.
+- Recorded lifecycle timestamps from canonical state: `job_start_requested` audit at `2026-07-16T06:27:22.680747+00:00`, worker `job_started` at `2026-07-16T06:27:33.342421+00:00`, `jobs.started_at = 2026-07-16T06:27:33.334422+00:00`, `job_chapters.started_at = 2026-07-16T06:27:33.360429+00:00`, `chapter_completed` audit at `2026-07-16T06:38:14.789751+00:00`, and `jobs.finished_at = 2026-07-16T06:38:14.802745+00:00`.
+- Runtime transitions stayed canonical and duplicate-free: `prepared -> scheduled -> synthesizing -> assembling -> completed`. No `failed`, `interrupted`, `cancelled`, duplicate worker execution, or second Chapter 365 job was observed.
+- Deterministic segmentation completed from the pinned approved plan as `47` utterance segments with no empty segments, no punctuation-only segments, and no invalid offsets. Segment character counts were `min 15 / max 244 / median 158`, and segment durations were `min 1350 ms / max 15750 ms / median 10310 ms`.
+- Voice routing remained correct for the full chapter: narrator segments `42` all resolved to `custom:26`, character segments `5` all resolved to `custom:25`, no unknown/unresolved voice appeared, and no unintended fallback voice was introduced. Segment runtime provider/model resolved consistently as `vieneu` / `v3turbo`.
+- Segment execution finished cleanly with `47` verified segments. Each segment row records `attempt_count = 1`, so synthesis completed in one pass per segment with no retries or failures. The historical `segment_attempts` table remains unused for this successful normal-path render and still contains `0` rows for Chapter 365.
+- Final artifact set for Job `19` is complete: artifact `70` `chapter_master_wav`, artifact `71` `segment_timeline_json`, and artifact `72` `chapter_m4a`. Chapter `365` now has `audio_status = completed` and `active_audio_artifact_id = 72`, while Chapter `364` remained unchanged at active artifact `69`.
+- Final Chapter 365 M4A validation passed: `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0365\job_19\render_0001\chapter.m4a`, SHA-256 `4bc75234a5ff804f9dc985af2e46fff2d440f78a061ca749b12e9adcf0375f83`, size `6647393` bytes, duration `408980 ms`, codec `AAC-LC`, container `M4A/QuickTime`, sample rate `48000`, mono channel layout, and decoder duration exactly matched stored duration. The master WAV peak remained about `-0.9 dBFS`, RMS about `-19.93 dBFS`, and no clipping was detected.
+- Human QA is now the required next boundary. Prepared listening markers were recorded for chapter start/end, all five Hứa Thanh utterances, and several duration/loudness outliers worth review before any targeted remediation is considered.
 
 **Task 18N canonical production outcome:**
 - Repository baseline before mutation matched the required checkpoint exactly: branch `main`, `HEAD == origin/main == 3b6f1310fcf1ccbdcf5cb182e27b42b6e4840bde`, no unrelated tracked changes, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
