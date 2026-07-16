@@ -1,7 +1,7 @@
 # Next Task
 
 Current Status:
-Task 18V is complete in canonical production. Chapter `367` now has exactly one prepared production job: Job `20` / JobChapter `20`, pinned to active approved Text Revision `734` and approved Casting Plan `21` revision `1`. No TTS, segment, artifact, or audio state exists for Chapter `367`.
+Task 18W reached a meaningful terminal blocker. Chapter `367` Job `20` was started exactly once through the canonical start route and ran on the same prepared Job/JobChapter, but render stopped at segment `573` / sequence `20` / utterance `20` (`"Quá ít."`) after 3 failed synthesis QA attempts for excessive silence. No final artifact and no active audio were created.
 
 Current Baseline:
 - Branch `main`
@@ -14,23 +14,25 @@ Current Baseline:
 - Chapter `367` active approved Text Revision: `734`
 - Chapter `367` speaker draft state: exactly one draft, Draft `12`
 - Chapter `367` approved Casting Plan: `21` revision `1`, approved at `2026-07-16T08:16:25.730916+00:00`
-- Chapter `367` prepared job state: Job `20`, JobChapter `20`, status `prepared`, started_at `null`, finished_at `null`
-- Chapter `367` downstream production state: Casting Plans `1` approved / `0` draft, jobs `1` prepared / `0` scheduled / `0` queued / `0` running, job_chapters `1`, segments `0`, attempts `0`, artifacts `0`, active audio `none`
+- Chapter `367` job state: Job `20`, JobChapter `20`, status `completed_with_errors` / `failed`, started_at `2026-07-16T08:51:31.019812+00:00`, finished_at `2026-07-16T08:57:28.266916+00:00`
+- Chapter `367` downstream production state: Casting Plans `1` approved / `0` draft, jobs `1` completed_with_errors, job_chapters `1` failed, segments `47` (`19` verified / `1` failed / `27` pending), segment attempt counters total `22`, legacy `segment_attempts` rows `0`, repair blocks `0`, artifacts `0`, active audio `none`
+- Failed segment: segment `573`, sequence `20`, utterance `20`, character `Hứa Thanh`, voice `custom:25`, text `"Quá ít."`, error `Excessive silence in synthesized audio: 83.0% silent (16.1s of 19.4s total), longest continuous silence: 10.1s`
 
 Next Recommended Task:
-Task 18W - Explicitly Start and Monitor the Existing Chapter 367 Prepared Job.
+Task 18X - Recover Chapter 367 Job 20 Segment 20 Silence Failure Without Creating a Replacement Job.
 
 Why:
-- Chapter `367` now has exactly one durable prepared job, and the next workflow boundary is explicit start + monitoring.
-- The prepare-only lifecycle has already been validated on the real chapter, so the next safe step is to start the same prepared job rather than preparing a second one.
-- Creating another speaker draft, Casting Plan, approval, or prepared job would be a duplicate mutation and is no longer allowed unless the current prepared job is proven absent or invalid.
+- Job `20` already contains the canonical production identity and 19 verified segment files, so recovery must preserve successful work rather than create a duplicate production job.
+- The blocker is narrow and diagnostic: segment `573` / sequence `20` failed synthesis QA because the generated audio was mostly silence for the short text `"Quá ít."`.
+- Creating another speaker draft, Casting Plan, approval, prepared job, or replacement render job would be a duplicate mutation and is no longer allowed unless same-job recovery is proven unsupported.
 
 Scope:
 1. Re-verify canonical runtime and Chapter `367` baseline before mutation.
-2. Re-verify Job `20` is still prepared, non-stale, and pinned to Chapter `367`, Text Revision `734`, and Casting Plan `21` revision `1`.
-3. Start the existing prepared job through the supported start-only workflow.
-4. Confirm the same job transitions exactly once and the worker wakes only after commit.
-5. Stop before any render-side remediation or audio closeout work.
+2. Re-verify Job `20` / JobChapter `20` are still the only Chapter `367` production job rows and remain pinned to Text Revision `734` and Casting Plan `21` revision `1`.
+3. Inspect the supported diagnostics/retry/resume API surface for failed segment `573`; do not call a broad full-job replacement workflow.
+4. Recover only through the canonical same-job path, preserving verified segments `1-19`.
+5. Do not switch provider, voice, text, casting, character identity, or Book Voice Profile without explicit authorization.
+6. If recovery completes the render, validate the final artifact and stop at Human Audio QA. If same-job recovery is unsupported, report the blocker without creating a replacement job.
 
 Prerequisites For Any Next Task:
 - Verify `GET /api/runtime` points to canonical production before any mutation.
@@ -39,8 +41,8 @@ Prerequisites For Any Next Task:
 - Do not touch port `8765`.
 - Do not mutate `experiment_b_transcript/` or `runs/`.
 - Do not generate another Chapter `367` speaker draft unless Draft `12` is proven absent or invalid.
-- Do not create another Casting Plan, approval, or prepared job during Task `18W`.
-- Do not start any other job during Task `18W`.
-- Do not create any Chapter `367` segment, attempt, artifact, TTS preview, TTS synthesis, or audio output during Task `18W`.
+- Do not create another Casting Plan, approval, prepared job, or replacement job during Task `18X`.
+- Do not start any other job during Task `18X`.
+- Do not regenerate all segments unless a later explicit operator task authorizes it after same-job recovery is proven impossible.
 - Keep Chapter `366` deferred and unchanged unless a later explicit targeted-remediation task selects it.
 - Re-verify Git baseline before implementation.

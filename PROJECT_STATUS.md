@@ -1,16 +1,34 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-16T15:37 (Asia/Saigon)
-**Milestone:** Task 18V Chapter 367 Prepared Job Ready
-**Trạng thái:** canonical production moved one step forward to a durable prepared job for Chapter `367`. Job `20` and JobChapter `20` now pin active approved Text Revision `734` and approved Casting Plan `21` revision `1`; the job is prepared only, and no TTS, segment, artifact, or audio state was created.
+**Cập nhật:** 2026-07-16T16:05 (Asia/Saigon)
+**Milestone:** Task 18W Chapter 367 Render Blocked At Segment 20
+**Trạng thái:** canonical start workflow was executed exactly once for Chapter `367` Job `20`. The same Job/JobChapter transitioned from prepared into worker execution, but render reached a terminal blocker: segment `573` / sequence `20` / utterance `20` (`"Quá ít."`) failed synthesis QA after 3 attempts because of excessive silence. No final artifact or active audio was created.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `bb3ab0a530db181b412d5af539171dbed563447d`
+**Last verified against commit:** `12809fa8cc2280f97f86f58596948baa47ef9910`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-16
+
+**Task 18W canonical start/render outcome:**
+- Repository/runtime baseline before start matched the required checkpoint exactly: branch `main`, `HEAD == origin/main == 12809fa8cc2280f97f86f58596948baa47ef9910`, no tracked changes, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
+- Canonical runtime identity remained correct on `http://127.0.0.1:8772`: live root/data root/DB pointed to `D:\Youtube\Story Trans And Audio\data` and `D:\Youtube\Story Trans And Audio\data\app.db`; the live API exposed `POST /api/jobs/20/start`.
+- Pre-start state was correct: Job `20` was exactly `prepared`, `started_at = null`, `finished_at = null`, and JobChapter `20` was pending on Chapter `367`, active approved Text Revision `734`, approved Casting Plan `21` revision `1`, and casting plan SHA-256 `90de24d456b14a3e2dbfb0ce53383770c4ea4b356385e58cd0464a234ceb861d`.
+- Pre-start safety passed: only one Chapter `367` job existed, no segments/attempt rows/artifacts/active audio existed, SQLite `quick_check = ok`, no output directory existed for Chapter `367`, and free disk on `D:` was about `17.10 GB`.
+- A SQLite online backup was created immediately before start at `D:\Youtube\Story Trans And Audio\backups\task18w_pre_ch367_start_20260716_153900.sqlite3`; file size `3411968` bytes, SHA-256 `F777AD6273D8B9061A8D68B9D3161046699578DA0EFE1CC1684ECE6E768A737C`, and backup `quick_check = ok`.
+- Exactly one supported start call was issued: `POST /api/jobs/20/start`. The response returned Job `20`, `status = scheduled`, and `undo_until = 2026-07-16T08:51:30.363789+00:00`; no legacy job creation, replacement prepare, manual worker method, or second start call was used.
+- The runtime transition evidence is canonical and duplicate-free: `job_start_requested` at `2026-07-16T08:51:20.384210+00:00`, `jobs.started_at = 2026-07-16T08:51:31.019812+00:00`, `job_chapters.started_at = 2026-07-16T08:51:31.046816+00:00`, terminal `chapter_failed` at `2026-07-16T08:57:28.256914+00:00`, and `jobs.finished_at = 2026-07-16T08:57:28.266916+00:00`.
+- Terminal state is blocked, not production complete: Job `20` is `completed_with_errors`, JobChapter `20` is `failed`, `completed_chapters = 0`, `failed_chapters = 1`, and `current_stage = done`.
+- Deterministic segmentation created `47` segment rows with sequence range `1-47`, utterance range `1-47`, no gaps, no duplicates, no empty segment, and no punctuation-only segment. Text character counts were min `9`, max `256`, median `139`.
+- Voice routing remained correct from the pinned plan: narrator segments `43` resolved to `custom:26`, character segments `4` resolved to `custom:25`, unresolved voices `0`, and the four reviewed character utterances stayed at sequences `20`, `22`, `24`, and `28`.
+- The four reviewed character markers remain: segment `573` / seq `20` / `"Quá ít."` -> Hứa Thanh (`custom:25`, failed); segment `575` / seq `22` / `"Lần trước không phải ngươi đã tràn ra khí tức Hải Thi Tộc sao, làm lại một lần nữa cho ta."` -> Hứa Thanh (`custom:25`, pending); segment `577` / seq `24` / `"Kêu ngươi làm thì ngươi làm ngay đi."` -> Lão tổ Kim Cương Tông (`custom:25`, pending); segment `581` / seq `28` / `"Quả nhiên giống như ta phán đoán."` -> Hứa Thanh (`custom:25`, pending).
+- Synthesis used provider/model `vieneu` / `v3turbo`. Nineteen segments verified before the failure, with duration min `2630 ms`, max `16070 ms`, median `9910 ms`; segment attempt counters total `22` attempts (`19` segments at one attempt, failed segment `20` at three attempts). The legacy `segment_attempts` table has `0` rows for this job.
+- The exact blocker is segment `573` / sequence `20`: `Excessive silence in synthesized audio: 83.0% silent (16.1s of 19.4s total), longest continuous silence: 10.1s. Text: '"Quá ít."...' (9 chars).`
+- No final chapter artifact was created: artifacts `0`, final audio path `none`, final hash/duration `none`, Chapter `367` active audio `null`, and no Chapter `367` output directory exists. The work directory contains only the first `19` verified WAV segment files.
+- Post-render safety stayed intact: Chapter `367` still has exactly one job and one JobChapter, no new Text Revision, no new Casting Plan, no new speaker draft, and Job `20` remains pinned to Revision `734` / Casting Plan `21`. Chapter `366` remains deferred and unchanged; Chapters `364` and `365` remain active on artifacts `69` and `72`.
+- The exact recovery action is to inspect and recover the same Job `20` / JobChapter `20` through the supported same-job retry/resume path for failed segment `573` only, preserving verified segments and without creating a replacement job, changing Revision `734`, changing Casting Plan `21`, switching provider/voice, or regenerating the whole chapter without explicit authorization.
 
 **Task 18V canonical prepared-job outcome:**
 - Repository/runtime baseline before mutation matched the required checkpoint exactly: branch `main`, `HEAD == origin/main == 2b7edc3499788eb25cbbafbd8f9ce06050ab8190`, no tracked changes, and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.

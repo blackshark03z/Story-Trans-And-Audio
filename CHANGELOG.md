@@ -6,6 +6,20 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18W - Chapter 367 prepared job started and blocked at segment 20**: started the existing prepared Chapter `367` Job `20` exactly once through the canonical start workflow, monitored it to terminal state, and recorded the same-job recovery boundary.
+  - **Repository/runtime baseline**: task started on branch `main` with `HEAD == origin/main == 12809fa8cc2280f97f86f58596948baa47ef9910`; tracked worktree was clean and only protected untracked directories `experiment_b_transcript/` plus `runs/` were present.
+  - **Pre-start state verified**: Job `20` was exactly `prepared`, JobChapter `20` was pending and pinned to Chapter `367`, active approved Text Revision `734`, approved Casting Plan `21` revision `1`, and casting plan SHA-256 `90de24d456b14a3e2dbfb0ce53383770c4ea4b356385e58cd0464a234ceb861d`; no segments, artifacts, output audio, or active audio existed.
+  - **Backup evidence**: created `D:\Youtube\Story Trans And Audio\backups\task18w_pre_ch367_start_20260716_153900.sqlite3` immediately before start; size `3411968` bytes, SHA-256 `F777AD6273D8B9061A8D68B9D3161046699578DA0EFE1CC1684ECE6E768A737C`, and SQLite `quick_check = ok`.
+  - **Exact supported mutation**: exactly one `POST /api/jobs/20/start` call transitioned the same Job `20` to `scheduled`; no legacy job creation, replacement prepare, manual worker method, or second start call was used.
+  - **Lifecycle timestamps**: `job_start_requested` at `2026-07-16T08:51:20.384210+00:00`, `jobs.started_at = 2026-07-16T08:51:31.019812+00:00`, `job_chapters.started_at = 2026-07-16T08:51:31.046816+00:00`, `chapter_failed` at `2026-07-16T08:57:28.256914+00:00`, and `jobs.finished_at = 2026-07-16T08:57:28.266916+00:00`.
+  - **Terminal blocker**: Job `20` ended `completed_with_errors`; JobChapter `20` ended `failed`. Segment `573` / sequence `20` / utterance `20`, text `"Quá ít."`, voice `custom:25`, failed after `3` attempts because generated audio was `83.0%` silent (`16.1s` of `19.4s`, longest continuous silence `10.1s`).
+  - **Segmentation/voice routing**: deterministic segmentation produced `47` rows with sequence range `1-47`, no gaps, no duplicates, no empty segments, no punctuation-only segments, and character counts min `9`, max `256`, median `139`. Voice routing stayed correct with narrator `43 -> custom:26`, character `4 -> custom:25`, unresolved `0`.
+  - **Partial synthesis result**: provider/model resolved as `vieneu` / `v3turbo`; `19` segments verified before the failure, `1` segment failed, `27` remained pending, and segment attempt counters total `22` (`19` one-attempt verified segments plus segment `20` at three attempts). The legacy `segment_attempts` table has `0` rows for this job.
+  - **No final artifact**: artifacts `0`, active audio `none`, no Chapter `367` output directory exists, and no final path/hash/duration is available. The work directory contains only the first `19` verified WAV segment files.
+  - **Safety**: no duplicate Chapter `367` job or JobChapter was created; Text Revision `734`, Casting Plan `21`, speaker draft `12`, Chapter `366`, Chapter `364` artifact `69`, and Chapter `365` artifact `72` remained unchanged.
+  - **Next step**: recover the same Job `20` through a supported targeted retry/resume path for failed segment `573`, preserving verified segments and without creating a replacement job or changing text/casting/voice state.
+  - **Migration**: none.
+
 - **Task 18V - Chapter 367 prepared production job created**: created exactly one durable prepared job for Chapter `367` and stopped before any render-side execution.
   - **Readiness**: active approved Text Revision `734`, approved Casting Plan `21` revision `1`, speaker draft `12`, custom voice `25`, and custom voice `26` were all re-verified before mutation.
   - **Backup**: pre-mutation SQLite backup created at `D:\Youtube\Story Trans And Audio\backups\task18v_pre_ch367_prepare_20260716_153900.sqlite3`; size `3411968` bytes, SHA-256 `F777AD6273D8B9061A8D68B9D3161046699578DA0EFE1CC1684ECE6E768A737C`, quick_check `ok`.
