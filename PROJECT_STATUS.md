@@ -1,16 +1,34 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-19T00:25 (Asia/Saigon)
-**Milestone:** Task 18AK Chapter 368 Narrator-Only Final Voice Map Approved
-**Trạng thái:** Chapter `368` now has exactly one approved narrator-only Final Voice Map / Casting Plan, Plan `23` revision `1`, sourced from zero-target Speaker Draft `14` and pinned to active Text Revision `736`. No job preparation, job start, TTS, render, segment, artifact, or audio output was created.
+**Cập nhật:** 2026-07-19T00:43 (Asia/Saigon)
+**Milestone:** Task 18AL Chapter 368 Narrator-Only Job Prepared
+**Trạng thái:** Chapter `368` now has exactly one durable prepared production job, Job `22` with JobChapter `22`, pinned to active Text Revision `736` and approved narrator-only Casting Plan `23` revision `1`. The job has not been started; no Gemini/provider/TTS/render/segment/artifact/audio output was created.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `92f8bf248bc4acdbd950b1b486d7c4820a2b215b`
+**Last verified against commit:** `84409132cfb41b86bb0af454000e48671062ad12`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-19
+
+**Task 18AL canonical prepared-job outcome:**
+- Repository/runtime baseline passed before preparation: branch `main`, `HEAD == origin/main == 84409132cfb41b86bb0af454000e48671062ad12`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, canonical runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`.
+- Lifecycle boundary was inspected before mutation: `POST /api/jobs/prepare` and `POST /api/jobs/{job_id}/start` are separate routes; the prepare route validates the approved plan and does not call `worker.wake()`, while the start route transitions a prepared job and then wakes the worker. UI queue exposes the prepared job's `Bắt đầu render` action separately.
+- Readiness passed: Chapter `368` active approved Text Revision `736` belongs to Chapter `368`, parent/source Revision `735`, content SHA-256 `c1e5c935f2df6e411086f87a6ff6c3b03795fe2005382a13cdde1c3376421564` hash-matches its blob, deterministic utterances rebuild to `49`, quote spans `0`, speaker targets `0`, empty/punctuation-only utterances `0`, and duplicate/gap sequence or utterance IDs `0`.
+- Speaker Draft `14` remained current and zero-target: `status = generated`, `text_revision_id = 736`, `target_count = 0`, `valid_count = 0`, `invalid_count = 0`, cache hit/miss `0/0`, no review table/rows, and no fabricated speaker review rows.
+- Approved narrator-only Plan `23` revision `1` remained valid: `status = approved`, `approved_at = 2026-07-18T17:25:23.067196+00:00`, source Draft `14`, plan SHA-256 `493e1f39bd353657f6deee0a9ac1124ae3ad47160d5bf7b1b09657f1de1ee9c0`, assignments `49`, narrator `49`, character `0`, unknown `0`, unresolved `0`, `custom:26 -> 49`, and `custom:25 -> 0`.
+- Voice/filesystem readiness passed: custom voice `26` is active and resolves to usable canonical revision `6`, SHA-256 `b641e84e11583bfcbeb76f9a5615c605656e8151679d1286e8f4743c92218ace`; the referenced audio asset exists; `data/work` and `data/output` are present; no stale Chapter `368` lock/output/manifest path was found; D: free space was `6232121344` bytes; TTS config is structurally present without printing secrets.
+- Pre-mutation SQLite online backup was created at `D:\Youtube\Story Trans And Audio\backups\task18al_pre_ch368_prepare_20260718T173847Z.sqlite3`; size `3809280` bytes; SHA-256 `8f48663faa68b744df0cd642879028989edf28ae9cab7e2ad85d9a3756fcac5d`; backup `quick_check = ok`. The backup remains untracked/unstaged.
+- Exactly one supported prepare mutation was issued: `POST /api/jobs/prepare` with `book_id = 1`, `from_chapter = 368`, `to_chapter = 368`, `voice_name = custom:26`, `output_format = m4a`, `repair_mode = off`, `skip_completed = true`, and `casting_plan_id = 23`. Legacy `POST /api/jobs`, start, worker-control, preview, synthesis, speaker draft, and Casting Plan creation routes were not called.
+- Prepare result: Job `22`, `status = prepared`, `created_at = 2026-07-18T17:39:08.259402+00:00`, `started_at = null`, `finished_at = null`, `current_stage = null`, `total_chapters = 1`, `completed_chapters = 0`, `failed_chapters = 0`, `voice_name = custom:26`, `repair_mode = off`, `output_format = m4a`, `casting_plan_id = 23`.
+- JobChapter result: JobChapter `22`, `job_id = 22`, `chapter_id = 368`, `status = pending`, `text_revision_id = 736`, `casting_plan_id = 23`, `casting_plan_sha256 = 493e1f39bd353657f6deee0a9ac1124ae3ad47160d5bf7b1b09657f1de1ee9c0`, `artifact_id = null`, `started_at = null`, and `finished_at = null`.
+- Immutable snapshot validation passed: Job and JobChapter snapshots pin Text Revision `736`, Casting Plan `23`, plan SHA-256 `493e1f39bd353657f6deee0a9ac1124ae3ad47160d5bf7b1b09657f1de1ee9c0`, narrator voice `custom:26`, utterance count `49`, role counts `narrator -> 49`, voice counts `custom:26 -> 49`, custom voice revision `6 -> 49`, provider snapshot `custom -> 49`, and `resolved_character_voices = {}`.
+- Worker isolation passed across multiple polling intervals: Job `22` remained `prepared`, JobChapter `22` remained `pending`, `started_at` and `finished_at` stayed `null`, and counts stayed at segments `0`, attempts `0`, repair blocks `0`, artifacts `0`, output/work Chapter `368` paths `0`. Runtime restart durability was not forced because stopping the live runtime process was blocked by shell policy before execution; no unsafe workaround was used, and the live runtime remained canonical with Job `22` still prepared.
+- UI prepared state passed: the in-app UI queue shows Job `#22` for `Quang Âm Chi Ngoại` / Chapter `368`, `custom:26`, `off`, `M4A`, status `Đã chuẩn bị`, `0/1` chapters and `0/0` segments, with the next explicit action `Bắt đầu render`. That button was not clicked, refresh/inspection did not create a duplicate job, and no start route was invoked.
+- Final safety counts: Chapter `368` jobs `1`, prepared jobs `1`, scheduled jobs `0`, queued/running jobs `0`, JobChapters `1`, segments `0`, attempts `0`, repair blocks `0`, artifacts `0`, active audio `none`, new Text Revisions `0`, new speaker drafts `0`, new Casting Plans `0`, review rows `0`, provider/Gemini/TTS/worker execution `0`.
+- Completed and future chapter safety is preserved: Chapters `364`, `365`, `366`, and `367` remain unchanged at active artifacts `69`, `72`, `78`, and `75`; Chapters `369` and `370` remain untouched with their future text-remediation observations only; `experiment_b_transcript/` and `runs/` remain untouched.
+- Exact next task: Task `18AM` - Explicitly Start and Monitor the Existing Chapter `368` Narrator-Only Prepared Job.
 
 **Task 18AK canonical narrator-only Final Voice Map approval outcome:**
 - Repository/runtime baseline passed before approval: branch `main`, `HEAD == origin/main == 92f8bf248bc4acdbd950b1b486d7c4820a2b215b`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, canonical runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`. Runtime was restarted through `run_app.ps1` because it was not listening.
