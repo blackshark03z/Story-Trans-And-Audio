@@ -1,16 +1,36 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-19T01:04 (Asia/Saigon)
-**Milestone:** Task 18AM Chapter 368 Narrator-Only Render Completed
-**Trạng thái:** Chapter `368` narrator-only production render completed through the explicit prepared-job start boundary. Job `22` and JobChapter `22` are `completed`; active artifact `81` is ready for human audio QA. No replacement job, manual retry, text/casting/speaker mutation, or targeted remediation was performed.
+**Cập nhật:** 2026-07-19T01:57 (Asia/Saigon)
+**Milestone:** Task 18AO Chapter 368 Targeted Regeneration Candidate Ready
+**Trạng thái:** Human QA found a major Chapter `368` audio defect at `02:39-02:47`. The marker was mapped to Segment `666` / sequence `15` / utterance `u0015-4257cca30835` (`phải rung động.`). Source synthesis was classified defective, and exactly one unaccepted candidate attempt `38` was created for Human A/B review. Active artifact `81` remains unchanged.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `88105602babea5e5fb0eaa192c7b51518e9168e0`
+**Last verified against commit:** `2f843319edade689067f585eef49393ebf82e640`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-19
+
+**Task 18AO canonical targeted-remediation candidate outcome:**
+- Repository/runtime baseline passed before mutation: branch `main`, `HEAD == origin/main == 2f843319edade689067f585eef49393ebf82e640`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, canonical runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`.
+- Human QA verdict before mutation: `TARGETED_REMEDIATION_REQUIRED`. Authoritative defect marker: `02:39.000-02:47.000`, major severe unintelligible speech / đọc không ra tiếng. Chapter `368` remains open and must not be closed until the defect is repaired and re-reviewed.
+- Timecode mapping used Job `22` segment durations and artifact `80` timeline metadata. The marker crosses Segment `666` and the first `1470 ms` of Segment `667`, but the minimal defective set is Segment `666` only.
+- Affected Segment `666`: segment index `15`, utterance sequence `15`, timeline `02:35.860-02:45.530`, stable utterance ID `u0015-4257cca30835`, source offsets `2473-2488`, text `phải rung động.`, narrator role, voice `custom:26`, effective voice `custom:6`, custom voice revision `6`, provider/model `vieneu` / `v3turbo`, WAV `D:\Youtube\Story Trans And Audio\data\work\job_22\chapter_0368\segments\000015.wav`.
+- Context: previous Segment `665` / seq `14` / `02:21.390-02:35.860` ends with `...làm cho tâm thần người khác`; affected Segment `666` / seq `15` is `phải rung động.`; following Segment `667` / seq `16` / `02:45.530-02:58.960` begins `Trong đó bao hàm cả dị hoá...`.
+- Source WAV analysis for Segment `666`: file exists and hash-matches SHA-256 `28b3a912a538338e0af84fc4499c15c52f32252538af624c8370d5cfc0a89f4e`; duration `9670 ms`; mono 48 kHz PCM; peak about `-8.37 dBFS`; RMS about `-24.08 dBFS`; clipped samples `0`; longest silence `936 ms`; `7` silences >= `200 ms`. This is abnormal for a `15`-character utterance.
+- Final M4A comparison: extracting Segment `666` from active artifact `81` produced the same `9670 ms`, peak about `-8.39 dBFS`, RMS about `-24.08 dBFS`, longest silence `936 ms`, and `7` silences >= `200 ms`; the 02:39-02:47 marker extracted from final M4A is also low/fragmented. The Segment `667` overlap (`02:45.530-02:47.000`) had no silence and normal RMS, so it was not regenerated.
+- Root-cause classification: `SOURCE_SYNTHESIS_UNINTELLIGIBLE`, limited to Segment `666`. This is not an assembly-only defect, segment-boundary defect, or multi-segment synthesis defect.
+- Supported targeted regeneration workflow was verified before mutation: `POST /api/segments/{segment_id}/regenerate` uses the immutable segment snapshot, seeds the active original as Attempt `1` if needed, creates a `candidate` attempt, does not replace active audio, does not create a replacement job, and leaves Accept/Reject to separate UI/API routes.
+- Pre-mutation SQLite online backup was created at `D:\Youtube\Story Trans And Audio\backups\task18ao_pre_ch368_targeted_regen_20260718T185634Z.sqlite3`; size `4009984` bytes; SHA-256 `be77502b25aa300de16106ee53beefd1a98a902367403057f523c9fcd09e1887`; backup `quick_check = ok`. The backup remains untracked/unstaged.
+- Exactly one supported regeneration mutation was issued: `POST /api/segments/666/regenerate`. No prepared-job start route, replacement job, full-chapter render, direct DB edit, text/casting/speaker/voice mutation, provider fallback, or adjacent-segment regeneration was performed.
+- Candidate result: Attempt `38`, segment `666`, attempt number `2`, status `candidate`, path `D:\Youtube\Story Trans And Audio\data\work\job_22\chapter_0368\segments\segment_666_attempt_2.wav`, SHA-256 `26721277a58ea5026f4e7b49e941840b1d3ee2b096ec9d04066adfbf3f4371d6`, duration `2150 ms`, created at `2026-07-18T18:56:38.019596+00:00`.
+- Candidate technical validation passed: file exists; decodes as mono 48 kHz PCM; size `206444` bytes; peak about `-7.29 dBFS`; RMS about `-20.45 dBFS`; clipped samples `0`; leading silence `47 ms`; trailing silence `356 ms`; longest silence `603 ms`; `2` silences >= `200 ms`; non-empty voiced audio. Technical validation is not Human QA acceptance.
+- UI/API A/B readiness passed: `/api/segments/666/attempts` returns active Attempt `37` and candidate Attempt `38`; UI source renders original active audio, candidate audio, and separate Accept/Reject actions for the candidate. Accept/Reject were not clicked, and no automatic reassembly occurred.
+- Active audio safety passed: Chapter `368` active artifact remains `81`; active M4A path, SHA-256 `14b106e52a2f1951ffa69633679ee8f1cb6a990dfbc73056fd0c39e4b27045f5`, size `8007414` bytes, and duration `493840 ms` remain unchanged. Segment `666` remains verified and still points to original WAV `000015.wav` until Human A/B acceptance.
+- Final safety counts: Chapter `368` jobs `1`, JobChapters `1`, segments `49`, verified segments `49`, artifacts `3`, attempt rows `2` (`active` Attempt `37` plus `candidate` Attempt `38`), candidate rows `1`, Text Revisions `2`, Speaker Drafts `1`, Casting Plans `1`, replacement jobs `0`, active artifact `81`.
+- Completed and future chapter safety is preserved: Chapters `364`, `365`, `366`, and `367` remain unchanged at active artifacts `69`, `72`, `78`, and `75`; Chapters `369` and `370` remain untouched with active audio `none`; `experiment_b_transcript/` and `runs/` remain untouched.
+- Exact next task: Task `18AP` - Human A/B Review of Chapter `368` Targeted Regeneration Candidate.
 
 **Task 18AM canonical narrator-only render outcome:**
 - Repository/runtime baseline passed before start: branch `main`, `HEAD == origin/main == 88105602babea5e5fb0eaa192c7b51518e9168e0`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, canonical runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`.

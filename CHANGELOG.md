@@ -6,6 +6,20 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AO - Chapter 368 targeted regeneration candidate ready**: mapped the Human QA failure at `02:39-02:47` and created exactly one pending targeted regeneration candidate for Segment `666`.
+  - **Baseline**: branch `main`, `HEAD == origin/main == 2f843319edade689067f585eef49393ebf82e640`; canonical runtime `http://127.0.0.1:8772` pointed to `D:\Youtube\Story Trans And Audio\data` and `D:\Youtube\Story Trans And Audio\data\app.db`; SQLite `quick_check = ok`; only protected untracked `experiment_b_transcript/` and `runs/` were present.
+  - **QA marker**: Human QA verdict `TARGETED_REMEDIATION_REQUIRED`; marker `02:39.000-02:47.000`; issue severe unintelligible speech / đọc không ra tiếng; severity major.
+  - **Mapping**: marker crosses Segment `666` (`02:35.860-02:45.530`) and the first `1470 ms` of Segment `667`; the minimal defective set is Segment `666` only. Affected utterance is sequence `15`, stable utterance ID `u0015-4257cca30835`, source offsets `2473-2488`, exact text `phải rung động.`, narrator `custom:26`, custom voice revision `6`.
+  - **Diagnosis**: Segment `666` source WAV `000015.wav` is abnormal for a `15`-character utterance: duration `9670 ms`, peak about `-8.37 dBFS`, RMS about `-24.08 dBFS`, longest silence `936 ms`, and `7` silences >= `200 ms`. The corresponding final M4A region has the same abnormal profile, while the Segment `667` overlap was technically normal.
+  - **Classification**: `SOURCE_SYNTHESIS_UNINTELLIGIBLE`, not assembly-only, not boundary-only, and not multi-segment.
+  - **Backup**: pre-mutation SQLite online backup created at `D:\Youtube\Story Trans And Audio\backups\task18ao_pre_ch368_targeted_regen_20260718T185634Z.sqlite3`; size `4009984` bytes; SHA-256 `be77502b25aa300de16106ee53beefd1a98a902367403057f523c9fcd09e1887`; quick_check `ok`.
+  - **Candidate**: exactly one `POST /api/segments/666/regenerate` call created Attempt `38`, attempt number `2`, status `candidate`, path `D:\Youtube\Story Trans And Audio\data\work\job_22\chapter_0368\segments\segment_666_attempt_2.wav`, SHA-256 `26721277a58ea5026f4e7b49e941840b1d3ee2b096ec9d04066adfbf3f4371d6`, duration `2150 ms`.
+  - **Technical validation**: candidate decodes as mono 48 kHz PCM, size `206444` bytes, peak about `-7.29 dBFS`, RMS about `-20.45 dBFS`, clipped samples `0`, leading silence `47 ms`, trailing silence `356 ms`, longest silence `603 ms`, and non-empty voiced audio.
+  - **A/B safety**: original active Attempt `37` remains active; candidate Attempt `38` is pending and unaccepted; UI/API exposes original and candidate with separate Accept/Reject actions; neither action was clicked.
+  - **Active artifact safety**: active artifact `81` and final M4A SHA-256 `14b106e52a2f1951ffa69633679ee8f1cb6a990dfbc73056fd0c39e4b27045f5` remain unchanged. No replacement job, full-chapter render, direct DB edit, text/casting/speaker/voice mutation, or adjacent-segment regeneration occurred.
+  - **Next step**: Human A/B Review of Chapter `368` Targeted Regeneration Candidate.
+  - **Migration**: none.
+
 - **Task 18AM - Chapter 368 narrator-only render completed**: explicitly started existing prepared Job `22` through `POST /api/jobs/22/start` and monitored the same job to completion without creating a replacement job.
   - **Baseline**: branch `main`, `HEAD == origin/main == 88105602babea5e5fb0eaa192c7b51518e9168e0`; canonical runtime `http://127.0.0.1:8772` pointed to `D:\Youtube\Story Trans And Audio\data` and `D:\Youtube\Story Trans And Audio\data\app.db`; SQLite `quick_check = ok`; only protected untracked `experiment_b_transcript/` and `runs/` were present.
   - **Prepared state**: Job `22` was `prepared`, JobChapter `22` was `pending`, and both were pinned to Chapter `368`, active Text Revision `736`, approved narrator-only Casting Plan `23` revision `1`, plan SHA-256 `493e1f39bd353657f6deee0a9ac1124ae3ad47160d5bf7b1b09657f1de1ee9c0`, narrator voice `custom:26`, and custom voice revision `6`.
