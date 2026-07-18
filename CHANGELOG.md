@@ -6,6 +6,19 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AK - Chapter 368 narrator-only Final Voice Map approved**: inspected and approved existing Casting Plan `23` revision `1` for Chapter `368` through the dedicated existing-plan approval workflow.
+  - **Baseline**: branch `main`, `HEAD == origin/main == 92f8bf248bc4acdbd950b1b486d7c4820a2b215b`; canonical runtime `http://127.0.0.1:8772` pointed to `D:\Youtube\Story Trans And Audio\data` and `D:\Youtube\Story Trans And Audio\data\app.db`; SQLite `quick_check = ok`. Runtime was restarted through `run_app.ps1` because it was not listening.
+  - **Pre-approval plan**: Plan `23` revision `1` was the only Chapter `368` Casting Plan, `status = draft`, `approved_at = null`, source speaker draft `14`, Text Revision `736`, created_at `2026-07-16T13:25:39.637907+00:00`, and plan SHA-256 `493e1f39bd353657f6deee0a9ac1124ae3ad47160d5bf7b1b09657f1de1ee9c0`.
+  - **Approval boundary**: UI approval calls `POST /api/casting/${casting.id}/approve`; job preparation remains a separate action using `POST /api/jobs/prepare`. No approval-to-job or approval-to-render coupling was found.
+  - **Plan content**: total assignments `49`, narrator `49`, character `0`, unknown `0`, unresolved `0`, effective voice counts `custom:26 -> 49`, no duplicate stable utterance ID, no sequence gap/duplicate, no empty or punctuation-only utterance, and no offset/hash mismatch against Revision `736`.
+  - **Voice readiness**: custom voice `26` remained active and resolved to usable canonical revision `6`, audio SHA-256 `b641e84e11583bfcbeb76f9a5615c605656e8151679d1286e8f4743c92218ace`.
+  - **Approval result**: exactly one `POST /api/casting/23/approve` call approved Plan `23` revision `1` in place. `approved_at = 2026-07-18T17:25:23.067196+00:00`; `archived_at = null`; content path and plan SHA-256 remained unchanged.
+  - **Zero-target provenance**: Draft `14` remains non-stale with `target_count = 0`, `valid_count = 0`, `invalid_count = 0`, and review rows `0`; plan review metadata keeps `approved_count = 0`, `reviewed_utterance_ids = []`, `remaining_unreviewed_count = 0`, and `review_completed = true`. No fake review rows or dialogue rows were created.
+  - **Render safety**: Chapter `368` still has audio status `not_created`, active audio `none`, jobs for chapter `0`, JobChapters `0`, segments `0`, attempts `0`, repair blocks `0`, artifacts `0`, output dirs `0`, and work dirs `0`. No Gemini/provider request, TTS preview, TTS synthesis, job preparation, job start, render, manifest, artifact, or audio output occurred.
+  - **Chapter safety**: Chapters `364`, `365`, `366`, and `367` remained unchanged at active artifacts `69`, `72`, `78`, and `75`; Chapters `369` and `370` observations remained untouched; `experiment_b_transcript/` and `runs/` remained untouched.
+  - **Next step**: prepare the real Chapter `368` narrator-only production job without starting TTS.
+  - **Migration**: none.
+
 - **Task 18AJ - Chapter 368 narrator-only Final Voice Map workflow implemented**: added and validated the zero-target staged-review path, then created exactly one live unapproved narrator-only Final Voice Map for Chapter `368`.
   - **Implementation**: commit `0fbcc984391c6dcc4b5f4c2101bcac026088818d` (`fix: support narrator-only casting plans`) allows `POST /api/chapters/{chapter_id}/speaker-review/casting-plan-draft` to accept `decisions = []` only for a non-stale, review-complete, zero-target Speaker Assignment Draft. The legacy approval route still requires at least one reviewed decision.
   - **Safety checks**: the backend verifies stored zero counts, empty review rows, empty assignments/invalid items, an active Text Revision that still rebuilds zero speaker targets, and no unrelated existing Casting Plan before creating a narrator-only draft. Repeated same-identity requests reuse the existing plan.

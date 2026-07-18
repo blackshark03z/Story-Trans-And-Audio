@@ -1,16 +1,29 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-16T20:26 (Asia/Saigon)
-**Milestone:** Task 18AJ Chapter 368 Narrator-Only Final Voice Map Draft Ready
-**Trạng thái:** Chapter `368` now has exactly one unapproved narrator-only Final Voice Map / Casting Plan draft, Plan `23` revision `1`, created from zero-target Speaker Draft `14` on active Text Revision `736`. The plan is ready for operator approval. No approval, job preparation, job start, TTS, render, or audio artifact was created.
+**Cập nhật:** 2026-07-19T00:25 (Asia/Saigon)
+**Milestone:** Task 18AK Chapter 368 Narrator-Only Final Voice Map Approved
+**Trạng thái:** Chapter `368` now has exactly one approved narrator-only Final Voice Map / Casting Plan, Plan `23` revision `1`, sourced from zero-target Speaker Draft `14` and pinned to active Text Revision `736`. No job preparation, job start, TTS, render, segment, artifact, or audio output was created.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `0fbcc984391c6dcc4b5f4c2101bcac026088818d`
+**Last verified against commit:** `92f8bf248bc4acdbd950b1b486d7c4820a2b215b`
 **Last verified branch:** `main`
-**Last verified date:** 2026-07-16
+**Last verified date:** 2026-07-19
+
+**Task 18AK canonical narrator-only Final Voice Map approval outcome:**
+- Repository/runtime baseline passed before approval: branch `main`, `HEAD == origin/main == 92f8bf248bc4acdbd950b1b486d7c4820a2b215b`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, canonical runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`. Runtime was restarted through `run_app.ps1` because it was not listening.
+- Pre-approval Plan `23` revision `1` was the only Chapter `368` Casting Plan, `status = draft`, `approved_at = null`, `chapter_id = 368`, `text_revision_id = 736`, `source_speaker_draft_id = 14`, `narrator_voice_id = custom:26`, `created_at = 2026-07-16T13:25:39.637907+00:00`, and plan SHA-256 `493e1f39bd353657f6deee0a9ac1124ae3ad47160d5bf7b1b09657f1de1ee9c0`.
+- Approval boundary was inspected before mutation: UI approval calls `POST /api/casting/${casting.id}/approve`, while job preparation remains a separate `renderCastingPlan()` action that calls `POST /api/jobs/prepare` only after an approved plan is present. No approval-to-job coupling was found.
+- Narrator-only content review passed before approval: total assignments `49`, narrator `49`, character `0`, unknown `0`, unresolved `0`, effective voice counts `custom:26 -> 49`, `custom:25 -> 0`, no duplicate stable utterance IDs, no duplicate or missing sequence, sequence range `1-49`, no empty or punctuation-only utterance after offsets were resolved against Text Revision `736`, and no text offset/hash mismatch.
+- Voice readiness passed: all assignments resolve through narrator role to custom voice `26`; custom voice `26` remains active and has usable canonical revision `6` with SHA-256 `b641e84e11583bfcbeb76f9a5615c605656e8151679d1286e8f4743c92218ace`, duration `12843 ms`, sample rate `48000`, channels `2`, and audio format `wav`.
+- Exactly one supported approval mutation was issued: `POST /api/casting/23/approve`. The result is Plan `23` revision `1`, `status = approved`, `approved_at = 2026-07-18T17:25:23.067196+00:00`, `archived_at = null`, with the same immutable content path and plan SHA-256.
+- Zero-target provenance remains intact: source metadata is `gemini_speaker_review`; `draft_id = 14`; `approved_count = 0`; `reviewed_utterance_ids = []`; `remaining_unreviewed_count = 0`; `review_completed = true`; `decision_fingerprint = 4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945`; no fake review rows or dialogue rows were created.
+- Post-approval safety remained clean: Chapter `368` active Text Revision is still `736`, speaker drafts `1`, Casting Plans `1`, approved Casting Plans `1`, JobChapters `0`, jobs for the chapter `0`, segments `0`, segment attempts `0`, repair blocks `0`, artifacts `0`, output dirs `0`, work dirs `0`, active audio `none`, audio status `not_created`, and no provider/Gemini/TTS/render activity occurred.
+- UI/API post-state is ready for the next boundary: `/api/chapters/368/casting` returns Plan `23` as approved, and the UI source exposes the separate `Chuẩn bị job audio` action only through the dedicated prepare-job handler. That action was not clicked.
+- Completed and future chapter safety is preserved: Chapters `364`, `365`, `366`, and `367` remain unchanged at active artifacts `69`, `72`, `78`, and `75`; Chapters `369` and `370` remain untouched with their future text-remediation observations only; `experiment_b_transcript/` and `runs/` remain untouched.
+- Exact next task: Task `18AL` - Prepare the Real Chapter `368` Narrator-Only Production Job Without Starting TTS.
 
 **Task 18AJ canonical narrator-only Final Voice Map outcome:**
 - Repository/runtime baseline passed before implementation and live mutation: branch `main`, initial `HEAD == origin/main == 995135d14347c2019fbde6e3c6124acb46e956f8`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, canonical data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`.
