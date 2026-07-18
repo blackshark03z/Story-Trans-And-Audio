@@ -1,16 +1,32 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-19T00:43 (Asia/Saigon)
-**Milestone:** Task 18AL Chapter 368 Narrator-Only Job Prepared
-**Trạng thái:** Chapter `368` now has exactly one durable prepared production job, Job `22` with JobChapter `22`, pinned to active Text Revision `736` and approved narrator-only Casting Plan `23` revision `1`. The job has not been started; no Gemini/provider/TTS/render/segment/artifact/audio output was created.
+**Cập nhật:** 2026-07-19T01:04 (Asia/Saigon)
+**Milestone:** Task 18AM Chapter 368 Narrator-Only Render Completed
+**Trạng thái:** Chapter `368` narrator-only production render completed through the explicit prepared-job start boundary. Job `22` and JobChapter `22` are `completed`; active artifact `81` is ready for human audio QA. No replacement job, manual retry, text/casting/speaker mutation, or targeted remediation was performed.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `84409132cfb41b86bb0af454000e48671062ad12`
+**Last verified against commit:** `88105602babea5e5fb0eaa192c7b51518e9168e0`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-19
+
+**Task 18AM canonical narrator-only render outcome:**
+- Repository/runtime baseline passed before start: branch `main`, `HEAD == origin/main == 88105602babea5e5fb0eaa192c7b51518e9168e0`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, canonical runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`.
+- Prepared input state was verified before mutation: Chapter `368` active Text Revision `736`, source Speaker Assignment Draft `14`, approved narrator-only Casting Plan `23` revision `1`, plan SHA-256 `493e1f39bd353657f6deee0a9ac1124ae3ad47160d5bf7b1b09657f1de1ee9c0`, custom narrator voice `custom:26`, canonical voice revision `6`, and no active/conflicting live jobs.
+- Existing Job `22` was still `prepared` and JobChapter `22` was still `pending`, pinned to Text Revision `736` and Casting Plan `23`. Pre-start counts were segments `0`, attempts `0`, repair blocks `0`, artifacts `0`, active audio `none`, and no Chapter `368` work/output paths.
+- Pre-start SQLite online backup was created at `D:\Youtube\Story Trans And Audio\backups\task18am_pre_ch368_start_20260718T174859Z.sqlite3`; size `3870720` bytes; SHA-256 `dfe5e1657228a01c2c0ef3e644a5a5314cd4699b6c18f49a302415d7078b811b`; backup `quick_check = ok`. The backup remains untracked/unstaged.
+- Exactly one supported start mutation was issued: `POST /api/jobs/22/start`. Legacy `POST /api/jobs`, `POST /api/jobs/prepare`, replacement-job creation, retry/regeneration, text revision, speaker draft, Casting Plan, and voice mutation routes were not called.
+- Lifecycle observed on the same job: `scheduled -> synthesizing -> assembling -> completed`. Job `22` started at `2026-07-18T17:49:53.137483+00:00` and finished at `2026-07-18T18:00:53.109153+00:00`; JobChapter `22` started at `2026-07-18T17:49:53.174496+00:00` and finished at `2026-07-18T18:00:53.085149+00:00`.
+- Segment/render validation passed: `49` segments verified, sequence range `1-49`, duplicate/gap count `0`, failed/pending/running segments `0`, repair blocks `0`, `segment_attempts` rows `0`, provider/model `vieneu` / `v3turbo`, role counts `narrator -> 49`, voice counts `custom:26 -> 49`, and custom voice revision `6 -> 49`.
+- Active final artifact: artifact `81`, type `chapter_m4a`, path `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0368\job_22\render_0001\chapter.m4a`, SHA-256 `14b106e52a2f1951ffa69633679ee8f1cb6a990dfbc73056fd0c39e4b27045f5`, file size `8007414` bytes, authoritative duration `493840 ms`, export hash `8d9559c15ab72bfbd70bcbc6bab540c8559a7829850c095b473609846034f812`, status `active`.
+- Supporting artifacts: artifact `79` `chapter_master_wav`, SHA-256 `f3bb46a719e57d3da150aa72ecec6827ca76e9ca53b70b8c749fca63afdfa9d6`, size `47408718` bytes, duration `493840 ms`; artifact `80` `segment_timeline_json`, SHA-256 `01b9ae2d32121600bba8f6f524d9424f10da38f8a83f2479008ea257da940b78`, size `41579` bytes, duration `493840 ms`.
+- Independent audio validation passed: M4A decodes cleanly as AAC LC mono 48 kHz; decoded PCM duration `493845 ms` (5 ms container/decoder variance); FFmpeg mean volume about `-19.5 dB`; peak about `-0.97 dBFS`; clipped samples `0`; longest detected silence about `0.985 s` at `06:21.47`; leading silence `0`; trailing silence about `0.248 s`.
+- Human QA markers prepared for the next task: seq `1` / segment `652` / `00:00.00` chapter start; seq `7` / segment `658` / `01:02.90` longest segment; seq `13` / segment `664` / `02:05.88` duration outlier; seq `14` / segment `665` / `02:21.39` punctuation-heavy terminology; seq `15` / segment `666` / `02:35.86` quietest marker; seq `27` / segment `678` / `04:31.58` loudest marker; seq `32` / segment `683` / `05:17.05` shortest segment; seq `38` / segment `689` / `06:07.71` scene transition and longest-silence window; seq `49` / segment `700` / `08:04.40` chapter ending. Distributed checkpoints also include seq `5`, `19`, `25`, `31`, `37`, and `43`.
+- Chapter `368` post-render state: active audio artifact `81`, audio status `completed`, Text Revision `736` unchanged, Speaker Draft `14` unchanged, Casting Plan `23` unchanged, voice `custom:26` and revision `6` unchanged, no targeted remediation performed, and no replacement job created.
+- Completed and future chapter safety is preserved: Chapters `364`, `365`, `366`, and `367` remain unchanged at active artifacts `69`, `72`, `78`, and `75`; Chapters `369` and `370` remain untouched with their future text-remediation observations only; `experiment_b_transcript/` and `runs/` remain untouched.
+- Exact next task: Task `18AN` - Chapter `368` Human Audio QA and Targeted Remediation Review.
 
 **Task 18AL canonical prepared-job outcome:**
 - Repository/runtime baseline passed before preparation: branch `main`, `HEAD == origin/main == 84409132cfb41b86bb0af454000e48671062ad12`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, canonical runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`.
