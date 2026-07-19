@@ -184,7 +184,11 @@ def split_utterances(text: str, maximum: int = 256) -> list[dict[str, Any]]:
             index += 1
             continue
         regions.extend(_split_region(text, cursor, index, maximum))
-        regions.extend(_split_region(text, index, close + 1, maximum))
+        quote_span = _trim(text, index, close + 1)
+        if quote_span and quote_span[1] - quote_span[0] <= maximum:
+            regions.append(quote_span)
+        else:
+            regions.extend(_split_region(text, index, close + 1, maximum))
         cursor = close + 1
         index = cursor
     regions.extend(_split_region(text, cursor, len(text), maximum))

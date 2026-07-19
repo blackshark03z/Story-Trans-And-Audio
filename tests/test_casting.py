@@ -180,6 +180,51 @@ class CastingTests(unittest.TestCase):
         self.assertEqual(len(utterances), 1)
         self.assertEqual(text[utterances[0]["start_offset"]:utterances[0]["end_offset"]], text)
 
+    def test_splitter_keeps_balanced_multisentence_quote_atomic_when_under_limit(self) -> None:
+        text = (
+            'Tr\u01b0\u1edbc \u0111\u00f3. '
+            '"Ph\u00e1p l\u1ef1c m\u00e0u \u0111\u1ecf! Nhanh ph\u00e1 hu\u1ef7 tr\u1eadn ph\u00e1p!" '
+            'Sau \u0111\u00f3.'
+        )
+        utterances = split_utterances(text, maximum=256)
+        pieces = [text[item["start_offset"]:item["end_offset"]] for item in utterances]
+        self.assertEqual(
+            pieces,
+            [
+                "Tr\u01b0\u1edbc \u0111\u00f3.",
+                '"Ph\u00e1p l\u1ef1c m\u00e0u \u0111\u1ecf! Nhanh ph\u00e1 hu\u1ef7 tr\u1eadn ph\u00e1p!"',
+                "Sau \u0111\u00f3.",
+            ],
+        )
+        self.assertTrue(pieces[1].startswith('"'))
+        self.assertTrue(pieces[1].endswith('"'))
+
+    def test_splitter_keeps_curly_multisentence_quote_atomic_when_under_limit(self) -> None:
+        text = (
+            "M\u1edf \u0111\u1ea7u. "
+            "\u201cC\u00e2u th\u1ee9 nh\u1ea5t! C\u00e2u th\u1ee9 hai?\u201d "
+            "K\u1ebft."
+        )
+        utterances = split_utterances(text, maximum=256)
+        pieces = [text[item["start_offset"]:item["end_offset"]] for item in utterances]
+        self.assertEqual(pieces[1], "\u201cC\u00e2u th\u1ee9 nh\u1ea5t! C\u00e2u th\u1ee9 hai?\u201d")
+
+    def test_splitter_still_splits_long_balanced_quote_to_respect_limit(self) -> None:
+        text = '"' + ("mot " * 40).strip() + '!"'
+        utterances = split_utterances(text, maximum=50)
+        pieces = [text[item["start_offset"]:item["end_offset"]] for item in utterances]
+        self.assertGreater(len(pieces), 1)
+        self.assertTrue(all(len(piece) <= 50 for piece in pieces))
+
+    def test_splitter_unmatched_quote_does_not_swallow_following_narration(self) -> None:
+        text = 'Tr\u01b0\u1edbc \u0111\u00f3. "C\u00e2u m\u1edf kh\u00f4ng \u0111\u00f3ng. Sau \u0111\u00f3.'
+        utterances = split_utterances(text, maximum=256)
+        pieces = [text[item["start_offset"]:item["end_offset"]] for item in utterances]
+        self.assertEqual(
+            pieces,
+            ['Tr\u01b0\u1edbc \u0111\u00f3.', '"C\u00e2u m\u1edf kh\u00f4ng \u0111\u00f3ng.', 'Sau \u0111\u00f3.'],
+        )
+
     def test_splitter_preserves_exact_text_without_overlap_or_loss(self) -> None:
         text = (
             "  \u0110\u00e2y l\u00e0 m\u1ed9t c\u00e2u h\u01a1i d\u00e0i, c\u00f3 d\u1ea5u ph\u1ea9y, c\u00f3 kho\u1ea3ng tr\u1eafng, "
