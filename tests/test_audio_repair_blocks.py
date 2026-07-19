@@ -7,6 +7,7 @@ from fastapi.testclient import TestClient
 
 from story_audio.audio_repair_blocks import (
     AudioRepairBlockValidationError,
+    accept_audio_repair_block_candidate,
     build_active_audio_preview,
     create_audio_repair_block_candidate,
     list_audio_repair_blocks,
@@ -43,6 +44,17 @@ class AudioRepairBlockTests(IsolatedTestCase):
         self.synth_inputs.append(synth_input)
         self._write_wav(output_path, 250)
         return 250, 48000
+
+    def _fake_media_run(self, command, check, capture_output, text):
+        if command[0] == "ffprobe":
+            return Mock(stdout="0.450\n")
+        output_path = Path(command[-1])
+        if output_path.suffix.lower() == ".wav":
+            self._write_wav(output_path, 450)
+        else:
+            output_path.parent.mkdir(parents=True, exist_ok=True)
+            output_path.write_bytes(b"encoded audio")
+        return Mock(stdout="", stderr="")
 
     def _create_job_with_adjacent_segments(self):
         self.full_text = "Alpha beta gamma. Next sentence."
@@ -307,6 +319,70 @@ class AudioRepairBlockTests(IsolatedTestCase):
         chapter = self.db.fetch_one("SELECT active_audio_artifact_id FROM chapters WHERE id=?", (self.chapter_id,))
         self.assertEqual(chapter["active_audio_artifact_id"], self.artifact_id)
 
+    def test_accept_candidate_reassembles_same_job_without_touching_segments_or_attempts(self):
+        existing_master = self.config.output_dir / "existing" / "chapter_master.wav"
+        self._write_wav(existing_master, 200)
+        with self.db.connect() as conn:
+            conn.execute(
+                """INSERT INTO artifacts(
+                    chapter_id,job_chapter_id,text_revision_id,artifact_type,
+                    path,sha256,size_bytes,duration_ms,status,created_at,verified_at
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    self.chapter_id,
+                    self.job_chapter_id,
+                    self.text_revision_id,
+                    "chapter_master_wav",
+                    str(existing_master),
+                    sha256_file(existing_master),
+                    existing_master.stat().st_size,
+                    200,
+                    "verified",
+                    utcnow(),
+                    utcnow(),
+                ),
+            )
+        created = create_audio_repair_block_candidate(
+            self.db,
+            self.store,
+            self.tts,
+            self.config,
+            job_id=self.job_id,
+            first_segment_id=self.segment_ids[0],
+            last_segment_id=self.segment_ids[1],
+        )
+        before_segments = [
+            dict(row)
+            for row in self.db.fetch_all(
+                "SELECT id,wav_path,audio_sha256,duration_ms FROM segments ORDER BY id"
+            )
+        ]
+
+        with patch("story_audio.audio_repair_blocks.subprocess.run", side_effect=self._fake_media_run):
+            accepted = accept_audio_repair_block_candidate(self.db, self.store, self.config, created["id"])
+
+        self.assertTrue(accepted["ok"])
+        self.assertEqual(accepted["repair_block"]["status"], "accepted")
+        self.assertEqual(accepted["repair_region"]["covered_segment_ids"], self.segment_ids)
+        self.assertEqual(self._count("jobs"), 1)
+        self.assertEqual(self._count("job_chapters"), 1)
+        self.assertEqual(self._count("segment_attempts"), 0)
+        after_segments = [
+            dict(row)
+            for row in self.db.fetch_all(
+                "SELECT id,wav_path,audio_sha256,duration_ms FROM segments ORDER BY id"
+            )
+        ]
+        self.assertEqual(after_segments, before_segments)
+        chapter = self.db.fetch_one("SELECT active_audio_artifact_id FROM chapters WHERE id=?", (self.chapter_id,))
+        self.assertEqual(chapter["active_audio_artifact_id"], accepted["new_artifact_id"])
+        old_artifact = self.db.fetch_one("SELECT status FROM artifacts WHERE id=?", (self.artifact_id,))
+        self.assertEqual(old_artifact["status"], "stale")
+        new_artifact = self.db.fetch_one("SELECT artifact_type,status,path FROM artifacts WHERE id=?", (accepted["new_artifact_id"],))
+        self.assertEqual(new_artifact["artifact_type"], "chapter_m4a")
+        self.assertEqual(new_artifact["status"], "active")
+        self.assertIn("render_0002", new_artifact["path"])
+
     def test_rejects_single_segment_without_synthesis(self):
         with self.assertRaises(AudioRepairBlockValidationError):
             create_audio_repair_block_candidate(
@@ -468,6 +544,61 @@ class AudioRepairBlockTests(IsolatedTestCase):
         self.assertEqual(response.json()["source_text"], "Alpha beta gamma.")
         self.assertEqual(self.synth_inputs[0].effective_voice_ref, "preset_voice")
 
+    def test_api_accept_route_reassembles_candidate(self):
+        import story_audio.api as api_module
+
+        created = create_audio_repair_block_candidate(
+            self.db,
+            self.store,
+            self.tts,
+            self.config,
+            job_id=self.job_id,
+            first_segment_id=self.segment_ids[0],
+            last_segment_id=self.segment_ids[1],
+        )
+        existing_master = self.config.output_dir / "existing-api" / "chapter_master.wav"
+        self._write_wav(existing_master, 200)
+        with self.db.connect() as conn:
+            conn.execute(
+                """INSERT INTO artifacts(
+                    chapter_id,job_chapter_id,text_revision_id,artifact_type,
+                    path,sha256,size_bytes,duration_ms,status,created_at,verified_at
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    self.chapter_id,
+                    self.job_chapter_id,
+                    self.text_revision_id,
+                    "chapter_master_wav",
+                    str(existing_master),
+                    sha256_file(existing_master),
+                    existing_master.stat().st_size,
+                    200,
+                    "verified",
+                    utcnow(),
+                    utcnow(),
+                ),
+            )
+
+        original_db = api_module.db
+        original_store = api_module.store
+        original_settings = api_module.settings
+        try:
+            api_module.db = self.db
+            api_module.store = self.store
+            api_module.settings = self.config
+            client = TestClient(api_module.app)
+            with patch("story_audio.audio_repair_blocks.subprocess.run", side_effect=self._fake_media_run):
+                response = client.post(f"/api/audio-repair-blocks/{created['id']}/accept", json={})
+        finally:
+            api_module.db = original_db
+            api_module.store = original_store
+            api_module.settings = original_settings
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["repair_block"]["status"], "accepted")
+        self.assertEqual(response.json()["repair_block"]["id"], created["id"])
+        self.assertEqual(response.json()["new_artifact_id"], self.db.fetch_one("SELECT active_audio_artifact_id FROM chapters WHERE id=?", (self.chapter_id,))["active_audio_artifact_id"])
+
 
 class AudioRepairBlockUiTests(IsolatedTestCase):
     def test_ui_exposes_ab_review_without_enabled_accept(self):
@@ -476,5 +607,6 @@ class AudioRepairBlockUiTests(IsolatedTestCase):
         self.assertIn("Original active range", ui_source)
         self.assertIn("/api/audio-repair-blocks/${block.id}/active-audio", ui_source)
         self.assertIn("Repair-block candidate", ui_source)
+        self.assertIn("acceptRepairBlock", ui_source)
+        self.assertIn("/api/audio-repair-blocks/${repairBlockId}/accept", ui_source)
         self.assertIn("rejectRepairBlock", ui_source)
-        self.assertIn("disabled title=\"Repair-block acceptance is handled in a later reviewed workflow\"", ui_source)

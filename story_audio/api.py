@@ -1275,6 +1275,16 @@ def reject_repair_block(repair_block_id: int) -> dict[str, Any]:
         raise HTTPException(400, str(exc)) from exc
 
 
+@app.post("/api/audio-repair-blocks/{repair_block_id}/accept")
+def accept_repair_block(repair_block_id: int) -> dict[str, Any]:
+    """Accept a repair block and reassemble the same job with the candidate overlay."""
+    from .audio_repair_blocks import AudioRepairBlockError, accept_audio_repair_block_candidate
+    try:
+        return accept_audio_repair_block_candidate(db, store, settings, repair_block_id)
+    except AudioRepairBlockError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
 @app.get("/api/audio-repair-blocks/{repair_block_id}/audio")
 def get_repair_block_audio(repair_block_id: int) -> FileResponse:
     """Serve candidate audio for an audio repair block."""

@@ -261,7 +261,7 @@ function renderAudioRepairBlocks() {
     html += `<audio controls src="/api/audio-repair-blocks/${block.id}/audio"></audio>`;
     if (block.status === 'candidate') {
       html += '<div class="attempt-actions">';
-      html += `<button class="primary" disabled title="Repair-block acceptance is handled in a later reviewed workflow">Accept</button>`;
+      html += `<button class="primary" onclick="acceptRepairBlock(${block.id})">Accept</button>`;
       html += `<button class="ghost" onclick="rejectRepairBlock(${block.id})">Reject</button>`;
       html += '</div>';
     }
@@ -287,6 +287,17 @@ async function rejectRepairBlock(repairBlockId) {
     await api(`/api/audio-repair-blocks/${repairBlockId}/reject`, {method:'POST', body:'{}'});
     toast('Repair block rejected');
     await refreshAudioRepairBlocks(state.diagnosticChapterId);
+  } catch(e) {
+    toast(e.message, true);
+  }
+}
+
+async function acceptRepairBlock(repairBlockId) {
+  if (!confirm('Accept this repair block? This will reassemble the chapter artifact without TTS.')) return;
+  try {
+    const result = await api(`/api/audio-repair-blocks/${repairBlockId}/accept`, {method:'POST', body:'{}'});
+    toast(`Repair block accepted; new artifact #${result.new_artifact_id}`);
+    await refreshAudioRepairBlocks(result.repair_block.job_chapter_id);
   } catch(e) {
     toast(e.message, true);
   }
@@ -319,6 +330,7 @@ window.regenerateSegment = regenerateSegment;
 window.acceptCandidate = acceptCandidate;
 window.rejectCandidate = rejectCandidate;
 window.createRepairBlock = createRepairBlock;
+window.acceptRepairBlock = acceptRepairBlock;
 window.rejectRepairBlock = rejectRepairBlock;
 window.refreshSegmentAttempts = refreshSegmentAttempts;
 async function refreshLibrary(){if(state.libraryBusy)return;state.libraryBusy=true;$('#refreshLibrary').disabled=true;$('#libraryStatus').textContent='Loading voices…';$('#libraryError').classList.add('hidden');try{const activeOnly=!state.showInactive;state.libraryVoices=await api(`/api/custom-voices?active_only=${activeOnly}`);renderLibraryVoices();$('#libraryStatus').textContent=`${state.libraryVoices.length} voice${state.libraryVoices.length===1?'':'s'}${activeOnly?' (active only)':''}`}catch(e){$('#libraryStatus').textContent='Error loading voices';showLibraryError(mapLibraryError(e.message))}finally{state.libraryBusy=false;$('#refreshLibrary').disabled=false}}
