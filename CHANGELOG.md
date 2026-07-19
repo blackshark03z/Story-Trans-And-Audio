@@ -6,6 +6,18 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AS - Chapter 368 repeated Segment 666 articulation failure diagnosed**: rejected Candidate `39` and selected segmentation remediation instead of creating Attempt `40`.
+  - **Baseline**: branch `main`, `HEAD == origin/main == b91ba13f72824ae082981a7572387bedb330da24`; canonical runtime `http://127.0.0.1:8772` pointed to `D:\Youtube\Story Trans And Audio\data` and `D:\Youtube\Story Trans And Audio\data\app.db`; SQLite `quick_check = ok`; only protected untracked `experiment_b_transcript/` and `runs/` were present.
+  - **Human verdict**: Candidate `39` was rejected because `phải rung động.` was not pronounced clearly or with complete production-acceptable articulation.
+  - **Rejection**: exactly one supported `POST /api/segments/666/reject-candidate` call set Attempt `39` to `rejected` at `2026-07-19T05:13:16.581812+00:00`. Attempt `37` remains `active`; Attempt `38` remains `rejected`; Segment `666` remains `verified`; Artifact `81` remains `active`.
+  - **Context diagnosis**: Revision `736` local context shows Segment `665` ends `...làm cho tâm thần người khác`, Segment `666` is exactly `phải rung động.`, and together they form one sentence: `...làm cho tâm thần người khác phải rung động.`
+  - **Attempt comparison**: Attempt `37` active original was `9670 ms` and severely unintelligible; Attempt `38` was `2150 ms` with provider-hallucinated prefix; Attempt `39` was `1430 ms`, technically cleaner, but still not clearly articulated. All three used the same text, narrator `custom:26`, custom voice revision `6`, and provider/model `vieneu` / `v3turbo`.
+  - **Classification**: `SHORT_FRAGMENT_SEGMENTATION_DEFECT`; Segment `666` is a dependent trailing fragment split away from Segment `665`, not an independent utterance.
+  - **Selected path**: no Attempt `40`; no blind retry; no manual WAV concatenation; no Text Revision `736` mutation. Next work must define a supported targeted segmentation-remediation workflow for the Segment `665`/`666` boundary.
+  - **Safety**: active artifact `81` and final M4A SHA-256 `14b106e52a2f1951ffa69633679ee8f1cb6a990dfbc73056fd0c39e4b27045f5` remain unchanged. No replacement job, chapter reassembly, text revision, speaker draft, Casting Plan, voice mutation, or new candidate was created.
+  - **Next step**: Resolve Chapter `368` Segment `665`/`666` Short-Fragment Segmentation Defect Without Blind TTS Retry.
+  - **Migration**: none.
+
 - **Task 18AQ - Chapter 368 replacement candidate ready**: rejected Candidate `38` and created one clean replacement candidate `39` for Segment `666` without reassembling the chapter.
   - **Baseline**: branch `main`, `HEAD == origin/main == 23e458caa7d6dce1c111924efcb990026629d881`; canonical runtime `http://127.0.0.1:8772` pointed to `D:\Youtube\Story Trans And Audio\data` and `D:\Youtube\Story Trans And Audio\data\app.db`; SQLite `quick_check = ok`; only protected untracked `experiment_b_transcript/` and `runs/` were present.
   - **Human verdict**: Candidate `38` was rejected because only `phải rung động.` is clear and the preceding speech is unintelligible. The failure was classified as `PROVIDER_HALLUCINATED_PREFIX`.

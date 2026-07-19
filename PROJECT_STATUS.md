@@ -1,16 +1,32 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-19T04:09 (Asia/Saigon)
-**Milestone:** Task 18AQ Chapter 368 Replacement Candidate Ready
-**Trạng thái:** Candidate `38` was rejected through the supported workflow after Human A/B found unintelligible leading speech before the authoritative phrase `phải rung động.`. Exactly one replacement candidate, Attempt `39`, now awaits Human A/B review. Active artifact `81` remains unchanged.
+**Cập nhật:** 2026-07-19T12:13 (Asia/Saigon)
+**Milestone:** Task 18AS Chapter 368 Repeated Articulation Failure Diagnosed
+**Trạng thái:** Candidate `39` was rejected through the supported workflow after Human A/B found the phrase `phải rung động.` was not clear or fully articulated. Attempts `37`, `38`, and `39` all failed intelligibility for the same very short fragment. No Attempt `40` was created; the selected path is segmentation remediation for the Segment `665`/`666` split. Active artifact `81` remains unchanged.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `23e458caa7d6dce1c111924efcb990026629d881`
+**Last verified against commit:** `b91ba13f72824ae082981a7572387bedb330da24`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-19
+
+**Task 18AS canonical repeated-failure diagnosis outcome:**
+- Repository/runtime baseline passed before mutation: branch `main`, `HEAD == origin/main == b91ba13f72824ae082981a7572387bedb330da24`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, canonical runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`.
+- Human A/B verdict for Attempt `39`: `REJECT_CANDIDATE_39`. Operator finding: the expected phrase `phải rung động.` is technically cleaner than Attempt `38` but not pronounced clearly or with complete production-acceptable articulation.
+- Rejection result: exactly one supported `POST /api/segments/666/reject-candidate` call set Attempt `39` to `rejected` at `2026-07-19T05:13:16.581812+00:00`. Attempt `37` remains `active`; Attempt `38` remains `rejected`; Segment `666` remains `verified`; Artifact `81` remains `active`; no automatic regeneration or reassembly occurred.
+- Local text context around offsets `2473-2488`: before Segment `666`, the text ends `...có đủ loại cấm đan có lực lượng sát thương quy mô lớn đến mức làm cho tâm thần người khác `; Segment `666` is exactly `phải rung động.`; after it, the next sentence starts ` Trong đó bao hàm cả dị hoá...`.
+- Adjacent boundaries show a semantic split defect: Segment `665` / sequence `14` / offsets `2229-2472` is `Đan dược được gọi là cấm đan ... làm cho tâm thần người khác`; Segment `666` / sequence `15` / offsets `2473-2488` is `phải rung động.`; together they form one grammatical sentence: `...làm cho tâm thần người khác phải rung động.`
+- Neighboring context: Segment `664` / seq `13` / offsets `2004-2228` is the prior complete sentence about cấm đan; Segment `667` / seq `16` / offsets `2489-2688` begins the next complete sentence `Trong đó bao hàm cả dị hoá...`; Segment `668` / seq `17` / offsets `2689-2755` is `Giải thích như thế này, cấm đan đều là đan dược bộc phát tức thời.`
+- Attempt comparison: Attempt `37` active original is `9670 ms`, severe unintelligible synthesis, peak about `-8.37 dBFS`, RMS about `-24.08 dBFS`, longest silence `936 ms`, `7` silences >= `200 ms`; Attempt `38` rejected is `2150 ms`, provider-hallucinated unintelligible prefix, SHA-256 `26721277a58ea5026f4e7b49e941840b1d3ee2b096ec9d04066adfbf3f4371d6`; Attempt `39` rejected is `1430 ms`, SHA-256 `48a6b6ead0442eaf1db21b766ef8a81794994053195480453981ad51084ae59e`, cleaner waveform but inadequate articulation.
+- All three attempts used the same authoritative text `phải rung động.`, narrator role, voice `custom:26`, custom voice revision `6`, provider/model `vieneu` / `v3turbo`, and snapshot settings. No hidden prefix, suffix, stale cache, adjacent audio contamination, text mutation, or voice mutation was found in the supported synthesis input path.
+- Root-cause classification: `SHORT_FRAGMENT_SEGMENTATION_DEFECT`. The phrase is a dependent trailing fragment of Segment `665`, not a grammatically independent utterance. Repeated failures are best explained by context loss from the short-fragment boundary, not transient provider variance.
+- Selected remediation path: do not create Attempt `40`; do not manually concatenate WAV files; do not mutate Text Revision `736`; define a targeted supported segmentation-remediation task for the Segment `665`/`666` boundary, preserving immutable provenance and limiting scope to the local narrator sentence.
+- Final safety counts: Chapter `368` jobs `1`, JobChapters `1`, segments `49`, verified segments `49`, Attempt `37` active, Attempts `38` and `39` rejected, candidate attempts `0`, Attempt `40` `0`, replacement jobs `0`, Text Revisions `2`, Speaker Drafts `1`, Casting Plans `1`, active artifact `81`.
+- Active audio safety passed: active artifact `81` and final M4A SHA-256 `14b106e52a2f1951ffa69633679ee8f1cb6a990dfbc73056fd0c39e4b27045f5`, size `8007414` bytes, and duration `493840 ms` remain unchanged.
+- Completed and future chapter safety is preserved: Chapters `364`, `365`, `366`, and `367` remain unchanged at active artifacts `69`, `72`, `78`, and `75`; Chapters `369` and `370` remain untouched with active audio `none`; `experiment_b_transcript/` and `runs/` remain untouched.
+- Exact next task: Task `18AT` - Resolve Chapter `368` Segment `665`/`666` Short-Fragment Segmentation Defect Without Blind TTS Retry.
 
 **Task 18AQ canonical replacement-candidate outcome:**
 - Repository/runtime baseline passed before mutation: branch `main`, `HEAD == origin/main == 23e458caa7d6dce1c111924efcb990026629d881`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, canonical runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`.
