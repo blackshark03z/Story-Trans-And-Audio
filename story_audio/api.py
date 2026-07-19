@@ -1233,6 +1233,74 @@ def regenerate_segment(segment_id: int) -> dict[str, Any]:
         raise HTTPException(400, str(exc)) from exc
 
 
+@app.post("/api/jobs/{job_id}/repair-blocks")
+def create_repair_block(job_id: int, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+    """Generate a candidate audio repair block for adjacent verified segments."""
+    from .audio_repair_blocks import AudioRepairBlockError, create_audio_repair_block_candidate
+    first_segment_id = body.get("first_segment_id")
+    last_segment_id = body.get("last_segment_id")
+    if not first_segment_id or not last_segment_id:
+        raise HTTPException(400, "first_segment_id and last_segment_id required")
+    try:
+        return create_audio_repair_block_candidate(
+            db,
+            store,
+            tts_service,
+            settings,
+            job_id=job_id,
+            first_segment_id=int(first_segment_id),
+            last_segment_id=int(last_segment_id),
+        )
+    except AudioRepairBlockError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/job-chapters/{job_chapter_id}/repair-blocks")
+def get_repair_blocks(job_chapter_id: int) -> dict[str, Any]:
+    """List audio repair blocks for a JobChapter."""
+    from .audio_repair_blocks import AudioRepairBlockError, list_audio_repair_blocks
+    try:
+        return list_audio_repair_blocks(db, job_chapter_id)
+    except AudioRepairBlockError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/audio-repair-blocks/{repair_block_id}/reject")
+def reject_repair_block(repair_block_id: int) -> dict[str, Any]:
+    """Reject a candidate audio repair block without modifying active audio."""
+    from .audio_repair_blocks import AudioRepairBlockError, reject_audio_repair_block_candidate
+    try:
+        return reject_audio_repair_block_candidate(db, repair_block_id)
+    except AudioRepairBlockError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/audio-repair-blocks/{repair_block_id}/audio")
+def get_repair_block_audio(repair_block_id: int) -> FileResponse:
+    """Serve candidate audio for an audio repair block."""
+    repair_block = db.fetch_one("SELECT * FROM audio_repair_blocks WHERE id=?", (repair_block_id,))
+    if not repair_block:
+        raise HTTPException(404, "Repair block not found")
+    path = Path(repair_block["candidate_wav_path"])
+    if not path.exists():
+        raise HTTPException(404, "Repair block audio file not found")
+    return FileResponse(path, media_type="audio/wav", filename=f"audio_repair_block_{repair_block_id}.wav")
+
+
+@app.get("/api/audio-repair-blocks/{repair_block_id}/active-audio")
+def get_repair_block_active_audio(repair_block_id: int) -> FileResponse:
+    """Serve preview-only active range audio for repair-block A/B review."""
+    from .audio_repair_blocks import AudioRepairBlockError, build_active_audio_preview
+
+    try:
+        path = build_active_audio_preview(db, settings, repair_block_id)
+    except AudioRepairBlockError as exc:
+        raise HTTPException(400, str(exc)) from exc
+    if not path.exists():
+        raise HTTPException(404, "Active repair block preview not found")
+    return FileResponse(path, media_type="audio/wav", filename=f"audio_repair_block_{repair_block_id}_active.wav")
+
+
 @app.post("/api/segments/{segment_id}/accept-candidate")
 def accept_candidate(segment_id: int, body: dict[str, int] = Body(...)) -> dict[str, Any]:
     """Accept candidate and rebuild chapter artifacts."""

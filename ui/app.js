@@ -180,8 +180,20 @@ async function refreshSegmentAttempts(segmentId) {
     const data = await api(`/api/segments/${segmentId}/attempts`);
     state.segmentAttempts = data;
     renderSegmentAttempts(segmentId);
+    await refreshAudioRepairBlocks(state.diagnosticChapterId);
   } catch(e) {
     toast(e.message, true);
+  }
+}
+
+async function refreshAudioRepairBlocks(jobChapterId) {
+  if (!jobChapterId) return;
+  try {
+    const data = await api(`/api/job-chapters/${jobChapterId}/repair-blocks`);
+    state.audioRepairBlocks = data;
+    renderAudioRepairBlocks();
+  } catch(e) {
+    state.audioRepairBlocks = null;
   }
 }
 
@@ -224,7 +236,60 @@ function renderSegmentAttempts(segmentId) {
   }
 
   html += '</div>';
+  html += '<div id="audioRepairBlocksContainer"></div>';
   container.innerHTML = html;
+  renderAudioRepairBlocks();
+}
+
+function renderAudioRepairBlocks() {
+  const container = $('#audioRepairBlocksContainer');
+  if (!container) return;
+  const blocks = state.audioRepairBlocks?.repair_blocks || [];
+  if (!blocks.length) {
+    container.innerHTML = '<h3>Audio Repair Blocks</h3><p class="muted">No adjacent-segment repair candidate.</p>';
+    return;
+  }
+  let html = '<h3>Audio Repair Blocks</h3><div class="attempts-grid">';
+  blocks.forEach(block => {
+    html += `<div class="attempt-card ${block.status==='candidate'?'candidate':'history'}">`;
+    html += `<strong>Repair Block #${block.id} (${esc(block.status)})</strong>`;
+    html += `<span>Segments ${block.first_segment_id}-${block.last_segment_id}; ${(block.candidate_duration_ms/1000).toFixed(2)}s</span>`;
+    html += `<pre class="segment-text">${esc(block.source_text || '')}</pre>`;
+    html += '<label class="muted">Original active range</label>';
+    html += `<audio controls src="/api/audio-repair-blocks/${block.id}/active-audio"></audio>`;
+    html += '<label class="muted">Repair-block candidate</label>';
+    html += `<audio controls src="/api/audio-repair-blocks/${block.id}/audio"></audio>`;
+    if (block.status === 'candidate') {
+      html += '<div class="attempt-actions">';
+      html += `<button class="primary" disabled title="Repair-block acceptance is handled in a later reviewed workflow">Accept</button>`;
+      html += `<button class="ghost" onclick="rejectRepairBlock(${block.id})">Reject</button>`;
+      html += '</div>';
+    }
+    html += '</div>';
+  });
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+async function createRepairBlock(jobId, firstSegmentId, lastSegmentId) {
+  if(!runtimeAllowsMutation()){toast('Runtime identity must be resolved before mutating actions.',true);return}
+  try {
+    const result = await api(`/api/jobs/${jobId}/repair-blocks`, {method:'POST', body:JSON.stringify({first_segment_id:firstSegmentId,last_segment_id:lastSegmentId})});
+    toast(`Repair block #${result.id} generated (${(result.candidate_duration_ms/1000).toFixed(2)}s)`);
+    await refreshAudioRepairBlocks(result.job_chapter_id);
+  } catch(e) {
+    toast(e.message, true);
+  }
+}
+
+async function rejectRepairBlock(repairBlockId) {
+  try {
+    await api(`/api/audio-repair-blocks/${repairBlockId}/reject`, {method:'POST', body:'{}'});
+    toast('Repair block rejected');
+    await refreshAudioRepairBlocks(state.diagnosticChapterId);
+  } catch(e) {
+    toast(e.message, true);
+  }
 }
 
 async function acceptCandidate(segmentId, attemptId) {
@@ -253,6 +318,8 @@ async function rejectCandidate(segmentId, attemptId) {
 window.regenerateSegment = regenerateSegment;
 window.acceptCandidate = acceptCandidate;
 window.rejectCandidate = rejectCandidate;
+window.createRepairBlock = createRepairBlock;
+window.rejectRepairBlock = rejectRepairBlock;
 window.refreshSegmentAttempts = refreshSegmentAttempts;
 async function refreshLibrary(){if(state.libraryBusy)return;state.libraryBusy=true;$('#refreshLibrary').disabled=true;$('#libraryStatus').textContent='Loading voices…';$('#libraryError').classList.add('hidden');try{const activeOnly=!state.showInactive;state.libraryVoices=await api(`/api/custom-voices?active_only=${activeOnly}`);renderLibraryVoices();$('#libraryStatus').textContent=`${state.libraryVoices.length} voice${state.libraryVoices.length===1?'':'s'}${activeOnly?' (active only)':''}`}catch(e){$('#libraryStatus').textContent='Error loading voices';showLibraryError(mapLibraryError(e.message))}finally{state.libraryBusy=false;$('#refreshLibrary').disabled=false}}
 function renderLibraryVoices(){const container=$('#libraryVoiceList');if(!state.libraryVoices||state.libraryVoices.length===0){container.innerHTML='<p class="muted">No voices found.</p>';if(state.selectedVoiceId){state.selectedVoiceId=null;$('#librarySelectedDetails').classList.add('hidden')}return}container.innerHTML=state.libraryVoices.map(v=>`<div class="voice-library-row ${state.selectedVoiceId===v.id?'selected':''}" data-voice-id="${v.id}"><strong>${esc(v.display_name)}</strong><span class="muted">${v.is_active?'Active':'Inactive'}${v.description?' · '+esc(v.description):''}</span></div>`).join('');container.querySelectorAll('.voice-library-row').forEach(el=>el.onclick=()=>selectLibraryVoice(+el.dataset.voiceId));if(state.selectedVoiceId&&!state.libraryVoices.find(v=>v.id===state.selectedVoiceId)){state.selectedVoiceId=null;$('#librarySelectedDetails').classList.add('hidden')}}

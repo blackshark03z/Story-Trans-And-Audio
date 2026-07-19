@@ -228,12 +228,12 @@ class MigrationTests(unittest.TestCase):
             with self.assertRaises(MigrationChecksumError):
                 database.initialize()
 
-    def test_fresh_database_migrates_to_v9_with_snapshot_columns(self) -> None:
-        """Fresh database should migrate cleanly to v9 and have all snapshot columns."""
+    def test_fresh_database_migrates_to_latest_with_snapshot_and_repair_block_columns(self) -> None:
+        """Fresh database should migrate cleanly to latest and have expected workflow columns."""
         with tempfile.TemporaryDirectory() as directory:
             database = Database(Path(directory) / "fresh.db")
             version = database.initialize()
-            self.assertEqual(version, 9)
+            self.assertEqual(version, LATEST_SCHEMA_VERSION)
             with database.connect() as connection:
                 columns = connection.execute("PRAGMA table_info(segments)").fetchall()
                 column_names = {col[1] for col in columns}
@@ -265,9 +265,22 @@ class MigrationTests(unittest.TestCase):
                 self.assertIn("idx_segments_custom_voice_revision", index_names)
                 self.assertIn("idx_segments_snapshot_version", index_names)
                 self.assertIn("idx_segments_casting_plan", index_names)
+                repair_block_columns = connection.execute("PRAGMA table_info(audio_repair_blocks)").fetchall()
+                repair_block_column_names = {col[1] for col in repair_block_columns}
+                self.assertTrue(
+                    {
+                        "job_id",
+                        "job_chapter_id",
+                        "first_segment_id",
+                        "last_segment_id",
+                        "source_text_sha256",
+                        "candidate_wav_path",
+                        "status",
+                    }.issubset(repair_block_column_names)
+                )
 
-    def test_v6_to_v9_upgrade_preserves_legacy_segments(self) -> None:
-        """v6 database upgrades to v9, legacy segments survive with NULL snapshot fields."""
+    def test_v6_to_latest_upgrade_preserves_legacy_segments(self) -> None:
+        """v6 database upgrades to latest, legacy segments survive with NULL snapshot fields."""
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "v6.db"
             connection = sqlite3.connect(path)
@@ -316,10 +329,10 @@ class MigrationTests(unittest.TestCase):
             finally:
                 connection.close()
             
-            # Upgrade to v9
+            # Upgrade to latest
             database = Database(path)
             version = database.initialize()
-            self.assertEqual(version, 9)
+            self.assertEqual(version, LATEST_SCHEMA_VERSION)
             
             # Verify legacy segment still exists with NULL snapshot fields
             segment = database.fetch_one("SELECT * FROM segments WHERE id=?", (segment_id,))
