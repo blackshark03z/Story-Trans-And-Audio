@@ -1,12 +1,25 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-19T14:55 (Asia/Saigon)
-**Milestone:** Task 18BB Speaker Review Approval Boundary Implemented
-**Trạng thái:** The speaker review workflow now supports row-level review persistence and Speaker-Draft-only approval without creating a Casting Plan. Chapter `369` Draft `15` remains unmodified and unreviewed; it is ready for the operator to review both rows through the separated workflow. No Casting Plan, job, JobChapter, production segment, attempt, artifact, active audio, provider call, TTS preview, or render was created.
+**Cập nhật:** 2026-07-19T21:15 (Asia/Saigon)
+**Milestone:** Task 18BC Chapter 369 Speaker Draft Approved Only
+**Trạng thái:** Chapter `369` Speaker Assignment Draft `15` has been human-reviewed row by row and approved through the draft-only approval route. Both target rows were confirmed as `unknown` speakers, because they are non-candidate Hải Thi Tộc speakers. No Final Voice Map / Casting Plan, job, JobChapter, production segment, attempt, artifact, active audio, provider call, TTS preview, synthesis, render, assembly, or export was created.
 
-**Last verified against commit:** `c53558a57b987e28d6ac949036d1b4b15d3cea58`
+**Last verified against commit:** `01db40011289281aeb9aa983d09d07e7966269d5`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-19
+
+**Task 18BC verified live state:**
+- Repository/runtime baseline passed before mutation: branch `main`, `HEAD == origin/main == 01db40011289281aeb9aa983d09d07e7966269d5`, runtime `http://127.0.0.1:8772`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, schema `12`, and SQLite `quick_check = ok`. Only protected untracked `experiment_b_transcript/` and `runs/` were present.
+- OpenAPI exposed the separated workflow routes: `PUT /api/chapters/{chapter_id}/speaker-assignment/drafts/{draft_id}/reviews/{target_id}` and `POST /api/chapters/{chapter_id}/speaker-assignment/drafts/{draft_id}/approve-only`.
+- Initial Draft `15` state was `generated`, `approved_at = null`, `target_count = 2`, persisted row reviews `0`, unreviewed rows `2`, and `stale = false`.
+- Human row decision 1: `u0003-b1d3d00d55ab` / seq `3` / `"Chuẩn bị sẵn sàng, cẩn thận kiểm tra chấn động pháp lực người tới cho ta, nếu như người đến là tu sĩ mở ra mệnh hỏa, vậy thì liền lập tức phá huỷ trận pháp, nhưng hy vọng người tới không phải, bổn tọa còn muốn thu hoạch thêm một số điểm cống hiến."` was reviewed as `KEEP_UNKNOWN`.
+- Human row decision 2: `u0021-49989b447284` / seq `21` / `"Pháp lực màu đỏ! Nhanh phá huỷ trận pháp!"` was reviewed as `KEEP_UNKNOWN`.
+- Row-review persistence result: two rows exist in `speaker_assignment_reviews`, both with `speaker_type = unknown`, `character_id = null`, `decision_source = unknown`; reviewed timestamps are `2026-07-19T14:13:13.308685+00:00` and `2026-07-19T14:13:25.281523+00:00`.
+- Pre-approval backup was created at `D:\Youtube\Story Trans And Audio\backups\task18bc_pre_ch369_draft15_approve_20260719_211339`; backup DB SHA-256 `01a1875198270e8335ff422b7be9c599167dc6d1bc5d5852b0f8d8181cfd8965`; backup DB size `4009984` bytes.
+- Draft-only approval result: `POST /api/chapters/369/speaker-assignment/drafts/15/approve-only` set Draft `15` to `approved`, `approved_at = 2026-07-19T14:14:46.641036+00:00`, reviewed rows `2`, remaining unreviewed rows `0`, invalid rows `0`.
+- Downstream safety after approval: Chapter `369` still has Casting Plans `0`, Jobs `0`, JobChapters `0`, artifacts `0`, active audio `none`, and audio status `not_created`.
+- Completed/future chapter safety: Chapters `364-368` retained completed active artifacts `69`, `72`, `78`, `75`, and `84`; Chapter `370` remains `not_created` with active Text Revision `740`.
+- Exact next task: Task `18BD` - Create and Review Chapter `369` Final Voice Map Draft.
 
 **Task 18BB verified implementation state:**
 - The previous blocker was confirmed: existing `approve_speaker_review(...)` resolves review decisions, creates a Casting Plan, and immediately approves it; the staged route creates a Casting Plan draft. Neither was safe for Draft-only approval.

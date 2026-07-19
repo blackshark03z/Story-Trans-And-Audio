@@ -6,6 +6,14 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18BC - Chapter 369 Speaker Draft approved only**: completed human row review and draft-only approval for Speaker Assignment Draft `15` without creating a Final Voice Map or any audio-production object.
+  - **Baseline**: branch `main`, `HEAD == origin/main == 01db40011289281aeb9aa983d09d07e7966269d5`; runtime `http://127.0.0.1:8772` used `D:\Youtube\Story Trans And Audio\data`, schema `12`, and SQLite `quick_check = ok`; only protected untracked `experiment_b_transcript/` and `runs/` were present.
+  - **Human decisions**: `u0003-b1d3d00d55ab` / seq `3` and `u0021-49989b447284` / seq `21` were both confirmed as non-candidate Hải Thi Tộc speakers and persisted as `KEEP_UNKNOWN`.
+  - **Review persistence**: `speaker_assignment_reviews` now contains exactly two rows for Draft `15`, both `speaker_type = unknown`, `character_id = null`, and `decision_source = unknown`.
+  - **Backup**: pre-approval backup created at `D:\Youtube\Story Trans And Audio\backups\task18bc_pre_ch369_draft15_approve_20260719_211339`; backup DB SHA-256 `01a1875198270e8335ff422b7be9c599167dc6d1bc5d5852b0f8d8181cfd8965`; backup DB size `4009984` bytes.
+  - **Approval**: `POST /api/chapters/369/speaker-assignment/drafts/15/approve-only` set Draft `15` to `approved`, `approved_at = 2026-07-19T14:14:46.641036+00:00`, reviewed rows `2`, remaining unreviewed rows `0`, invalid rows `0`.
+  - **Safety**: Chapter `369` still has Casting Plans `0`, Jobs `0`, JobChapters `0`, artifacts `0`, active audio `none`, and audio status `not_created`; no Gemini/provider/TTS/preview/render/assembly/export call occurred.
+  - **Next task**: Task `18BD` — Create and Review Chapter `369` Final Voice Map Draft.
 - **Task 18BB - Speaker Draft review boundary separated from Casting Plan creation**: added row-level Speaker Draft review persistence and draft-only approval so human review can be completed before creating a Final Voice Map.
   - **Root cause**: the previous `approve_speaker_review(...)` path resolved review decisions, created a Casting Plan, and approved that plan in one operation; the staged route created a Casting Plan draft. There was no supported way to review rows or approve a Speaker Draft without downstream casting side effects.
   - **Schema**: migration `0012_speaker_draft_reviews.sql` adds `speaker_assignment_reviews`, adds `speaker_assignment_drafts.approved_at`, and extends the draft status CHECK with `approved`. Existing draft rows are copied unchanged; no draft is auto-reviewed or auto-approved.
