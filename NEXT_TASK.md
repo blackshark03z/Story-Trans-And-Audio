@@ -1,7 +1,7 @@
 ﻿# Next Task
 
 Current Status:
-Task 18AX recorded final Human QA approval for Chapter `368`. Active artifact `84` from `render_0002` is now production-accepted; Repair Block `#1` for Segments `665`/`666` remains accepted; artifact `81` is preserved as stale historical audio; and no further remediation is required.
+Task 18AY resolved Chapter `369`'s quote-boundary blocker in the deterministic utterance splitter. Active Text Revision `738` remains approved and unchanged; the balanced quote `"Pháp lực màu đỏ! Nhanh phá huỷ trận pháp!"` now stays one utterance/target; no live DB/audio/provider mutation occurred.
 
 Current Baseline:
 - Branch `main`
@@ -12,8 +12,8 @@ Current Baseline:
   - `experiment_b_transcript/`
   - `runs/`
 - Completed chapters: `364` artifact `69`, `365` artifact `72`, `366` artifact `78`, `367` artifact `75`, and `368` artifact `84` are all documented as `HUMAN_QA_PASS`.
-- Chapter `369`: active Text Revision `738`, previously classified `BLOCKED_TEXT_REMEDIATION` for a split quote around `"Pháp lực màu đỏ! Nhanh phá huỷ trận pháp!"`; do not prepare audio until the text boundary is resolved.
+- Chapter `369`: active Text Revision `738`, no speaker drafts, no Casting Plans, no Jobs, no artifacts, deterministic utterances `46`, speaker targets `2`; previous quote-boundary blocker is resolved.
 - Chapter `370`: active Text Revision `740`, previously classified `BLOCKED_TEXT_REMEDIATION` for multiple split quote fragments including a punctuation-only quote segment; do not skip Chapter `369`.
 
 Next Recommended Task:
-Task 18AY - Resolve Chapter 369 Quote-Boundary Text Blocker.
+Task 18AZ - Generate and Review Chapter 369 Speaker Draft.

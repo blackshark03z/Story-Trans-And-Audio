@@ -1,12 +1,28 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-19T13:42 (Asia/Saigon)
-**Milestone:** Task 18AX Chapter 368 Final Human QA Closed
-**Trạng thái:** Chapter `368` is production-closed with persisted Human QA approval. Final verdict `FINAL_REASSEMBLED_QA_PASS` / `HUMAN_QA_PASS` was recorded against active artifact `84` from `render_0002`; Repair Block `#1` remains accepted for Segments `665`/`666`; artifact `81` remains preserved as stale historical audio; no further remediation is required.
+**Cập nhật:** 2026-07-19T14:05 (Asia/Saigon)
+**Milestone:** Task 18AY Chapter 369 Quote Boundary Resolved
+**Trạng thái:** Chapter `369` quote-boundary blocker is resolved in code without live DB/text mutation. The active Text Revision `738` remains valid and approved; deterministic speaker-target construction now preserves the balanced quote `"Pháp lực màu đỏ! Nhanh phá huỷ trận pháp!"` as one utterance/target instead of splitting it into opening-only and closing-only fragments. Chapter `369` is ready for the next provider-authorized speaker draft task.
 
-**Last verified against commit:** `fa555f98ebfaa0d1f796508f6778ca05e9987f84`
+**Last verified against commit:** `c1a317bd96242d616cb4825f2d2ca1fe96a2b931`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-19
+
+**Task 18AY verified live state:**
+- Repository/runtime baseline passed before investigation: branch `main`, `HEAD == origin/main == a9e2212d59cb94afa96f9774629b5bb3a2890519`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, schema `11`, and SQLite `quick_check = ok`.
+- Chapter `369` current state before the fix was clean: raw Text Revision `737`, active approved reflowed Text Revision `738`, no speaker drafts, no Casting Plans, no Jobs, no JobChapters, no artifacts, no repair blocks, no active audio, and no human approval.
+- Exact blocker reproduced deterministically without provider calls: `build_speaker_assignment_request(..., chapter_id=369)` selected `3` targets, with the second quote split into `u0021-4ed714fd2d4c` text `"Pháp lực màu đỏ!` and `u0022-42e6f7b4ed2d` text `Nhanh phá huỷ trận pháp!"`.
+- Authoritative text context proved the source text was valid: raw Revision `737` and active Revision `738` both contain the same balanced span at offsets `3491-3534`: `"Pháp lực màu đỏ! Nhanh phá huỷ trận pháp!"`. Straight quote positions in active text are `[449, 697, 3491, 3533]`, so quotes are balanced.
+- Relevant Unicode punctuation/codepoints at the affected boundary: opening `"` `U+0022`, internal `!` `U+0021` at offset `3507`, second `!` `U+0021` at offset `3532`, closing `"` `U+0022` at offset `3533`; Vietnamese letters include `á` `U+00E1`, `ự` `U+1EF1`, `đ` `U+0111`, `ỏ` `U+1ECF`, `ỷ` `U+1EF7`, and `ậ` `U+1EAD`.
+- Root-cause classification: `UTTERANCE_SEGMENTATION_QUOTE_BOUNDARY_DEFECT`. EPUB/source extraction, lossless reflow, immutable revision content, quote-span detection, and speaker-target overlap selection were valid; the first invalid layer was deterministic utterance splitting inside a balanced quote that was already shorter than the TTS maximum.
+- Implementation fix: `split_utterances(...)` now keeps a balanced quoted span atomic when the whole quote is within the maximum length, while still using the existing safe splitter for long quotes. This is generic and does not hard-code Chapter `369`, revision IDs, offsets, or text fragments.
+- Focused regression tests added for balanced straight multi-sentence quotes, balanced curly multi-sentence quotes, long quote max-length fallback, and unmatched quote safety. Speaker-assignment fixture was adjusted to use two separate quoted spans where tests intentionally need two review targets.
+- Verification passed: `tests.test_casting` and `tests.test_speaker_assignment` (`48` tests) passed; `py_compile` for changed files passed; `git diff --check` passed.
+- Implementation commit pushed: `c1a317bd96242d616cb4825f2d2ca1fe96a2b931` (`fix: preserve chapter quote boundaries`). Canonical runtime `8772` was restarted with live-DB opt-in after the push and reported schema `11`.
+- Post-fix Chapter `369` deterministic readiness: utterance count is `46`; speaker target count is `2`; the affected quote is now `u0021-49989b447284`, sequence `21`, offsets `3491-3534`, text `"Pháp lực màu đỏ! Nhanh phá huỷ trận pháp!"`; no orphan quote target remains.
+- Live remediation result: no SQLite backup was required because no live DB mutation was performed; no new Text Revision, speaker draft, Casting Plan, Job, JobChapter, artifact, repair block, audio, Gemini call, provider call, or TTS call was created.
+- Safety passed: Chapters `364-368` retained their completed Human QA/artifact state, Chapter `370` remained untouched (`active_text_revision_id = 740`, `audio_status = not_created`, no active artifact), and protected paths `experiment_b_transcript/` plus `runs/` remained untouched.
+- Exact next task: Task `18AZ` - Generate and Review Chapter `369` Speaker Draft.
 
 **Task 18AX verified live state:**
 - Repository/runtime baseline passed before closeout: branch `main`, `HEAD == origin/main == fa555f98ebfaa0d1f796508f6778ca05e9987f84`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, schema `11`, and SQLite `quick_check = ok`.

@@ -6,6 +6,13 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AY - Chapter 369 quote-boundary blocker resolved**: fixed deterministic utterance splitting so balanced quoted spans under the TTS maximum remain atomic even when they contain internal sentence punctuation.
+  - **Blocker**: Chapter `369` active Text Revision `738` contained a valid balanced quote at offsets `3491-3534`, `"Pháp lực màu đỏ! Nhanh phá huỷ trận pháp!"`, but the old splitter produced two speaker targets: opening-only `"Pháp lực màu đỏ!` and closing-only `Nhanh phá huỷ trận pháp!"`.
+  - **Root cause**: `UTTERANCE_SEGMENTATION_QUOTE_BOUNDARY_DEFECT`; raw Revision `737` and reflowed Revision `738` were both valid, quote marks were balanced, and quote-span/speaker-target overlap logic was not the first invalid layer.
+  - **Fix**: `split_utterances(...)` keeps balanced quoted spans atomic when the complete quote is within the maximum length and keeps the existing safe splitting path for long quotes.
+  - **Tests**: added focused coverage for straight and curly multi-sentence quotes, long quote fallback, and unmatched quote safety; updated speaker-assignment fixture to express two intended targets as two separate quoted spans. `tests.test_casting` and `tests.test_speaker_assignment` passed.
+  - **Live result**: no live DB mutation was required; no new Text Revision, speaker draft, Casting Plan, Job, artifact, Gemini/provider call, or TTS call was created. Post-fix Chapter `369` has `46` deterministic utterances and `2` speaker targets, with the affected quote as one complete target `u0021-49989b447284`.
+  - **Next task**: Task `18AZ` — Generate and Review Chapter `369` Speaker Draft.
 - **Task 18AX - Chapter 368 final Human QA closed**: recorded `FINAL_REASSEMBLED_QA_PASS` / `HUMAN_QA_PASS` for the reassembled Chapter `368` production artifact.
   - **QA closure workflow**: used the supported `PUT /api/chapters/368/human-approval` route, which stores the active-output snapshot in `chapters.human_approval_json`; UI boundary is `Chốt bản audio cuối`. No direct DB edit or new route was used.
   - **Persisted result**: status `approved`, `recorded_at = 2026-07-19T06:41:58.344250+00:00`, `artifact_id = 84`, `job_id = 22`, `matches_active_artifact = true`, and chapter `human_qa_status = accepted`.
