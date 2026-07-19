@@ -1,7 +1,7 @@
 # Next Task
 
 Current Status:
-Task 18AO mapped the Chapter `368` Human QA failure at `02:39-02:47` to Segment `666` / sequence `15` and created exactly one targeted regeneration candidate, Attempt `38`, without accepting it. Active artifact `81` remains unchanged and Chapter `368` is not closed.
+Task 18AQ rejected Candidate `38` for Chapter `368` Segment `666` and created exactly one replacement candidate, Attempt `39`, without accepting either candidate. Active artifact `81` remains unchanged and Chapter `368` is still not closed.
 
 Current Baseline:
 - Branch `main`
@@ -24,12 +24,11 @@ Current Baseline:
 - Chapter `368` JobChapter: JobChapter `22`, `status = completed`, `chapter_id = 368`, `text_revision_id = 736`, `casting_plan_id = 23`, `casting_plan_sha256 = 493e1f39bd353657f6deee0a9ac1124ae3ad47160d5bf7b1b09657f1de1ee9c0`, `artifact_id = 81`, `started_at = 2026-07-18T17:49:53.174496+00:00`, `finished_at = 2026-07-18T18:00:53.085149+00:00`
 - Render result before targeted remediation: `49` verified segments, sequence range `1-49`, failed/pending/running segments `0`, repair blocks `0`, narrator `49`, `custom:26 -> 49`, custom voice revision `6 -> 49`
 - Active final audio: artifact `81`, `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0368\job_22\render_0001\chapter.m4a`, SHA-256 `14b106e52a2f1951ffa69633679ee8f1cb6a990dfbc73056fd0c39e4b27045f5`, size `8007414` bytes, authoritative duration `493840 ms`, decoded PCM duration `493845 ms`, AAC mono 48 kHz
-- Human QA failure: `TARGETED_REMEDIATION_REQUIRED`, marker `02:39.000-02:47.000`, severe unintelligible speech / đọc không ra tiếng, major severity
-- Defective source segment: Segment `666`, sequence `15`, utterance ID `u0015-4257cca30835`, source offsets `2473-2488`, timeline `02:35.860-02:45.530`, exact text `phải rung động.`, narrator `custom:26`, custom voice revision `6`
-- Root cause: `SOURCE_SYNTHESIS_UNINTELLIGIBLE`; source WAV `000015.wav` itself is defective/abnormal for the short utterance. The marker crosses into Segment `667` for `1470 ms`, but Segment `667` overlap was not selected for regeneration.
-- Original active attempt: Attempt `37`, status `active`, SHA-256 `28b3a912a538338e0af84fc4499c15c52f32252538af624c8370d5cfc0a89f4e`, duration `9670 ms`
-- Pending candidate: Attempt `38`, status `candidate`, path `D:\Youtube\Story Trans And Audio\data\work\job_22\chapter_0368\segments\segment_666_attempt_2.wav`, SHA-256 `26721277a58ea5026f4e7b49e941840b1d3ee2b096ec9d04066adfbf3f4371d6`, duration `2150 ms`, mono 48 kHz, peak about `-7.29 dBFS`, RMS about `-20.45 dBFS`, clipped samples `0`
-- A/B readiness: `/api/segments/666/attempts` exposes active Attempt `37` and candidate Attempt `38`; UI has separate Accept and Reject actions. Neither action has been clicked, and no reassembly has occurred.
+- Human A/B verdict for Attempt `38`: reject because only `phải rung động.` is clear; the preceding speech is unintelligible.
+- Failure classification: `PROVIDER_HALLUCINATED_PREFIX`; the synthesis input itself remained clean, but the provider output added an unacceptable leading speech prefix.
+- Rejection result: Attempt `38` is `rejected`; Attempt `37` remains `active`; Segment `666` remains `verified`; Artifact `81` remains `active`.
+- Replacement candidate: Attempt `39`, status `candidate`, path `D:\Youtube\Story Trans And Audio\data\work\job_22\chapter_0368\segments\segment_666_attempt_3.wav`, SHA-256 `48a6b6ead0442eaf1db21b766ef8a81794994053195480453981ad51084ae59e`, duration `1430 ms`, mono 48 kHz, peak about `-7.36 dBFS`, RMS about `-21.00 dBFS`, clipped samples `0`
+- A/B readiness: `/api/segments/666/attempts` exposes active Attempt `37`, rejected Attempt `38`, and candidate Attempt `39`; UI has separate Accept and Reject actions. Neither action has been clicked for Attempt `39`, and no reassembly has occurred.
 - Active artifact safety: artifact `81` remains active and unchanged with SHA-256 `14b106e52a2f1951ffa69633679ee8f1cb6a990dfbc73056fd0c39e4b27045f5`; active final M4A has not been replaced
 - Technical audio checks: peak about `-0.97 dBFS`, mean volume about `-19.5 dB`, clipped samples `0`, longest detected silence about `0.985 s` at `06:21.47`, no decode corruption detected
 - Human QA markers for the next task: seq `1` / segment `652` / `00:00.00` start; seq `7` / segment `658` / `01:02.90` longest; seq `13` / segment `664` / `02:05.88` duration outlier; seq `14` / segment `665` / `02:21.39` punctuation-heavy terminology; seq `15` / segment `666` / `02:35.86` quietest; seq `27` / segment `678` / `04:31.58` loudest; seq `32` / segment `683` / `05:17.05` shortest; seq `38` / segment `689` / `06:07.71` scene transition and longest-silence window; seq `49` / segment `700` / `08:04.40` ending
@@ -38,17 +37,17 @@ Current Baseline:
 - Future observations that must remain untouched: Chapter `369` and Chapter `370` have text-remediation observations
 
 Next Recommended Task:
-Task 18AP - Human A/B Review of Chapter 368 Targeted Regeneration Candidate.
+Task 18AR - Human A/B Review of the Replacement Chapter 368 Segment 666 Candidate.
 
 Why:
-- Chapter `368` has a pending targeted candidate for the confirmed Human QA defect.
-- The next safe workflow boundary is Human A/B listening of original Attempt `37` versus candidate Attempt `38`; technical validation alone is not acceptance.
+- Chapter `368` has a pending replacement candidate for the same Segment `666` defect.
+- The next safe workflow boundary is Human A/B listening of original Attempt `37` versus candidate Attempt `39`; technical validation alone is not acceptance.
 
 Scope:
-1. Re-verify canonical runtime, repository baseline, Chapter `368`, Segment `666`, active Attempt `37`, candidate Attempt `38`, and active artifact `81`.
+1. Re-verify canonical runtime, repository baseline, Chapter `368`, Segment `666`, active Attempt `37`, candidate Attempt `39`, and active artifact `81`.
 2. Listen A/B to original active audio and candidate audio for Segment `666`, with at least five seconds of context before/after in the chapter.
-3. If candidate `38` is better and acceptable, use the supported Accept workflow only once; verify same-job reassembly and new active artifact.
-4. If candidate `38` is not acceptable, use the supported Reject workflow or record the precise blocker; do not submit another blind attempt.
+3. If candidate `39` is better and acceptable, use the supported Accept workflow only once; verify same-job reassembly and new active artifact.
+4. If candidate `39` is not acceptable, use the supported Reject workflow or record the precise blocker; do not submit another blind attempt.
 5. Do not close Chapter `368` until the repaired artifact is re-reviewed.
 
 Prerequisites For Any Next Task:
@@ -60,8 +59,8 @@ Prerequisites For Any Next Task:
 - Do not modify Chapters `364`, `365`, `366`, or `367`.
 - Do not mutate Chapters `369` or `370`.
 - Do not prepare or start another Chapter `368` job.
-- Do not submit another regeneration attempt while candidate Attempt `38` is pending.
-- Do not accept or reject candidate Attempt `38` without Human A/B listening.
+- Do not submit another regeneration attempt while candidate Attempt `39` is pending.
+- Do not accept or reject candidate Attempt `39` without Human A/B listening.
 - Do not modify Text Revision `736`, Speaker Draft `14`, Casting Plan `23`, custom voice `26`, or voice revision `6`.
 - Do not edit production `data/app.db` directly.
 - Re-verify Git baseline before beginning Human A/B review or any candidate action.

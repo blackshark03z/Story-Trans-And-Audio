@@ -6,6 +6,18 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AQ - Chapter 368 replacement candidate ready**: rejected Candidate `38` and created one clean replacement candidate `39` for Segment `666` without reassembling the chapter.
+  - **Baseline**: branch `main`, `HEAD == origin/main == 23e458caa7d6dce1c111924efcb990026629d881`; canonical runtime `http://127.0.0.1:8772` pointed to `D:\Youtube\Story Trans And Audio\data` and `D:\Youtube\Story Trans And Audio\data\app.db`; SQLite `quick_check = ok`; only protected untracked `experiment_b_transcript/` and `runs/` were present.
+  - **Human verdict**: Candidate `38` was rejected because only `phải rung động.` is clear and the preceding speech is unintelligible. The failure was classified as `PROVIDER_HALLUCINATED_PREFIX`.
+  - **Rejection**: exactly one supported `POST /api/segments/666/reject-candidate` call set Attempt `38` to `rejected` at `2026-07-19T04:08:54.615174+00:00`. Attempt `37` remains `active`; Segment `666` remains `verified`; Artifact `81` remains `active`.
+  - **Backup**: pre-replacement SQLite online backup created at `D:\Youtube\Story Trans And Audio\backups\task18aq_pre_ch368_segment666_attempt3_20260719T040915Z.sqlite3`; size `4009984` bytes; SHA-256 `509c22950abd8e662549899f10716422146441392cc65b068c6ef625128f0310`; quick_check `ok`.
+  - **Replacement**: exactly one supported `POST /api/segments/666/regenerate` call created Attempt `39`, attempt number `3`, status `candidate`, path `D:\Youtube\Story Trans And Audio\data\work\job_22\chapter_0368\segments\segment_666_attempt_3.wav`, SHA-256 `48a6b6ead0442eaf1db21b766ef8a81794994053195480453981ad51084ae59e`, duration `1430 ms`.
+  - **Technical validation**: candidate `39` decodes cleanly as mono 48 kHz PCM, size `137324` bytes, peak about `-7.36 dBFS`, RMS about `-21.00 dBFS`, clipped samples `0`, leading silence `134 ms`, trailing silence `488 ms`, longest silence `488 ms`, and non-empty voiced audio. It is not identical to Candidate `38`.
+  - **A/B safety**: `/api/segments/666/attempts` now exposes active Attempt `37`, rejected Attempt `38`, and candidate Attempt `39`; UI still provides separate Accept/Reject actions and no accept/reject action was clicked.
+  - **Active artifact safety**: active artifact `81` and final M4A SHA-256 `14b106e52a2f1951ffa69633679ee8f1cb6a990dfbc73056fd0c39e4b27045f5` remain unchanged. No replacement job, chapter reassembly, text revision, speaker draft, Casting Plan, or voice mutation occurred.
+  - **Next step**: Human A/B Review of the Replacement Chapter `368` Segment `666` Candidate.
+  - **Migration**: none.
+
 - **Task 18AO - Chapter 368 targeted regeneration candidate ready**: mapped the Human QA failure at `02:39-02:47` and created exactly one pending targeted regeneration candidate for Segment `666`.
   - **Baseline**: branch `main`, `HEAD == origin/main == 2f843319edade689067f585eef49393ebf82e640`; canonical runtime `http://127.0.0.1:8772` pointed to `D:\Youtube\Story Trans And Audio\data` and `D:\Youtube\Story Trans And Audio\data\app.db`; SQLite `quick_check = ok`; only protected untracked `experiment_b_transcript/` and `runs/` were present.
   - **QA marker**: Human QA verdict `TARGETED_REMEDIATION_REQUIRED`; marker `02:39.000-02:47.000`; issue severe unintelligible speech / đọc không ra tiếng; severity major.

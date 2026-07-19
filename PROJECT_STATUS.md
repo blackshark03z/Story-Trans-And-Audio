@@ -1,16 +1,32 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-19T01:57 (Asia/Saigon)
-**Milestone:** Task 18AO Chapter 368 Targeted Regeneration Candidate Ready
-**Trạng thái:** Human QA found a major Chapter `368` audio defect at `02:39-02:47`. The marker was mapped to Segment `666` / sequence `15` / utterance `u0015-4257cca30835` (`phải rung động.`). Source synthesis was classified defective, and exactly one unaccepted candidate attempt `38` was created for Human A/B review. Active artifact `81` remains unchanged.
+**Cập nhật:** 2026-07-19T04:09 (Asia/Saigon)
+**Milestone:** Task 18AQ Chapter 368 Replacement Candidate Ready
+**Trạng thái:** Candidate `38` was rejected through the supported workflow after Human A/B found unintelligible leading speech before the authoritative phrase `phải rung động.`. Exactly one replacement candidate, Attempt `39`, now awaits Human A/B review. Active artifact `81` remains unchanged.
 
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
 
-**Last verified against commit:** `2f843319edade689067f585eef49393ebf82e640`
+**Last verified against commit:** `23e458caa7d6dce1c111924efcb990026629d881`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-19
+
+**Task 18AQ canonical replacement-candidate outcome:**
+- Repository/runtime baseline passed before mutation: branch `main`, `HEAD == origin/main == 23e458caa7d6dce1c111924efcb990026629d881`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, canonical runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`.
+- Human A/B verdict for Attempt `38`: `REJECT_CANDIDATE_38`. The clear portion is only the ending phrase `phải rung động.`; the leading speech is unintelligible and does not belong in the authoritative text.
+- Authoritative segment text remains exactly `phải rung động.` for Segment `666` / sequence `15` / utterance `u0015-4257cca30835`, offsets `2473-2488`, narrator voice `custom:26`, custom voice revision `6`.
+- Attempt `38` diagnosis: provider-supplied audio contained an unacceptable leading speech prefix before the authoritative phrase. The synthesis input itself remained clean, so the failure was classified as `PROVIDER_HALLUCINATED_PREFIX`. This is not a text, casting, or boundary mutation.
+- Rejection result: exactly one supported `POST /api/segments/666/reject-candidate` call set Attempt `38` to `rejected` at `2026-07-19T04:08:54.615174+00:00`. Attempt `37` remains `active`; Segment `666` remains `verified`; Artifact `81` remains `active`; final M4A remains unchanged.
+- Pre-replacement SQLite online backup was created at `D:\Youtube\Story Trans And Audio\backups\task18aq_pre_ch368_segment666_attempt3_20260719T040915Z.sqlite3`; size `4009984` bytes; SHA-256 `509c22950abd8e662549899f10716422146441392cc65b068c6ef625128f0310`; backup `quick_check = ok`. The backup remains untracked/unstaged.
+- Exactly one supported replacement mutation was issued after rejection: `POST /api/segments/666/regenerate`. No replacement job, full-chapter reassembly, text revision, speaker draft, Casting Plan, or voice mutation occurred.
+- Replacement candidate result: Attempt `39`, attempt number `3`, status `candidate`, path `D:\Youtube\Story Trans And Audio\data\work\job_22\chapter_0368\segments\segment_666_attempt_3.wav`, SHA-256 `48a6b6ead0442eaf1db21b766ef8a81794994053195480453981ad51084ae59e`, duration `1430 ms`, created at `2026-07-19T04:09:20.769309+00:00`.
+- Candidate `39` technical validation passed: file exists; decodes as mono 48 kHz PCM; size `137324` bytes; peak about `-7.36 dBFS`; RMS about `-21.00 dBFS`; clipped samples `0`; leading silence `134 ms`; trailing silence `488 ms`; longest silence `488 ms`; `2` silences >= `200 ms`; non-empty voiced audio; and it is not identical to Attempt `38`.
+- UI/API A/B readiness passed: `/api/segments/666/attempts` now returns active Attempt `37`, rejected Attempt `38` in history, and candidate Attempt `39`. UI still exposes original and candidate players with Accept/Reject actions. Neither action was clicked.
+- Active audio safety passed: Chapter `368` active artifact remains `81`; active M4A path, SHA-256 `14b106e52a2f1951ffa69633679ee8f1cb6a990dfbc73056fd0c39e4b27045f5`, size `8007414` bytes, and duration `493840 ms` remain unchanged. Segment `666` remains verified and active Attempt `37` remains untouched.
+- Final safety counts: Chapter `368` jobs `1`, JobChapters `1`, segments `49`, verified segments `49`, artifacts `3`, attempt rows `3` (`active` Attempt `37`, `rejected` Attempt `38`, `candidate` Attempt `39`), candidate rows `1`, replacement jobs `0`, Text Revisions `2`, Speaker Drafts `1`, Casting Plans `1`.
+- Completed and future chapter safety is preserved: Chapters `364`, `365`, `366`, and `367` remain unchanged at active artifacts `69`, `72`, `78`, and `75`; Chapters `369` and `370` remain untouched with active audio `none`; `experiment_b_transcript/` and `runs/` remain untouched.
+- Exact next task: Task `18AR` - Human A/B Review of the Replacement Chapter `368` Segment `666` Candidate.
 
 **Task 18AO canonical targeted-remediation candidate outcome:**
 - Repository/runtime baseline passed before mutation: branch `main`, `HEAD == origin/main == 2f843319edade689067f585eef49393ebf82e640`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, canonical runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`.
