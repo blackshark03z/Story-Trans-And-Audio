@@ -1,4 +1,4 @@
-# Changelog
+﻿# Changelog
 
 Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contract vÃ  váº­n hÃ nh. KhÃ´ng dÃ¹ng file nÃ y thay cho `PROJECT_STATUS.md`.
 
@@ -6,6 +6,13 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AT - Chapter 368 adjacent-segment repair-block candidate**: implemented `audio_repair_blocks`, added migration `0011_audio_repair_blocks.sql`, exposed supported repair-block APIs/UI, and created one live candidate for Segments `665`/`666` on Job `22` / JobChapter `22`.
+  - **Code**: repair-block synthesis now reconstructs the authoritative span from Text Revision `736`, enforces adjacent verified segments, rejects stale/mismatched plan pins, reuses the same live job identity, and supports JobChapter-level casting-plan pin fallback when segment rows keep `casting_plan_id = NULL`.
+  - **API/UI**: added `POST /api/jobs/{job_id}/repair-blocks`, `GET /api/job-chapters/{job_chapter_id}/repair-blocks`, `POST /api/audio-repair-blocks/{repair_block_id}/reject`, candidate audio, and preview-only original-range audio for A/B review.
+  - **Tests**: focused offline tests now cover candidate creation, duplicate reuse, rejection, plan/job mismatch rejection, JobChapter pin fallback, preview generation, UI review labels, migration schema presence, and compatibility with existing segment-regeneration tests.
+  - **Live validation**: runtime restarted to schema `11`, backup created at `D:\Youtube\Story Trans And Audio\backups\task_18at_pre_live_candidate_20260719_123323`, and one live candidate `#1` was created for Segments `665`/`666` with `candidate_duration_ms = 15350` and `status = candidate`.
+  - **Safety**: no duplicate repair block was created, no accept/reject action was taken, and no job, text revision, speaker draft, casting plan, or voice mutation occurred.
+  - **Next task**: Task `18AU` — Human A/B Review of Chapter 368 Segments 665-666 Repair-Block Candidate.
 - **Task 18AS - Chapter 368 repeated Segment 666 articulation failure diagnosed**: rejected Candidate `39` and selected segmentation remediation instead of creating Attempt `40`.
   - **Baseline**: branch `main`, `HEAD == origin/main == b91ba13f72824ae082981a7572387bedb330da24`; canonical runtime `http://127.0.0.1:8772` pointed to `D:\Youtube\Story Trans And Audio\data` and `D:\Youtube\Story Trans And Audio\data\app.db`; SQLite `quick_check = ok`; only protected untracked `experiment_b_transcript/` and `runs/` were present.
   - **Human verdict**: Candidate `39` was rejected because `phải rung động.` was not pronounced clearly or with complete production-acceptable articulation.
@@ -578,6 +585,13 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AT - Chapter 368 adjacent-segment repair-block candidate**: implemented `audio_repair_blocks`, added migration `0011_audio_repair_blocks.sql`, exposed supported repair-block APIs/UI, and created one live candidate for Segments `665`/`666` on Job `22` / JobChapter `22`.
+  - **Code**: repair-block synthesis now reconstructs the authoritative span from Text Revision `736`, enforces adjacent verified segments, rejects stale/mismatched plan pins, reuses the same live job identity, and supports JobChapter-level casting-plan pin fallback when segment rows keep `casting_plan_id = NULL`.
+  - **API/UI**: added `POST /api/jobs/{job_id}/repair-blocks`, `GET /api/job-chapters/{job_chapter_id}/repair-blocks`, `POST /api/audio-repair-blocks/{repair_block_id}/reject`, candidate audio, and preview-only original-range audio for A/B review.
+  - **Tests**: focused offline tests now cover candidate creation, duplicate reuse, rejection, plan/job mismatch rejection, JobChapter pin fallback, preview generation, UI review labels, migration schema presence, and compatibility with existing segment-regeneration tests.
+  - **Live validation**: runtime restarted to schema `11`, backup created at `D:\Youtube\Story Trans And Audio\backups\task_18at_pre_live_candidate_20260719_123323`, and one live candidate `#1` was created for Segments `665`/`666` with `candidate_duration_ms = 15350` and `status = candidate`.
+  - **Safety**: no duplicate repair block was created, no accept/reject action was taken, and no job, text revision, speaker draft, casting plan, or voice mutation occurred.
+  - **Next task**: Task `18AU` — Human A/B Review of Chapter 368 Segments 665-666 Repair-Block Candidate.
 - **Custom Reference Voice Library UI (Complete)**: Global library interface for managing custom reference voices. Logical voice management (create, list, select, deactivate/reactivate), immutable revision upload (multipart audio + transcript), revision history display, exact revision selection (radio buttons + summary), Reference Audio playback (GET `/api/custom-voice-revisions/{id}/audio` with SHA-256 verification), custom Preview Text (optional, max 500 chars, empty uses default), short custom preview support (removed 10s minimum, accepts >0s to 20s), cache isolation by revision + text. Compact standalone Preset Voice Preview restored after UI consolidation. UI usability consolidation eliminates redundant custom preview panel; Custom Voice Library remains single custom-reference workflow. Smoke/test books hidden by default with "Show test data" checkbox. Custom Voice input fields use full-width vertical labels and responsive two-column upload layout. Test coverage: 613 tests passing (3 known pre-existing failures in brittle minified-JavaScript assertions unrelated to changes). Real manual smoke passed: preset preview functional, two revisions uploaded, exact selection works, Reference Audio plays, custom short text synthesis succeeds, cache hit/miss verified. Test isolation verified: live DB unchanged during automated runs. No migration required (schema v6 sufficient). **Work merged into main via PR #2.**
 
 - **Custom Voice Preview**: Immutable custom voice revision preview with exact revision ID, reference audio/transcript integrity verification, content-addressed preview cache, and backward-compatible preset request API.
@@ -605,6 +619,13 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AT - Chapter 368 adjacent-segment repair-block candidate**: implemented `audio_repair_blocks`, added migration `0011_audio_repair_blocks.sql`, exposed supported repair-block APIs/UI, and created one live candidate for Segments `665`/`666` on Job `22` / JobChapter `22`.
+  - **Code**: repair-block synthesis now reconstructs the authoritative span from Text Revision `736`, enforces adjacent verified segments, rejects stale/mismatched plan pins, reuses the same live job identity, and supports JobChapter-level casting-plan pin fallback when segment rows keep `casting_plan_id = NULL`.
+  - **API/UI**: added `POST /api/jobs/{job_id}/repair-blocks`, `GET /api/job-chapters/{job_chapter_id}/repair-blocks`, `POST /api/audio-repair-blocks/{repair_block_id}/reject`, candidate audio, and preview-only original-range audio for A/B review.
+  - **Tests**: focused offline tests now cover candidate creation, duplicate reuse, rejection, plan/job mismatch rejection, JobChapter pin fallback, preview generation, UI review labels, migration schema presence, and compatibility with existing segment-regeneration tests.
+  - **Live validation**: runtime restarted to schema `11`, backup created at `D:\Youtube\Story Trans And Audio\backups\task_18at_pre_live_candidate_20260719_123323`, and one live candidate `#1` was created for Segments `665`/`666` with `candidate_duration_ms = 15350` and `status = candidate`.
+  - **Safety**: no duplicate repair block was created, no accept/reject action was taken, and no job, text revision, speaker draft, casting plan, or voice mutation occurred.
+  - **Next task**: Task `18AU` — Human A/B Review of Chapter 368 Segments 665-666 Repair-Block Candidate.
 - Speaker Assignment Review UI trong Character Voices vá»›i draft selector, confidence/needs-review filters, bulk actions, Gemini alternatives, manual character/narrator/unknown decisions vÃ  effective voice preview.
 - Immutable partial approval táº¡o Casting Plan revision má»›i, giá»¯ nguyÃªn assignment ngoÃ i pháº¡m vi Ä‘Ã£ review, há»— trá»£ base-plan compare-and-swap vÃ  deterministic decision fingerprint.
 - Approval idempotency theo draft/base/decision identity; exact repeat tráº£ láº¡i plan cÅ©, cÃ²n key trÃ¹ng vá»›i quyáº¿t Ä‘á»‹nh khÃ¡c bá»‹ tá»« chá»‘i.
@@ -673,6 +694,13 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AT - Chapter 368 adjacent-segment repair-block candidate**: implemented `audio_repair_blocks`, added migration `0011_audio_repair_blocks.sql`, exposed supported repair-block APIs/UI, and created one live candidate for Segments `665`/`666` on Job `22` / JobChapter `22`.
+  - **Code**: repair-block synthesis now reconstructs the authoritative span from Text Revision `736`, enforces adjacent verified segments, rejects stale/mismatched plan pins, reuses the same live job identity, and supports JobChapter-level casting-plan pin fallback when segment rows keep `casting_plan_id = NULL`.
+  - **API/UI**: added `POST /api/jobs/{job_id}/repair-blocks`, `GET /api/job-chapters/{job_chapter_id}/repair-blocks`, `POST /api/audio-repair-blocks/{repair_block_id}/reject`, candidate audio, and preview-only original-range audio for A/B review.
+  - **Tests**: focused offline tests now cover candidate creation, duplicate reuse, rejection, plan/job mismatch rejection, JobChapter pin fallback, preview generation, UI review labels, migration schema presence, and compatibility with existing segment-regeneration tests.
+  - **Live validation**: runtime restarted to schema `11`, backup created at `D:\Youtube\Story Trans And Audio\backups\task_18at_pre_live_candidate_20260719_123323`, and one live candidate `#1` was created for Segments `665`/`666` with `candidate_duration_ms = 15350` and `status = candidate`.
+  - **Safety**: no duplicate repair block was created, no accept/reject action was taken, and no job, text revision, speaker draft, casting plan, or voice mutation occurred.
+  - **Next task**: Task `18AU` — Human A/B Review of Chapter 368 Segments 665-666 Repair-Block Candidate.
 - Story Audio â†’ YouTube Auto Handoff V1 exporter/verifier cho má»™t completed chapter.
 - Bundle báº¥t biáº¿n gá»“m pinned `content.md`, copied narration audio, integer-ms speech timeline, character identity seed vÃ  SHA-256 manifest.
 - Doctor kiá»ƒm tra export bundle; backup bao gá»“m `data/exports/youtube_auto`; 7 offline exporter tests.
@@ -767,6 +795,13 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AT - Chapter 368 adjacent-segment repair-block candidate**: implemented `audio_repair_blocks`, added migration `0011_audio_repair_blocks.sql`, exposed supported repair-block APIs/UI, and created one live candidate for Segments `665`/`666` on Job `22` / JobChapter `22`.
+  - **Code**: repair-block synthesis now reconstructs the authoritative span from Text Revision `736`, enforces adjacent verified segments, rejects stale/mismatched plan pins, reuses the same live job identity, and supports JobChapter-level casting-plan pin fallback when segment rows keep `casting_plan_id = NULL`.
+  - **API/UI**: added `POST /api/jobs/{job_id}/repair-blocks`, `GET /api/job-chapters/{job_chapter_id}/repair-blocks`, `POST /api/audio-repair-blocks/{repair_block_id}/reject`, candidate audio, and preview-only original-range audio for A/B review.
+  - **Tests**: focused offline tests now cover candidate creation, duplicate reuse, rejection, plan/job mismatch rejection, JobChapter pin fallback, preview generation, UI review labels, migration schema presence, and compatibility with existing segment-regeneration tests.
+  - **Live validation**: runtime restarted to schema `11`, backup created at `D:\Youtube\Story Trans And Audio\backups\task_18at_pre_live_candidate_20260719_123323`, and one live candidate `#1` was created for Segments `665`/`666` with `candidate_duration_ms = 15350` and `status = candidate`.
+  - **Safety**: no duplicate repair block was created, no accept/reject action was taken, and no job, text revision, speaker draft, casting plan, or voice mutation occurred.
+  - **Next task**: Task `18AU` — Human A/B Review of Chapter 368 Segments 665-666 Repair-Block Candidate.
 - FastAPI UI/API táº¡i cá»•ng 8766.
 - EPUB import cho 1.980 chÆ°Æ¡ng.
 - Content-addressed text storage vÃ  TextRevision.
@@ -780,4 +815,4 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 - 8 offline unit tests.
 - End-to-end chÆ°Æ¡ng 858, 10 segment, M4A 118.710 ms.
-- Resume test giá»¯ 9 segment há»£p lá»‡ vÃ  táº¡o láº¡i má»™t segment lá»—i.
+- Resume test giá»¯ 9 segment há»£p lá»‡ vÃ  táº¡o láº¡i má»™t segment lá»—i.`r`n

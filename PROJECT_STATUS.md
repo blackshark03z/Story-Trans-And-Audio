@@ -1,9 +1,19 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-19T12:13 (Asia/Saigon)
-**Milestone:** Task 18AS Chapter 368 Repeated Articulation Failure Diagnosed
-**Trạng thái:** Candidate `39` was rejected through the supported workflow after Human A/B found the phrase `phải rung động.` was not clear or fully articulated. Attempts `37`, `38`, and `39` all failed intelligibility for the same very short fragment. No Attempt `40` was created; the selected path is segmentation remediation for the Segment `665`/`666` split. Active artifact `81` remains unchanged.
+**Cập nhật:** 2026-07-19T13:36 (Asia/Saigon)
+**Milestone:** Task 18AT Chapter 368 Adjacent-Segment Repair-Block Candidate Created
+**Trạng thái:** Live repair-block support is implemented and verified. One backed-up live candidate was created for Segments `665`/`666` as repair block `#1` on Job `22` / JobChapter `22`. The candidate is pending Human A/B review, the canonical JobChapter plan pin fallback is working, and active artifact `81` remains unchanged.
 
+**Last verified against commit:** `b0e1764f4db87f8dd74f1d0eb3a6eb4f0c1f5d53`
+**Last verified branch:** `main`
+**Last verified date:** 2026-07-19
+
+**Task 18AT verified live state:**
+- Repository baseline before live mutation passed: branch `main`, `HEAD == origin/main == b0e1764f4db87f8dd74f1d0eb3a6eb4f0c1f5d53`, protected untracked `experiment_b_transcript/` and `runs/` remained untouched, runtime `http://127.0.0.1:8766` pointed to `D:\Youtube\Story Trans And Audio\data`, and schema version reported `11`.
+- A fresh backup was created before mutation at `D:\Youtube\Story Trans And Audio\backups\task_18at_pre_live_candidate_20260719_123323`; backup manifest reported schema `11`, file count `4815`, and total size `1253944332`.
+- Live repair-block candidate `#1` was created through the supported API for `first_segment_id = 665` and `last_segment_id = 666` on Job `22` / JobChapter `22`. The candidate stores `source_start_offset = 2229`, `source_end_offset = 2488`, `source_text_sha256 = f09ae2e46eead05f26563d410758b29a03bd9cc0950475b51f36a42a1b917e27`, `candidate_duration_ms = 15350`, and `status = candidate`.
+- Canonical pin fallback was validated in code and live data: Segments `665` and `666` keep `casting_plan_id = NULL`, while JobChapter `22` pins approved Casting Plan `23` revision `1` with SHA-256 `493e1f39bd353657f6deee0a9ac1124ae3ad47160d5bf7b1b09657f1de1ee9c0`.
+- The candidate covers exactly Segments `665` and `666`; no duplicate repair block exists for the same identity, no accept/reject action was taken, and no job/artifact/text-revision/voice mutation occurred.
 File này ghi lại baseline đã xác minh. **Git là nguồn quyền cuối cùng** về current HEAD, branch và working tree. Chạy `git status` và `git log -1` để xác định trạng thái hiện tại. File này chỉ ghi lại baseline code/test đã verified tại một commit cụ thể.
 
 ## Baseline đã xác minh
@@ -736,4 +746,4 @@ Các hạng mục vận hành/quota và alignment không cấp thiết được 
 | 2026-07-15 | Task 18A/18B Chapter 364 Production Pilot | Canonical Chapter 364 / Text Revision 728 / Casting Plan #19 / Job #18 completed; Segment 498 attempt 36 accepted; final artifact #69 SHA `3B9748DE4B1F5E8259B7BB0498A996D53F4E52428B0CB68E4633EA25D66BFDCC`; human full-artifact listening verdict `HUMAN_QA_PASS` |
 | 2026-07-15 | Task 18G Chapter 365 targeted correction + speaker draft | Canonical Chapter 365 active Text Revision `730` corrected once to new active Text Revision `3983`; exact malformed punctuation removed; stale draft `10` preserved; new speaker draft `11` generated with 5/5 valid targets and no casting/job/audio state created |
 | 2026-07-15 | Task 18J Chapter 365 draft Final Voice Map ready | Canonical Chapter 365 speaker draft `11` reviewed with five accepted Hứa Thanh assignments; staged workflow created unapproved Casting Plan `20` rev `1` pinned to Text Revision `3983`; UI shows existing draft plan and separate approval action; no provider/job/audio activity occurred |
-| 2026-07-15 | Task 18K Chapter 365 Final Voice Map approved | Canonical Chapter 365 approved existing Casting Plan `20` rev `1` on Text Revision `3983`; source speaker draft `11` and all assignment/voice counts remained unchanged; UI state now moves to render readiness and no provider/job/audio activity occurred |
+| 2026-07-15 | Task 18K Chapter 365 Final Voice Map approved | Canonical Chapter 365 approved existing Casting Plan `20` rev `1` on Text Revision `3983`; source speaker draft `11` and all assignment/voice counts remained unchanged; UI state now moves to render readiness and no provider/job/audio activity occurred |`r`n

@@ -376,6 +376,27 @@ class AudioRepairBlockTests(IsolatedTestCase):
         self.assertEqual(self.tts.synthesize.call_count, 0)
         self.assertEqual(self._count("audio_repair_blocks"), 0)
 
+    def test_uses_job_chapter_pin_when_segment_pin_is_missing(self):
+        with self.db.connect() as conn:
+            conn.execute(
+                "UPDATE segments SET casting_plan_id=NULL WHERE id IN (?, ?)",
+                (self.segment_ids[0], self.segment_ids[1]),
+            )
+
+        result = create_audio_repair_block_candidate(
+            self.db,
+            self.store,
+            self.tts,
+            self.config,
+            job_id=self.job_id,
+            first_segment_id=self.segment_ids[0],
+            last_segment_id=self.segment_ids[1],
+        )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["casting_plan_id"], self.casting_plan_id)
+        self.assertEqual(self.tts.synthesize.call_count, 1)
+
     def test_list_repair_blocks_returns_candidate_identity(self):
         created = create_audio_repair_block_candidate(
             self.db,

@@ -154,14 +154,19 @@ def _repair_identity(
     segments = _load_segments_for_range(db, first_segment_id, last_segment_id)
     _validate_common_snapshot(segments)
     first = segments[0]
-    if not first["casting_plan_id"]:
+    job_chapter = db.fetch_one("SELECT * FROM job_chapters WHERE id=?", (first["job_chapter_id"],))
+    if not job_chapter:
+        raise AudioRepairBlockValidationError("Repair block JobChapter not found")
+    pinned_casting_plan_id = first["casting_plan_id"] or job_chapter["casting_plan_id"]
+    pinned_casting_plan_sha256 = first["casting_plan_sha256"] or job_chapter["casting_plan_sha256"]
+    if not pinned_casting_plan_id:
         raise AudioRepairBlockValidationError("Repair block requires a pinned Casting Plan")
     sequences = [int(segment["utterance_sequence"]) for segment in segments]
     offsets = _plan_utterance_offsets(
         db,
         store,
-        int(first["casting_plan_id"]),
-        first["casting_plan_sha256"],
+        int(pinned_casting_plan_id),
+        pinned_casting_plan_sha256,
         int(first["text_revision_id"]),
         sequences,
     )
@@ -185,8 +190,8 @@ def _repair_identity(
         "chapter_id": int(first["chapter_id"]),
         "chapter_number": int(first["chapter_number"]),
         "text_revision_id": int(first["text_revision_id"]),
-        "casting_plan_id": int(first["casting_plan_id"]),
-        "casting_plan_sha256": first["casting_plan_sha256"],
+        "casting_plan_id": int(pinned_casting_plan_id),
+        "casting_plan_sha256": pinned_casting_plan_sha256,
         "covered_segment_ids": [int(segment["id"]) for segment in segments],
         "first_segment_id": int(segments[0]["id"]),
         "last_segment_id": int(segments[-1]["id"]),
