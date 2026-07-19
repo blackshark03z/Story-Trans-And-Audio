@@ -1,12 +1,25 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-19T14:05 (Asia/Saigon)
-**Milestone:** Task 18AY Chapter 369 Quote Boundary Resolved
-**Trạng thái:** Chapter `369` quote-boundary blocker is resolved in code without live DB/text mutation. The active Text Revision `738` remains valid and approved; deterministic speaker-target construction now preserves the balanced quote `"Pháp lực màu đỏ! Nhanh phá huỷ trận pháp!"` as one utterance/target instead of splitting it into opening-only and closing-only fragments. Chapter `369` is ready for the next provider-authorized speaker draft task.
+**Cập nhật:** 2026-07-19T14:20 (Asia/Saigon)
+**Milestone:** Task 18AZ Chapter 369 Speaker Draft Ready for Human Review
+**Trạng thái:** Chapter `369` now has exactly one generated Speaker Assignment Draft, Draft `15`, for active approved Text Revision `738`. The draft is non-stale, contains `2` review rows, and is ready for human speaker review. No Casting Plan, job, JobChapter, production segment, attempt, artifact, active audio, TTS preview, or render was created.
 
-**Last verified against commit:** `c1a317bd96242d616cb4825f2d2ca1fe96a2b931`
+**Last verified against commit:** `c53558a57b987e28d6ac949036d1b4b15d3cea58`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-19
+
+**Task 18AZ verified live state:**
+- Repository/runtime baseline passed before generation: branch `main`, `HEAD == origin/main == c53558a57b987e28d6ac949036d1b4b15d3cea58`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, schema `11`, and SQLite `quick_check = ok`.
+- Chapter `369` pre-generation state was clean: raw Text Revision `737`, active approved Text Revision `738`, deterministic utterances `46`, speaker targets `2`, speaker drafts `0`, Casting Plans `0`, jobs `0`, JobChapters `0`, artifacts `0`, repair blocks `0`, active audio `none`, and audio status `not_created`.
+- Pre-provider SQLite online backup was created at `D:\Youtube\Story Trans And Audio\backups\task18az_pre_ch369_speaker_draft_20260719_140552.sqlite3`; size `4009984` bytes; SHA-256 `bd1ecd9bb2080dba1c373ff96b6ee159e7a5d26e5d6ab573dcb6708af4f8b5e9`; backup `quick_check = ok`.
+- Exactly one supported provider-authorized mutation was issued: `POST /api/chapters/369/speaker-assignment/draft` with `mode = unassigned_only`, `utterance_ids = null`, and `force_refresh = false`.
+- Draft result: Speaker Assignment Draft `15`, `status = generated`, `stale = false`, `text_revision_id = 738`, `input_fingerprint = 3c222fe0ce02f9167318fd14f25115658f8233044ec07f00a81a7134a22178ad`, `content_sha256 = 3f90a6b4f2e523e89ffb3b66f8666dee739762a1f2c1987b319eebcfd44ed005`, `target_count = 2`, `valid_count = 2`, `invalid_count = 0`, `cache_hit_count = 0`, `cache_miss_count = 1`, `remaining_unreviewed_count = 2`, and model/prompt `gemini-2.5-flash` / `speaker-assignment-v2`.
+- Review rows ready for human review: `u0003-b1d3d00d55ab` / seq `3` / `"Chuẩn bị sẵn sàng, cẩn thận kiểm tra chấn động pháp lực người tới cho ta, nếu như người đến là tu sĩ mở ra mệnh hỏa, vậy thì liền lập tức phá huỷ trận pháp, nhưng hy vọng người tới không phải, bổn tọa còn muốn thu hoạch thêm một số điểm cống hiến."` suggested as `unknown`; and `u0021-49989b447284` / seq `21` / `"Pháp lực màu đỏ! Nhanh phá huỷ trận pháp!"` suggested as `unknown`.
+- Quote-boundary validation remains fixed: the affected Chapter `369` quote stays one complete target/review row as `u0021-49989b447284`; no opening-only, closing-only, punctuation-only, or Chapter `370` fragment was included in the request or draft.
+- Post-generation safety remained clean: Chapter `369` has exactly one speaker draft and still has Casting Plans `0`, JobChapters `0`, jobs `0`, production segments `0`, production attempts `0`, artifacts `0`, active audio `none`, and audio status `not_created`. Chapter `370` remains untouched with speaker drafts `0`, Casting Plans `0`, JobChapters `0`, and artifacts `0`.
+- UI/API review readiness passed: `/api/chapters/369/speaker-assignment/drafts` lists Draft `15` as non-stale with `remaining_unreviewed_count = 2`, and `/api/chapters/369/speaker-assignment/drafts/15` returns both review rows with context, suggestions, alternatives, and review controls still unreviewed.
+- Focused validation passed: `tests.test_speaker_assignment` (`28` tests) passed, `node --check ui/app.js` passed, and docs-only diff validation passed before commit.
+- Exact next task: Task `18BA` - Human Review and Approval of Chapter `369` Speaker Draft.
 
 **Task 18AY verified live state:**
 - Repository/runtime baseline passed before investigation: branch `main`, `HEAD == origin/main == a9e2212d59cb94afa96f9774629b5bb3a2890519`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, schema `11`, and SQLite `quick_check = ok`.

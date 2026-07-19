@@ -6,6 +6,14 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AZ - Chapter 369 speaker draft ready for human review**: generated exactly one provider-authorized Speaker Assignment Draft for Chapter `369` and stopped before casting approval or audio production.
+  - **Baseline**: branch `main`, `HEAD == origin/main == c53558a57b987e28d6ac949036d1b4b15d3cea58`; runtime `http://127.0.0.1:8772` pointed to `D:\Youtube\Story Trans And Audio\data` and schema `11`; SQLite `quick_check = ok`; only protected untracked `experiment_b_transcript/` and `runs/` were present.
+  - **Backup**: pre-provider SQLite online backup created at `D:\Youtube\Story Trans And Audio\backups\task18az_pre_ch369_speaker_draft_20260719_140552.sqlite3`; size `4009984` bytes; SHA-256 `bd1ecd9bb2080dba1c373ff96b6ee159e7a5d26e5d6ab573dcb6708af4f8b5e9`; quick_check `ok`.
+  - **Draft**: exactly one `POST /api/chapters/369/speaker-assignment/draft` call created Draft `15`, `status = generated`, `stale = false`, Text Revision `738`, `target_count = 2`, `valid_count = 2`, `invalid_count = 0`, cache hit/miss `0/1`, model `gemini-2.5-flash`, and prompt `speaker-assignment-v2`.
+  - **Review rows**: `u0003-b1d3d00d55ab` / seq `3` and `u0021-49989b447284` / seq `21` are both suggested as `unknown` and remain unreviewed. The fixed quote `"Pháp lực màu đỏ! Nhanh phá huỷ trận pháp!"` is preserved as one complete row, not split into quote fragments.
+  - **Safety**: no Casting Plan, job, JobChapter, production segment, attempt, artifact, active audio, TTS preview, TTS synthesis, render, or Chapter `370` mutation occurred.
+  - **Validation**: `tests.test_speaker_assignment` passed (`28` tests), `node --check ui/app.js` passed, and API draft detail confirms Draft `15` is ready for human review.
+  - **Next task**: Task `18BA` — Human Review and Approval of Chapter `369` Speaker Draft.
 - **Task 18AY - Chapter 369 quote-boundary blocker resolved**: fixed deterministic utterance splitting so balanced quoted spans under the TTS maximum remain atomic even when they contain internal sentence punctuation.
   - **Blocker**: Chapter `369` active Text Revision `738` contained a valid balanced quote at offsets `3491-3534`, `"Pháp lực màu đỏ! Nhanh phá huỷ trận pháp!"`, but the old splitter produced two speaker targets: opening-only `"Pháp lực màu đỏ!` and closing-only `Nhanh phá huỷ trận pháp!"`.
   - **Root cause**: `UTTERANCE_SEGMENTATION_QUOTE_BOUNDARY_DEFECT`; raw Revision `737` and reflowed Revision `738` were both valid, quote marks were balanced, and quote-span/speaker-target overlap logic was not the first invalid layer.
