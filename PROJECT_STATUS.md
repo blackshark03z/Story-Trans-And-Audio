@@ -1,12 +1,24 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-19T13:45 (Asia/Saigon)
-**Milestone:** Task 18AV Chapter 368 Repair Block Accepted and Reassembled
-**Trạng thái:** Repair block `#1` on Job `22` / JobChapter `22` was accepted and reassembled on the same job. Chapter `368` now points to active artifact `84`; the original artifact `81` is stale; no replacement job was created; and the live repair-block candidate audio remains preserved at its original candidate path.
+**Cập nhật:** 2026-07-19T13:42 (Asia/Saigon)
+**Milestone:** Task 18AX Chapter 368 Final Human QA Closed
+**Trạng thái:** Chapter `368` is production-closed with persisted Human QA approval. Final verdict `FINAL_REASSEMBLED_QA_PASS` / `HUMAN_QA_PASS` was recorded against active artifact `84` from `render_0002`; Repair Block `#1` remains accepted for Segments `665`/`666`; artifact `81` remains preserved as stale historical audio; no further remediation is required.
 
-**Last verified against commit:** `97ce729fe1e64c6b821a261168f747e5699e68cc`
+**Last verified against commit:** `fa555f98ebfaa0d1f796508f6778ca05e9987f84`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-19
+
+**Task 18AX verified live state:**
+- Repository/runtime baseline passed before closeout: branch `main`, `HEAD == origin/main == fa555f98ebfaa0d1f796508f6778ca05e9987f84`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, schema `11`, and SQLite `quick_check = ok`.
+- QA closure used the supported persisted workflow: `PUT /api/chapters/368/human-approval` with status `approved`. The backend stored the active-output snapshot in `chapters.human_approval_json`; UI action boundary is `Chốt bản audio cuối`; no custom route or direct DB edit was used.
+- Persisted Human QA result: `human_qa_status = accepted`, approval status `approved`, `recorded_at = 2026-07-19T06:41:58.344250+00:00`, `approved_at = 2026-07-19T06:41:58.344250+00:00`, `artifact_id = 84`, `job_id = 22`, and `matches_active_artifact = true`.
+- Final artifact: artifact `84`, path `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0368\job_22\render_0002\chapter.m4a`, SHA-256 `6d4f27143aa99112cfbee706a6bdbf45f0adfdb0ff29be42477093bb5b43b90f`, size `7902953` bytes, duration `485050 ms`; FFmpeg decode completed without errors.
+- Human finding recorded: repaired Segments `665`/`666` sound clear and natural; the phrase ending `...làm cho tâm thần người khác phải rung động.` is intelligible and production-acceptable; transitions into and out of the repair region are acceptable; no further regeneration or repair is required.
+- Repair Block `#1` remains `accepted`, covers `[665, 666]`, candidate SHA-256 `aa979df98b2a2e332699df3df9d444fd0d111073a191315c8df8f9294b62b095`, candidate duration `15350 ms`, and `accepted_at = 2026-07-19T06:08:53.932352+00:00`; pending repair candidates `0`.
+- Provenance safety passed: Chapter `368` has exactly one Job (`22`, completed), one JobChapter (`22`, completed), `49` verified segments, `3` segment attempt rows (`1` active, `2` rejected, `0` candidate), active Text Revision `736`, Speaker Draft `14`, approved Casting Plan `23` revision `1`, narrator voice `custom:26` revision `6`, and no replacement job.
+- Artifact `81` remains preserved as stale historical `render_0001` audio with SHA-256 `14b106e52a2f1951ffa69633679ee8f1cb6a990dfbc73056fd0c39e4b27045f5`; active audio points only to artifact `84`.
+- Completed chapter rollup: Chapter `364` `HUMAN_QA_PASS` artifact `69`; Chapter `365` `HUMAN_QA_PASS` artifact `72`; Chapter `366` `HUMAN_QA_PASS` artifact `78`; Chapter `367` `HUMAN_QA_PASS` artifact `75`; Chapter `368` `HUMAN_QA_PASS` artifact `84`. Chapters `369` and `370` remain untouched and not rendered.
+- Exact next task: Task `18AY` - Resolve Chapter `369` Quote-Boundary Text Blocker.
 
 **Task 18AV verified live state:**
 - Repository baseline passed before the supported mutation: branch `main`, `HEAD == origin/main == 97ce729fe1e64c6b821a261168f747e5699e68cc`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`.

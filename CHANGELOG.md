@@ -6,6 +6,13 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AX - Chapter 368 final Human QA closed**: recorded `FINAL_REASSEMBLED_QA_PASS` / `HUMAN_QA_PASS` for the reassembled Chapter `368` production artifact.
+  - **QA closure workflow**: used the supported `PUT /api/chapters/368/human-approval` route, which stores the active-output snapshot in `chapters.human_approval_json`; UI boundary is `Chốt bản audio cuối`. No direct DB edit or new route was used.
+  - **Persisted result**: status `approved`, `recorded_at = 2026-07-19T06:41:58.344250+00:00`, `artifact_id = 84`, `job_id = 22`, `matches_active_artifact = true`, and chapter `human_qa_status = accepted`.
+  - **Final artifact**: artifact `84` at `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0368\job_22\render_0002\chapter.m4a`; SHA-256 `6d4f27143aa99112cfbee706a6bdbf45f0adfdb0ff29be42477093bb5b43b90f`; size `7902953` bytes; duration `485050 ms`.
+  - **Repair QA**: Repair Block `#1` remains accepted for Segments `665`/`666`; the repaired region is clear, natural, and production-acceptable; transitions into and out of the repair region are acceptable; no further regeneration or replacement job is required.
+  - **Safety**: Job `22` remains the sole Chapter `368` production job, JobChapter `22` remains completed, all `49` segments remain verified, artifact `81` remains preserved as stale historical audio, and Chapters `369`/`370` remain untouched.
+  - **Next task**: Task `18AY` — Resolve Chapter `369` Quote-Boundary Text Blocker.
 - **Task 18AV - Chapter 368 repair block accepted and same-job reassembly completed**: accepted live Repair Block `#1` for Segments `665`/`666` and reassembled Chapter `368` on the same Job `22` without creating a replacement job.
   - **Accept flow**: added `POST /api/audio-repair-blocks/{repair_block_id}/accept`, wired the UI Accept button, and kept the candidate audio preserved at `data\work\job_22\chapter_0368\repair_blocks\repair_block_665_666_candidate_0001.wav`.
   - **Reassembly**: accept rebuilt the chapter master/timeline and produced new artifacts `82` (`chapter_master_wav`), `83` (`segment_timeline_json`), and active artifact `84` (`chapter_m4a`) for the same Job `22` / JobChapter `22`.
