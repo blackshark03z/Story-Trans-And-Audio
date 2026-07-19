@@ -29,6 +29,7 @@ DECISION_SOURCES = {
     "gemini_suggestion", "gemini_alternative", "narrator", "unknown",
     "manual_character", "keep_current",
 }
+ROW_REVIEW_DECISION_SOURCES = {"unknown", "manual_character"}
 _APPROVAL_LOCK = threading.Lock()
 
 
@@ -99,6 +100,18 @@ def _review_links(db: Database, store: ContentStore, chapter_id: int, draft_id: 
                 "reviewed_utterance_ids": list(review.get("reviewed_utterance_ids") or []),
             })
     return links
+
+
+def _review_decisions(db: Database, draft_id: int) -> dict[str, dict[str, Any]]:
+    decisions = {}
+    for row in db.fetch_all(
+        """SELECT * FROM speaker_assignment_reviews
+           WHERE draft_id=? ORDER BY reviewed_at,id""",
+        (draft_id,),
+    ):
+        item = dict(row)
+        decisions[str(item["utterance_id"])] = item
+    return decisions
 
 
 def get_speaker_review_draft(
@@ -201,12 +214,14 @@ def get_speaker_review_draft(
     ):
         stale_reasons.append("Base Casting Plan changed after this draft was generated.")
     links = _review_links(db, store, chapter_id, draft_id)
-    reviewed_ids = sorted({
+    row_reviews = _review_decisions(db, draft_id)
+    reviewed_ids = sorted(set(row_reviews) | {
         utterance_id for link in links for utterance_id in link["reviewed_utterance_ids"]
     })
     reviewed_set = set(reviewed_ids)
     for row in rows:
         row["reviewed"] = row["utterance_id"] in reviewed_set
+        row["human_review"] = row_reviews.get(row["utterance_id"])
     return {
         **result,
         "stale": bool(stale_reasons),
@@ -217,9 +232,228 @@ def get_speaker_review_draft(
         "characters": list_characters(db, int(result["book_id"])),
         "review_rows": rows,
         "review_links": links,
+        "row_reviews": list(row_reviews.values()),
         "reviewed_utterance_ids": reviewed_ids,
         "remaining_unreviewed_count": max(0, len(target_ids) - len(set(reviewed_ids))),
     }
+
+
+def _validate_single_row_decision(
+    db: Database,
+    detail: dict[str, Any],
+    row: dict[str, Any],
+    *,
+    speaker_type: str,
+    character_id: int | None,
+    decision_source: str,
+) -> dict[str, Any]:
+    if row.get("invalid_item"):
+        raise SpeakerReviewError("Invalid draft targets cannot be reviewed")
+    if decision_source not in ROW_REVIEW_DECISION_SOURCES:
+        raise SpeakerReviewError("Decision source is invalid for row review")
+    if speaker_type not in {"unknown", "character"}:
+        raise SpeakerReviewError("Decision speaker_type is invalid")
+    if decision_source == "unknown":
+        if speaker_type != "unknown" or character_id is not None:
+            raise SpeakerReviewError("KEEP_UNKNOWN must use speaker_type unknown")
+    elif decision_source == "manual_character":
+        if speaker_type != "character":
+            raise SpeakerReviewError("MAP_TO_EXISTING_CHARACTER must use speaker_type character")
+        if isinstance(character_id, bool) or not isinstance(character_id, int):
+            raise SpeakerReviewError("Decision character is invalid")
+        character = db.fetch_one("SELECT id,book_id,active FROM characters WHERE id=?", (character_id,))
+        if not character:
+            raise SpeakerReviewNotFound("Character not found")
+        if int(character["book_id"]) != int(detail["book_id"]) or not int(character["active"]):
+            raise SpeakerReviewError("Decision character does not belong to this book")
+        active_ids = {int(item["id"]) for item in detail["characters"] if item.get("active", 1)}
+        if character_id not in active_ids:
+            raise SpeakerReviewError("Decision character does not belong to this draft")
+    return {
+        "utterance_id": row["utterance_id"],
+        "speaker_type": speaker_type,
+        "character_id": character_id,
+        "decision_source": decision_source,
+    }
+
+
+def review_speaker_assignment_row(
+    db: Database,
+    store: ContentStore,
+    config: Settings,
+    *,
+    chapter_id: int,
+    draft_id: int,
+    target_id: str,
+    speaker_type: str,
+    character_id: int | None,
+    decision_source: str,
+    operator_note: str | None = None,
+    reviewed_by: str = "local_user",
+) -> dict[str, Any]:
+    if operator_note is not None and len(operator_note.strip()) > 4000:
+        raise SpeakerReviewError("operator_note is too long")
+    detail = get_speaker_review_draft(
+        db, store, config, chapter_id=chapter_id, draft_id=draft_id
+    )
+    if detail["status"] not in {"generated", "partially_invalid"}:
+        raise SpeakerReviewConflict("Speaker draft is not in a reviewable state")
+    if detail["stale"]:
+        raise SpeakerReviewConflict(" ".join(detail["stale_reasons"]))
+    rows = {item["utterance_id"]: item for item in detail["review_rows"]}
+    row = rows.get(target_id)
+    if not row:
+        raise SpeakerReviewNotFound("Review target not found")
+    normalized = _validate_single_row_decision(
+        db,
+        detail,
+        row,
+        speaker_type=speaker_type,
+        character_id=character_id,
+        decision_source=decision_source,
+    )
+    note = operator_note.strip() if operator_note and operator_note.strip() else None
+    now = utcnow()
+    with db.transaction() as connection:
+        existing = connection.execute(
+            "SELECT * FROM speaker_assignment_reviews WHERE draft_id=? AND utterance_id=?",
+            (draft_id, target_id),
+        ).fetchone()
+        if existing:
+            existing_note = existing["operator_note"] or None
+            same = (
+                existing["speaker_type"] == normalized["speaker_type"]
+                and existing["character_id"] == normalized["character_id"]
+                and existing["decision_source"] == normalized["decision_source"]
+                and existing_note == note
+            )
+            if not same:
+                raise SpeakerReviewConflict("Review row already has a different decision")
+            item = dict(existing)
+            item["idempotent_reused"] = True
+        else:
+            review_id = int(connection.execute(
+                """INSERT INTO speaker_assignment_reviews(
+                   draft_id,utterance_id,speaker_type,character_id,decision_source,
+                   operator_note,reviewed_by,reviewed_at,updated_at
+                   ) VALUES(?,?,?,?,?,?,?,?,?)""",
+                (
+                    draft_id,
+                    target_id,
+                    normalized["speaker_type"],
+                    normalized["character_id"],
+                    normalized["decision_source"],
+                    note,
+                    reviewed_by,
+                    now,
+                    now,
+                ),
+            ).lastrowid)
+            item = dict(connection.execute(
+                "SELECT * FROM speaker_assignment_reviews WHERE id=?", (review_id,)
+            ).fetchone())
+            item["idempotent_reused"] = False
+    refreshed = get_speaker_review_draft(
+        db, store, config, chapter_id=chapter_id, draft_id=draft_id
+    )
+    return {
+        "chapter_id": chapter_id,
+        "draft_id": draft_id,
+        "target_id": target_id,
+        "review": item,
+        "remaining_unreviewed_count": refreshed["remaining_unreviewed_count"],
+        "reviewed_utterance_ids": refreshed["reviewed_utterance_ids"],
+        "draft_status": refreshed["status"],
+        "stale": refreshed["stale"],
+    }
+
+
+def approve_speaker_assignment_draft_only(
+    db: Database,
+    store: ContentStore,
+    config: Settings,
+    *,
+    chapter_id: int,
+    draft_id: int,
+) -> dict[str, Any]:
+    with _APPROVAL_LOCK:
+        detail = get_speaker_review_draft(
+            db, store, config, chapter_id=chapter_id, draft_id=draft_id
+        )
+        if detail["status"] == "approved":
+            approved_at = db.fetch_one(
+                "SELECT approved_at FROM speaker_assignment_drafts WHERE id=?", (draft_id,)
+            )["approved_at"]
+            return {
+                "chapter_id": chapter_id,
+                "draft_id": draft_id,
+                "status": "approved",
+                "approved_at": approved_at,
+                "target_count": int(detail["target_count"]),
+                "reviewed_count": len(detail["reviewed_utterance_ids"]),
+                "remaining_unreviewed_count": detail["remaining_unreviewed_count"],
+                "invalid_count": int(detail["invalid_count"]),
+                "assignments": [
+                    row["human_review"] for row in detail["review_rows"] if row.get("human_review")
+                ],
+                "idempotent_reused": True,
+            }
+        if detail["status"] not in {"generated", "partially_invalid"}:
+            raise SpeakerReviewConflict("Speaker draft is not approvable")
+        if detail["stale"]:
+            raise SpeakerReviewConflict(" ".join(detail["stale_reasons"]))
+        target_ids = _draft_target_ids(detail["draft"])
+        if len(target_ids) != len(set(target_ids)):
+            raise SpeakerReviewError("Duplicate draft targets")
+        if int(detail["invalid_count"]) != 0 or any(row.get("invalid_item") for row in detail["review_rows"]):
+            raise SpeakerReviewError("Speaker draft contains invalid rows")
+        if len(detail["review_rows"]) != int(detail["target_count"]):
+            raise SpeakerReviewError("Speaker draft target count mismatch")
+        if detail["remaining_unreviewed_count"] != 0:
+            raise SpeakerReviewError("All review rows must be reviewed before approving the speaker draft")
+        row_reviews = {item["utterance_id"]: item for item in detail["row_reviews"]}
+        missing = [row["utterance_id"] for row in detail["review_rows"] if row["utterance_id"] not in row_reviews]
+        if missing:
+            raise SpeakerReviewError("Speaker draft has review links but no row-level final decision")
+        for row in detail["review_rows"]:
+            review = row_reviews[row["utterance_id"]]
+            _validate_single_row_decision(
+                db,
+                detail,
+                row,
+                speaker_type=review["speaker_type"],
+                character_id=review["character_id"],
+                decision_source=review["decision_source"],
+            )
+        now = utcnow()
+        with db.transaction() as connection:
+            current = connection.execute(
+                "SELECT status,approved_at FROM speaker_assignment_drafts WHERE id=?", (draft_id,)
+            ).fetchone()
+            if not current:
+                raise SpeakerReviewNotFound("Speaker assignment draft not found")
+            if current["status"] == "approved":
+                approved_at = current["approved_at"]
+                reused = True
+            else:
+                connection.execute(
+                    "UPDATE speaker_assignment_drafts SET status='approved', approved_at=? WHERE id=?",
+                    (now, draft_id),
+                )
+                approved_at = now
+                reused = False
+        return {
+            "chapter_id": chapter_id,
+            "draft_id": draft_id,
+            "status": "approved",
+            "approved_at": approved_at,
+            "target_count": int(detail["target_count"]),
+            "reviewed_count": len(detail["reviewed_utterance_ids"]),
+            "remaining_unreviewed_count": 0,
+            "invalid_count": int(detail["invalid_count"]),
+            "assignments": [row_reviews[row["utterance_id"]] for row in detail["review_rows"]],
+            "idempotent_reused": reused,
+        }
 
 
 def list_speaker_review_drafts(
@@ -419,7 +653,7 @@ def _prepare_review_submission(
     detail = get_speaker_review_draft(
         db, store, config, chapter_id=chapter_id, draft_id=draft_id
     )
-    if detail["status"] not in {"generated", "partially_invalid"}:
+    if detail["status"] not in {"generated", "partially_invalid", "approved"}:
         raise SpeakerReviewConflict("Speaker draft is not in a reviewable state")
     if detail["stale"]:
         raise SpeakerReviewConflict(" ".join(detail["stale_reasons"]))

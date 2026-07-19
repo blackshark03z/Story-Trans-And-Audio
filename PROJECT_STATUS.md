@@ -1,12 +1,23 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-19T14:20 (Asia/Saigon)
-**Milestone:** Task 18AZ Chapter 369 Speaker Draft Ready for Human Review
-**Trạng thái:** Chapter `369` now has exactly one generated Speaker Assignment Draft, Draft `15`, for active approved Text Revision `738`. The draft is non-stale, contains `2` review rows, and is ready for human speaker review. No Casting Plan, job, JobChapter, production segment, attempt, artifact, active audio, TTS preview, or render was created.
+**Cập nhật:** 2026-07-19T14:55 (Asia/Saigon)
+**Milestone:** Task 18BB Speaker Review Approval Boundary Implemented
+**Trạng thái:** The speaker review workflow now supports row-level review persistence and Speaker-Draft-only approval without creating a Casting Plan. Chapter `369` Draft `15` remains unmodified and unreviewed; it is ready for the operator to review both rows through the separated workflow. No Casting Plan, job, JobChapter, production segment, attempt, artifact, active audio, provider call, TTS preview, or render was created.
 
 **Last verified against commit:** `c53558a57b987e28d6ac949036d1b4b15d3cea58`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-19
+
+**Task 18BB verified implementation state:**
+- The previous blocker was confirmed: existing `approve_speaker_review(...)` resolves review decisions, creates a Casting Plan, and immediately approves it; the staged route creates a Casting Plan draft. Neither was safe for Draft-only approval.
+- Domain design: migration `0012_speaker_draft_reviews.sql` adds row-level `speaker_assignment_reviews` and `speaker_assignment_drafts.approved_at`, while preserving all existing draft rows. The draft status CHECK now permits the canonical `approved` state.
+- New row-review API: `PUT /api/chapters/{chapter_id}/speaker-assignment/drafts/{draft_id}/reviews/{target_id}` persists one human decision for one target. It supports `KEEP_UNKNOWN` and `MAP_TO_EXISTING_CHARACTER`, rejects stale drafts, invalid targets, wrong chapter/draft pairs, foreign-book characters, unsupported decisions, and conflicting duplicate decisions.
+- New draft-only approval API: `POST /api/chapters/{chapter_id}/speaker-assignment/drafts/{draft_id}/approve-only` approves only the Speaker Assignment Draft after all rows are reviewed and valid. It is idempotent and does not create a Casting Plan, approve a Casting Plan, create a Job/artifact, call provider, call TTS, or modify Text Revision content.
+- Backward compatibility: legacy combined approval and staged Casting Plan draft routes remain available for existing clients. The staged Casting Plan route can consume an already approved Speaker Draft as a separate downstream action.
+- UI separation: each row now has a clear saved review state and `Save row review` action; `Duyệt Speaker Draft` calls only the new approve-only route; `Tạo Final Voice Map draft` remains a separate control after the draft is approved. Refresh only reloads state and does not repeat review, approval, provider, or casting mutations.
+- Focused validation passed before documentation: `tests.test_speaker_assignment.SpeakerReviewTests` (`28` tests), `tests.test_speaker_review_api` (`7` tests), `tests.test_speaker_review_ui` (`14` tests), `tests.test_migrations`, `tests.test_casting`, `node --check ui/app.js`, and Python `py_compile` for changed backend files.
+- Live safety target for post-restart verification: Chapter `369` active Text Revision `738`, deterministic utterances `46`, speaker targets `2`, exactly one Speaker Draft `15`, Draft `15` status `generated`, reviewed rows `0`, unreviewed rows `2`, Casting Plans `0`, Jobs `0`, JobChapters `0`, artifacts `0`, active audio `none`. Chapter `370` must remain untouched.
+- Exact next task: Task `18BC` - Human Review and Draft-Only Approval of Chapter `369` Speaker Draft `15`.
 
 **Task 18AZ verified live state:**
 - Repository/runtime baseline passed before generation: branch `main`, `HEAD == origin/main == c53558a57b987e28d6ac949036d1b4b15d3cea58`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, schema `11`, and SQLite `quick_check = ok`.

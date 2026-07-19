@@ -52,26 +52,35 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
 
     def test_review_button_targets_draft_only_endpoint(self) -> None:
         self.assertIn("speaker-review/casting-plan-draft", self.api)
+        self.assertIn("approve-only", self.api)
+        self.assertIn("review_speaker_assignment_target", self.api)
+        self.assertIn("/reviews/${encodeURIComponent(utteranceId)}", self.js)
+        self.assertIn("/approve-only", self.js)
         self.assertIn("/speaker-review/casting-plan-draft", self.js)
+        self.assertIn("createSpeakerReviewCastingPlan", self.html + self.js)
         self.assertIn("speaker_draft_id", self.js)
         self.assertIn("expected_draft_fingerprint", self.js)
         self.assertIn("expected_text_revision_id", self.js)
         self.assertIn("idempotency_key", self.js)
         review_block = self.js[self.js.index("async function approveSpeakerReview"):]
         self.assertNotIn("/api/jobs", review_block.split("function ", 1)[0])
+        self.assertNotIn("/speaker-review/casting-plan-draft", review_block.split("async function createSpeakerReviewCastingPlan", 1)[0])
 
     def test_review_ready_helper_blocks_incomplete_or_stale_reviews(self) -> None:
         script = r"""
 function reviewedDecisionCount(review){return Object.keys(review?.decisions||{}).length}
 function localRemainingUnreviewedCount(review){const draft=review?.draft;if(!draft)return 0;const pending=Object.values(review?.decisions||{}).filter(item=>!draft.review_rows.find(row=>row.utterance_id===item.utterance_id)?.reviewed).length;return Math.max(0,(draft.remaining_unreviewed_count??0)-pending)}
 function zeroTargetReviewReady(review){const draft=review?.draft;if(!draft||draft.stale)return false;return localRemainingUnreviewedCount(review)===0&&(draft.target_count??0)===0&&(draft.valid_count??0)===0&&(draft.invalid_count??0)===0&&(draft.review_rows||[]).length===0}
-function reviewReadyForCastingPlan(review){const draft=review?.draft;if(!draft||draft.stale)return false;return localRemainingUnreviewedCount(review)===0&&(reviewedDecisionCount(review)>0||zeroTargetReviewReady(review))}
+function draftOnlyApprovalReady(review){const draft=review?.draft;if(!draft||draft.stale||draft.status==='approved')return false;return (draft.remaining_unreviewed_count??0)===0&&(draft.invalid_count??0)===0}
+function reviewReadyForCastingPlan(review){const draft=review?.draft;if(!draft||draft.stale)return false;return draft.status==='approved'||zeroTargetReviewReady(review)}
 const incomplete={draft:{stale:false,remaining_unreviewed_count:2,review_rows:[{utterance_id:'u1',reviewed:false},{utterance_id:'u2',reviewed:false}]},decisions:{u1:{utterance_id:'u1'}}};
 const complete={draft:{stale:false,remaining_unreviewed_count:2,review_rows:[{utterance_id:'u1',reviewed:false},{utterance_id:'u2',reviewed:false}]},decisions:{u1:{utterance_id:'u1'},u2:{utterance_id:'u2'}}};
+const saved={draft:{status:'generated',stale:false,remaining_unreviewed_count:0,invalid_count:0,review_rows:[{utterance_id:'u1',reviewed:true},{utterance_id:'u2',reviewed:true}]},decisions:{}};
+const approved={draft:{status:'approved',stale:false,remaining_unreviewed_count:0,review_rows:[{utterance_id:'u1',reviewed:true}]},decisions:{}};
 const stale={draft:{stale:true,remaining_unreviewed_count:0,review_rows:[{utterance_id:'u1',reviewed:true}]},decisions:{u1:{utterance_id:'u1'}}};
 const zeroTarget={draft:{stale:false,target_count:0,valid_count:0,invalid_count:0,remaining_unreviewed_count:0,review_rows:[]},decisions:{}};
 const nonzeroEmpty={draft:{stale:false,target_count:1,valid_count:1,invalid_count:0,remaining_unreviewed_count:0,review_rows:[{utterance_id:'u1',reviewed:true}]},decisions:{}};
-console.log(JSON.stringify({incomplete:reviewReadyForCastingPlan(incomplete),complete:reviewReadyForCastingPlan(complete),stale:reviewReadyForCastingPlan(stale),zeroTarget:reviewReadyForCastingPlan(zeroTarget),nonzeroEmpty:reviewReadyForCastingPlan(nonzeroEmpty)}));
+console.log(JSON.stringify({incomplete:reviewReadyForCastingPlan(incomplete),complete:reviewReadyForCastingPlan(complete),saved:draftOnlyApprovalReady(saved),approved:reviewReadyForCastingPlan(approved),stale:reviewReadyForCastingPlan(stale),zeroTarget:reviewReadyForCastingPlan(zeroTarget),nonzeroEmpty:reviewReadyForCastingPlan(nonzeroEmpty)}));
 """
         result = subprocess.run(
             ["node", "-e", script],
@@ -82,7 +91,9 @@ console.log(JSON.stringify({incomplete:reviewReadyForCastingPlan(incomplete),com
         )
         payload = json.loads(result.stdout)
         self.assertFalse(payload["incomplete"])
-        self.assertTrue(payload["complete"])
+        self.assertFalse(payload["complete"])
+        self.assertTrue(payload["saved"])
+        self.assertTrue(payload["approved"])
         self.assertFalse(payload["stale"])
         self.assertTrue(payload["zeroTarget"])
         self.assertFalse(payload["nonzeroEmpty"])
@@ -154,6 +165,7 @@ console.log(JSON.stringify({
             "$('#speakerReviewPanel').classList.toggle('has-existing-plan',existingPlan)",
             "$('#approveSpeakerReview').textContent=speakerDraftApprovalLabel()",
             "review.lastApproval",
+            "Speaker Draft #${result.draft_id} approved",
             "Final Voice Map draft v${result.casting_plan_revision} created",
         ):
             self.assertIn(value, self.html + self.js + self.css)

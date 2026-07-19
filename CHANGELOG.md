@@ -6,6 +6,16 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18BB - Speaker Draft review boundary separated from Casting Plan creation**: added row-level Speaker Draft review persistence and draft-only approval so human review can be completed before creating a Final Voice Map.
+  - **Root cause**: the previous `approve_speaker_review(...)` path resolved review decisions, created a Casting Plan, and approved that plan in one operation; the staged route created a Casting Plan draft. There was no supported way to review rows or approve a Speaker Draft without downstream casting side effects.
+  - **Schema**: migration `0012_speaker_draft_reviews.sql` adds `speaker_assignment_reviews`, adds `speaker_assignment_drafts.approved_at`, and extends the draft status CHECK with `approved`. Existing draft rows are copied unchanged; no draft is auto-reviewed or auto-approved.
+  - **API/service**: added `PUT /api/chapters/{chapter_id}/speaker-assignment/drafts/{draft_id}/reviews/{target_id}` for one-row human decisions and `POST /api/chapters/{chapter_id}/speaker-assignment/drafts/{draft_id}/approve-only` for idempotent draft-only approval after all rows are reviewed.
+  - **Guards**: row review rejects stale drafts, invalid/outside targets, wrong chapter/draft pairs, characters from another book, unsupported decisions, and conflicting duplicate decisions. Draft-only approval rejects stale, invalid, incomplete, duplicate, or provenance-mismatched drafts.
+  - **UI**: Speaker Review now has per-row `Save row review`, a separate `Duyệt Speaker Draft` action, and a separate `Tạo Final Voice Map draft` action. Refresh remains read-only and does not repeat review, approval, provider, or casting mutations.
+  - **Compatibility**: existing combined approval and staged Casting Plan creation flows remain available for tested callers; the staged Casting Plan route can consume an already approved Speaker Draft as a later explicit action.
+  - **Validation**: focused SpeakerReview service tests, API tests, UI contract tests, migration tests, casting tests, `node --check ui/app.js`, Python syntax checks, and `git diff --check` passed before release.
+  - **Live safety**: Draft `15` for Chapter `369` remains generated, non-stale, unreviewed (`0/2` rows reviewed), with Casting Plans `0`, Jobs `0`, JobChapters `0`, artifacts `0`, provider calls `0`, and TTS calls `0`.
+  - **Next task**: Task `18BC` — Human Review and Draft-Only Approval of Chapter `369` Speaker Draft `15`.
 - **Task 18AZ - Chapter 369 speaker draft ready for human review**: generated exactly one provider-authorized Speaker Assignment Draft for Chapter `369` and stopped before casting approval or audio production.
   - **Baseline**: branch `main`, `HEAD == origin/main == c53558a57b987e28d6ac949036d1b4b15d3cea58`; runtime `http://127.0.0.1:8772` pointed to `D:\Youtube\Story Trans And Audio\data` and schema `11`; SQLite `quick_check = ok`; only protected untracked `experiment_b_transcript/` and `runs/` were present.
   - **Backup**: pre-provider SQLite online backup created at `D:\Youtube\Story Trans And Audio\backups\task18az_pre_ch369_speaker_draft_20260719_140552.sqlite3`; size `4009984` bytes; SHA-256 `bd1ecd9bb2080dba1c373ff96b6ee159e7a5d26e5d6ab573dcb6708af4f8b5e9`; quick_check `ok`.

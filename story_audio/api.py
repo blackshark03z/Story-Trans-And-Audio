@@ -74,10 +74,12 @@ from .speaker_review import (
     SpeakerReviewNotFound,
     SpeakerReviewConflict,
     SpeakerReviewError,
+    approve_speaker_assignment_draft_only,
     approve_speaker_review,
     create_casting_plan_draft_from_speaker_review,
     get_speaker_review_draft,
     list_speaker_review_drafts,
+    review_speaker_assignment_row,
 )
 from .tts import tts_service
 from .text_correction import (
@@ -232,6 +234,12 @@ class SpeakerReviewApprovalRequest(BaseModel):
     expected_text_revision_id: int
     decisions: list[SpeakerReviewDecision] = Field(min_length=1)
     idempotency_key: str = Field(min_length=1, max_length=200)
+
+
+class SpeakerAssignmentRowReviewRequest(BaseModel):
+    decision: str = Field(pattern="^(KEEP_UNKNOWN|MAP_TO_EXISTING_CHARACTER)$")
+    character_id: int | None = None
+    operator_note: str | None = Field(default=None, max_length=4000)
 
 
 class SpeakerReviewCastingPlanDraftRequest(BaseModel):
@@ -842,6 +850,62 @@ def read_speaker_assignment_drafts(chapter_id: int) -> dict[str, Any]:
         return list_speaker_review_drafts(db, store, settings, chapter_id=chapter_id)
     except SpeakerReviewError as exc:
         raise HTTPException(404, str(exc)) from exc
+
+
+@app.put("/api/chapters/{chapter_id}/speaker-assignment/drafts/{draft_id}/reviews/{target_id}")
+def review_speaker_assignment_target(
+    chapter_id: int,
+    draft_id: int,
+    target_id: str,
+    request: SpeakerAssignmentRowReviewRequest,
+) -> dict[str, Any]:
+    try:
+        if request.decision == "KEEP_UNKNOWN":
+            speaker_type = "unknown"
+            character_id = None
+            decision_source = "unknown"
+        else:
+            speaker_type = "character"
+            character_id = request.character_id
+            decision_source = "manual_character"
+        return review_speaker_assignment_row(
+            db,
+            store,
+            settings,
+            chapter_id=chapter_id,
+            draft_id=draft_id,
+            target_id=target_id,
+            speaker_type=speaker_type,
+            character_id=character_id,
+            decision_source=decision_source,
+            operator_note=request.operator_note,
+        )
+    except SpeakerReviewNotFound as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except SpeakerReviewConflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except (SpeakerReviewError, SpeakerAssignmentError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/chapters/{chapter_id}/speaker-assignment/drafts/{draft_id}/approve-only")
+def approve_speaker_assignment_draft_without_casting(
+    chapter_id: int, draft_id: int
+) -> dict[str, Any]:
+    try:
+        return approve_speaker_assignment_draft_only(
+            db,
+            store,
+            settings,
+            chapter_id=chapter_id,
+            draft_id=draft_id,
+        )
+    except SpeakerReviewNotFound as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except SpeakerReviewConflict as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except (SpeakerReviewError, SpeakerAssignmentError) as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 @app.post("/api/chapters/{chapter_id}/speaker-assignment/drafts/{draft_id}/approve")

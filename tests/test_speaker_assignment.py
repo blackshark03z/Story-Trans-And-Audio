@@ -22,10 +22,12 @@ from story_audio.speaker_review import (
     SpeakerReviewConflict,
     SpeakerReviewError,
     SpeakerReviewNotFound,
+    approve_speaker_assignment_draft_only,
     approve_speaker_review,
     create_casting_plan_draft_from_speaker_review,
     get_speaker_review_draft,
     list_speaker_review_drafts,
+    review_speaker_assignment_row,
 )
 from story_audio.storage import ContentStore
 from story_audio.text import lexical_sha256
@@ -329,6 +331,24 @@ class SpeakerReviewTests(unittest.TestCase):
             allowed_voice_ids=self.voices,
         )
 
+    def review_row(self, db, store, config, chapter, draft, item, *, character_id=None, note=None):
+        if character_id is None:
+            return review_speaker_assignment_row(
+                db, store, config, chapter_id=chapter, draft_id=draft["id"],
+                target_id=item["utterance_id"], speaker_type="unknown",
+                character_id=None, decision_source="unknown", operator_note=note,
+            )
+        return review_speaker_assignment_row(
+            db, store, config, chapter_id=chapter, draft_id=draft["id"],
+            target_id=item["utterance_id"], speaker_type="character",
+            character_id=character_id, decision_source="manual_character", operator_note=note,
+        )
+
+    def approve_draft_only(self, db, store, config, chapter, draft):
+        return approve_speaker_assignment_draft_only(
+            db, store, config, chapter_id=chapter, draft_id=draft["id"]
+        )
+
     def test_list_and_load_include_context_summary_and_safe_stale_state(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             config, db, store, _book, chapter, _revision, character = seed(Path(directory))
@@ -353,6 +373,128 @@ class SpeakerReviewTests(unittest.TestCase):
             listing = list_speaker_review_drafts(db, store, config, chapter_id=chapter)
             self.assertEqual(listing["items"][0]["status"], "invalid")
             self.assertNotIn(str(config.blobs_dir), listing["items"][0]["load_error"])
+
+    def test_row_review_keep_unknown_marks_one_row_without_casting_or_provider(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config, db, store, _book, chapter, _revision, character = seed(Path(directory))
+            draft = self.generate(db, store, config, chapter, character)
+            first = draft["draft"]["assignments"][0]
+            result = self.review_row(db, store, config, chapter, draft, first, note="Anonymous speaker.")
+            self.assertEqual(result["remaining_unreviewed_count"], draft["target_count"] - 1)
+            self.assertEqual(result["review"]["speaker_type"], "unknown")
+            self.assertEqual(result["review"]["operator_note"], "Anonymous speaker.")
+            detail = get_speaker_review_draft(db, store, config, chapter_id=chapter, draft_id=draft["id"])
+            row = next(item for item in detail["review_rows"] if item["utterance_id"] == first["utterance_id"])
+            self.assertTrue(row["reviewed"])
+            self.assertEqual(row["human_review"]["speaker_type"], "unknown")
+            self.assertEqual(row["suggestion"]["speaker_type"], first["speaker_type"])
+            self.assertEqual(db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans")["n"], 0)
+            self.assertEqual(db.fetch_one("SELECT COUNT(*) AS n FROM jobs")["n"], 0)
+
+    def test_row_review_manual_character_and_invalid_character_guards(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config, db, store, book, chapter, _revision, character = seed(Path(directory))
+            draft = self.generate(db, store, config, chapter, character)
+            item = draft["draft"]["assignments"][0]
+            result = self.review_row(db, store, config, chapter, draft, item, character_id=character)
+            self.assertEqual(result["review"]["speaker_type"], "character")
+            self.assertEqual(result["review"]["character_id"], character)
+            with db.transaction() as connection:
+                other_book = int(connection.execute(
+                    "INSERT INTO books(title,source_path,source_sha256,chapter_count,created_at,updated_at) VALUES(?,?,?,?,?,?)",
+                    ("Other", "other.epub", "other", 0, utcnow(), utcnow()),
+                ).lastrowid)
+                other_character = int(connection.execute(
+                    """INSERT INTO characters(
+                       book_id,display_name,default_voice_id,canonical_name,
+                       canonical_name_normalized,created_at,updated_at
+                       ) VALUES(?,?,?,?,?,?,?)""",
+                    (other_book, "Other", "", "Other", "other", utcnow(), utcnow()),
+                ).lastrowid)
+            second = draft["draft"]["assignments"][1]
+            with self.assertRaises(SpeakerReviewError):
+                self.review_row(db, store, config, chapter, draft, second, character_id=other_character)
+            self.assertEqual(book, int(db.fetch_one("SELECT book_id FROM characters WHERE id=?", (character,))["book_id"]))
+
+    def test_row_review_rejects_outside_stale_and_conflicting_repeat(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config, db, store, _book, chapter, revision, character = seed(Path(directory))
+            draft = self.generate(db, store, config, chapter, character)
+            item = draft["draft"]["assignments"][0]
+            with self.assertRaises(SpeakerReviewNotFound):
+                review_speaker_assignment_row(
+                    db, store, config, chapter_id=chapter, draft_id=draft["id"],
+                    target_id="not-in-draft", speaker_type="unknown",
+                    character_id=None, decision_source="unknown",
+                )
+            first = self.review_row(db, store, config, chapter, draft, item)
+            repeated = self.review_row(db, store, config, chapter, draft, item)
+            self.assertTrue(repeated["review"]["idempotent_reused"])
+            self.assertEqual(first["review"]["id"], repeated["review"]["id"])
+            with self.assertRaises(SpeakerReviewConflict):
+                self.review_row(db, store, config, chapter, draft, item, character_id=character)
+            changed = TEXT + " More."
+            path, digest = store.put_text(changed)
+            with db.connect() as connection:
+                new_id = int(connection.execute(
+                    """INSERT INTO text_revisions(
+                       chapter_id,parent_revision_id,kind,content_path,content_sha256,
+                       lexical_sha256,char_count,processor_version,status,created_at
+                       ) VALUES(?,?,?,?,?,?,?,?,?,?)""",
+                    (chapter, revision, "reflowed", path, digest, lexical_sha256(changed), len(changed), "changed", "approved", utcnow()),
+                ).lastrowid)
+                connection.execute("UPDATE chapters SET active_text_revision_id=? WHERE id=?", (new_id, chapter))
+            with self.assertRaises(SpeakerReviewConflict):
+                self.review_row(db, store, config, chapter, draft, draft["draft"]["assignments"][1])
+
+    def test_draft_only_approval_requires_complete_review_and_creates_no_downstream_state(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config, db, store, _book, chapter, _revision, character = seed(Path(directory))
+            draft = self.generate(db, store, config, chapter, character)
+            with self.assertRaises(SpeakerReviewError):
+                self.approve_draft_only(db, store, config, chapter, draft)
+            for item in draft["draft"]["assignments"]:
+                self.review_row(db, store, config, chapter, draft, item)
+            result = self.approve_draft_only(db, store, config, chapter, draft)
+            self.assertEqual(result["status"], "approved")
+            self.assertEqual(result["reviewed_count"], draft["target_count"])
+            self.assertFalse(result["idempotent_reused"])
+            repeated = self.approve_draft_only(db, store, config, chapter, draft)
+            self.assertTrue(repeated["idempotent_reused"])
+            row = db.fetch_one("SELECT status,approved_at FROM speaker_assignment_drafts WHERE id=?", (draft["id"],))
+            self.assertEqual(row["status"], "approved")
+            self.assertIsNotNone(row["approved_at"])
+            self.assertEqual(db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans")["n"], 0)
+            self.assertEqual(db.fetch_one("SELECT COUNT(*) AS n FROM jobs")["n"], 0)
+            self.assertEqual(db.fetch_one("SELECT COUNT(*) AS n FROM artifacts")["n"], 0)
+
+    def test_draft_only_approval_rejects_invalid_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config, db, store, _book, chapter, _revision, character = seed(Path(directory))
+            draft = self.generate(db, store, config, chapter, character)
+            payload = draft["draft"]
+            payload["invalid_items"] = [{"utterance_id": payload["assignments"][0]["utterance_id"], "error_code": "bad"}]
+            path, digest = store.put_json(payload, namespace="speaker_assignment")
+            with db.connect() as connection:
+                connection.execute(
+                    "UPDATE speaker_assignment_drafts SET content_path=?,content_sha256=?,invalid_count=? WHERE id=?",
+                    (path, digest, 1, draft["id"]),
+                )
+            with self.assertRaises(SpeakerReviewError):
+                self.approve_draft_only(db, store, config, chapter, draft)
+
+    def test_zero_target_draft_only_approval_is_valid_without_casting_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config, db, store, _book, chapter, _revision, _character = seed_zero_target(Path(directory))
+            draft = generate_speaker_assignment_draft(
+                db, store, config, chapter_id=chapter,
+                provider=lambda **_kwargs: (_ for _ in ()).throw(AssertionError("provider called")),
+            )
+            result = self.approve_draft_only(db, store, config, chapter, draft)
+            self.assertEqual(result["status"], "approved")
+            self.assertEqual(result["target_count"], 0)
+            self.assertEqual(result["remaining_unreviewed_count"], 0)
+            self.assertEqual(db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans")["n"], 0)
 
     def test_approval_without_base_creates_first_revision_and_keeps_unreviewed_unknown(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -196,6 +196,11 @@ class MigrationTests(unittest.TestCase):
             self.assertEqual(database.fetch_one("SELECT COUNT(*) AS n FROM characters")["n"], 1)
             tables = {row["name"] for row in database.fetch_all("SELECT name FROM sqlite_master WHERE type='table'")}
             self.assertIn("speaker_assignment_drafts", tables)
+            self.assertIn("speaker_assignment_reviews", tables)
+            draft_columns = {
+                row["name"] for row in database.fetch_all("PRAGMA table_info(speaker_assignment_drafts)")
+            }
+            self.assertIn("approved_at", draft_columns)
 
     def test_initialize_is_idempotent(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

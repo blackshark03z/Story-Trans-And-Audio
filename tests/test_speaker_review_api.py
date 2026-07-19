@@ -97,6 +97,63 @@ class SpeakerReviewDraftApiTests(IsolatedTestCase):
         self.assertEqual(data["effective_voice_counts"]["male"], len(self.draft["draft"]["assignments"]))
         self.assertEqual(int(self.db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans WHERE status='approved'")["n"]), 0)
 
+    def test_row_review_and_approve_only_routes_create_no_casting_plan(self) -> None:
+        first = self.draft["draft"]["assignments"][0]
+        review = self.client.put(
+            f"/api/chapters/{self.chapter_id}/speaker-assignment/drafts/{self.draft['id']}/reviews/{first['utterance_id']}",
+            json={"decision": "KEEP_UNKNOWN", "operator_note": "Anonymous line."},
+        )
+        self.assertEqual(review.status_code, 200)
+        self.assertEqual(review.json()["review"]["speaker_type"], "unknown")
+        self.assertEqual(review.json()["remaining_unreviewed_count"], self.draft["target_count"] - 1)
+        premature = self.client.post(
+            f"/api/chapters/{self.chapter_id}/speaker-assignment/drafts/{self.draft['id']}/approve-only",
+            json={},
+        )
+        self.assertEqual(premature.status_code, 400)
+        for item in self.draft["draft"]["assignments"][1:]:
+            response = self.client.put(
+                f"/api/chapters/{self.chapter_id}/speaker-assignment/drafts/{self.draft['id']}/reviews/{item['utterance_id']}",
+                json={"decision": "MAP_TO_EXISTING_CHARACTER", "character_id": self.character_id},
+            )
+            self.assertEqual(response.status_code, 200)
+        approved = self.client.post(
+            f"/api/chapters/{self.chapter_id}/speaker-assignment/drafts/{self.draft['id']}/approve-only",
+            json={},
+        )
+        self.assertEqual(approved.status_code, 200)
+        data = approved.json()
+        self.assertEqual(data["status"], "approved")
+        self.assertEqual(data["reviewed_count"], self.draft["target_count"])
+        self.assertEqual(int(self.db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans")["n"]), 0)
+        self.assertEqual(int(self.db.fetch_one("SELECT COUNT(*) AS n FROM jobs")["n"]), 0)
+
+    def test_row_review_route_rejects_outside_target_and_wrong_book_character(self) -> None:
+        outside = self.client.put(
+            f"/api/chapters/{self.chapter_id}/speaker-assignment/drafts/{self.draft['id']}/reviews/not-in-draft",
+            json={"decision": "KEEP_UNKNOWN"},
+        )
+        self.assertEqual(outside.status_code, 404)
+        with self.db.transaction() as connection:
+            now = "2026-01-01T00:00:00+00:00"
+            other_book = int(connection.execute(
+                "INSERT INTO books(title,source_path,source_sha256,chapter_count,created_at,updated_at) VALUES(?,?,?,?,?,?)",
+                ("Other", "other.epub", "other", 0, now, now),
+            ).lastrowid)
+            other_character = int(connection.execute(
+                """INSERT INTO characters(
+                   book_id,display_name,default_voice_id,canonical_name,
+                   canonical_name_normalized,created_at,updated_at
+                   ) VALUES(?,?,?,?,?,?,?)""",
+                (other_book, "Other", "", "Other", "other", now, now),
+            ).lastrowid)
+        target = self.draft["draft"]["assignments"][0]["utterance_id"]
+        bad_character = self.client.put(
+            f"/api/chapters/{self.chapter_id}/speaker-assignment/drafts/{self.draft['id']}/reviews/{target}",
+            json={"decision": "MAP_TO_EXISTING_CHARACTER", "character_id": other_character},
+        )
+        self.assertEqual(bad_character.status_code, 400)
+
     def test_incomplete_review_returns_400_with_no_partial_mutation(self) -> None:
         before = int(self.db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans WHERE chapter_id=?", (self.chapter_id,))["n"])
         response = self.client.post(

@@ -394,7 +394,7 @@
               <div id="speakerReviewMeta" class="speaker-review-meta"></div>
               <div id="speakerReviewStale" class="issue error hidden"></div>
               <div id="speakerReviewWorkspace" class="hidden">
-                <div class="speaker-review-jumps"><button id="jumpToPendingReview" class="ghost">Nhảy đến chỗ còn cần rà soát</button><button id="jumpToApprovalControls" class="ghost">Nhảy đến phần tạo Final Voice Map draft</button></div>
+                <div class="speaker-review-jumps"><button id="jumpToPendingReview" class="ghost">Nhảy đến chỗ còn cần rà soát</button><button id="jumpToApprovalControls" class="ghost">Nhảy đến phần duyệt Speaker Draft</button></div>
                 <div class="speaker-review-toolbar">
                   <label>Filter<select id="speakerReviewFilter">
                     <option value="all">All</option><option value="unreviewed">Unreviewed</option>
@@ -413,7 +413,8 @@
                 <div id="speakerReviewRows" class="speaker-review-list"></div>
                 <div id="speakerReviewApprovalControls" class="speaker-review-approve">
                   <span id="speakerReviewDecisionCount" class="muted">0 reviewed</span>
-                  <button id="approveSpeakerReview" class="primary" disabled data-runtime-mutation-control>Tạo Final Voice Map draft</button>
+                  <button id="approveSpeakerReview" class="primary" disabled data-runtime-mutation-control>Duyệt Speaker Draft</button>
+                  <button id="createSpeakerReviewCastingPlan" class="secondary" disabled data-runtime-mutation-control>Tạo Final Voice Map draft</button>
                 </div>
                 <div id="speakerReviewApprovalResult" class="muted"></div>
               </div>
