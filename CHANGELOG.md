@@ -6,6 +6,12 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18AV - Chapter 368 repair block accepted and same-job reassembly completed**: accepted live Repair Block `#1` for Segments `665`/`666` and reassembled Chapter `368` on the same Job `22` without creating a replacement job.
+  - **Accept flow**: added `POST /api/audio-repair-blocks/{repair_block_id}/accept`, wired the UI Accept button, and kept the candidate audio preserved at `data\work\job_22\chapter_0368\repair_blocks\repair_block_665_666_candidate_0001.wav`.
+  - **Reassembly**: accept rebuilt the chapter master/timeline and produced new artifacts `82` (`chapter_master_wav`), `83` (`segment_timeline_json`), and active artifact `84` (`chapter_m4a`) for the same Job `22` / JobChapter `22`.
+  - **Safety**: no segment rows, attempt rows, text revisions, speaker drafts, casting plans, or replacement jobs were mutated; the original artifact `81` became stale and `experiment_b_transcript/` plus `runs/` remained untouched.
+  - **Verification**: runtime `http://127.0.0.1:8772`, database `D:\Youtube\Story Trans And Audio\data\app.db`, backup `D:\Youtube\Story Trans And Audio\backups\task18av_pre_ch368_repair_accept_20260719_130557`, and SQLite quick check `ok`.
+  - **Next task**: Task `18AW` — Final Human Audio QA of Reassembled Chapter `368` Artifact.
 - **Task 18AT - Chapter 368 adjacent-segment repair-block candidate**: implemented `audio_repair_blocks`, added migration `0011_audio_repair_blocks.sql`, exposed supported repair-block APIs/UI, and created one live candidate for Segments `665`/`666` on Job `22` / JobChapter `22`.
   - **Code**: repair-block synthesis now reconstructs the authoritative span from Text Revision `736`, enforces adjacent verified segments, rejects stale/mismatched plan pins, reuses the same live job identity, and supports JobChapter-level casting-plan pin fallback when segment rows keep `casting_plan_id = NULL`.
   - **API/UI**: added `POST /api/jobs/{job_id}/repair-blocks`, `GET /api/job-chapters/{job_chapter_id}/repair-blocks`, `POST /api/audio-repair-blocks/{repair_block_id}/reject`, candidate audio, and preview-only original-range audio for A/B review.

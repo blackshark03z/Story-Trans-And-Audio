@@ -1,12 +1,22 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-19T13:36 (Asia/Saigon)
-**Milestone:** Task 18AT Chapter 368 Adjacent-Segment Repair-Block Candidate Created
-**Trạng thái:** Live repair-block support is implemented and verified. One backed-up live candidate was created for Segments `665`/`666` as repair block `#1` on Job `22` / JobChapter `22`. The candidate is pending Human A/B review, the canonical JobChapter plan pin fallback is working, and active artifact `81` remains unchanged.
+**Cập nhật:** 2026-07-19T13:45 (Asia/Saigon)
+**Milestone:** Task 18AV Chapter 368 Repair Block Accepted and Reassembled
+**Trạng thái:** Repair block `#1` on Job `22` / JobChapter `22` was accepted and reassembled on the same job. Chapter `368` now points to active artifact `84`; the original artifact `81` is stale; no replacement job was created; and the live repair-block candidate audio remains preserved at its original candidate path.
 
-**Last verified against commit:** `b0e1764f4db87f8dd74f1d0eb3a6eb4f0c1f5d53`
+**Last verified against commit:** `97ce729fe1e64c6b821a261168f747e5699e68cc`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-19
+
+**Task 18AV verified live state:**
+- Repository baseline passed before the supported mutation: branch `main`, `HEAD == origin/main == 97ce729fe1e64c6b821a261168f747e5699e68cc`, tracked worktree clean except protected untracked `experiment_b_transcript/` and `runs/`, runtime `http://127.0.0.1:8772`, data root `D:\Youtube\Story Trans And Audio\data`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, and SQLite `quick_check = ok`.
+- A fresh backup was created before accept at `D:\Youtube\Story Trans And Audio\backups\task18av_pre_ch368_repair_accept_20260719_130557`; backup `files\app.db` size `4009984` bytes; SHA-256 `80169f4f3e2472c01c9a83f4d3d5ef18cd57993074e0c892d6144e1507cf7365`; SQLite `quick_check = ok`.
+- Repair block `#1` was accepted exactly once through `POST /api/audio-repair-blocks/1/accept`. The block covers Segments `665` and `666`, remains tied to Job `22` / JobChapter `22`, and stores candidate audio at `D:\Youtube\Story Trans And Audio\data\work\job_22\chapter_0368\repair_blocks\repair_block_665_666_candidate_0001.wav` with SHA-256 `aa979df98b2a2e332699df3df9d444fd0d111073a191315c8df8f9294b62b095` and duration `15350 ms`.
+- Reassembly created artifacts `82` (`chapter_master_wav`), `83` (`segment_timeline_json`), and active artifact `84` (`chapter_m4a`) for the same Job `22` / JobChapter `22` without creating a replacement job or touching any segment/attempt rows.
+- Artifact `84` now holds Chapter `368` active audio at `D:\Youtube\Story Trans And Audio\data\output\1-quang-am-chi-ngoai\chapter_0368\job_22\render_0002\chapter.m4a`; SHA-256 `6d4f27143aa99112cfbee706a6bdbf45f0adfdb0ff29be42477093bb5b43b90f`; size `7902953` bytes; duration `485050 ms`.
+- Job `22` remains `completed`, JobChapter `22` remains `completed`, and the live repair block status is now `accepted` with `accepted_at = 2026-07-19T06:08:53.932352+00:00`. The original active artifact `81` is now stale.
+- No duplicate job, no TTS/provider call, no segment regeneration, and no direct DB edit occurred. `experiment_b_transcript/` and `runs/` remained untouched.
+- Exact next task: Task `18AW` - Final Human Audio QA of Reassembled Chapter `368` Artifact.
 
 **Task 18AT verified live state:**
 - Repository baseline before live mutation passed: branch `main`, `HEAD == origin/main == b0e1764f4db87f8dd74f1d0eb3a6eb4f0c1f5d53`, protected untracked `experiment_b_transcript/` and `runs/` remained untouched, runtime `http://127.0.0.1:8766` pointed to `D:\Youtube\Story Trans And Audio\data`, and schema version reported `11`.
