@@ -4,6 +4,16 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ## Unreleased
 
+### Fixed
+
+- **DAILY-PROD-2B2-D1 - Contextual voice detour activation stability**: fixed a real-browser hang when activating the Voice Library detour from Production.
+  - **Root cause**: the return banner render updated `#voiceDetourStatus`, the broad MutationObserver observed that banner-only DOM mutation, and the observer recursively rendered the banner again after route activation.
+  - **Fix**: detour activation now defers route changes outside the click event stack and ignores MutationObserver batches that only touch `#voiceDetourBanner`.
+  - **Runtime acceptance**: isolated browser smoke verified logical custom voice creation, reference WAV upload, usable catalog resolution, exact return, unsaved preselection, explicit Book Voice Profile save, cancel, and stale-context rejection without job/artifact/audio creation.
+  - **Canonical safety**: Chapter `369` read-only smoke opened the Final Voice Map detour and canceled back to Production with `0` canonical non-GET requests; Text Revision `738`, Speaker Draft `15`, Casting Plan `24` revision `1` draft/unapproved, jobs `0`, artifacts `0`, active audio `none`, and audio status `not_created` remained unchanged.
+  - **Validation**: focused detour/selector/voice/catalog/casting/Production tests passed (`357`), full offline suite passed (`1044` tests, `1` skipped), and `node --check` passed for `ui/app.js`, `ui/contextual_voice_detour.js`, and `ui/casting_voice_map.js`.
+  - **Next task**: `DAILY-PROD-3A` - Audio Library Completed Output List And Playback Entry.
+
 ### Added
 
 - **DAILY-PROD-2B2 - Contextual voice detour and return**: completed the bounded return path from voice-assignment surfaces to Voice Library and back.

@@ -10,7 +10,7 @@ Current strategic state:
 PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP
 
 Current status:
-`DAILY-PROD-1` and `DAILY-PROD-2` are complete. Production has a modular shell, read-only state resolver, isolated current-step panels, shared preset/custom voice selectors, Final Voice Map catalog provenance, and a bounded contextual Voice Library detour that returns to the originating voice-assignment context without auto-saving or starting production work.
+`DAILY-PROD-1` and `DAILY-PROD-2` are complete. Production has a modular shell, read-only state resolver, isolated current-step panels, shared preset/custom voice selectors, Final Voice Map catalog provenance, and a bounded contextual Voice Library detour that returns to the originating voice-assignment context without auto-saving or starting production work. The DAILY-PROD-2B2-D1 real-browser closeout fixed the detour activation MutationObserver loop and verified isolated create/upload/return/save, cancel, stale-context rejection, and canonical Chapter 369 read-only return.
 
 Current baseline for the next task:
 - Branch `main`

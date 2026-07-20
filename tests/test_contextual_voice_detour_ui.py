@@ -150,6 +150,14 @@ console.log(JSON.stringify({
         self.assertIn(".voice-detour-banner", self.css)
         self.assertIn(".voice-detour-unsaved-note", self.css)
 
+    def test_detour_activation_defers_route_change_until_after_click_event(self) -> None:
+        self.assertIn("root.setTimeout?.(() => beginDetour(context), 0)", self.detour_js)
+        self.assertIn("root.setTimeout?.(() => {", self.detour_js)
+        self.assertIn("navigateToDestination(saved)", self.detour_js)
+        self.assertIn("onlyBannerMutations", self.detour_js)
+        self.assertIn("#voiceDetourBanner", self.detour_js)
+        self.assertIn("event.preventDefault()", self.detour_js)
+
     def test_no_chapter_369_or_later_milestone_hardcoding(self) -> None:
         changed_ui = self.detour_js + self.css
         for forbidden in ("369", "Chapter 369", "range readiness", "batch", "Audio Library"):

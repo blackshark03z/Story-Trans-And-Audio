@@ -254,8 +254,10 @@
     normalized.hasUnsavedDraft = !!normalized.sourceDraft
     const saved = saveContext(normalized)
     if (!saved) return null
-    navigateToDestination(saved)
-    speak('Đã mở Thư viện giọng. Tạo hoặc cấu hình giọng xong thì quay lại nơi chọn giọng.')
+    root.setTimeout?.(() => {
+      navigateToDestination(saved)
+      speak('Đã mở Thư viện giọng. Tạo hoặc cấu hình giọng xong thì quay lại nơi chọn giọng.')
+    }, 0)
     return saved
   }
   function contextFromButton(button){
@@ -387,10 +389,15 @@
       if (!button) return
       event.preventDefault()
       const context = contextFromButton(button)
-      beginDetour(context)
+      root.setTimeout?.(() => beginDetour(context), 0)
     })
     root.addEventListener?.('hashchange', renderDetourBanner)
-    const observer = new MutationObserver(() => {
+    const observer = new MutationObserver(mutations => {
+      const onlyBannerMutations = mutations.length > 0 && mutations.every(mutation => {
+        const target = mutation.target?.nodeType === 1 ? mutation.target : mutation.target?.parentElement
+        return !!target?.closest?.('#voiceDetourBanner')
+      })
+      if (onlyBannerMutations) return
       enhanceOrigins()
       renderDetourBanner()
       wrapLibraryHandlers()
