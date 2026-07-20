@@ -14,6 +14,24 @@
   const PREPARED_JOB_STATUSES=new Set(['prepared']);
   const TERMINAL_JOB_STATUSES=new Set(['completed','completed_with_errors','failed','cancelled']);
   const MUTATION_STATES=new Set(['CASTING_REVIEW','READY_TO_PREPARE','PREPARED','RENDERING_OR_PAUSED','RENDERED_NOT_QA']);
+  const STAGE_PANEL_OWNERSHIP=[
+    {id:'productionStageIsolation',stages:['scope','text','speakers','voices','voice_map','prepare','render','qa'],kind:'shell'},
+    {id:'workspace',stages:['scope'],kind:'work'},
+    {id:'productionQueuePanel',stages:['render'],kind:'work'},
+    {id:'productionLegacyJobPanel',stages:[],kind:'legacy'},
+    {id:'flowStepSelectChapter',stages:['scope'],kind:'work'},
+    {id:'flowStepReviewText',stages:['text'],kind:'work'},
+    {id:'flowStepAssignVoices',stages:['speakers','voices'],kind:'work'},
+    {id:'speakerReviewPanel',stages:['speakers'],kind:'work'},
+    {id:'flowVoiceMemoryDetails',stages:['voices'],kind:'work'},
+    {id:'flowStepReviewVoiceMap',stages:['voice_map'],kind:'work'},
+    {id:'castingPlanPanel',stages:['voice_map'],kind:'work'},
+    {id:'flowStepRenderChapter',stages:['prepare','render'],kind:'work'},
+    {id:'renderPlanPanel',stages:['prepare','render'],kind:'work'},
+    {id:'flowStepReviewAudio',stages:['qa'],kind:'work'},
+    {id:'audioBox',stages:['qa'],kind:'work'},
+    {id:'flowFinalApprovalPanel',stages:['qa'],kind:'work'},
+  ];
   const STATE_META={
     NO_SCOPE:{stage:'scope',action:'SELECT_SCOPE',label:'Chọn phạm vi',title:'Chưa chọn chương sản xuất',target:'scope',explanation:'Hãy chọn một sách và một chương để bắt đầu quy trình sản xuất một chương.'},
     TEXT_BLOCKED:{stage:'text',action:'RESOLVE_TEXT',label:'Xử lý văn bản',title:'Văn bản chưa sẵn sàng',target:'text',explanation:'Cần có Text Revision active đã duyệt trước khi tiếp tục.'},
@@ -42,7 +60,7 @@
       locked:lockedStageKeys.includes(stage.key),
       state:stage.key===currentStageKey?'current':completedStageKeys.includes(stage.key)?'complete':'locked',
     }));
-    return {
+    const viewModel={
       conceptualState,
       currentStageKey,
       currentStageLabel:STAGES.find(stage=>stage.key===currentStageKey)?.label||currentStageKey,
@@ -58,6 +76,37 @@
       diagnosticDetails:meta.diagnosticDetails||[],
       stages,
     };
+    viewModel.stageSummaries=stageSummaries(viewModel);
+    viewModel.panelStates=stagePanelStates(viewModel);
+    return viewModel;
+  }
+  function stageSummaryText(stage,vm){
+    if(stage.current)return vm.explanation||stage.summary;
+    if(stage.complete)return `${stage.label} đã hoàn tất cho phạm vi hiện tại.`;
+    return `${stage.label} đang khóa cho đến khi hoàn tất bước hiện tại.`;
+  }
+  function stageSummaries(vm){
+    return vm.stages.map(stage=>({
+      key:stage.key,
+      label:stage.label,
+      state:stage.state,
+      text:stageSummaryText(stage,vm),
+    }));
+  }
+  function stagePanelStates(vm,ownership=STAGE_PANEL_OWNERSHIP){
+    const unresolved=vm?.conceptualState==='STATE_UNRESOLVED';
+    return ownership.map(panel=>{
+      const active=panel.kind==='shell'||(!unresolved&&panel.stages.includes(vm?.currentStageKey));
+      return {
+        id:panel.id,
+        kind:panel.kind,
+        stages:[...panel.stages],
+        active,
+        hidden:!active,
+        inert:!active,
+        ariaHidden:active?'false':'true',
+      };
+    });
   }
   function hasValidScope(input){
     const bookId=n(input?.book?.id??input?.book_id);
@@ -173,7 +222,7 @@
     if(!bookId||!chapterId)return '#/production';
     return `#/production?book=${bookId}&chapter=${chapterId}`;
   }
-  const api={STAGES,resolveProductionState,productionScopeFromHash,productionHashForScope};
+  const api={STAGES,STAGE_PANEL_OWNERSHIP,resolveProductionState,productionScopeFromHash,productionHashForScope,stagePanelStates};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   root.ProductionWorkflow=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -6,6 +6,16 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DAILY-PROD-1C - Production step view isolation and action hierarchy closure**: completed the `DAILY-PROD-1` sequential Production shell.
+  - **Stage ownership**: added a central Production panel ownership model that maps existing work panels to exactly one current canonical stage surface and returns active/hidden/inert/ARIA state from the resolver view model.
+  - **Current work area**: Production now renders completed-stage summaries, one current-stage work area, and locked future-stage summaries instead of letting completed/future technical panels compete with the current step.
+  - **Panel isolation**: inactive Production panels are hidden and marked `inert`/`aria-hidden`; `STATE_UNRESOLVED` exposes only the safe shell/diagnostic surface.
+  - **Action hierarchy**: legacy dialog step navigation is locked to the resolver's current stage, the old Next button is secondary/disabled, and the existing dominant Production action remains the only primary next action for the current stage.
+  - **View isolation**: navigating away from Production closes the Production dialog so Voice Library and other top-level areas are not visually overlaid by chapter workflow controls.
+  - **Chapter 369 smoke**: Chapter `369` still resolves read-only to `CASTING_REVIEW` / `Duyệt bản đồ giọng`; only Final Voice Map review opens, while Speaker Draft, Prepare, Render, QA, queue, and legacy job controls remain hidden/noninteractive.
+  - **Safety**: Chapter `369` remains unchanged with Text Revision `738`, Speaker Draft `15` approved, Casting Plan `24` revision `1` draft/unapproved, Jobs `0`, JobChapters `0`, artifacts `0`, active audio `none`, and audio status `not_created`; no provider, Gemini, TTS, preview, approval, job, render, QA, segment, attempt, artifact, database, or protected-path mutation occurred.
+  - **Validation**: focused step-isolation/resolver/shell tests (`41`), affected UI/API subsets (`249`), browser smoke, `node --check` for frontend JS, and the full offline suite (`1011` tests, `1` skipped) passed.
+  - **Next milestone**: `DAILY-PROD-2` - Custom Voice Assignment UI Closure.
 - **DAILY-PROD-1B - Production state resolver and resume behavior**: added a state-derived, single-chapter Production workflow resolver.
   - **Resolver**: introduced a pure frontend resolver that returns conceptual state, current stage, completed/locked stages, one primary action, explanation, blocker, target panel, mutation-display flag, and diagnostics from normalized read-only state.
   - **Precedence**: existing prepared/running/paused/rendered/complete production objects take precedence over upstream reusable configuration; without downstream production, the resolver checks approved text, speaker review, voice readiness, and Casting Plan approval. Contradictions fail closed to `STATE_UNRESOLVED`.

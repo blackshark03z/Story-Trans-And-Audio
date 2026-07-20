@@ -80,6 +80,15 @@
           <li><span>7</span><strong>Render</strong><small>Start riêng</small></li>
           <li><span>8</span><strong>QA</strong><small>Nghe và chốt</small></li>
         </ol>
+        <section id="productionStageIsolation" class="production-stage-isolation" aria-labelledby="productionCurrentWorkHeading">
+          <div id="productionCompletedSummaries" class="production-stage-summaries" aria-label="Các bước đã hoàn tất"></div>
+          <div id="productionCurrentWorkArea" class="production-current-work" tabindex="-1">
+            <p class="eyebrow">Khu vực làm việc hiện tại</p>
+            <h3 id="productionCurrentWorkHeading">Chọn phạm vi</h3>
+            <p id="productionCurrentWorkBody" class="muted">Chỉ khu vực của bước hiện tại được mở để thao tác.</p>
+          </div>
+          <div id="productionLockedSummaries" class="production-stage-summaries locked" aria-label="Các bước đang khóa"></div>
+        </section>
       </section>
 
       <section id="workspace" class="workspace hidden">
@@ -103,7 +112,7 @@
           </div>
         </aside>
 
-        <section class="panel job-panel">
+        <section class="panel job-panel" id="productionLegacyJobPanel">
           <div class="section-head">
             <div>
               <p class="eyebrow">Tạo audio</p>
@@ -143,7 +152,7 @@
         </section>
       </section>
 
-      <section class="panel queue-panel">
+      <section class="panel queue-panel" id="productionQueuePanel">
         <div class="section-head">
           <div><p class="eyebrow">Checkpoint bền vững</p><h2>Hàng đợi</h2></div>
           <button id="refreshJobs" class="ghost">Làm mới</button>
@@ -367,7 +376,7 @@
         </div>
       </section>
       <div id="productionFlowMainPanel" class="production-flow-main">
-        <section id="flowStepSelectChapter" class="flow-step-panel">
+        <section id="flowStepSelectChapter" class="flow-step-panel" data-production-owned-stage="scope">
           <div class="section-head">
             <div><p class="eyebrow">Bước 1</p><h3>Chọn chương</h3></div>
             <span id="flowSelectStatus" class="pill">Sẵn sàng</span>
@@ -377,7 +386,7 @@
           <div id="flowSelectWarnings"></div>
         </section>
 
-        <section id="flowStepReviewText" class="flow-step-panel hidden">
+        <section id="flowStepReviewText" class="flow-step-panel hidden" data-production-owned-stage="text">
           <div class="section-head">
             <div><p class="eyebrow">Bước 2</p><h3>Kiểm tra văn bản</h3></div>
             <span id="flowTextStatus" class="pill">Chờ</span>
@@ -390,7 +399,7 @@
           </div>
         </section>
 
-        <section id="flowStepAssignVoices" class="flow-step-panel hidden">
+        <section id="flowStepAssignVoices" class="flow-step-panel hidden" data-production-owned-stage="speakers voices">
           <div class="section-head">
             <div><p class="eyebrow">Bước 3</p><h3>Gán giọng</h3></div>
             <span id="flowAssignStatus" class="pill">Chờ</span>
@@ -408,7 +417,7 @@
             <p class="muted">Các người nói trong phần này đã có giọng an toàn theo trạng thái hiện tại. Bạn chỉ cần mở ra khi muốn rà lại danh sách đã tự gán.</p>
             <div id="flowReadySpeakerSummary" class="flow-speaker-list"></div>
           </details>
-          <details id="flowVoiceMemoryDetails" class="flow-secondary-details">
+          <details id="flowVoiceMemoryDetails" class="flow-secondary-details" data-production-owned-stage="voices">
             <summary>Thiết lập giọng cho sách</summary>
             <p class="muted">Phần này áp dụng lại cho nhiều chương trong cùng cuốn sách. Chỉ mở khi bạn muốn chỉnh giọng mặc định, bộ nhớ nhân vật, alias, hoặc custom voice ở cấp sách; còn với một chương cụ thể, hãy bắt đầu từ danh sách người nói ở phía trên.</p>
             <div id="flowAssignBookSummary" class="flow-summary-grid"></div>
@@ -478,7 +487,7 @@
           </details>
           <details id="flowAdvancedDraftTools" class="flow-advanced-tools">
             <summary>Nâng cao / Gỡ lỗi: công cụ nháp AI cho người nói</summary>
-            <section id="speakerReviewPanel" class="speaker-review-panel">
+            <section id="speakerReviewPanel" class="speaker-review-panel" data-production-owned-stage="speakers">
               <div class="section-head">
                 <div><p class="eyebrow">Nâng cao / gợi ý AI</p><h3>Công cụ nháp AI và rà soát người nói</h3></div>
                 <span id="speakerReviewStatus" class="pill">Chưa có nháp</span>
@@ -527,7 +536,7 @@
           </details>
         </section>
 
-        <section id="flowStepReviewVoiceMap" class="flow-step-panel hidden">
+        <section id="flowStepReviewVoiceMap" class="flow-step-panel hidden" data-production-owned-stage="voice_map">
           <div class="section-head">
             <div><p class="eyebrow">Bước 4</p><h3>Duyệt bản đồ giọng cuối</h3></div>
             <span id="flowVoiceMapStatus" class="pill">Chờ</span>
@@ -535,7 +544,7 @@
           <p class="section-guide">Đây là bản đồ giọng cuối mà hệ thống sẽ dùng khi tạo audio. Hãy kiểm tra từng người nói và giọng tương ứng, rồi duyệt trước khi render.</p>
           <div id="flowVoiceMapWarnings"></div>
           <div id="flowVoiceMapTable" class="flow-voice-map"></div>
-          <section id="castingPlanPanel" class="casting-plan-panel">
+          <section id="castingPlanPanel" class="casting-plan-panel" data-production-owned-stage="voice_map">
             <div class="section-head">
               <div><p class="eyebrow">Kỹ thuật</p><h3>Chi tiết bản đồ giọng cuối</h3></div>
               <span id="castingPlanReviewMeta" class="pill">Chưa có plan</span>
@@ -555,7 +564,7 @@
           </section>
         </section>
 
-        <section id="flowStepRenderChapter" class="flow-step-panel hidden">
+        <section id="flowStepRenderChapter" class="flow-step-panel hidden" data-production-owned-stage="prepare render">
           <div class="section-head">
             <div><p class="eyebrow">Bước 5</p><h3>Tạo audio chương</h3></div>
             <span id="flowRenderStatus" class="pill">Chờ</span>
@@ -563,7 +572,7 @@
           <p class="section-guide">Chỉ bắt đầu hoặc tiếp tục tạo audio sau khi bản đồ giọng cuối đã được duyệt.</p>
           <div id="flowRenderSummary" class="flow-summary-grid"></div>
           <div id="flowRenderWarnings"></div>
-          <section id="renderPlanPanel" class="render-plan-panel">
+          <section id="renderPlanPanel" class="render-plan-panel" data-production-owned-stage="prepare render">
             <div class="section-head">
               <div><p class="eyebrow">Render / Production Output</p><h3>Tạo audio từ chương đã duyệt</h3></div>
             </div>
@@ -576,7 +585,7 @@
           </section>
         </section>
 
-        <section id="flowStepReviewAudio" class="flow-step-panel hidden">
+        <section id="flowStepReviewAudio" class="flow-step-panel hidden" data-production-owned-stage="qa">
           <div class="section-head">
             <div><p class="eyebrow">Bước 6</p><h3>Nghe kiểm tra / Chốt bản cuối</h3></div>
             <span id="flowAudioStatus" class="pill">Chờ</span>
@@ -589,7 +598,7 @@
             <a id="audioFileLink" target="_blank">Mở file audio</a>
           </div>
           <div id="chapterAudioMeta" class="chapter-audio-meta hidden"></div>
-          <section id="flowFinalApprovalPanel" class="flow-final-approval">
+          <section id="flowFinalApprovalPanel" class="flow-final-approval" data-production-owned-stage="qa">
             <div class="section-head">
               <div><p class="eyebrow">Production record</p><h3>Trạng thái chốt bản audio cuối</h3></div>
               <span id="flowFinalApprovalStatus" class="pill">Chưa chốt</span>

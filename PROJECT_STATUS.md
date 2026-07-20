@@ -1,11 +1,11 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-20T16:23 (Asia/Saigon)
-**Milestone:** DAILY-PROD-1B Production State Resolver Complete
+**Cập nhật:** 2026-07-20T18:18 (Asia/Saigon)
+**Milestone:** DAILY-PROD-1 Complete - Modular Navigation And Sequential Production Shell
 **Strategic state:** `PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP`
-**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. The operator selected `CHOOSE_C_DEFER_CH369_AND_ACTIVATE_DAILY_PRODUCTION_UX_ROADMAP`; `DAILY-PROD-1A` and `DAILY-PROD-1B` are implemented, and the Production area now derives/resumes the current single-chapter step from read-only persisted/runtime state.
+**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. The operator selected `CHOOSE_C_DEFER_CH369_AND_ACTIVATE_DAILY_PRODUCTION_UX_ROADMAP`; `DAILY-PROD-1A`, `DAILY-PROD-1B`, and `DAILY-PROD-1C` are implemented, and `DAILY-PROD-1` is complete. Production is now a modular, state-resolved, single-current-stage workflow with detailed panel isolation and one dominant current action.
 
-**Last verified against commit:** `8ecef8c5e1202818d06e7881435e84e3bdcce640` before `DAILY-PROD-1B` implementation
+**Last verified against commit:** `18e6db8fceab032813a675308ed0abb8da01237e` before `DAILY-PROD-1C` implementation
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-20
 **Canonical runtime:** `http://127.0.0.1:8772`
@@ -19,11 +19,25 @@
 - `DAILY-PROD-1A` implemented the modular application shell: top-level navigation now separates Home, Production, Voice Library, Books And Characters, Audio Library, and Settings.
 - `DAILY-PROD-1B` added a pure Production state resolver and single-chapter resume model. Production now classifies `NO_SCOPE`, `TEXT_BLOCKED`, `SPEAKER_EXCEPTIONS`, `VOICE_BLOCKED`, `CASTING_REVIEW`, `READY_TO_PREPARE`, `PREPARED`, `RENDERING_OR_PAUSED`, `RENDERED_NOT_QA`, `COMPLETE`, and fail-closed `STATE_UNRESOLVED`.
 - Production now displays completed/current/locked canonical stages and exactly one dominant primary action from read-only state. Future stages are disabled, and loading/error/unresolved states expose only safe read-only navigation/reload behavior.
+- `DAILY-PROD-1C` closed the remaining panel/action hierarchy gap. Production now applies a central stage-to-panel ownership model, renders completed and locked summaries around one current work area, hides and marks inactive/future panels `inert`/`aria-hidden`, disables legacy dialog step navigation, removes the old competing next-step primary action, and closes Production dialogs when navigating to non-Production areas.
 - Scope restoration uses `#/production?book=<id>&chapter=<id>` plus a local-storage hint that is validated against backend data and never treated as truth. Opening/restoring Production reads only existing APIs and does not approve, prepare, start, preview, render, or mutate data.
-- Chapter `369` was browser-smoked read-only and correctly resolved to `CASTING_REVIEW` / `Duyệt bản đồ giọng`, reflecting approved Speaker Draft `15`, Casting Plan `24` revision `1` draft/unapproved, no prepared job, no audio, and zero jobs/artifacts.
-- `DAILY-PROD-1C` is the next bounded milestone only if deeper step-panel isolation/action hierarchy remains necessary after 1B; later roadmap items remain locked until their own task is authorized.
+- Chapter `369` was browser-smoked read-only and correctly resolved to `CASTING_REVIEW` / `Duyệt bản đồ giọng`; only Final Voice Map review opens as the current detailed work area, while Speaker Draft, Prepare, Render, QA, queue, and legacy job controls remain hidden/noninteractive. It still has approved Speaker Draft `15`, Casting Plan `24` revision `1` draft/unapproved, no prepared job, no audio, and zero jobs/artifacts.
+- `DAILY-PROD-1` Definition of Done is satisfied: top-level views are isolated, Production resumes from read-only state, one current stage/action is shown, completed stages are summarized, future stages are locked/noninteractive, Chapter `369` remains read-only, and no later milestone functionality was implemented.
 - Chapter `369` remains deferred and unchanged; optional distinct-voice work is not active.
-- `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this resolver is `SYSTEM_ROADMAP / READY_FOR_IMPLEMENTATION`.
+- `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this closure is `SYSTEM_ROADMAP / READY_FOR_IMPLEMENTATION`.
+- Exact next milestone: `DAILY-PROD-2` - Custom Voice Assignment UI Closure.
+
+**Task DAILY-PROD-1C verified implementation state:**
+- Repository/runtime baseline passed before implementation: branch `main`, `HEAD == origin/main == 18e6db8fceab032813a675308ed0abb8da01237e`, runtime `http://127.0.0.1:8772`, schema `12`, and only protected untracked `experiment_b_transcript/` plus `runs/` were present.
+- Added central Production stage ownership in `ui/production_state.js`: each owned panel is registered exactly once and resolves to active/hidden/inert/ARIA state from the current resolver view model.
+- Production shell now renders completed-stage summaries, one current-stage work area, and locked-stage summaries. Inactive/future Production panels are hidden and marked `inert`/`aria-hidden`; `STATE_UNRESOLVED` exposes only the shell diagnostics surface.
+- Dialog workflow now follows the resolver's canonical current stage instead of allowing legacy stepper navigation to expose completed/future technical panels. The old dialog Next button is secondary and disabled, so it no longer competes with the one dominant Production action.
+- Voice Library remains a separate top-level area; navigating away from Production closes the Production dialog so chapter workflow controls cannot visually overlay Voice Library, Books And Characters, Audio Library, or Settings.
+- Browser smoke on `http://127.0.0.1:8772` confirmed Home, Production no-scope fallback, Chapter `369` `CASTING_REVIEW`, refresh/back/forward restoration, one current stage, completed summaries, locked future stages, one dominant action, Voice Library separation, and completed Chapter `368` resolving to output/QA summary without Prepare/Start controls.
+- Post-smoke live safety remained unchanged: Chapter `369` active Text Revision `738`, Speaker Draft `15` approved, Casting Plan `24` revision `1` draft/unapproved, Jobs `0`, JobChapters `0`, artifacts `0`, active audio `none`, and audio status `not_created`.
+- Validation passed: focused step-isolation/resolver/shell tests (`41`), affected UI/API subsets (`249`), `node --check ui/app.js`, `node --check ui/production_state.js`, and the full offline suite (`1011` tests, `1` skipped).
+- No provider, Gemini, TTS, preview synthesis, Casting Plan approval, job creation/preparation/start, render, Human QA, segment/attempt/artifact creation, direct database edit, Chapter `369` mutation, Chapter `364-368` mutation, `experiment_b_transcript/`, or `runs/` mutation occurred.
+- Exact next milestone: `DAILY-PROD-2` - Custom Voice Assignment UI Closure.
 
 **Task DAILY-PROD-1B verified implementation state:**
 - Repository/runtime baseline passed before implementation: branch `main`, `HEAD == origin/main == 8ecef8c5e1202818d06e7881435e84e3bdcce640`, runtime `http://127.0.0.1:8772`, schema `12`, and only protected untracked `experiment_b_transcript/` plus `runs/` were present.
