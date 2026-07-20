@@ -6,6 +6,13 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DAILY-PROD-2B1 - Final Voice Map custom voice selector closure**: closed the remaining Production voice-map review gap without adding contextual voice creation/return yet.
+  - **Final Voice Map catalog reuse**: added a narrow UI overlay that reads the already loaded central `/api/voice-catalog` state and enriches Final Voice Map rows with stable voice keys, preset/custom classification, custom voice effective revision provenance, and legacy/unavailable flags.
+  - **Plan-level summary**: Final Voice Map review now shows a concise voice-usage summary derived from current plan utterances and catalog truth, including unknown fallback counts and unavailable-selection blockers.
+  - **Domain boundary**: speaker identity, character mapping, unknown fallback, reusable Book Voice Profile routing, Character Voice Override, explicit Casting Plan draft save, and Casting Plan approval remain separate. No per-utterance voice override capability was introduced.
+  - **Safety**: loading/navigating Final Voice Map remains read-only and does not save, approve, prepare, start render, create previews, call providers/TTS/Gemini, or rewrite approved plan/job snapshots.
+  - **Chapter 369 smoke**: Chapter `369` stayed unchanged with Text Revision `738`, Speaker Draft `15` approved, Casting Plan `24` revision `1` draft/unapproved, Jobs `0`, JobChapters `0`, artifacts `0`, active audio `none`, and audio status `not_created`.
+  - **Next task**: `DAILY-PROD-2B2` - Contextual Voice Detour And Return.
 - **DAILY-PROD-2A - Reusable custom voice assignment selectors**: added the shared selector foundation for assigning existing custom voices in reusable book/character configuration.
   - **Voice catalog API**: added read-only `GET /api/voice-catalog`, normalizing preset voices and custom voices into one selector-safe assignment list with stable keys, selectability, effective synthesis revision, reference-audio URL, and provenance/unavailability metadata.
   - **Custom revision boundary**: catalog custom voices use the same preferred-synthesis-revision, then latest-revision fallback as synthesis snapshot resolution; inactive or revisionless custom voices are visible but disabled for new assignments.

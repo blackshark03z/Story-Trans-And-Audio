@@ -551,7 +551,9 @@
               <span id="castingPlanReviewMeta" class="pill">Chưa có plan</span>
             </div>
             <p class="section-guide">Đây là nguồn sự thật trước khi tạo audio. Ghi chú kỹ thuật: bản đồ giọng cuối được lưu dưới dạng Casting Plan bất biến.</p>
+            <p id="flowVoiceMapCatalogNote" class="muted">Voice labels below come from the shared preset/custom voice catalog. Loading this review is read-only; changes require Lưu draft, and approval remains separate.</p>
             <p id="castingPlanReviewWarning" class="muted">Hãy kiểm tra các gán giọng trước khi render.</p>
+            <div id="flowVoiceUsageSummary" class="voice-usage-summary" aria-live="polite"></div>
             <div id="castingPlanWarning" class="issue warning hidden"></div>
             <details class="flow-secondary-details">
               <summary>Line-by-line assignments</summary>
@@ -677,5 +679,6 @@
   <div id="toast" class="toast hidden"></div>
   <script src="/assets/production_state.js?v=20260720-daily-prod-1b"></script>
   <script src="/assets/app.js?v=20260720-daily-prod-1b"></script>
+  <script src="/assets/casting_voice_map.js?v=20260720-daily-prod-2b1"></script>
 </body>
 </html>
