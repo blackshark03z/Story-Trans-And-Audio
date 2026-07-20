@@ -567,4 +567,5 @@ async function setPreferredSynthesisRevision(revisionId){if(state.libraryBusy||!
 window.setPreferredSynthesisRevision=setPreferredSynthesisRevision;
 window.playReferenceAudio=playReferenceAudio;
 window.testVoiceRevision=testVoiceRevision;
-
+Object.assign(window,{setAppRoute,loadBooks,openChapter,openCasting,loadVoiceCatalog,loadCustomVoices,voiceCatalogItem,selectedVoiceProvenance,profileFallbackChanged,renderProfileProvenance,createLibraryVoice,uploadLibraryRevision});
+window.storyAudioAppState=state;

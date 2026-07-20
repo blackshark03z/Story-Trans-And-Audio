@@ -6,6 +6,15 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DAILY-PROD-2B2 - Contextual voice detour and return**: completed the bounded return path from voice-assignment surfaces to Voice Library and back.
+  - **Return context**: added a same-tab `sessionStorage` contract with allowlisted routes, origin types, operations, field IDs, expiry, source draft capture, entity IDs, and Casting Plan revision checks. Malformed, expired, external-route, stale entity, stale plan, inactive voice, or non-selectable voice contexts fail closed.
+  - **Supported origins**: contextual actions are injected for Book Voice Profile selectors, Character Override selectors, Production voice-blocker guidance, and the existing Final Voice Map review/catalog surface. No per-utterance override surface was added.
+  - **Voice Library detour**: operators can leave Production to manage custom voices, then return to the originating book/chapter/stage/field. Catalog refresh and resolver refresh happen on return; newly usable voices may be placed only as an unsaved UI selection.
+  - **Boundaries**: returning from the detour does not save Book Voice Profiles, save Character Overrides, save Casting Plan drafts, approve plans, prepare jobs, start render, generate previews, call providers/TTS/Gemini, or mutate audio/artifacts.
+  - **Accessibility/security**: detour controls have explicit labels, a return banner/status message, cancellation, stale-context explanations, focus restoration, no arbitrary callback/URL execution, and no database persistence for navigation state.
+  - **Validation**: `node --check` passed for `ui/app.js`, `ui/production_state.js`, `ui/casting_voice_map.js`, and `ui/contextual_voice_detour.js`; focused UI detour/selector/Production tests passed; full offline suite passed (`1043` tests, `1` skipped).
+  - **Canonical smoke/safety**: canonical Chapter `369` loaded read-only as `CASTING_REVIEW` with detour entries visible. Browser-control interaction for cancel/return hit a tab-control timeout, so no live mutation path was exercised. Post-smoke SQLite verification confirmed Text Revision `738`, Speaker Draft `15` approved, Casting Plan `24` revision `1` draft/unapproved, Jobs `0`, JobChapters `0`, artifacts `0`, active audio `none`, and audio status `not_created`.
+  - **Milestone**: `DAILY-PROD-2` is complete. Next milestone: `DAILY-PROD-3` - Audio Library And Output Retrieval.
 - **DAILY-PROD-2B1 - Final Voice Map custom voice selector closure**: closed the remaining Production voice-map review gap without adding contextual voice creation/return yet.
   - **Final Voice Map catalog reuse**: added a narrow UI overlay that reads the already loaded central `/api/voice-catalog` state and enriches Final Voice Map rows with stable voice keys, preset/custom classification, custom voice effective revision provenance, and legacy/unavailable flags.
   - **Plan-level summary**: Final Voice Map review now shows a concise voice-usage summary derived from current plan utterances and catalog truth, including unknown fallback counts and unavailable-selection blockers.

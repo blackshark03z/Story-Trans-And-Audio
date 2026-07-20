@@ -3,14 +3,14 @@
 Task classification:
 SYSTEM_ROADMAP / READY_FOR_IMPLEMENTATION
 
-Active task:
-DAILY-PROD-2B2 - Contextual Voice Detour And Return
+Active milestone:
+DAILY-PROD-3 - Audio Library And Output Retrieval
 
 Current strategic state:
 PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP
 
 Current status:
-`DAILY-PROD-1` is complete. `DAILY-PROD-2A` implemented the reusable preset/custom voice catalog for Book Voice Profile and Character Manager assignment selectors. `DAILY-PROD-2B1` closed the existing Final Voice Map review gap: plan voice usage now derives from the same catalog truth, custom voices show effective revision provenance, unavailable legacy selections are preserved/flagged, unknown fallback remains separate from speaker identity, and loading the review remains read-only.
+`DAILY-PROD-1` and `DAILY-PROD-2` are complete. Production has a modular shell, read-only state resolver, isolated current-step panels, shared preset/custom voice selectors, Final Voice Map catalog provenance, and a bounded contextual Voice Library detour that returns to the originating voice-assignment context without auto-saving or starting production work.
 
 Current baseline for the next task:
 - Branch `main`
@@ -22,19 +22,20 @@ Current baseline for the next task:
 - Completed chapters: `364` artifact `69`, `365` artifact `72`, `366` artifact `78`, `367` artifact `75`, and `368` artifact `84` are documented as `HUMAN_QA_PASS`.
 - Chapter `369`: active Text Revision `738`, Speaker Assignment Draft `15` approved, Casting Plan `24` revision `1` draft/unapproved, no Jobs, no JobChapters, no production segments, no production attempts, no artifacts, no active audio, and audio status `not_created`.
 
-Authorized next subtask scope:
-- Continue `DAILY-PROD-2` by implementing the bounded contextual detour:
-  - start from a Production voice-assignment context;
-  - navigate to Voice Library to create a custom voice and upload/reference a revision through existing supported workflows;
-  - return safely to the originating Production scope/context;
-  - refresh the read-only voice catalog and make the newly usable voice available for explicit operator selection.
-- Preserve immutable Casting Plan, prepared-job, render, artifact, and QA boundaries.
-- Keep selection, saving, approval, preparation, and render start as separate explicit actions.
+Authorized next milestone scope:
+- Begin `DAILY-PROD-3` by making the Audio Library a useful retrieval surface for completed production output.
+- Show completed/active audio in a non-technical list organized around book/chapter and QA state.
+- Allow opening/playing the active artifact from Audio Library.
+- Provide a clear download/open-file path for the primary production audio.
+- Preserve immutable artifact, active-output, Human QA, and targeted-remediation boundaries.
 
 Do not begin in this handoff:
 - Chapter `369` Casting Plan approval or production mutation.
 - Provider, Gemini, TTS, preview synthesis, job preparation/start, render, Human QA, targeted regeneration, or audio artifact mutation.
-- Range readiness, exception queues, batch workflows, or Audio Library closure from later DAILY-PROD milestones.
+- Range readiness, exception queues, batch workflows, batch approval/prepare/render/QA, or multi-chapter production acceptance from later DAILY-PROD milestones.
+
+Exact next task:
+`DAILY-PROD-3A` - Audio Library Completed Output List And Playback Entry
 
 Reference docs:
 - `ROADMAP.md`
