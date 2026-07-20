@@ -1,11 +1,11 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-20T18:18 (Asia/Saigon)
-**Milestone:** DAILY-PROD-1 Complete - Modular Navigation And Sequential Production Shell
+**Cập nhật:** 2026-07-20T19:05 (Asia/Saigon)
+**Milestone:** DAILY-PROD-2A Complete - Reusable Custom Voice Assignment Selectors
 **Strategic state:** `PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP`
-**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. The operator selected `CHOOSE_C_DEFER_CH369_AND_ACTIVATE_DAILY_PRODUCTION_UX_ROADMAP`; `DAILY-PROD-1A`, `DAILY-PROD-1B`, and `DAILY-PROD-1C` are implemented, and `DAILY-PROD-1` is complete. Production is now a modular, state-resolved, single-current-stage workflow with detailed panel isolation and one dominant current action.
+**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. The operator selected `CHOOSE_C_DEFER_CH369_AND_ACTIVATE_DAILY_PRODUCTION_UX_ROADMAP`; `DAILY-PROD-1` is complete, and `DAILY-PROD-2A` is implemented. Production remains a modular, state-resolved, single-current-stage workflow, and reusable voice assignment selectors now share one canonical preset/custom voice catalog across Book Voice Profile and Character Manager surfaces.
 
-**Last verified against commit:** `18e6db8fceab032813a675308ed0abb8da01237e` before `DAILY-PROD-1C` implementation
+**Last verified against commit:** `13e9352d3523e9af5a02dbfe81922129fa8a5218` before `DAILY-PROD-2A` implementation
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-20
 **Canonical runtime:** `http://127.0.0.1:8772`
@@ -22,10 +22,26 @@
 - `DAILY-PROD-1C` closed the remaining panel/action hierarchy gap. Production now applies a central stage-to-panel ownership model, renders completed and locked summaries around one current work area, hides and marks inactive/future panels `inert`/`aria-hidden`, disables legacy dialog step navigation, removes the old competing next-step primary action, and closes Production dialogs when navigating to non-Production areas.
 - Scope restoration uses `#/production?book=<id>&chapter=<id>` plus a local-storage hint that is validated against backend data and never treated as truth. Opening/restoring Production reads only existing APIs and does not approve, prepare, start, preview, render, or mutate data.
 - Chapter `369` was browser-smoked read-only and correctly resolved to `CASTING_REVIEW` / `Duyệt bản đồ giọng`; only Final Voice Map review opens as the current detailed work area, while Speaker Draft, Prepare, Render, QA, queue, and legacy job controls remain hidden/noninteractive. It still has approved Speaker Draft `15`, Casting Plan `24` revision `1` draft/unapproved, no prepared job, no audio, and zero jobs/artifacts.
-- `DAILY-PROD-1` Definition of Done is satisfied: top-level views are isolated, Production resumes from read-only state, one current stage/action is shown, completed stages are summarized, future stages are locked/noninteractive, Chapter `369` remains read-only, and no later milestone functionality was implemented.
+- `DAILY-PROD-1` Definition of Done is satisfied: top-level views are isolated, Production resumes from read-only state, one current stage/action is shown, completed stages are summarized, future stages are locked/noninteractive, and Chapter `369` remains read-only.
+- `DAILY-PROD-2A` added the reusable voice assignment selector foundation. A new read-only `/api/voice-catalog` endpoint returns preset voices plus usable and unavailable custom voices using stable assignment keys such as `custom:<voice_id>`, effective synthesis revision provenance, reference-audio URL, selectability, and unavailability reasons.
+- Book Voice Profile selectors now load from the shared catalog, preserve saved custom voice refs, show revision/provenance text beside each selector, validate custom refs through the same custom voice context as synthesis, and keep immutable plan/job snapshots unchanged until the operator explicitly saves and later creates a new downstream plan/job.
+- Character Manager override controls now distinguish `Không dùng giọng riêng` from `Chọn giọng riêng`, use the same catalog selector for custom overrides, show inherited/effective voice provenance, and allow supported custom override creation through the API without touching Casting Plans, jobs, audio, or historical snapshots.
+- Voice Library remains the custom voice creation/reference-audio/revision/preview-management surface. Assignment selectors are read-only catalog consumers and do not generate previews, call providers, or change preferred revisions.
+- Browser smoke used an isolated mock UI runtime to verify Home, Voice Library, Books And Characters, Production route isolation, Book Voice Profile catalog options, selected custom revision provenance, inactive custom voice disabling, Character Manager inherited/override labels, and local selector changes with `0` non-GET requests. The canonical runtime was used only for read-only safety checks.
 - Chapter `369` remains deferred and unchanged; optional distinct-voice work is not active.
 - `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this closure is `SYSTEM_ROADMAP / READY_FOR_IMPLEMENTATION`.
-- Exact next milestone: `DAILY-PROD-2` - Custom Voice Assignment UI Closure.
+- Exact next task: `DAILY-PROD-2B` - Production Casting Selectors And Contextual Voice Return.
+
+**Task DAILY-PROD-2A verified implementation state:**
+- Repository/runtime baseline passed before implementation: branch `main`, `HEAD == origin/main == 13e9352d3523e9af5a02dbfe81922129fa8a5218`, runtime `http://127.0.0.1:8772`, schema `12`, and only protected untracked `experiment_b_transcript/` plus `runs/` were present.
+- Added the read-only backend voice catalog contract in `story_audio.custom_voice_api`: preset voices and custom voices are normalized into one assignment list; usable custom voices resolve to the same preferred-or-latest synthesis revision boundary as `CustomVoiceContext`; inactive or revisionless custom voices are visible but not selectable for new assignments.
+- Added `GET /api/voice-catalog` and updated existing Book Voice Profile / Character create validation so active usable `custom:<id>` refs are accepted through supported APIs while missing, inactive, or revisionless custom voices fail closed.
+- Updated `ui/app.js`, `ui/index.html`, and `ui/styles.css` so Book Voice Profile and Character Manager assignment controls share the catalog, show provenance/revision metadata, preserve legacy/unavailable saved values, and expose explicit inherited-vs-custom character override semantics.
+- Selector loading and local selection changes are read-only. No route load, profile render, character render, or local dropdown change saves a Book Voice Profile, updates a character, creates/approves a Casting Plan, prepares/starts a job, generates preview audio, or calls provider/TTS.
+- Validation passed: focused selector/catalog/API tests (`33`), affected casting/speaker/prepared-job/voice snapshot tests (`170`), broader custom-voice/production-state subset (`395`), isolated browser smoke, `node --check ui/app.js`, `node --check ui/production_state.js`, and full offline test discovery.
+- Post-implementation live safety remained unchanged: Chapter `369` active Text Revision `738`, Speaker Draft `15` approved, Casting Plan `24` revision `1` draft/unapproved, Jobs `0`, JobChapters `0`, artifacts `0`, active audio `none`, and audio status `not_created`.
+- No provider, Gemini, TTS, preview synthesis, custom voice preview generation, Casting Plan approval, job preparation/start, render, segment/attempt/artifact creation, direct database edit, Chapter `369` mutation, Chapter `364-368` mutation, `experiment_b_transcript/`, or `runs/` mutation occurred.
+- Exact next task: `DAILY-PROD-2B` - Production Casting Selectors And Contextual Voice Return.
 
 **Task DAILY-PROD-1C verified implementation state:**
 - Repository/runtime baseline passed before implementation: branch `main`, `HEAD == origin/main == 18e6db8fceab032813a675308ed0abb8da01237e`, runtime `http://127.0.0.1:8772`, schema `12`, and only protected untracked `experiment_b_transcript/` plus `runs/` were present.

@@ -33,6 +33,7 @@ from .character_bible import (
 from .active_output import annotate_chapter_rows, annotate_job_rows, get_active_output_bindings
 from .custom_voice import CustomVoiceRepository
 from .custom_voice_api import (
+    build_voice_catalog_handler,
     create_custom_voice_handler,
     create_custom_voice_revision_handler,
     deactivate_custom_voice_handler,
@@ -589,6 +590,14 @@ def list_voices() -> dict[str, Any]:
         raise HTTPException(503, f"Không tải được VieNeu: {exc}") from exc
 
 
+@app.get("/api/voice-catalog")
+def voice_catalog() -> dict[str, Any]:
+    try:
+        return build_voice_catalog_handler(custom_voice_repo, tts_service.voices())
+    except Exception as exc:
+        raise HTTPException(503, f"Could not load voice catalog: {exc}") from exc
+
+
 def _preset_voice_ids() -> set[str]:
     return {item["id"] for item in tts_service.voices()}
 
@@ -626,8 +635,13 @@ def apply_character_bible(
 def add_character(book_id: int, request: CharacterCreateRequest) -> dict[str, Any]:
     try:
         voice_id = request.voice_override_id or request.default_voice_id
-        if voice_id is not None and voice_id not in _preset_voice_ids():
-            raise CastingError("Preset voice does not exist")
+        if voice_id is not None:
+            if is_custom_ref(voice_id):
+                ctx = _build_custom_voice_context()
+                if ctx is None or not ctx.is_available(voice_id):
+                    raise CastingError("Custom voice does not exist or is not usable")
+            elif voice_id not in _preset_voice_ids():
+                raise CastingError("Preset voice does not exist")
         return create_character(
             db, book_id, request.display_name, voice_id, gender=request.gender
         )
@@ -664,11 +678,12 @@ def read_book_voice_profile(book_id: int) -> dict[str, Any]:
     profile = get_book_voice_profile(db, book_id)
     if not profile:
         return {"configured": False, "profile": None, "valid": False, "missing_preset_ids": []}
+    custom_context = _build_custom_voice_context()
     return {
         "configured": True,
         "profile": profile,
         **profile,
-        **profile_validation(profile, _preset_voice_ids()),
+        **profile_validation(profile, _preset_voice_ids(), custom_context),
     }
 
 

@@ -6,6 +6,15 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DAILY-PROD-2A - Reusable custom voice assignment selectors**: added the shared selector foundation for assigning existing custom voices in reusable book/character configuration.
+  - **Voice catalog API**: added read-only `GET /api/voice-catalog`, normalizing preset voices and custom voices into one selector-safe assignment list with stable keys, selectability, effective synthesis revision, reference-audio URL, and provenance/unavailability metadata.
+  - **Custom revision boundary**: catalog custom voices use the same preferred-synthesis-revision, then latest-revision fallback as synthesis snapshot resolution; inactive or revisionless custom voices are visible but disabled for new assignments.
+  - **Book Voice Profile**: profile selectors now use the shared catalog, preserve saved `custom:<voice_id>` refs, show effective revision provenance, and validate usable custom refs through the supported API path.
+  - **Character Manager**: character overrides now clearly separate inherited book-default behavior from explicit custom voice override, reuse the catalog selector, and show inherited/override provenance without touching current Casting Plans or jobs.
+  - **Voice Library separation**: Voice Library remains the only custom voice management/preview surface; assignment selectors do not generate previews or change preferred revisions.
+  - **Safety**: Chapter `369` stayed unchanged with Text Revision `738`, Speaker Draft `15` approved, Casting Plan `24` revision `1` draft/unapproved, Jobs `0`, JobChapters `0`, artifacts `0`, active audio `none`, and audio status `not_created`; no provider, Gemini, TTS, preview, approval, job, render, segment, attempt, artifact, database, or protected-path mutation occurred.
+  - **Validation**: focused selector/catalog/API tests, affected custom-voice/casting/speaker/prepared-job/production-state tests, isolated browser smoke, frontend syntax checks, and full offline test discovery passed.
+  - **Next task**: `DAILY-PROD-2B` - Production Casting Selectors And Contextual Voice Return.
 - **DAILY-PROD-1C - Production step view isolation and action hierarchy closure**: completed the `DAILY-PROD-1` sequential Production shell.
   - **Stage ownership**: added a central Production panel ownership model that maps existing work panels to exactly one current canonical stage surface and returns active/hidden/inert/ARIA state from the resolver view model.
   - **Current work area**: Production now renders completed-stage summaries, one current-stage work area, and locked future-stage summaries instead of letting completed/future technical panels compete with the current step.

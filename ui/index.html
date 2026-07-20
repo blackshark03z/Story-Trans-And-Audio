@@ -435,9 +435,9 @@
               <span>Create one before using automatic three-voice resolution.</span>
             </div>
             <div class="profile-grid">
-              <label>Narrator voice<select id="profileNarratorVoice"></select><button class="ghost profile-preview" data-profile-preview="narrator">▶ Preview Narrator</button></label>
-              <label>Default male dialogue<select id="profileMaleVoice"></select><button class="ghost profile-preview" data-profile-preview="male">▶ Preview Male</button></label>
-              <label>Default female dialogue<select id="profileFemaleVoice"></select><button class="ghost profile-preview" data-profile-preview="female">▶ Preview Female</button></label>
+              <label>Narrator voice<select id="profileNarratorVoice" aria-describedby="profileNarratorProvenance"></select><small id="profileNarratorProvenance" class="voice-provenance muted"></small><button class="ghost profile-preview" data-profile-preview="narrator">▶ Preview Narrator</button></label>
+              <label>Default male dialogue<select id="profileMaleVoice" aria-describedby="profileMaleProvenance"></select><small id="profileMaleProvenance" class="voice-provenance muted"></small><button class="ghost profile-preview" data-profile-preview="male">▶ Preview Male</button></label>
+              <label>Default female dialogue<select id="profileFemaleVoice" aria-describedby="profileFemaleProvenance"></select><small id="profileFemaleProvenance" class="voice-provenance muted"></small><button class="ghost profile-preview" data-profile-preview="female">▶ Preview Female</button></label>
               <label>Unknown fallback
                 <select id="profileUnknownFallback">
                   <option value="narrator">Narrator</option>
@@ -447,7 +447,7 @@
                 </select>
                 <button class="ghost profile-preview" data-profile-preview="fallback">▶ Preview Fallback</button>
               </label>
-              <label id="profileExplicitVoiceLabel" class="hidden">Explicit fallback voice<select id="profileExplicitVoice"></select></label>
+              <label id="profileExplicitVoiceLabel" class="hidden">Explicit fallback voice<select id="profileExplicitVoice" aria-describedby="profileExplicitProvenance"></select><small id="profileExplicitProvenance" class="voice-provenance muted"></small></label>
             </div>
             <div id="profileValidation" class="profile-validation muted"></div>
             <div id="profilePreviewBox" class="voice-preview hidden">
@@ -480,7 +480,8 @@
               <input id="newCharacterName" placeholder="Tên nhân vật">
               <select id="newCharacterGender"><option value="unknown">Unknown</option><option value="male">Male</option><option value="female">Female</option></select>
               <select id="newCharacterAssignment"><option value="default">Use book default</option><option value="custom">Use custom voice</option></select>
-              <select id="newCharacterVoice"></select>
+              <select id="newCharacterVoice" aria-describedby="newCharacterVoiceProvenance"></select>
+              <small id="newCharacterVoiceProvenance" class="voice-provenance muted">Đang kế thừa giọng hiệu lực từ Book Voice Profile.</small>
               <button id="addCharacterBtn" class="secondary" data-runtime-mutation-control>Thêm nhân vật</button>
             </div>
             <div id="characterList" class="character-list"></div>
