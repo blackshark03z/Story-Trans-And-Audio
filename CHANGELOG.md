@@ -6,6 +6,15 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DAILY-PROD-1B - Production state resolver and resume behavior**: added a state-derived, single-chapter Production workflow resolver.
+  - **Resolver**: introduced a pure frontend resolver that returns conceptual state, current stage, completed/locked stages, one primary action, explanation, blocker, target panel, mutation-display flag, and diagnostics from normalized read-only state.
+  - **Precedence**: existing prepared/running/paused/rendered/complete production objects take precedence over upstream reusable configuration; without downstream production, the resolver checks approved text, speaker review, voice readiness, and Casting Plan approval. Contradictions fail closed to `STATE_UNRESOLVED`.
+  - **Resume**: Production supports `#/production?book=<id>&chapter=<id>` and a validated local-storage hint for last scope. Route restoration uses read-only APIs and no longer auto-opens mutation controls.
+  - **UI**: the Production shell now marks completed/current/locked stages, disables future stages, shows loading/error/unresolved states safely, and exposes exactly one dominant primary action that only opens/focuses the current step.
+  - **Chapter 369 smoke**: Chapter `369` resolves read-only to `CASTING_REVIEW` / `Duyệt bản đồ giọng`, reflecting approved Speaker Draft `15`, Casting Plan `24` revision `1` draft/unapproved, no prepared job, no audio, and zero jobs/artifacts.
+  - **Safety**: no provider, Gemini, TTS, preview synthesis, Casting Plan approval, job creation/preparation/start, render, segment/attempt/artifact creation, direct DB edit, Chapter `369` mutation, protected path mutation, or Chapter `364-368` mutation occurred.
+  - **Validation**: focused resolver tests (`14`), DAILY-PROD shell UI tests (`14`), related frontend/casting/speaker/voice/render-boundary tests (`256`), `node --check` for frontend JS, browser smoke, and full offline suite (`998` tests, `1` skipped) passed.
+  - **Next task**: `DAILY-PROD-1C` - Production Step View Isolation And Action-Hierarchy Closure.
 - **DAILY-PROD-1A - Modular application shell and view isolation**: added the first static frontend shell for routine daily production.
   - **Navigation**: top-level hash routes now separate `#/home`, `#/production`, `#/voices`, `#/books`, `#/audio`, and `#/settings` with Vietnamese labels, selected-route styling, refresh persistence, back/forward support, and unknown-route fallback to Home.
   - **View isolation**: existing interactive panels are grouped into one active top-level view at a time instead of rendering every major technical area down one page; panels are not duplicated across views.

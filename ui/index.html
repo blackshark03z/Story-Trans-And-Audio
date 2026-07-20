@@ -58,9 +58,18 @@
             <p class="eyebrow">Sequential production</p>
             <h2 id="productionHeading">Sản xuất</h2>
           </div>
-          <span class="pill">DAILY-PROD-1A shell</span>
+          <span id="productionStateBadge" class="pill">DAILY-PROD-1B resolver</span>
         </div>
-        <p class="section-guide">Shell này chỉ tách vùng làm việc và hiển thị các bước canonical. Resolver tự động đầy đủ được để dành cho DAILY-PROD-1B; route không tự tạo draft, job, preview hoặc audio.</p>
+        <p class="section-guide">Production tự xác định bước hiện tại từ dữ liệu đang có. Mở hoặc khôi phục route chỉ đọc trạng thái; không tự tạo draft, job, preview hoặc audio.</p>
+        <div id="productionStateCard" class="production-state-card" role="status" aria-live="polite">
+          <div>
+            <p id="productionScopeSummary" class="eyebrow">Chưa chọn phạm vi</p>
+            <h3 id="productionCurrentStepHeading">Chọn phạm vi</h3>
+            <p id="productionStateExplanation" class="muted">Hãy chọn sách và chương để xem bước sản xuất tiếp theo.</p>
+            <p id="productionBlockerReason" class="issue warning hidden"></p>
+          </div>
+          <button id="productionPrimaryAction" class="primary dominant-production-action" type="button" aria-label="Chọn phạm vi">Chọn phạm vi</button>
+        </div>
         <ol id="productionStageShell" class="production-stage-shell" aria-label="Các bước sản xuất canonical">
           <li class="current"><span>1</span><strong>Phạm vi</strong><small>Chọn sách/chương</small></li>
           <li><span>2</span><strong>Văn bản</strong><small>Kiểm tra revision</small></li>
@@ -656,6 +665,7 @@
     <div id="segmentDiagnosticBody" class="diagnostic-body"></div>
   </dialog>
   <div id="toast" class="toast hidden"></div>
-  <script src="/assets/app.js?v=20260709-guided-production-flow-polish"></script>
+  <script src="/assets/production_state.js?v=20260720-daily-prod-1b"></script>
+  <script src="/assets/app.js?v=20260720-daily-prod-1b"></script>
 </body>
 </html>

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import json
 import subprocess
 import unittest
 from pathlib import Path
@@ -14,6 +15,7 @@ class DailyProductionShellUiTests(unittest.TestCase):
     def setUpClass(cls) -> None:
         cls.html = (ROOT / "ui" / "index.html").read_text(encoding="utf-8")
         cls.js = (ROOT / "ui" / "app.js").read_text(encoding="utf-8")
+        cls.resolver_js = (ROOT / "ui" / "production_state.js").read_text(encoding="utf-8")
         cls.css = (ROOT / "ui" / "styles.css").read_text(encoding="utf-8")
 
     def test_top_navigation_has_six_canonical_areas(self) -> None:
@@ -99,6 +101,70 @@ console.log(JSON.stringify({
         for label in expected:
             self.assertIn(f"<strong>{label}</strong>", stage_html)
 
+    def test_production_state_resolver_asset_loads_before_app(self) -> None:
+        self.assertLess(self.html.index("/assets/production_state.js"), self.html.index("/assets/app.js"))
+        self.assertIn("function renderProductionShell", self.js)
+        self.assertIn("resolveProductionState", self.resolver_js)
+
+    def test_production_shell_has_one_primary_action_and_state_card(self) -> None:
+        self.assertEqual(self.html.count('id="productionPrimaryAction"'), 1)
+        self.assertIn("dominant-production-action", self.html)
+        self.assertIn('id="productionCurrentStepHeading"', self.html)
+        self.assertIn('role="status"', self.html)
+        self.assertIn("primary.onclick=()=>focusProductionTarget(vm.targetPanel)", self.js)
+
+    def test_resolver_renders_completed_current_and_locked_stage_buttons(self) -> None:
+        self.assertIn('aria-current="step"', self.js)
+        self.assertIn('disabled aria-disabled="true"', self.js)
+        self.assertIn("stage.complete?", self.js)
+        self.assertIn(".production-stage-shell li.locked button", self.css)
+        self.assertIn(".production-stage-shell li.complete button", self.css)
+
+    def test_loading_and_unresolved_states_do_not_expose_mutations(self) -> None:
+        self.assertIn("STATE_UNRESOLVED", self.resolver_js)
+        self.assertIn("readOnlyOnly:true", self.resolver_js)
+        self.assertIn("mutationActionsMayBeDisplayed", self.resolver_js)
+        self.assertIn("diagnosticDetails:['loading']", self.resolver_js)
+
+    def test_scope_restoration_uses_hash_and_local_storage_hint(self) -> None:
+        self.assertIn("PRODUCTION_SCOPE_STORAGE_KEY", self.js)
+        self.assertIn("productionHashForScope", self.js)
+        self.assertIn("productionScopeFromHash(window.location.hash)", self.js)
+        self.assertIn("storedProductionScope()", self.js)
+        self.assertIn("replaceScopeRoute", self.js)
+
+    def test_production_route_restore_uses_only_read_only_requests(self) -> None:
+        restore_section = self.js[
+            self.js.index("async function restoreProductionScopeFromRoute"):
+            self.js.index("async function api")
+        ]
+        self.assertIn("await loadBooks()", restore_section)
+        self.assertIn("await openChapter(scope.chapterId", restore_section)
+        self.assertNotIn("method:'POST'", restore_section)
+        self.assertNotIn("method:'PUT'", restore_section)
+        self.assertNotIn("method:'PATCH'", restore_section)
+        self.assertNotIn("method:'DELETE'", restore_section)
+
+    def test_chapter_369_shape_resolves_to_casting_review_without_hardcoding(self) -> None:
+        script = """
+const resolver = require('./ui/production_state.js');
+const vm = resolver.resolveProductionState({
+  book: {id: 1},
+  chapter: {id: 999, book_id: 1, chapter_number: 999, active_text_revision_id: 738, audio_status: 'not_created'},
+  revisions: [{id: 738, status: 'approved'}],
+  speakerDraft: {id: 15, status: 'approved', stale: false, remaining_unreviewed_count: 0, invalid_count: 0},
+  casting: {voice_profile: {validation: {valid: true}}, casting: {id: 24, status: 'draft', plan_revision: 1, plan: {utterances: [{utterance_id: 'u1', resolved_voice_id: 'custom:26'}]}}},
+  jobs: [],
+  active_output: {},
+});
+console.log(JSON.stringify({state: vm.conceptualState, stage: vm.currentStageLabel, action: vm.primaryActionLabel, current: vm.stages.filter(s => s.current).length}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, capture_output=True, text=True, cwd=str(ROOT), encoding="utf-8")
+        self.assertEqual(
+            json.loads(result.stdout),
+            {"state": "CASTING_REVIEW", "stage": "Duyệt bản đồ giọng", "action": "Duyệt bản đồ giọng", "current": 1},
+        )
+
     def test_existing_panels_are_not_duplicated_across_views(self) -> None:
         self.assertEqual(self.html.count('id="workspace"'), 1)
         self.assertEqual(self.html.count('class="panel queue-panel"'), 1)
@@ -129,7 +195,7 @@ console.log(JSON.stringify({
             self.assertNotIn(endpoint, route_section)
 
     def test_daily_prod_shell_has_no_chapter_specific_hardcoding(self) -> None:
-        changed_ui = self.html + self.js + self.css
+        changed_ui = self.html + self.js + self.css + self.resolver_js
         self.assertNotIn("Chapter 369", changed_ui)
         self.assertNotIn("chapter 369", changed_ui)
         self.assertNotIn("Chương 369", changed_ui)
