@@ -31,18 +31,39 @@ Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve
 
 **PRODUCTION OPERATIONS AND ON-DEMAND HARDENING**
 
-Story Audio is production-ready for operator-directed chapter work. No system-development milestone is automatically active.
+Story Audio is production-ready for operator-directed chapter work. The operator selected `CHOOSE_C_DEFER_CH369_AND_ACTIVATE_DAILY_PRODUCTION_UX_ROADMAP`, so Chapter 369 remains paused as production/editorial work while the Daily Production UX roadmap becomes the active system direction.
 
-System development begins only when:
+Canonical target workflow: [`docs/DAILY_PRODUCTION_WORKFLOW.md`](docs/DAILY_PRODUCTION_WORKFLOW.md).
 
-1. The operator explicitly requests a feature or hardening task.
-2. A real production run proves a reusable blocker that should be fixed in the system rather than handled as one-off editorial work.
+System development is now authorized only for the ordered `DAILY-PROD` milestones below, unless a later operator decision or production blocker explicitly changes scope.
 
-Chapter production tasks, including Chapter 369 voice selection, are production operations. They do not redefine this strategic roadmap.
+Chapter production tasks, including Chapter 369 voice selection or Casting Plan review, remain production operations. They do not redefine this strategic roadmap and are not active until the operator resumes them.
+
+## Active System Milestone
+
+**DAILY-PROD-1 — Modular Navigation And Sequential Production Shell**
+
+Build the smallest safe shell that separates Home, Production, Voice Library, Books And Characters, Audio Library, and Settings while making Production a sequential state-driven flow with one primary next action.
+
+DAILY-PROD-1 must:
+
+- Preserve existing backend APIs and persisted production state.
+- Avoid provider, TTS, preview, Casting Plan approval, job creation, or audio rendering in shell acceptance.
+- Route Chapter 369 read-only to its current Final Voice Map review state without mutating it.
+- Not implement DAILY-PROD-2 through DAILY-PROD-6 prematurely.
+
+## Ordered Daily Production UX Roadmap
+
+1. `DAILY-PROD-1` - Modular Navigation And Sequential Production Shell.
+2. `DAILY-PROD-2` - Custom Voice Assignment UI Closure.
+3. `DAILY-PROD-3` - Audio Library And Output Retrieval.
+4. `DAILY-PROD-4` - Range Readiness And Exception Queue.
+5. `DAILY-PROD-5` - Batch Approval, Prepare, Render And QA Closeout.
+6. `DAILY-PROD-6` - Multi-Chapter Production Acceptance.
 
 ## Next
 
-No automatic roadmap milestone is active. See `NEXT_TASK.md` for the currently authorized operation or decision checkpoint; it must conform to this roadmap and cannot silently redefine strategic direction.
+See `NEXT_TASK.md` for the bounded DAILY-PROD-1 implementation task. It must conform to this roadmap and cannot silently advance later milestones.
 
 ## Paused
 

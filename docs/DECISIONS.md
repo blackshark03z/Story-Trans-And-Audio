@@ -109,7 +109,27 @@ Không biết character nhưng biết gender vẫn dùng male/female dialogue vo
 
 **Consequence:** Voice resolver deterministic snapshot kết quả, resolution source và profile ID/version khi tạo casting/job. Schema v3 thêm `book_voice_profiles`, `characters.gender` và optional `voice_override_id`; `default_voice_id` được giữ làm compatibility field. Book-level Character Bible vẫn là task riêng; UI profile/casting chưa nằm trong core này.
 
-## ADR-014 — AI speaker assignments are immutable drafts
+## ADR-014 — Operator-Oriented Modular UI and Sequential Production Workflow
+
+**Status:** Accepted as target product direction.
+
+**Decision:** Story Audio's daily-production experience must be organized around operator intent rather than backend entities. The target top-level areas are Home, Production, Voice Library, Books And Characters, Audio Library, and Settings.
+
+Production work must run through a sequential state-driven workflow: select scope, read-only readiness, required text exceptions, required speaker exceptions, required voice configuration, Final Voice Map review, prepare, explicit start/monitor, and Human QA completion. Approval, preparation, and render start remain separate actions.
+
+Only the current valid step should be fully interactive. Future steps must be locked or hidden, completed steps summarized, and the application must resume from the actual current state. A routine operator should not need to know draft IDs, Casting Plan IDs, Job IDs, database table names, or technical panel ordering to produce a chapter.
+
+**Why:** Production is now proven and routine, but the existing UI exposes too many implementation concepts together. Daily operators need one clear next action and contextual exception handling, not a long all-in-one technical dashboard.
+
+**Rejected:** Keeping every production function on one screen, making backend entity categories the top-level navigation, allowing Casting Plan approval to prepare or start TTS, or letting read-only inspection create provider cost, jobs, previews, or artifacts.
+
+**Current vs target:** This ADR defines the target UX and roadmap direction. It does not claim the modular UI is already implemented. Implementation proceeds through the `DAILY-PROD` milestones in `ROADMAP.md`.
+
+**Consequence:** Future UI work must identify which `DAILY-PROD` milestone it advances and must preserve existing immutable text, Speaker Draft, Casting Plan, prepared-job, render, artifact, and QA boundaries. Chapter-specific editorial production issues do not redefine this roadmap.
+
+See `docs/DAILY_PRODUCTION_WORKFLOW.md`.
+
+## ADR-015 — AI speaker assignments are immutable drafts
 
 **Status:** Accepted and implemented in schema v5.
 

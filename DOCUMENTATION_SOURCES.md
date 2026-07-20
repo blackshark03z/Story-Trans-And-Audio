@@ -13,13 +13,14 @@ Use this precedence when sources disagree:
 
 1. Git worktree, Git history, runtime, database, and artifacts determine actual state.
 2. `ROADMAP.md` defines strategic direction, current system milestone, and deferred system work.
-3. `PROJECT_STATUS.md` gives the concise last verified product/runtime state and known blockers.
-4. `NEXT_TASK.md` gives one executable next action and must directly support the current roadmap milestone or an explicitly requested production operation.
-5. `CHANGELOG.md` is chronological behavior/schema/operations history only.
-6. `docs/DECISIONS.md` and `docs/DATA_MODEL.md` define stable architectural invariants and entity/state semantics.
-7. `ARCHITECTURE.md` describes component boundaries and may include clearly labelled historical design notes.
-8. `README.md` and `docs/RUNBOOK.md` provide operator setup and supported usage.
-9. External ACTIVE_TASK handoff capsules are mutable worker/session state, never strategic direction.
+3. `docs/DAILY_PRODUCTION_WORKFLOW.md` defines the target operator workflow and Daily Production UX acceptance direction.
+4. `PROJECT_STATUS.md` gives the concise last verified product/runtime state and known blockers.
+5. `NEXT_TASK.md` gives one executable next action and must directly support the current roadmap milestone or an explicitly requested production operation.
+6. `CHANGELOG.md` is chronological behavior/schema/operations history only.
+7. `docs/DECISIONS.md` and `docs/DATA_MODEL.md` define stable architectural invariants and entity/state semantics.
+8. `ARCHITECTURE.md` describes component boundaries and may include clearly labelled historical design notes.
+9. `README.md` and `docs/RUNBOOK.md` provide operator setup and supported usage.
+10. External ACTIVE_TASK handoff capsules are mutable worker/session state, never strategic direction.
 
 `NEXT_TASK.md` may not silently redefine `ROADMAP.md`.
 
@@ -67,6 +68,12 @@ Runtime facts are verified values, not permanent hard-coded truth. The current c
 - Not authoritative for current HEAD or working tree without fresh Git verification.
 - Long task records are historical evidence unless repeated in the current-state summary.
 
+### docs/DAILY_PRODUCTION_WORKFLOW.md
+
+- Authoritative for the target daily-production operator experience and `DAILY-PROD` UX acceptance criteria.
+- Not authoritative for actual implemented behavior until the corresponding roadmap milestone is complete.
+- Does not override backend state machines, database migrations, or runtime safety guards.
+
 ### NEXT_TASK.md
 
 - Authoritative for one currently authorized operation or decision checkpoint only when it conforms to `ROADMAP.md`.
@@ -111,4 +118,5 @@ Read them only after canonical repository documents and real state have been che
 3. Read the current summary at the top of `PROJECT_STATUS.md`.
 4. Read `NEXT_TASK.md`.
 5. Read `AGENTS.md`.
-6. Read relevant sections of `docs/DECISIONS.md`, `docs/DATA_MODEL.md`, `README.md`, `docs/RUNBOOK.md`, and `ARCHITECTURE.md` as needed.
+6. For Daily Production UX work, read `docs/DAILY_PRODUCTION_WORKFLOW.md`.
+7. Read relevant sections of `docs/DECISIONS.md`, `docs/DATA_MODEL.md`, `README.md`, `docs/RUNBOOK.md`, and `ARCHITECTURE.md` as needed.

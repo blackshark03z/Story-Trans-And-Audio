@@ -82,6 +82,23 @@ Không được gọi Gemini, VieNeu inference hoặc mạng. Dùng fixture nh�
 - Artifact invalidation.
 - EPUB edge cases.
 
+## Planned Daily Production UX Acceptance
+
+These acceptance categories apply to `DAILY-PROD` implementation work. They are target requirements, not current passing coverage until the relevant milestone lands.
+
+For `DAILY-PROD-1`, focused tests and smoke validation should prove:
+
+- Top-level Home, Production, Voice Library, Books And Characters, Audio Library, and Settings areas are visibly separated.
+- Production is not an all-in-one technical dashboard.
+- The current Production step is derived from real API/runtime state.
+- The UI presents one primary action for the current valid step.
+- Future steps are locked or hidden.
+- Completed steps are summarized.
+- Refreshing or reopening returns to the correct current step.
+- Chapter `369` read-only state routes to Final Voice Map review without approval, prepare, job, render, preview, provider, TTS, segment, attempt, artifact, or audio mutation.
+
+Later `DAILY-PROD` milestones should add acceptance coverage for custom voice assignment closure, Audio Library retrieval, range readiness, exception queues, batch approval/prepare/render/QA, and a 3-5 chapter production acceptance run.
+
 ## Tầng 2 — Integration local, không phí
 
 - Import EPUB fixture nhỏ.

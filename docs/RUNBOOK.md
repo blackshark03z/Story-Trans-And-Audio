@@ -1,5 +1,16 @@
 # Operations và Repair Runbook
 
+## Current Operator Runbook
+
+The instructions below describe currently supported production operation. Use them as executable guidance until a `DAILY-PROD` implementation task explicitly replaces a section.
+
+Current daily-production safety boundaries:
+
+- Approval, job preparation, and render start are separate actions.
+- Read-only inspection must not create provider cost, previews, jobs, artifacts, or audio.
+- The current browser UI may still expose several technical panels together; follow the production-step banner and recommended next action when using it.
+- Chapter-specific editorial work, including paused Chapter 369 decisions, is not active unless the operator explicitly resumes it.
+
 ## Start
 
 ```powershell
@@ -54,6 +65,33 @@ Casting review entry points:
 - The top of Character Voices now also shows `Start Here / Production Flow` plus `Recommended Next Action`; operators should treat those two guides as the primary path before opening any advanced/debug tools.
 - `Production Flow` is now the main wizard-like path for routine work: use `Back`, `Continue`, and `Next` there first, and only drop into advanced/debug sections when the flow explicitly points you to them.
 - If `Next` is disabled or blocked, read the blocker text in the flow card before trying another panel manually. Common blockers include unapproved text, missing casting plans, draft-only casting plans, or active audio that should move to QA instead of rerender.
+
+## Target Daily Production Experience
+
+This section records the accepted target UX, not the fully implemented current UI.
+
+Target top-level areas:
+
+- Home: resumable work, attention items, recent output, and one `Continue production` action.
+- Production: sequential state-driven chapter or range workflow.
+- Voice Library: reusable custom voices, immutable revisions, reference audio, and previews.
+- Books And Characters: books, Character Bible, narrator/default/fallback policy, and optional character overrides.
+- Audio Library: completed output playback, details, download, and QA/remediation entry.
+- Settings: provider, runtime, diagnostics, output paths, and maintenance.
+
+Target Production sequence:
+
+1. Select scope.
+2. Run read-only readiness.
+3. Resolve required text exceptions.
+4. Resolve required speaker exceptions.
+5. Resolve required voice configuration.
+6. Review and approve the Final Voice Map.
+7. Prepare the queue without starting synthesis.
+8. Explicitly start and monitor render.
+9. Complete Human QA.
+
+Acceptance rule: the normal operator path should show one primary action, lock future steps, summarize completed steps, and resume from real runtime state. See `docs/DAILY_PRODUCTION_WORKFLOW.md`.
 
 ## Production runner
 

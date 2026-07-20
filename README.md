@@ -4,6 +4,10 @@
 
 Kiến trúc voice Personal Edition dùng ba voice mặc định cấp book (narrator, male dialogue, female dialogue), unknown fallback và optional character override. Core và UI casting đã có trong schema v3.
 
+Current application state: the production backend and existing browser UI are functional and have completed routine chapter production. Active product direction is a modular Daily Production UX: Home, Production, Voice Library, Books And Characters, Audio Library, and Settings, with Production guided by one sequential next-action workflow. This is the target direction and is implemented only as its `DAILY-PROD` roadmap milestones complete.
+
+Canonical target workflow: [docs/DAILY_PRODUCTION_WORKFLOW.md](docs/DAILY_PRODUCTION_WORKFLOW.md).
+
 ## Chạy
 
 ```powershell
@@ -15,6 +19,8 @@ Sau đó mở `http://127.0.0.1:8772`.
 Runtime canonical hiện tại của Story Audio là `http://127.0.0.1:8772`. Luôn xác minh tiến trình đang chạy bằng `/api/runtime` trước khi thao tác production.
 
 ## Quy trình sử dụng
+
+Current supported workflow:
 
 1. Nhập EPUB trong phần **Thư viện**.
 2. Chọn sách và kiểm tra nội dung chương.
@@ -28,6 +34,15 @@ Runtime canonical hiện tại của Story Audio là `http://127.0.0.1:8772`. Lu
 10. Chuẩn bị job audio riêng để pin Text Revision, Casting Plan và voice snapshot mà chưa render.
 11. Bắt đầu render bằng hành động riêng khi người vận hành đã sẵn sàng.
 12. Theo dõi checkpoint, pause/resume hoặc retry phần lỗi.
+
+Target daily-production workflow:
+
+1. Open **Home** and continue the current production scope.
+2. Use **Production** to select chapter scope, resolve only required exceptions, review the Final Voice Map, prepare, explicitly start render, and complete Human QA.
+3. Use **Voice Library** only for reusable voice management and previews.
+4. Use **Books And Characters** only for book, Character Bible, narrator/default/fallback voice policy, and character override setup.
+5. Use **Audio Library** for completed output playback, details, download, and QA/remediation entry.
+6. Use **Settings** for provider, runtime, diagnostics, paths, and maintenance.
 
 ## API key
 

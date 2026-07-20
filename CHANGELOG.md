@@ -6,6 +6,13 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DOC-R2 - Daily Production UX roadmap locked**: recorded the operator decision `CHOOSE_C_DEFER_CH369_AND_ACTIVATE_DAILY_PRODUCTION_UX_ROADMAP` as the active system direction.
+  - **Product direction**: added `docs/DAILY_PRODUCTION_WORKFLOW.md` as the canonical target for a modular daily-production app organized by Home, Production, Voice Library, Books And Characters, Audio Library, and Settings.
+  - **Roadmap**: activated `DAILY-PROD-1 - Modular Navigation And Sequential Production Shell` as the only current system milestone and documented the ordered DAILY-PROD-1 through DAILY-PROD-6 roadmap.
+  - **Architecture decision**: added ADR-014 for the operator-oriented modular UI and sequential Production workflow; renumbered the existing speaker-draft decision to ADR-015 to avoid duplicate ADR IDs.
+  - **Boundaries**: confirmed Chapter 369 remains paused production/editorial work, Casting Plan `24` remains draft/unapproved, and optional distinct-voice selection is not active.
+  - **Safety**: documentation-only; no source code, UI implementation, tests, migrations, runtime, database, preview, provider/TTS, Casting Plan, job, artifact, audio, output, or protected-path mutation occurred.
+  - **Debt**: no mojibake/encoding cleanup was attempted; existing encoding debt remains a separate bounded documentation-maintenance task.
 - **DOC-R1 - Documentation authority reconciliation and roadmap reset**: reconciled canonical documentation so roadmap strategy, project status, and next-task authorization no longer contradict each other.
   - **Strategic state**: reset current direction to `PRODUCTION OPERATIONS AND ON-DEMAND HARDENING`; production acceptance and `PRODUCTION_GO` are complete, and no system-development milestone is automatically active.
   - **Chapter 369**: reclassified as paused production/editorial work with Casting Plan `24` draft/unapproved and zero downstream production objects, not a strategic roadmap milestone.

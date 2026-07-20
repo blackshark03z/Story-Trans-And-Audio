@@ -1,11 +1,11 @@
 ﻿# Trạng thái dự án
 
 **Cập nhật:** 2026-07-20T00:55 (Asia/Saigon)
-**Milestone:** Documentation Reconciliation / Roadmap Reset
-**Strategic state:** `PRODUCTION_READY / PRODUCTION_OPERATIONS`
-**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations with on-demand hardening only when explicitly requested or proven by a reusable production blocker. No system-development milestone is automatically active.
+**Milestone:** Daily Production UX Roadmap Locked
+**Strategic state:** `PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP`
+**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. The operator selected `CHOOSE_C_DEFER_CH369_AND_ACTIVATE_DAILY_PRODUCTION_UX_ROADMAP`, so the active system direction is the ordered Daily Production UX roadmap and the current implementation milestone is `DAILY-PROD-1`.
 
-**Last verified against commit:** `9e7a01dee5471710136687572eecbf2e7b6cc602`
+**Last verified against commit:** `7d42b07735093ae6083414359e9f501002dcba58`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-20
 **Canonical runtime:** `http://127.0.0.1:8772`
@@ -15,8 +15,11 @@
 - Chapters `364-368` are completed Human QA PASS production evidence with active artifacts `69`, `72`, `78`, `75`, and `84`.
 - Chapter `369` is paused as a production operation, not a roadmap milestone: active Text Revision `738`, Speaker Draft `15` approved, Casting Plan `24` revision `1` draft/unapproved, Jobs `0`, JobChapters `0`, artifacts `0`, active audio `none`, and audio status `not_created`.
 - Preview provenance guard is complete and reusable: legacy custom preview cache entries without immutable `custom_voice_id` provenance are quarantined rather than served as valid listening evidence.
-- No current reusable implementation blocker is active. Distinct voice selection for two unnamed Chapter `369` rows is optional editorial production work, not required roadmap work.
-- `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after reconciliation is `AWAITING_OPERATOR_DECISION`.
+- The production backend, casting boundaries, prepared-job lifecycle, rendering, repair, artifact, and Human QA flows are production-proven.
+- The current daily-operator limitation is the browser UI shape: too many technical areas are exposed together, and routine production needs modular navigation plus a sequential next-action flow.
+- `DAILY-PROD-1` is the only active implementation milestone. Later roadmap items remain locked until their own task is authorized.
+- Chapter `369` remains deferred and unchanged; optional distinct-voice work is not active.
+- `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this lock is `SYSTEM_ROADMAP / READY_FOR_IMPLEMENTATION`.
 
 **Historical archive notice:** detailed task records below are preserved as evidence. They document what happened, but they are not the current strategic direction unless repeated in the current-state summary above or in `ROADMAP.md`.
 

@@ -9,9 +9,13 @@ Story Audio: EPUB → approved text → resolved casting → audio → speech ti
 YouTube Auto: Handoff V1 → visual timeline/bible → image → subtitle render → video → metadata/thumbnail
 ```
 
-Current roadmap state: Story Audio is production-ready and operates in `PRODUCTION OPERATIONS AND ON-DEMAND HARDENING`; new system work should be explicit or blocker-driven, not inferred from routine chapter production.
+Current roadmap state: Story Audio is production-ready and operates under the Daily Production UX roadmap. `DAILY-PROD-1` is the active system milestone; Chapter 369 remains paused production/editorial work, not a roadmap driver.
 
 ADR-013 được triển khai ở schema v3: Book Voice Profile ba nhóm (narrator/male/female), unknown fallback, optional character override và UI Manual Casting hiển thị effective resolution.
+
+ADR-014 defines the target operator-oriented modular UI. Backend entities remain the data model, but they must not dictate top-level navigation. The target areas are Home, Production, Voice Library, Books And Characters, Audio Library, and Settings. The Production area must be a sequential state-driven coordinator that preserves immutable text, speaker draft, Casting Plan, prepared-job, render, artifact, and QA boundaries.
+
+Target UX reference: [`docs/DAILY_PRODUCTION_WORKFLOW.md`](docs/DAILY_PRODUCTION_WORKFLOW.md). This target is not fully implemented until the corresponding `DAILY-PROD` milestone is complete.
 
 ## 1. Mục tiêu
 
@@ -183,6 +187,17 @@ Tên thật hiển thị trong metadata; tên file được làm sạch để tr
 Mặc định nên xuất **M4A/AAC hoặc MP3** và chỉ giữ WAV segment đến khi xác nhận file chương hoàn tất. Với sách 1.980 chương, giữ toàn bộ WAV trung gian sẽ tốn rất nhiều dung lượng.
 
 ## 9. Thiết kế UI
+
+The current UI is functional but still carries historical all-in-one production panels. The target UI architecture is modular and operator-oriented:
+
+- Home: resumable work, attention items, recent output, and one `Continue production` action.
+- Production: sequential state-driven chapter or range workflow.
+- Voice Library: reusable custom voice and revision management.
+- Books And Characters: book, Character Bible, voice policy, and override management.
+- Audio Library: completed output playback, details, downloads, and QA/remediation entry.
+- Settings: provider, runtime, diagnostics, paths, and maintenance.
+
+The Production coordinator must derive the current step from real state, expose one primary action, lock future steps, summarize completed steps, and never let read-only inspection create provider cost, previews, jobs, artifacts, or audio.
 
 ### Thư viện
 
