@@ -4,18 +4,17 @@ Task classification:
 SYSTEM_ROADMAP / READY_FOR_IMPLEMENTATION
 
 Active task:
-DAILY-PROD-1 - Modular Navigation And Sequential Production Shell
+DAILY-PROD-1B - Production State Resolver And Resume Behavior
 
 Current strategic state:
 PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP
 
 Current status:
-The operator selected `CHOOSE_C_DEFER_CH369_AND_ACTIVATE_DAILY_PRODUCTION_UX_ROADMAP`. Chapter `369` remains paused as production/editorial work, and the active system task is the first Daily Production UX milestone.
+`DAILY-PROD-1A` added the modular static application shell. The next bounded step is to make Production state-driven instead of merely separated into a top-level area.
 
 Current baseline:
 - Branch `main`
-- Expected baseline before DAILY-PROD-1 implementation: verify current `HEAD` and `origin/main` first.
-- DOC-R2 documentation-lock baseline before these docs: `7d42b07735093ae6083414359e9f501002dcba58`
+- DAILY-PROD-1A implementation baseline before code changes: `d1e3bf439aeca43612eead90bfc9a21b70fac39d`
 - Canonical Story Audio runtime: `http://127.0.0.1:8772`
 - Runtime schema: `12`
 - Protected untracked paths must remain untouched:
@@ -25,23 +24,17 @@ Current baseline:
 - Chapter `369`: active Text Revision `738`, Speaker Assignment Draft `15` approved, Casting Plan `24` revision `1` draft/unapproved, no Jobs, no JobChapters, no production segments, no production attempts, no artifacts, no active audio, and audio status `not_created`.
 
 Authorized implementation scope:
-- Inspect current UI routes, DOM structure, state management, and production-step resolver.
-- Create the smallest safe modular shell for:
-  - Home
-  - Production
-  - Voice Library
-  - Books And Characters
-  - Audio Library
-  - Settings
-- Make Production a sequential state-driven flow that derives the current step from real state.
+- Inspect the current Production UI state model and persisted API responses.
+- Derive the current Production step from real chapter/book/runtime state.
 - Present one primary action for the current valid step.
-- Lock or hide future steps.
-- Summarize completed steps instead of expanding every technical panel.
+- Lock or hide future steps until their prerequisites are satisfied.
+- Summarize completed steps instead of expanding all technical panels at once.
+- Preserve route refresh/back/forward behavior from `DAILY-PROD-1A`.
 - Preserve approval, prepare, and start boundaries.
 - Reuse current backend APIs and persisted production state where possible.
 - Route Chapter `369` read-only to its current Final Voice Map review state.
 
-Do not implement in DAILY-PROD-1:
+Do not implement in DAILY-PROD-1B:
 - Custom voice assignment closure from `DAILY-PROD-2`.
 - Dedicated full Audio Library behavior from `DAILY-PROD-3`.
 - Complete range readiness and exception queue from `DAILY-PROD-4`.
@@ -58,15 +51,13 @@ Safety constraints:
 - Do not touch `experiment_b_transcript/` or `runs/`.
 
 Success criteria:
-- Top-level functional areas are visibly separated.
-- Production is no longer an all-in-one technical dashboard.
-- The current Production step is derived from real state.
-- Only one primary action is presented.
+- Production derives and displays the correct current step from persisted state.
+- Only one primary action is presented for the current valid step.
 - Future steps cannot be activated early.
 - Completed steps are summarized.
 - Reopening or refreshing resumes at the correct step.
 - Chapter `369` can be opened read-only and routes to its current Final Voice Map review state.
-- Shell acceptance creates no plan approval, job, render, provider call, TTS call, preview, or audio artifact.
+- Acceptance creates no plan approval, job, render, provider call, TTS call, preview, or audio artifact.
 
 Reference docs:
 - `ROADMAP.md`

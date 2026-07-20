@@ -21,52 +21,161 @@
     </div>
   </header>
 
-  <main>
-    <section class="panel import-panel">
-      <div>
-        <h2>Thư viện</h2>
-        <p class="muted">Nhập EPUB trong thư mục ứng dụng. Sách đã nhập sẽ không bị nhân đôi.</p>
-      </div>
-      <div class="row import-row">
-        <select id="epubPath"></select>
-        <button id="importBtn" class="secondary" data-runtime-mutation-control>Nhập EPUB</button>
-        <label class="check"><input id="showSmokeBooks" type="checkbox"> Show test data</label>
-      </div>
-      <div id="books" class="book-grid"></div>
+  <nav id="appNav" class="app-nav" aria-label="Khu vực chính">
+    <a href="#/home" data-app-route="home" aria-label="Trang chủ">Trang chủ</a>
+    <a href="#/production" data-app-route="production" aria-label="Sản xuất">Sản xuất</a>
+    <a href="#/voices" data-app-route="voices" aria-label="Thư viện giọng">Thư viện giọng</a>
+    <a href="#/books" data-app-route="books" aria-label="Sách và nhân vật">Sách và nhân vật</a>
+    <a href="#/audio" data-app-route="audio" aria-label="Audio đã tạo">Audio đã tạo</a>
+    <a href="#/settings" data-app-route="settings" aria-label="Cài đặt">Cài đặt</a>
+  </nav>
+
+  <main id="appMain">
+    <h2 id="appViewHeading" class="sr-only">Trang chủ</h2>
+
+    <section id="homeView" class="app-view" data-app-view="home" aria-labelledby="homeHeading">
+      <section class="panel home-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Daily production</p>
+            <h2 id="homeHeading">Trang chủ</h2>
+          </div>
+          <a class="primary app-primary-link" href="#/production" data-home-continue>Tiếp tục sản xuất</a>
+        </div>
+        <p class="section-guide">Một điểm bắt đầu gọn cho công việc hằng ngày. Các khu vực kỹ thuật đã được tách ra để mỗi lần chỉ tập trung một việc chính.</p>
+        <div id="homeSummary" class="home-summary-grid">
+          <div><strong>—</strong><span>Sách</span></div>
+          <div><strong>—</strong><span>Job cần theo dõi</span></div>
+          <div><strong>—</strong><span>Runtime</span></div>
+        </div>
+      </section>
     </section>
 
-    <section class="panel preset-voice-preview-panel">
-      <div>
-        <h2>Preset Voice Preview</h2>
-        <p class="muted">Preview VieNeu preset voices with the default sample text.</p>
-      </div>
-      <div class="form-grid">
-        <label>Preset Voice
-          <select id="presetVoiceSelect"><option value="">Chưa tải danh sách giọng</option></select>
-        </label>
-      </div>
-      <div class="row">
-        <button id="loadPresetVoices" class="secondary">Load Preset Voices</button>
-        <button id="previewPresetVoice" class="secondary" disabled>▶ Preview 10–20s</button>
-      </div>
-      <div id="presetPreviewBox" class="voice-preview hidden">
-        <audio id="presetPreviewAudio" controls preload="metadata"></audio>
-        <span id="presetPreviewStatus" class="muted"></span>
-      </div>
+    <section id="productionView" class="app-view" data-app-view="production" aria-labelledby="productionHeading" hidden>
+      <section class="panel production-shell-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Sequential production</p>
+            <h2 id="productionHeading">Sản xuất</h2>
+          </div>
+          <span class="pill">DAILY-PROD-1A shell</span>
+        </div>
+        <p class="section-guide">Shell này chỉ tách vùng làm việc và hiển thị các bước canonical. Resolver tự động đầy đủ được để dành cho DAILY-PROD-1B; route không tự tạo draft, job, preview hoặc audio.</p>
+        <ol id="productionStageShell" class="production-stage-shell" aria-label="Các bước sản xuất canonical">
+          <li class="current"><span>1</span><strong>Phạm vi</strong><small>Chọn sách/chương</small></li>
+          <li><span>2</span><strong>Văn bản</strong><small>Kiểm tra revision</small></li>
+          <li><span>3</span><strong>Người nói</strong><small>Chỉ xử lý exception</small></li>
+          <li><span>4</span><strong>Giọng</strong><small>Cấu hình khi thiếu</small></li>
+          <li><span>5</span><strong>Duyệt bản đồ giọng</strong><small>Approval riêng</small></li>
+          <li><span>6</span><strong>Chuẩn bị</strong><small>Không render</small></li>
+          <li><span>7</span><strong>Render</strong><small>Start riêng</small></li>
+          <li><span>8</span><strong>QA</strong><small>Nghe và chốt</small></li>
+        </ol>
+      </section>
+
+      <section id="workspace" class="workspace hidden">
+        <aside class="panel chapter-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Đang chọn</p>
+              <h2 id="bookTitle">—</h2>
+            </div>
+            <span id="chapterCount" class="pill"></span>
+          </div>
+          <div class="row filter-row">
+            <input id="chapterQuery" placeholder="Tìm số hoặc tên chương">
+            <button id="searchBtn" class="ghost">Tìm</button>
+          </div>
+          <div id="chapterList" class="chapter-list"></div>
+          <div class="pager">
+            <button id="prevPage" class="ghost">← Trước</button>
+            <span id="pageInfo"></span>
+            <button id="nextPage" class="ghost">Sau →</button>
+          </div>
+        </aside>
+
+        <section class="panel job-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Tạo audio</p>
+              <h2>Chọn khoảng chương</h2>
+            </div>
+          </div>
+          <div class="form-grid">
+            <label>Từ chương<input id="fromChapter" type="number" min="1" value="1"></label>
+            <label>Đến chương<input id="toChapter" type="number" min="1" value="1"></label>
+            <label class="wide">Giọng đọc
+              <div class="inline-control">
+                <select id="voiceSelect"><option value="">Chưa tải danh sách giọng</option></select>
+                <button id="loadVoices" class="ghost">Tải giọng</button>
+                <button id="previewVoice" class="secondary" disabled>▶ Preview 10–20s</button>
+              </div>
+              <div id="voicePreviewBox" class="voice-preview hidden">
+                <audio id="voicePreviewAudio" controls preload="metadata"></audio>
+                <span id="voicePreviewStatus" class="muted"></span>
+              </div>
+            </label>
+            <label>Gemini
+              <select id="repairMode">
+                <option value="all_selected">Sửa dấu câu toàn bộ</option>
+                <option value="qa_only">Chỉ đoạn QA cảnh báo</option>
+                <option value="off">Không dùng Gemini</option>
+              </select>
+            </label>
+            <label>Định dạng
+              <select id="outputFormat"><option value="m4a">M4A</option><option value="mp3">MP3</option></select>
+            </label>
+            <label class="check wide"><input id="skipCompleted" type="checkbox" checked> Bỏ qua chương đã có audio</label>
+          </div>
+          <button id="previewBtn" class="secondary full">Kiểm tra phạm vi</button>
+          <div id="preview" class="preview empty">Chưa kiểm tra phạm vi.</div>
+          <button id="runBtn" class="primary full" disabled data-runtime-mutation-control>Thêm vào hàng đợi</button>
+          <p class="hint">Sau khi tạo job, bạn có 10 giây để hoàn tác. Job chỉ dừng tại ranh giới segment an toàn.</p>
+        </section>
+      </section>
+
+      <section class="panel queue-panel">
+        <div class="section-head">
+          <div><p class="eyebrow">Checkpoint bền vững</p><h2>Hàng đợi</h2></div>
+          <button id="refreshJobs" class="ghost">Làm mới</button>
+        </div>
+        <div id="jobs" class="jobs"><p class="muted">Chưa có job.</p></div>
+      </section>
     </section>
 
-    <section class="panel custom-voice-library-panel">
-      <div>
-        <h2>Custom Voice Library</h2>
-        <p class="muted">Manage custom reference voices for VieNeu synthesis.</p>
-      </div>
-      <div class="row">
-        <button id="refreshLibrary" class="secondary">Refresh Voices</button>
-        <label class="check"><input id="showInactiveVoices" type="checkbox"> Show inactive voices</label>
-      </div>
-      <div id="libraryStatus" class="muted">Click Refresh to load voices.</div>
-      <div id="libraryVoiceList" class="voice-library-list"></div>
-      <div id="librarySelectedDetails" class="library-selected-details hidden">
+    <section id="voicesView" class="app-view" data-app-view="voices" aria-labelledby="voicesHeading" hidden>
+      <section class="panel preset-voice-preview-panel">
+        <div>
+          <h2 id="voicesHeading">Thư viện giọng</h2>
+          <p class="muted">Preview preset voices and manage reusable custom reference voices. This area does not render chapters.</p>
+        </div>
+        <div class="form-grid">
+          <label>Preset Voice
+            <select id="presetVoiceSelect"><option value="">Chưa tải danh sách giọng</option></select>
+          </label>
+        </div>
+        <div class="row">
+          <button id="loadPresetVoices" class="secondary">Load Preset Voices</button>
+          <button id="previewPresetVoice" class="secondary" disabled>▶ Preview 10–20s</button>
+        </div>
+        <div id="presetPreviewBox" class="voice-preview hidden">
+          <audio id="presetPreviewAudio" controls preload="metadata"></audio>
+          <span id="presetPreviewStatus" class="muted"></span>
+        </div>
+      </section>
+
+      <section class="panel custom-voice-library-panel">
+        <div>
+          <h2>Custom Voice Library</h2>
+          <p class="muted">Manage custom reference voices for VieNeu synthesis.</p>
+        </div>
+        <div class="row">
+          <button id="refreshLibrary" class="secondary">Refresh Voices</button>
+          <label class="check"><input id="showInactiveVoices" type="checkbox"> Show inactive voices</label>
+        </div>
+        <div id="libraryStatus" class="muted">Click Refresh to load voices.</div>
+        <div id="libraryVoiceList" class="voice-library-list"></div>
+        <div id="librarySelectedDetails" class="library-selected-details hidden">
         <h3>Voice Details</h3>
         <div id="libraryVoiceInfo" class="library-voice-info">
           <div class="voice-info-row">
@@ -147,76 +256,63 @@
         </div>
         <button id="libraryCreate" class="primary">Create Voice</button>
       </details>
-      <div id="libraryError" class="issue error hidden"></div>
-    </section>
-
-    <section id="workspace" class="workspace hidden">
-      <aside class="panel chapter-panel">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Đang chọn</p>
-            <h2 id="bookTitle">—</h2>
-          </div>
-          <span id="chapterCount" class="pill"></span>
-        </div>
-        <div class="row filter-row">
-          <input id="chapterQuery" placeholder="Tìm số hoặc tên chương">
-          <button id="searchBtn" class="ghost">Tìm</button>
-        </div>
-        <div id="chapterList" class="chapter-list"></div>
-        <div class="pager">
-          <button id="prevPage" class="ghost">← Trước</button>
-          <span id="pageInfo"></span>
-          <button id="nextPage" class="ghost">Sau →</button>
-        </div>
-      </aside>
-
-      <section class="panel job-panel">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Tạo audio</p>
-            <h2>Chọn khoảng chương</h2>
-          </div>
-        </div>
-        <div class="form-grid">
-          <label>Từ chương<input id="fromChapter" type="number" min="1" value="1"></label>
-          <label>Đến chương<input id="toChapter" type="number" min="1" value="1"></label>
-          <label class="wide">Giọng đọc
-            <div class="inline-control">
-              <select id="voiceSelect"><option value="">Chưa tải danh sách giọng</option></select>
-              <button id="loadVoices" class="ghost">Tải giọng</button>
-              <button id="previewVoice" class="secondary" disabled>▶ Preview 10–20s</button>
-            </div>
-            <div id="voicePreviewBox" class="voice-preview hidden">
-              <audio id="voicePreviewAudio" controls preload="metadata"></audio>
-              <span id="voicePreviewStatus" class="muted"></span>
-            </div>
-          </label>
-          <label>Gemini
-            <select id="repairMode">
-              <option value="all_selected">Sửa dấu câu toàn bộ</option>
-              <option value="qa_only">Chỉ đoạn QA cảnh báo</option>
-              <option value="off">Không dùng Gemini</option>
-            </select>
-          </label>
-          <label>Định dạng
-            <select id="outputFormat"><option value="m4a">M4A</option><option value="mp3">MP3</option></select>
-          </label>
-          <label class="check wide"><input id="skipCompleted" type="checkbox" checked> Bỏ qua chương đã có audio</label>
-        </div>
-        <button id="previewBtn" class="secondary full">Kiểm tra phạm vi</button>
-        <div id="preview" class="preview empty">Chưa kiểm tra phạm vi.</div>
-        <button id="runBtn" class="primary full" disabled data-runtime-mutation-control>Thêm vào hàng đợi</button>
-        <p class="hint">Sau khi tạo job, bạn có 10 giây để hoàn tác. Job chỉ dừng tại ranh giới segment an toàn.</p>
+        <div id="libraryError" class="issue error hidden"></div>
       </section>
     </section>
 
-    <section class="panel queue-panel">
-      <div class="section-head">
-        <div><p class="eyebrow">Checkpoint bền vững</p><h2>Hàng đợi</h2></div>
-        <button id="refreshJobs" class="ghost">Làm mới</button>
-      </div>
-      <div id="jobs" class="jobs"><p class="muted">Chưa có job.</p></div>
+    <section id="booksView" class="app-view" data-app-view="books" aria-labelledby="booksHeading" hidden>
+      <section class="panel import-panel">
+        <div>
+          <h2 id="booksHeading">Sách và nhân vật</h2>
+          <p class="muted">Nhập EPUB, chọn sách, rồi dùng Production để mở Character Bible, Book Voice Profile và Character Manager theo ngữ cảnh chương.</p>
+        </div>
+        <div class="row import-row">
+          <select id="epubPath"></select>
+          <button id="importBtn" class="secondary" data-runtime-mutation-control>Nhập EPUB</button>
+          <label class="check"><input id="showSmokeBooks" type="checkbox"> Show test data</label>
+        </div>
+        <div id="books" class="book-grid"></div>
+      </section>
+
+      <section class="panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Character memory</p>
+            <h2>Nhân vật theo ngữ cảnh chương</h2>
+          </div>
+        </div>
+        <p class="section-guide">Book Voice Profile, Character Bible import, alias management và character overrides hiện được giữ trong bước gán giọng của Production để không tách khỏi chapter context. DAILY-PROD-2 sẽ đóng phần selector custom voice nhất quán.</p>
+        <a class="secondary app-secondary-link" href="#/production">Mở Production</a>
+      </section>
+    </section>
+
+    <section id="audioView" class="app-view" data-app-view="audio" aria-labelledby="audioHeading" hidden>
+      <section class="panel audio-library-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Output library</p>
+            <h2 id="audioHeading">Audio đã tạo</h2>
+          </div>
+        </div>
+        <p class="section-guide">Khu vực này là điểm vào mới cho audio đã tạo. Trong subtask 1A, playback/download mới chưa được thêm; audio active hiện vẫn mở từ chapter detail trong Production.</p>
+        <a class="secondary app-secondary-link" href="#/production">Chọn chương để nghe audio hiện có</a>
+      </section>
+    </section>
+
+    <section id="settingsView" class="app-view" data-app-view="settings" aria-labelledby="settingsHeading" hidden>
+      <section class="panel settings-panel">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Technical</p>
+            <h2 id="settingsHeading">Cài đặt</h2>
+          </div>
+        </div>
+        <p class="section-guide">Provider, runtime, diagnostics, encoder và maintenance sống ở đây để không chen vào luồng sản xuất thường ngày.</p>
+        <div class="settings-summary-grid">
+          <div><strong>Runtime</strong><span id="settingsRuntimeSummary">Đang kiểm tra runtime…</span></div>
+          <div><strong>Provider</strong><span id="settingsProviderSummary">Đang tải cấu hình…</span></div>
+        </div>
+      </section>
     </section>
   </main>
 

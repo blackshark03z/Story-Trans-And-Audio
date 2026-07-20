@@ -6,6 +6,14 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DAILY-PROD-1A - Modular application shell and view isolation**: added the first static frontend shell for routine daily production.
+  - **Navigation**: top-level hash routes now separate `#/home`, `#/production`, `#/voices`, `#/books`, `#/audio`, and `#/settings` with Vietnamese labels, selected-route styling, refresh persistence, back/forward support, and unknown-route fallback to Home.
+  - **View isolation**: existing interactive panels are grouped into one active top-level view at a time instead of rendering every major technical area down one page; panels are not duplicated across views.
+  - **Production shell**: Production now displays the eight canonical stages `Phạm vi`, `Văn bản`, `Người nói`, `Giọng`, `Duyệt bản đồ giọng`, `Chuẩn bị`, `Render`, and `QA`.
+  - **Boundary**: this subtask does not implement the full next-action resolver; `DAILY-PROD-1B` remains responsible for state-derived current step, one primary action, future-step locking, and resume behavior.
+  - **Safety**: routing and shell display do not call provider, Gemini, TTS, preview synthesis, speaker/casting mutation, job prepare/start, render, segment/attempt/artifact creation, or database writes. Chapter `369` remained unchanged with Casting Plan `24` draft/unapproved and zero jobs/artifacts.
+  - **Validation**: added focused UI contract tests for route labels, hash fallback, active/hidden view isolation, Production stage shell, duplicate-panel prevention, mutation-free route functions, and no chapter-specific hardcoding.
+  - **Next task**: `DAILY-PROD-1B` - Production State Resolver And Resume Behavior.
 - **DOC-R2 - Daily Production UX roadmap locked**: recorded the operator decision `CHOOSE_C_DEFER_CH369_AND_ACTIVATE_DAILY_PRODUCTION_UX_ROADMAP` as the active system direction.
   - **Product direction**: added `docs/DAILY_PRODUCTION_WORKFLOW.md` as the canonical target for a modular daily-production app organized by Home, Production, Voice Library, Books And Characters, Audio Library, and Settings.
   - **Roadmap**: activated `DAILY-PROD-1 - Modular Navigation And Sequential Production Shell` as the only current system milestone and documented the ordered DAILY-PROD-1 through DAILY-PROD-6 roadmap.

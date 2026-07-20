@@ -1,11 +1,11 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-20T00:55 (Asia/Saigon)
-**Milestone:** Daily Production UX Roadmap Locked
+**Cập nhật:** 2026-07-20T01:35 (Asia/Saigon)
+**Milestone:** DAILY-PROD-1A Modular Application Shell Complete
 **Strategic state:** `PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP`
-**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. The operator selected `CHOOSE_C_DEFER_CH369_AND_ACTIVATE_DAILY_PRODUCTION_UX_ROADMAP`, so the active system direction is the ordered Daily Production UX roadmap and the current implementation milestone is `DAILY-PROD-1`.
+**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. The operator selected `CHOOSE_C_DEFER_CH369_AND_ACTIVATE_DAILY_PRODUCTION_UX_ROADMAP`; `DAILY-PROD-1A` is now implemented as the first safe UI shell step, and the next bounded milestone is `DAILY-PROD-1B`.
 
-**Last verified against commit:** `7d42b07735093ae6083414359e9f501002dcba58`
+**Last verified against commit:** `d1e3bf439aeca43612eead90bfc9a21b70fac39d` before `DAILY-PROD-1A` implementation
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-20
 **Canonical runtime:** `http://127.0.0.1:8772`
@@ -16,10 +16,23 @@
 - Chapter `369` is paused as a production operation, not a roadmap milestone: active Text Revision `738`, Speaker Draft `15` approved, Casting Plan `24` revision `1` draft/unapproved, Jobs `0`, JobChapters `0`, artifacts `0`, active audio `none`, and audio status `not_created`.
 - Preview provenance guard is complete and reusable: legacy custom preview cache entries without immutable `custom_voice_id` provenance are quarantined rather than served as valid listening evidence.
 - The production backend, casting boundaries, prepared-job lifecycle, rendering, repair, artifact, and Human QA flows are production-proven.
-- The current daily-operator limitation is the browser UI shape: too many technical areas are exposed together, and routine production needs modular navigation plus a sequential next-action flow.
-- `DAILY-PROD-1` is the only active implementation milestone. Later roadmap items remain locked until their own task is authorized.
+- `DAILY-PROD-1A` implemented the first modular application shell: top-level navigation now separates Home, Production, Voice Library, Books And Characters, Audio Library, and Settings.
+- Production now has a visible eight-stage canonical shell (`Phạm vi`, `Văn bản`, `Người nói`, `Giọng`, `Duyệt bản đồ giọng`, `Chuẩn bị`, `Render`, `QA`) without auto-running provider, preview, job, approval, or audio actions.
+- The current daily-operator limitation is now the Production state resolver: `DAILY-PROD-1B` must derive and resume the single next action from real persisted state.
+- `DAILY-PROD-1B` is the next authorized implementation milestone. Later roadmap items remain locked until their own task is authorized.
 - Chapter `369` remains deferred and unchanged; optional distinct-voice work is not active.
-- `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this lock is `SYSTEM_ROADMAP / READY_FOR_IMPLEMENTATION`.
+- `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this shell is `SYSTEM_ROADMAP / READY_FOR_IMPLEMENTATION`.
+
+**Task DAILY-PROD-1A verified implementation state:**
+- Repository/runtime baseline passed before implementation: branch `main`, `HEAD == origin/main == d1e3bf439aeca43612eead90bfc9a21b70fac39d`, runtime `http://127.0.0.1:8772`, schema `12`, and only protected untracked `experiment_b_transcript/` plus `runs/` were present.
+- UI now has six top-level hash-routed areas: `#/home`, `#/production`, `#/voices`, `#/books`, `#/audio`, and `#/settings`, with visible active navigation and unknown-route fallback to Home.
+- View isolation is enforced in the static frontend: only the active top-level view is shown, existing interactive panels are not duplicated across views, and refresh/back/forward preserve route state.
+- Production shell shows the eight canonical stages for daily routine production while keeping the existing detailed chapter/casting/job tools behind the Production area.
+- The shell does not implement the full next-action resolver yet; `DAILY-PROD-1B` must add state-derived current step, one primary action, future-step locking, and resume behavior.
+- Safety remained read-only for production data: Chapter `369` stayed at active Text Revision `738`, Speaker Draft `15` approved, Casting Plan `24` revision `1` draft/unapproved, Jobs `0`, JobChapters `0`, artifacts `0`, active audio `none`, and audio status `not_created`.
+- No provider, Gemini, TTS, preview synthesis, Casting Plan approval, job preparation/start, render, segment/attempt/artifact creation, database edit, Chapter `369` mutation, or Chapter `364-368` mutation occurred.
+- Focused UI validation covers navigation labels, route fallback, active/hidden view isolation, Production stage shell, no route-side mutation endpoints, no duplicate interactive panels, and no chapter-specific hardcoding.
+- Exact next task: `DAILY-PROD-1B` - Production State Resolver And Resume Behavior.
 
 **Historical archive notice:** detailed task records below are preserved as evidence. They document what happened, but they are not the current strategic direction unless repeated in the current-state summary above or in `ROADMAP.md`.
 
