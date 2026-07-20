@@ -1,12 +1,25 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-19T21:15 (Asia/Saigon)
-**Milestone:** Task 18BC Chapter 369 Speaker Draft Approved Only
-**Trạng thái:** Chapter `369` Speaker Assignment Draft `15` has been human-reviewed row by row and approved through the draft-only approval route. Both target rows were confirmed as `unknown` speakers, because they are non-candidate Hải Thi Tộc speakers. No Final Voice Map / Casting Plan, job, JobChapter, production segment, attempt, artifact, active audio, provider call, TTS preview, synthesis, render, assembly, or export was created.
+**Cập nhật:** 2026-07-20T00:35 (Asia/Saigon)
+**Milestone:** Task 18BD-S2 Custom Voice Preview Provenance Guard
+**Trạng thái:** Custom voice preview provenance is now fail-closed. Legacy custom preview cache entries that omit immutable `custom_voice_id` provenance are quarantined and no longer served as valid listening evidence. Chapter `369` Casting Plan `24` remains draft/unapproved; no plan approval, job, artifact, provider/TTS call, preview regeneration, or chapter audio was created.
 
-**Last verified against commit:** `01db40011289281aeb9aa983d09d07e7966269d5`
+**Last verified against commit:** `d47ce7b53e99e4f9bf5543da92cb7ed9ea50f75a`
 **Last verified branch:** `main`
-**Last verified date:** 2026-07-19
+**Last verified date:** 2026-07-20
+
+**Task 18BD-S2 verified implementation state:**
+- Repository/runtime baseline passed before bounded code changes: branch `main`, `HEAD == origin/main == d47ce7b53e99e4f9bf5543da92cb7ed9ea50f75a`, runtime `http://127.0.0.1:8772`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, schema `12`, and SQLite `quick_check = ok`. Only protected untracked `experiment_b_transcript/` and `runs/` were present.
+- Chapter `369` safety remained intact throughout the audit: Speaker Draft `15` is approved/non-stale; Casting Plan `24` revision `1` is still the only Chapter `369` plan, `status = draft`, `approved_at = null`, narrator `custom:26`; Chapter `369` still has Jobs `0`, JobChapters `0`, artifacts `0`, active audio `none`, and audio status `not_created`.
+- Human evidence invalidated the legacy custom:25 preview `98716703b9e713e6801611868cdcf57fd1ce1892c2a7edfcb425fc06bb937b33` as listening evidence: the preferred custom:25 revision `1` reference audio remains the original Hứa Thanh voice, while the cached preview was reported as sounding like Đức Trí.
+- Provenance audit showed the custom:25 preview manifest/file were internally hash-consistent with revision `1`, reference SHA-256 `5c9bd396b3156b6ccd34406d0f2555eed651f3a694da6360a37ed9a43797b9ca`, preview text SHA-256 `f9735801119b55c29c859d308ae84db2a08792a73171ba7af8889b8b2dfd99ff`, settings hash `714be913389c6c0856c25dc7da5999a20c998bd941ed08aa6bfd242feb761f0e`, and audio SHA-256 `25b9bef38d7de79aad150e9f1349791e7607159447713c8b545eb8541618b97f`; however, the legacy custom manifest omitted `custom_voice_id`.
+- Root-cause classification: `CACHE_KEY_DID_NOT_INCLUDE_REFERENCE_PROVENANCE` / incomplete immutable custom preview provenance. The previous custom preview identity and direct file-serving path trusted legacy manifests without requiring `custom_voice_id`, so stale or mismatched custom preview evidence could be offered even when the human listening result contradicted the current custom voice reference.
+- Guard implementation: custom preview identity/cache manifests now include `custom_voice_id` in addition to revision ID, reference asset SHA, preview text, and synthesis settings. The preview file-serving boundary rejects legacy custom manifests that contain `custom_voice_revision_id` but lack `custom_voice_id`, returning `404` instead of serving them as valid evidence.
+- Quarantine result after runtime restart: `GET /api/voice-previews/98716703b9e713e6801611868cdcf57fd1ce1892c2a7edfcb425fc06bb937b33/file` returns `404`; `GET /api/custom-voice-revisions/1/audio` still returns the preserved reference audio. No cached file was deleted and no replacement preview was generated.
+- custom:27 provenance audit: legacy preview `1a1bdb6a57565d3e5141609eeedca9855d308b8d3935de8737145595fd5542b1` maps to revision `5` / voice `27` with matching reference SHA-256 `94eaeb84b9b9bca7310a1857f8c264d766e9489f6911f47b00e702f3fa18abfa`, but it also lacks `custom_voice_id` and is therefore quarantined under the new guard. `GET /api/voice-previews/1a1bdb6a57565d3e5141609eeedca9855d308b8d3935de8737145595fd5542b1/file` returns `404`; `GET /api/custom-voice-revisions/5/audio` still returns the preserved reference audio.
+- Focused validation passed: `tests.test_voice_preview`, `tests.test_voice_preview_api`, and `tests.test_api_preview` passed (`58` tests); `py_compile story_audio\voice_preview.py` passed; live runtime restart confirmed schema `12` and Chapter `369` plan/job/artifact safety.
+- No provider/TTS/Gemini call, preview generation, Casting Plan mutation, approval, job creation, JobChapter creation, segment/attempt/artifact creation, chapter audio creation, direct SQLite edit, or Chapter `364-368` mutation occurred.
+- Exact next task: Task `18BD-S4` - Repair preview provenance and obtain a trustworthy voice candidate before modifying Casting Plan `24`.
 
 **Task 18BC verified live state:**
 - Repository/runtime baseline passed before mutation: branch `main`, `HEAD == origin/main == 01db40011289281aeb9aa983d09d07e7966269d5`, runtime `http://127.0.0.1:8772`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, schema `12`, and SQLite `quick_check = ok`. Only protected untracked `experiment_b_transcript/` and `runs/` were present.

@@ -80,6 +80,7 @@ class VoicePreviewService:
 
     def _custom_identity(
         self,
+        custom_voice_id: int,
         custom_voice_revision_id: int,
         reference_audio_sha256: str,
         reference_transcript_sha256: str,
@@ -93,6 +94,7 @@ class VoicePreviewService:
         cache_key = sha256_text(
             json.dumps(
                 {
+                    "custom_voice_id": custom_voice_id,
                     "custom_voice_revision_id": custom_voice_revision_id,
                     "reference_audio_sha256": reference_audio_sha256,
                     "reference_transcript_sha256": reference_transcript_sha256,
@@ -107,6 +109,7 @@ class VoicePreviewService:
         )
         return {
             "cache_key": cache_key,
+            "custom_voice_id": custom_voice_id,
             "custom_voice_revision_id": custom_voice_revision_id,
             "reference_audio_sha256": reference_audio_sha256,
             "reference_transcript_sha256": reference_transcript_sha256,
@@ -190,6 +193,8 @@ class VoicePreviewService:
             response["voice_id"] = manifest["voice_id"]
         if "custom_voice_revision_id" in manifest:
             response["custom_voice_revision_id"] = manifest["custom_voice_revision_id"]
+        if "custom_voice_id" in manifest:
+            response["custom_voice_id"] = manifest["custom_voice_id"]
         return response
 
     def create_custom(self, custom_voice_revision_id: int, preview_text: str | None = None) -> dict[str, Any]:
@@ -238,6 +243,7 @@ class VoicePreviewService:
 
         # Build identity with effective preview text
         identity = self._custom_identity(
+            revision.custom_voice_id,
             revision.id,
             revision.audio_sha256,
             revision.transcript_sha256,
@@ -358,6 +364,8 @@ class VoicePreviewService:
             raise FileNotFoundError("Preview not found") from exc
         if manifest.get("cache_key") != cache_key or not wav_path.is_file():
             raise FileNotFoundError("Preview not found")
+        if "custom_voice_revision_id" in manifest and "custom_voice_id" not in manifest:
+            raise FileNotFoundError("Preview provenance is incomplete")
         if manifest.get("audio_sha256") != sha256_file(wav_path):
             raise FileNotFoundError("Preview cache is corrupted")
         os.utime(wav_path, None)

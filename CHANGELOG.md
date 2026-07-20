@@ -6,6 +6,14 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **Task 18BD-S2 - Custom voice preview provenance guard**: audited the mismatched custom:25 preview evidence and made custom preview reuse fail closed when immutable provenance is incomplete.
+  - **Baseline**: branch `main`, `HEAD == origin/main == d47ce7b53e99e4f9bf5543da92cb7ed9ea50f75a`; runtime `http://127.0.0.1:8772` used `D:\Youtube\Story Trans And Audio\data`, schema `12`, and SQLite `quick_check = ok`; only protected untracked `experiment_b_transcript/` and `runs/` were present.
+  - **Root cause**: legacy custom preview cache identity/manifests omitted `custom_voice_id`, and the direct file-serving boundary accepted those incomplete custom manifests as valid preview evidence.
+  - **Guard**: custom preview identity now includes `custom_voice_id` alongside custom voice revision, reference audio SHA, preview text, and synthesis settings; custom preview manifests missing `custom_voice_id` are quarantined and served as `404` instead of valid audio.
+  - **Quarantine**: custom:25 legacy preview `98716703b9e713e6801611868cdcf57fd1ce1892c2a7edfcb425fc06bb937b33` is no longer reusable as evidence; the revision `1` reference audio remains available. custom:27 legacy preview `1a1bdb6a57565d3e5141609eeedca9855d308b8d3935de8737145595fd5542b1` is also quarantined for the same incomplete provenance; revision `5` reference audio remains available.
+  - **Safety**: Chapter `369` Casting Plan `24` remained draft/unapproved; Jobs, JobChapters, artifacts, active audio, provider/TTS calls, and preview regenerations stayed at `0`.
+  - **Validation**: `tests.test_voice_preview`, `tests.test_voice_preview_api`, and `tests.test_api_preview` passed (`58` tests); `py_compile story_audio\voice_preview.py` passed; live runtime restart confirmed the old preview URLs return `404` while reference audio URLs still serve.
+  - **Next task**: Task `18BD-S4` - Repair preview provenance and obtain a trustworthy voice candidate before modifying Casting Plan `24`.
 - **Task 18BC - Chapter 369 Speaker Draft approved only**: completed human row review and draft-only approval for Speaker Assignment Draft `15` without creating a Final Voice Map or any audio-production object.
   - **Baseline**: branch `main`, `HEAD == origin/main == 01db40011289281aeb9aa983d09d07e7966269d5`; runtime `http://127.0.0.1:8772` used `D:\Youtube\Story Trans And Audio\data`, schema `12`, and SQLite `quick_check = ok`; only protected untracked `experiment_b_transcript/` and `runs/` were present.
   - **Human decisions**: `u0003-b1d3d00d55ab` / seq `3` and `u0021-49989b447284` / seq `21` were both confirmed as non-candidate Hải Thi Tộc speakers and persisted as `KEEP_UNKNOWN`.

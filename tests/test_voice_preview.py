@@ -144,6 +144,7 @@ class VoicePreviewTests(IsolatedTestCase):
         service = VoicePreviewService(fake, config, custom_voice_repo=repo, store=store)
 
         result = service.create_custom(revision.id)
+        self.assertEqual(result["custom_voice_id"], voice.id)
         self.assertEqual(result["custom_voice_revision_id"], revision.id)
         self.assertFalse(result["cache_hit"])
 
@@ -221,6 +222,61 @@ class VoicePreviewTests(IsolatedTestCase):
         self.assertFalse(first["cache_hit"])
         self.assertTrue(second["cache_hit"])
         self.assertEqual(first["cache_key"], second["cache_key"])
+        self.assertEqual(len(fake.calls), 1)
+
+    def test_custom_preview_identity_includes_custom_voice_id(self) -> None:
+        config = make_config(self.temp_root)
+        db = Database(config.db_path)
+        db.initialize()
+        store = ContentStore(config)
+        repo = CustomVoiceRepository(db, store)
+
+        voice = repo.create_custom_voice("Test Voice")
+        revision = repo.create_revision(voice.id, b"audio", "transcript")
+
+        fake = FakePreviewTts()
+        service = VoicePreviewService(fake, config, custom_voice_repo=repo, store=store)
+
+        result = service.create_custom(revision.id)
+        manifest = json.loads(
+            (config.preview_cache_dir / f"{result['cache_key']}.json").read_text(encoding="utf-8")
+        )
+
+        self.assertEqual(manifest["custom_voice_id"], voice.id)
+        self.assertEqual(result["custom_voice_id"], voice.id)
+
+    def test_legacy_custom_preview_manifest_without_voice_id_is_quarantined(self) -> None:
+        config = make_config(self.temp_root)
+        db = Database(config.db_path)
+        db.initialize()
+        store = ContentStore(config)
+        repo = CustomVoiceRepository(db, store)
+
+        voice = repo.create_custom_voice("Test Voice")
+        revision = repo.create_revision(voice.id, b"audio", "transcript")
+
+        fake = FakePreviewTts()
+        service = VoicePreviewService(fake, config, custom_voice_repo=repo, store=store)
+        result = service.create_custom(revision.id)
+        self.assertFalse(result["cache_hit"])
+
+        old_key = "a" * 64
+        current_wav = config.preview_cache_dir / f"{result['cache_key']}.wav"
+        legacy_wav = config.preview_cache_dir / f"{old_key}.wav"
+        legacy_manifest = config.preview_cache_dir / f"{old_key}.json"
+        legacy_wav.write_bytes(current_wav.read_bytes())
+        legacy = json.loads(
+            (config.preview_cache_dir / f"{result['cache_key']}.json").read_text(encoding="utf-8")
+        )
+        legacy.pop("custom_voice_id")
+        legacy["cache_key"] = old_key
+        legacy_manifest.write_text(json.dumps(legacy), encoding="utf-8")
+
+        with self.assertRaises(FileNotFoundError):
+            service.audio_path(old_key)
+
+        second = service.create_custom(revision.id)
+        self.assertTrue(second["cache_hit"])
         self.assertEqual(len(fake.calls), 1)
 
     def test_custom_cache_hit_does_not_reread_source_blob(self) -> None:
