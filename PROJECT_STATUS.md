@@ -1,12 +1,24 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-20T00:35 (Asia/Saigon)
-**Milestone:** Task 18BD-S2 Custom Voice Preview Provenance Guard
-**Trạng thái:** Custom voice preview provenance is now fail-closed. Legacy custom preview cache entries that omit immutable `custom_voice_id` provenance are quarantined and no longer served as valid listening evidence. Chapter `369` Casting Plan `24` remains draft/unapproved; no plan approval, job, artifact, provider/TTS call, preview regeneration, or chapter audio was created.
+**Cập nhật:** 2026-07-20T00:55 (Asia/Saigon)
+**Milestone:** Documentation Reconciliation / Roadmap Reset
+**Strategic state:** `PRODUCTION_READY / PRODUCTION_OPERATIONS`
+**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations with on-demand hardening only when explicitly requested or proven by a reusable production blocker. No system-development milestone is automatically active.
 
-**Last verified against commit:** `d47ce7b53e99e4f9bf5543da92cb7ed9ea50f75a`
+**Last verified against commit:** `9e7a01dee5471710136687572eecbf2e7b6cc602`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-20
+**Canonical runtime:** `http://127.0.0.1:8772`
+**Runtime schema:** `12`
+
+**Current production state:**
+- Chapters `364-368` are completed Human QA PASS production evidence with active artifacts `69`, `72`, `78`, `75`, and `84`.
+- Chapter `369` is paused as a production operation, not a roadmap milestone: active Text Revision `738`, Speaker Draft `15` approved, Casting Plan `24` revision `1` draft/unapproved, Jobs `0`, JobChapters `0`, artifacts `0`, active audio `none`, and audio status `not_created`.
+- Preview provenance guard is complete and reusable: legacy custom preview cache entries without immutable `custom_voice_id` provenance are quarantined rather than served as valid listening evidence.
+- No current reusable implementation blocker is active. Distinct voice selection for two unnamed Chapter `369` rows is optional editorial production work, not required roadmap work.
+- `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after reconciliation is `AWAITING_OPERATOR_DECISION`.
+
+**Historical archive notice:** detailed task records below are preserved as evidence. They document what happened, but they are not the current strategic direction unless repeated in the current-state summary above or in `ROADMAP.md`.
 
 **Task 18BD-S2 verified implementation state:**
 - Repository/runtime baseline passed before bounded code changes: branch `main`, `HEAD == origin/main == d47ce7b53e99e4f9bf5543da92cb7ed9ea50f75a`, runtime `http://127.0.0.1:8772`, canonical DB `D:\Youtube\Story Trans And Audio\data\app.db`, schema `12`, and SQLite `quick_check = ok`. Only protected untracked `experiment_b_transcript/` and `runs/` were present.
@@ -97,7 +109,7 @@
 - Exact next task: Task `18AW` - Final Human Audio QA of Reassembled Chapter `368` Artifact.
 
 **Task 18AT verified live state:**
-- Repository baseline before live mutation passed: branch `main`, `HEAD == origin/main == b0e1764f4db87f8dd74f1d0eb3a6eb4f0c1f5d53`, protected untracked `experiment_b_transcript/` and `runs/` remained untouched, runtime `http://127.0.0.1:8766` pointed to `D:\Youtube\Story Trans And Audio\data`, and schema version reported `11`.
+- Repository baseline before live mutation passed: branch `main`, `HEAD == origin/main == b0e1764f4db87f8dd74f1d0eb3a6eb4f0c1f5d53`, protected untracked `experiment_b_transcript/` and `runs/` remained untouched, historical runtime port `8766` pointed to `D:\Youtube\Story Trans And Audio\data` for that task, and schema version reported `11`. Current canonical runtime is verified separately in the current-state summary.
 - A fresh backup was created before mutation at `D:\Youtube\Story Trans And Audio\backups\task_18at_pre_live_candidate_20260719_123323`; backup manifest reported schema `11`, file count `4815`, and total size `1253944332`.
 - Live repair-block candidate `#1` was created through the supported API for `first_segment_id = 665` and `last_segment_id = 666` on Job `22` / JobChapter `22`. The candidate stores `source_start_offset = 2229`, `source_end_offset = 2488`, `source_text_sha256 = f09ae2e46eead05f26563d410758b29a03bd9cc0950475b51f36a42a1b917e27`, `candidate_duration_ms = 15350`, and `status = candidate`.
 - Canonical pin fallback was validated in code and live data: Segments `665` and `666` keep `casting_plan_id = NULL`, while JobChapter `22` pins approved Casting Plan `23` revision `1` with SHA-256 `493e1f39bd353657f6deee0a9ac1124ae3ad47160d5bf7b1b09657f1de1ee9c0`.

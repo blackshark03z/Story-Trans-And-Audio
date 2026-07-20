@@ -41,7 +41,7 @@ tests/                   Offline unit tests
 - Text revision vÃ  artifact Ä‘Ã£ verify lÃ  báº¥t biáº¿n; thay Ä‘á»•i táº¡o revision má»›i.
 - Job pin text/config/voice snapshot; khÃ´ng Ä‘á»•i Ã¢m tháº§m giá»¯a lÃºc cháº¡y.
 - Schema v5 cÃ³ Character Bible vÃ  immutable Speaker Assignment Draft; `default_voice_id` váº«n Ä‘Æ°á»£c giá»¯ lÃ m legacy compatibility field.
-- Long-Chapter End-to-End Validation and Hardening Ä‘Ã£ hoÃ n táº¥t. Migration káº¿ tiáº¿p náº¿u tháº­t sá»± cáº§n pháº£i lÃ  `0006_*`; khÃ´ng sá»­a migration v1â€“v5.
+- Long-Chapter End-to-End Validation and Hardening Ä‘Ã£ hoÃ n táº¥t. Migration káº¿ tiáº¿p náº¿u tháº­t sá»± cáº§n pháº£i láº¥y sá»‘ sau migration cao nháº¥t hiá»‡n cÃ³ trong `story_audio/migrations/`; khÃ´ng sá»­a migration Ä‘Ã£ phÃ¡t hÃ nh.
 - Character identity tÃ¡ch khá»i voice identity; khÃ´ng thiáº¿t káº¿ Character Bible theo giáº£ Ä‘á»‹nh má»—i nhÃ¢n váº­t cáº§n voice riÃªng.
 - á»¨ng dá»¥ng sá»Ÿ há»¯u TTS segment, tá»‘i Ä‘a 256 kÃ½ tá»± vá»›i VieNeu v3 Turbo hiá»‡n táº¡i.
 - Gemini chá»‰ sá»­a punctuation/whitespace. Sau sá»­a, token nguá»“n pháº£i Ä‘Æ°á»£c khÃ´i phá»¥c vÃ  lexical validator pháº£i Ä‘áº¡t.

@@ -10,7 +10,9 @@ Kiến trúc voice Personal Edition dùng ba voice mặc định cấp book (nar
 .\run_app.ps1
 ```
 
-Sau đó mở `http://127.0.0.1:8766`.
+Sau đó mở `http://127.0.0.1:8772`.
+
+Runtime canonical hiện tại của Story Audio là `http://127.0.0.1:8772`. Luôn xác minh tiến trình đang chạy bằng `/api/runtime` trước khi thao tác production.
 
 ## Quy trình sử dụng
 
@@ -18,11 +20,14 @@ Sau đó mở `http://127.0.0.1:8766`.
 2. Chọn sách và kiểm tra nội dung chương.
 3. Chọn khoảng **Từ chương → Đến chương**.
 4. Trong tab **Character Voices**, import Character Bible JSON nếu có, review dry-run/apply, tạo Book Voice Profile, preview từng slot và chọn nhân vật dùng book default hoặc custom override.
-5. Khi cần hỗ trợ xác định người nói, tạo Gemini Speaker Assignment Draft trong **Character Voices**, review confidence/alternatives, preview effective voice rồi approve các quyết định đã chọn thành Casting Plan revision mới.
-6. Approval không tự tạo job hoặc audio. Sau khi Casting Plan đúng, người dùng chủ động tạo job như bình thường.
-7. Chọn chế độ Gemini punctuation, định dạng rồi bấm **Kiểm tra phạm vi**.
-8. Thêm vào hàng đợi; có 10 giây để hủy nếu chọn nhầm.
-9. Theo dõi checkpoint, pause/resume hoặc retry phần lỗi.
+5. Khi cần hỗ trợ xác định người nói, tạo Gemini Speaker Assignment Draft trong **Character Voices**.
+6. Review từng row và lưu quyết định row review.
+7. Duyệt Speaker Draft bằng approve-only; bước này không tạo Casting Plan, job hoặc audio.
+8. Tạo Final Voice Map / Casting Plan draft từ Speaker Draft đã duyệt.
+9. Duyệt Casting Plan riêng. Approval không tự tạo job hoặc audio.
+10. Chuẩn bị job audio riêng để pin Text Revision, Casting Plan và voice snapshot mà chưa render.
+11. Bắt đầu render bằng hành động riêng khi người vận hành đã sẵn sàng.
+12. Theo dõi checkpoint, pause/resume hoặc retry phần lỗi.
 
 ## API key
 
@@ -51,7 +56,8 @@ Text chương không được lưu đầy đủ trong SQLite. DB chỉ lưu revi
 ## Tài liệu điều hành
 
 - [Trạng thái hiện tại](PROJECT_STATUS.md)
-- [Roadmap](ROADMAP.md)
+- [Roadmap](ROADMAP.md) - chiến lược và phase hiện tại
+- [Next Task](NEXT_TASK.md) - hành động hoặc quyết định đang được ủy quyền
 - [Quyết định kiến trúc](docs/DECISIONS.md)
 - [Data model](docs/DATA_MODEL.md)
 - [Testing strategy](docs/TESTING.md)

@@ -207,7 +207,7 @@ Không copy log ra ngoài trước khi kiểm tra secret/path/text nhạy cảm.
 ## Stop an toàn
 
 - Pause/cancel job từ UI trước.
-- Dừng process đang listen cổng 8766 sau khi worker về ranh giới segment.
+- Dừng process đang listen cổng Story Audio hiện tại, thường là `8772`, sau khi worker về ranh giới segment. Xác minh bằng `/api/runtime` trước khi dừng.
 - Không xóa `.partial`, WAL hoặc `data/work` khi process còn chạy.
 
 ## Lỗi thường gặp

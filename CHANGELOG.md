@@ -6,6 +6,12 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DOC-R1 - Documentation authority reconciliation and roadmap reset**: reconciled canonical documentation so roadmap strategy, project status, and next-task authorization no longer contradict each other.
+  - **Strategic state**: reset current direction to `PRODUCTION OPERATIONS AND ON-DEMAND HARDENING`; production acceptance and `PRODUCTION_GO` are complete, and no system-development milestone is automatically active.
+  - **Chapter 369**: reclassified as paused production/editorial work with Casting Plan `24` draft/unapproved and zero downstream production objects, not a strategic roadmap milestone.
+  - **Authority**: documented that Git/runtime/live DB/artifacts determine actual state, `ROADMAP.md` controls strategic direction, and `NEXT_TASK.md` may not silently redefine the roadmap.
+  - **Safety**: documentation-only; no runtime, database, preview, provider/TTS, Casting Plan, job, artifact, source code, test, migration, audio, output, or protected-path mutation occurred.
+  - **Debt**: existing mojibake/encoding cleanup remains a separate bounded documentation-maintenance task.
 - **Task 18BD-S2 - Custom voice preview provenance guard**: audited the mismatched custom:25 preview evidence and made custom preview reuse fail closed when immutable provenance is incomplete.
   - **Baseline**: branch `main`, `HEAD == origin/main == d47ce7b53e99e4f9bf5543da92cb7ed9ea50f75a`; runtime `http://127.0.0.1:8772` used `D:\Youtube\Story Trans And Audio\data`, schema `12`, and SQLite `quick_check = ok`; only protected untracked `experiment_b_transcript/` and `runs/` were present.
   - **Root cause**: legacy custom preview cache identity/manifests omitted `custom_voice_id`, and the direct file-serving boundary accepted those incomplete custom manifests as valid preview evidence.

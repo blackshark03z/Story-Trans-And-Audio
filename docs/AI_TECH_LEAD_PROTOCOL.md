@@ -270,7 +270,7 @@ Project invariants include:
 
 - Full chapter text must not be stored in SQLite.
 - Text blobs live under `data\blobs\text\`.
-- Schema migration after v5 must be a new `0006_*` migration if truly required.
+- Schema migration must use the next number after the highest existing migration in `story_audio/migrations/` if truly required.
 
 ## 12. External Service Policy
 

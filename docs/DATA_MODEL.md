@@ -210,7 +210,7 @@ TextRevision hoặc Character Bible đổi làm input fingerprint đổi. Draft 
 
 Review không cần bảng mutable mới. Mỗi approval tạo một immutable `casting_plans` JSON mới và ghi provenance trong `source_metadata.source = "gemini_speaker_review"`: draft ID/fingerprint, base Casting Plan ID, canonical decision fingerprint, idempotency key, reviewed utterance IDs và remaining count.
 
-Partial approval dùng plan approved hiện tại làm base và chỉ overlay các utterance đã quyết định; assignment, offsets, text hash và resolved voice ngoài phạm vi được giữ nguyên. Exact repeat cùng draft/base/decision fingerprint trả lại plan đã có. TextRevision, Character Bible hoặc base plan thay đổi làm approval bị conflict; draft vẫn đọc được để audit. SQLite schema vì vậy vẫn là version 5.
+Partial approval dùng plan approved hiện tại làm base và chỉ overlay các utterance đã quyết định; assignment, offsets, text hash và resolved voice ngoài phạm vi được giữ nguyên. Exact repeat cùng draft/base/decision fingerprint trả lại plan đã có. TextRevision, Character Bible hoặc base plan thay đổi làm approval bị conflict; draft vẫn đọc được để audit. Ghi chú này mô tả giai đoạn schema v5 lịch sử; schema hiện tại phải được xác minh bằng runtime và migrations.
 
 ## Shared Gemini cache
 
@@ -232,7 +232,7 @@ Không lưu absolute path trong API contract công khai. DB hiện giữ absolut
 
 ## Schema evolution rule
 
-Schema hiện tại: **version 5**, migrations `0001_initial.sql` đến `0005_speaker_assignment_drafts.sql`.
+Schema hiện tại không được hard-code trong tài liệu này. Xác minh bằng `/api/runtime`, Doctor, và danh sách `story_audio/migrations/`. Tại lần reconciliation 2026-07-20, canonical runtime báo schema `12` và migrations có đến `0012_speaker_draft_reviews.sql`.
 
 Startup flow:
 
@@ -244,7 +244,7 @@ Startup flow:
 
 Trước thay đổi schema tiếp theo phải:
 
-1. Thêm file migration kế tiếp, hiện là `story_audio/migrations/0006_<name>.sql`; không sửa migration đã phát hành.
+1. Thêm file migration kế tiếp sau migration cao nhất hiện có trong `story_audio/migrations/`; không sửa migration đã phát hành.
 2. Migration tăng dần, contiguous, idempotent và transaction-safe.
 3. Backup DB trước migration.
 4. Test upgrade từ fixture version trước.
