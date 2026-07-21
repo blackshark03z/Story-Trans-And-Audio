@@ -1,8 +1,8 @@
-const $=s=>document.querySelector(s);let state={config:null,books:[],book:null,page:0,pageSize:100,total:0,previewOk:false,dialog:null,jobs:[],libraryVoices:[],selectedVoiceId:null,showInactive:false,showSmokeBooks:false,libraryBusy:false,libraryRevisions:[],previewRevisionId:null,uploadBusy:false,previewBusy:false,customVoices:[],voiceCatalog:{items:[]},voiceCatalogError:null,runtimeIdentity:null,runtimeIdentityResolved:false,productionFlow:null,currentRoute:'home'};
+const $=s=>document.querySelector(s);let state={config:null,books:[],book:null,page:0,pageSize:100,total:0,previewOk:false,dialog:null,jobs:[],libraryVoices:[],selectedVoiceId:null,showInactive:false,showSmokeBooks:false,libraryBusy:false,libraryRevisions:[],previewRevisionId:null,uploadBusy:false,previewBusy:false,customVoices:[],voiceCatalog:{items:[]},voiceCatalogError:null,runtimeIdentity:null,runtimeIdentityResolved:false,productionFlow:null,currentRoute:'home',audioLibrary:{items:[],status:'idle',error:null,selectedArtifactId:null,loaded:false,loading:false}};
 const APP_ROUTES={home:{hash:'#/home',label:'Trang chủ',heading:'Trang chủ'},production:{hash:'#/production',label:'Sản xuất',heading:'Sản xuất'},voices:{hash:'#/voices',label:'Thư viện giọng',heading:'Thư viện giọng'},books:{hash:'#/books',label:'Sách và nhân vật',heading:'Sách và nhân vật'},audio:{hash:'#/audio',label:'Audio đã tạo',heading:'Audio đã tạo'},settings:{hash:'#/settings',label:'Cài đặt',heading:'Cài đặt'}};
 function routeFromHash(hash=window.location.hash){const key=String(hash||'').replace(/^#\/?/,'').split(/[/?]/)[0]||'home';return APP_ROUTES[key]?key:'home'}
 function renderHomeSummary(){const home=$('#homeSummary');if(home){const activeJobs=(state.jobs||[]).filter(j=>['prepared','scheduled','queued','running','repairing','synthesizing','assembling','paused','interrupted'].includes(String(j.status||''))).length;const runtime=state.runtimeIdentity?.label||'RUNTIME UNKNOWN';home.innerHTML=`<div><strong>${state.books?.length||0}</strong><span>Sách</span></div><div><strong>${activeJobs}</strong><span>Job cần theo dõi</span></div><div><strong>${esc(runtime)}</strong><span>Runtime</span></div>`}const runtimeSummary=$('#settingsRuntimeSummary');if(runtimeSummary)runtimeSummary.textContent=state.runtimeIdentity?.data_root||state.runtimeIdentity?.short_data_root||'Runtime chưa xác định';const providerSummary=$('#settingsProviderSummary');if(providerSummary&&state.config)providerSummary.textContent=`Gemini ${state.config.gemini_configured?'sẵn sàng':'chưa có key'}; VieNeu ${state.config.tts_status}`}
-function setAppRoute(route,{replace=false}={}){const next=APP_ROUTES[route]?route:'home';state.currentRoute=next;if(next!=='production'&&$('#textDialog')?.open)$('#textDialog').close();document.querySelectorAll('[data-app-view]').forEach(view=>{const active=view.dataset.appView===next;view.hidden=!active;view.setAttribute('aria-hidden',active?'false':'true')});document.querySelectorAll('[data-app-route]').forEach(link=>{const active=link.dataset.appRoute===next;link.classList.toggle('active',active);if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current')});const heading=$('#appViewHeading');if(heading)heading.textContent=APP_ROUTES[next].heading;const desired=APP_ROUTES[next].hash;if(routeFromHash(window.location.hash)!==next){if(replace)history.replaceState(null,'',desired);else history.pushState(null,'',desired)}renderProductionShell()}
+function setAppRoute(route,{replace=false}={}){const next=APP_ROUTES[route]?route:'home';state.currentRoute=next;if(next!=='production'&&$('#textDialog')?.open)$('#textDialog').close();if(next!=='audio')resetAudioLibraryPlayer();document.querySelectorAll('[data-app-view]').forEach(view=>{const active=view.dataset.appView===next;view.hidden=!active;view.setAttribute('aria-hidden',active?'false':'true')});document.querySelectorAll('[data-app-route]').forEach(link=>{const active=link.dataset.appRoute===next;link.classList.toggle('active',active);if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current')});const heading=$('#appViewHeading');if(heading)heading.textContent=APP_ROUTES[next].heading;const desired=APP_ROUTES[next].hash;if(routeFromHash(window.location.hash)!==next){if(replace)history.replaceState(null,'',desired);else history.pushState(null,'',desired)}renderProductionShell();if(next==='audio')ensureAudioLibraryLoaded()}
 function setupAppShell(){window.addEventListener('hashchange',()=>handleAppRouteChange());document.querySelectorAll('[data-home-continue]').forEach(link=>link.addEventListener('click',()=>setAppRoute('production')));handleAppRouteChange({replace:!APP_ROUTES[String(window.location.hash||'').replace(/^#\/?/,'').split(/[/?]/)[0]]})}
 function handleAppRouteChange({replace=true}={}){const route=routeFromHash();setAppRoute(route,{replace});if(route==='production')restoreProductionScopeFromRoute()}
 const PRODUCTION_SCOPE_STORAGE_KEY='storyAudio.productionScope.v1';
@@ -71,6 +71,118 @@ async function restoreProductionScopeFromRoute(){
   }
 }
 async function api(url,options={}){const r=await fetch(url,{headers:{'Content-Type':'application/json',...(options.headers||{})},...options});let data;try{data=await r.json()}catch{data={detail:'Response error'}}if(!r.ok)throw new Error(data.detail||data.error||'Yêu cầu thất bại');return data}
+function audioLibraryQaLabel(status){const value=String(status||'').toLowerCase();if(value==='accepted')return{label:'Đã chấp nhận',className:'accepted'};if(value==='pending')return{label:'Chờ Human QA',className:'pending'};if(value==='approved_stale')return{label:'Cần kiểm tra lại',className:'warning'};if(value==='needs_fixes')return{label:'Cần sửa',className:'warning'};return{label:'Chưa xác định',className:'unknown'}}
+function formatDurationMs(ms){const value=Number(ms);if(!Number.isFinite(value)||value<=0)return '';const total=Math.round(value/1000),minutes=Math.floor(total/60),seconds=total%60;return `${minutes}:${String(seconds).padStart(2,'0')}`}
+function safeAudioLibraryUrl(url){const value=String(url||'');return /^\/api\/artifacts\/\d+\/file$/.test(value)?value:''}
+function audioLibraryTitle(item){const chapter=`Chương ${item.chapter_number??'—'}`;return item.chapter_title?`${chapter}: ${item.chapter_title}`:chapter}
+function clearElement(el){if(el)el.replaceChildren()}
+function resetAudioLibraryPlayer(){const audio=$('#audioLibraryAudio');if(audio){audio.pause();audio.removeAttribute('src');audio.load?.()}const player=$('#audioLibraryPlayer');if(player)player.classList.add('hidden');state.audioLibrary.selectedArtifactId=null}
+function renderAudioLibrary(){
+  const lib=state.audioLibrary||{items:[],status:'idle'};
+  const status=$('#audioLibraryStatus'),list=$('#audioLibraryList'),empty=$('#audioLibraryEmpty'),error=$('#audioLibraryError'),errorText=$('#audioLibraryErrorText'),player=$('#audioLibraryPlayer');
+  if(!status||!list||!empty||!error)return;
+  clearElement(list);
+  error.classList.add('hidden');
+  empty.classList.add('hidden');
+  if(lib.status==='loading'){
+    status.textContent='Đang tải thư viện audio...';
+    if(player)player.classList.add('hidden');
+    return;
+  }
+  if(lib.status==='error'){
+    status.textContent='Không tải được thư viện audio.';
+    if(errorText)errorText.textContent='Không tải được thư viện audio. Vui lòng thử lại.';
+    error.classList.remove('hidden');
+    resetAudioLibraryPlayer();
+    return;
+  }
+  const items=Array.isArray(lib.items)?lib.items:[];
+  status.textContent=items.length?`${items.length} chương có audio đang hoạt động.`:'Chưa có audio hoàn thành.';
+  if(!items.length){empty.classList.remove('hidden');resetAudioLibraryPlayer();return}
+  const frag=document.createDocumentFragment();
+  items.forEach(item=>frag.appendChild(renderAudioLibraryItem(item)));
+  list.appendChild(frag);
+  const selected=items.find(item=>Number(item.artifact_id)===Number(lib.selectedArtifactId));
+  if(!selected)resetAudioLibraryPlayer();else selectAudioLibraryItem(selected,{play:false});
+}
+function renderAudioLibraryItem(item){
+  const card=document.createElement('article');
+  card.className='audio-library-card';
+  card.dataset.artifactId=String(item.artifact_id||'');
+  const main=document.createElement('div');
+  main.className='audio-library-card-main';
+  const book=document.createElement('p');
+  book.className='eyebrow';
+  book.textContent=item.book_title||'Không rõ sách';
+  const title=document.createElement('h3');
+  title.textContent=audioLibraryTitle(item);
+  const meta=document.createElement('p');
+  meta.className='audio-library-meta muted';
+  const pieces=[item.artifact_kind||'audio',formatDurationMs(item.duration_ms)].filter(Boolean);
+  meta.textContent=pieces.join(' · ');
+  const qa=audioLibraryQaLabel(item.human_qa_status);
+  const badge=document.createElement('span');
+  badge.className=`audio-library-qa ${qa.className}`;
+  badge.textContent=qa.label;
+  badge.setAttribute('aria-label',`Human QA: ${qa.label}`);
+  main.append(book,title,meta,badge);
+  const actions=document.createElement('div');
+  actions.className='audio-library-actions';
+  const url=safeAudioLibraryUrl(item.file_url||item.download_url);
+  const play=document.createElement('button');
+  play.type='button';
+  play.className='secondary';
+  play.textContent='Phát audio';
+  play.setAttribute('aria-label',`Phát audio ${audioLibraryTitle(item)}`);
+  play.disabled=!url;
+  play.addEventListener('click',()=>selectAudioLibraryItem(item,{play:true}));
+  const download=document.createElement('a');
+  download.className='secondary app-secondary-link';
+  download.textContent='Tải audio';
+  download.setAttribute('aria-label',`Tải audio ${audioLibraryTitle(item)}`);
+  if(url){download.href=url;download.setAttribute('download','')}else{download.href='#';download.setAttribute('aria-disabled','true');download.addEventListener('click',event=>event.preventDefault())}
+  actions.append(play,download);
+  if(!url){
+    const warning=document.createElement('p');
+    warning.className='audio-library-safe-warning muted';
+    warning.textContent='Đường dẫn audio không hợp lệ nên đã tắt phát/tải.';
+    actions.appendChild(warning);
+  }
+  card.append(main,actions);
+  return card;
+}
+function selectAudioLibraryItem(item,{play=false}={}){
+  const url=safeAudioLibraryUrl(item.file_url||item.download_url);
+  if(!url)return;
+  state.audioLibrary.selectedArtifactId=Number(item.artifact_id);
+  document.querySelectorAll('.audio-library-card').forEach(card=>{
+    const selected=Number(card.dataset.artifactId)===Number(item.artifact_id);
+    card.classList.toggle('selected',selected);
+    card.setAttribute('aria-selected',selected?'true':'false');
+  });
+  const player=$('#audioLibraryPlayer'),title=$('#audioLibraryPlayerTitle'),meta=$('#audioLibraryPlayerMeta'),audio=$('#audioLibraryAudio'),download=$('#audioLibraryDownload');
+  if(title)title.textContent=audioLibraryTitle(item);
+  if(meta)meta.textContent=[item.book_title||'',audioLibraryQaLabel(item.human_qa_status).label,formatDurationMs(item.duration_ms)].filter(Boolean).join(' · ');
+  if(audio&&audio.getAttribute('src')!==url)audio.src=url;
+  if(download)download.href=url;
+  if(player)player.classList.remove('hidden');
+  if(play&&audio)audio.play().catch(()=>{});
+}
+async function loadAudioLibrary({force=false}={}){
+  if(state.audioLibrary.loading)return;
+  if(state.audioLibrary.loaded&&!force){renderAudioLibrary();return}
+  state.audioLibrary={items:[],status:'loading',error:null,selectedArtifactId:null,loaded:false,loading:true};
+  renderAudioLibrary();
+  try{
+    const data=await api('/api/audio-library');
+    state.audioLibrary={items:Array.isArray(data.items)?data.items:[],status:'ready',error:null,selectedArtifactId:null,loaded:true,loading:false};
+  }catch(e){
+    state.audioLibrary={items:[],status:'error',error:e.message,selectedArtifactId:null,loaded:false,loading:false};
+  }
+  renderAudioLibrary();
+}
+function ensureAudioLibraryLoaded(){loadAudioLibrary({force:false})}
+function refreshAudioLibrary(){loadAudioLibrary({force:true})}
 function toast(msg,error=false){const el=$('#toast');el.textContent=msg;el.className='toast'+(error?' error':'');setTimeout(()=>el.classList.add('hidden'),4500)}
 function fmtStatus(s){return({scheduled:'Chờ hoàn tác',queued:'Đang chờ',running:'Đang chạy',repairing:'Gemini',synthesizing:'Đang đọc',assembling:'Đang ghép',paused:'Tạm dừng',completed:'Hoàn tất',completed_with_errors:'Xong có lỗi',failed:'Thất bại',cancelled:'Đã hủy',interrupted:'Bị gián đoạn'})[s]||s}
 function fmtStatus(s){return({prepared:'ÄÃ£ chuáº©n bá»‹',scheduled:'Chá» hoÃ n tÃ¡c',queued:'Äang chá»',running:'Äang cháº¡y',repairing:'Gemini',synthesizing:'Äang Ä‘á»c',assembling:'Äang ghÃ©p',paused:'Táº¡m dá»«ng',completed:'HoÃ n táº¥t',completed_with_errors:'Xong cÃ³ lá»—i',failed:'Tháº¥t báº¡i',cancelled:'ÄÃ£ há»§y',interrupted:'Bá»‹ giÃ¡n Ä‘oáº¡n'})[s]||s}
@@ -553,6 +665,8 @@ $('#diffSideMode').onclick=()=>{state.diffMode='side';renderTextDiff()};
 $('#diffShowWhitespace').onchange=renderTextDiff;
 $('#diffShowUnchanged').onchange=renderTextDiff;
 $('#refreshLibrary').onclick=refreshLibrary;
+$('#refreshAudioLibrary').onclick=refreshAudioLibrary;
+$('#retryAudioLibrary').onclick=refreshAudioLibrary;
 $('#showInactiveVoices').onchange=()=>{state.showInactive=$('#showInactiveVoices').checked;refreshLibrary()};
 $('#libraryCreate').onclick=createLibraryVoice;
 $('#libraryDeactivate').onclick=deactivateLibraryVoice;

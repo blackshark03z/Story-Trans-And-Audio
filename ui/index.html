@@ -308,12 +308,32 @@
       <section class="panel audio-library-panel">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Output library</p>
-            <h2 id="audioHeading">Audio đã tạo</h2>
+            <p class="eyebrow">Audio Library</p>
+            <h2 id="audioHeading">Thư viện audio</h2>
           </div>
+          <button id="refreshAudioLibrary" class="ghost" type="button">Làm mới</button>
         </div>
-        <p class="section-guide">Khu vực này là điểm vào mới cho audio đã tạo. Trong subtask 1A, playback/download mới chưa được thêm; audio active hiện vẫn mở từ chapter detail trong Production.</p>
-        <a class="secondary app-secondary-link" href="#/production">Chọn chương để nghe audio hiện có</a>
+        <p class="section-guide">Nghe và tải các chương đang có bản audio hoạt động.</p>
+        <div id="audioLibraryStatus" class="audio-library-status muted" role="status" aria-live="polite">Chưa tải thư viện audio.</div>
+        <div id="audioLibraryPlayer" class="audio-library-player hidden" aria-live="polite">
+          <div>
+            <p class="eyebrow">Đang chọn</p>
+            <h3 id="audioLibraryPlayerTitle">—</h3>
+            <p id="audioLibraryPlayerMeta" class="muted"></p>
+          </div>
+          <audio id="audioLibraryAudio" controls preload="metadata" aria-label="Trình phát audio chương đang chọn"></audio>
+          <a id="audioLibraryDownload" class="secondary app-secondary-link" href="#" download>Tải audio</a>
+        </div>
+        <div id="audioLibraryList" class="audio-library-list" aria-label="Danh sách audio đã tạo"></div>
+        <div id="audioLibraryEmpty" class="audio-library-empty hidden">
+          <strong>Chưa có audio hoàn thành.</strong>
+          <span>Bạn có thể quay lại Production để chọn chương và tiếp tục quy trình sản xuất.</span>
+          <a class="secondary app-secondary-link" href="#/production">Mở Production</a>
+        </div>
+        <div id="audioLibraryError" class="issue error hidden">
+          <span id="audioLibraryErrorText">Không tải được thư viện audio.</span>
+          <button id="retryAudioLibrary" class="ghost" type="button">Thử lại</button>
+        </div>
       </section>
     </section>
 
