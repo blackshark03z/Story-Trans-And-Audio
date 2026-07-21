@@ -28,6 +28,7 @@ Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve
 - Reusable hardening after production blockers: runtime identity/active-output clarity, separated speaker-review workflow, prepared-job lifecycle, targeted text correction workflow, repair-block workflow, and custom voice preview provenance fail-closed guard.
 - DAILY-PROD-1 - Modular Navigation And Sequential Production Shell: complete.
 - DAILY-PROD-2 - Custom Voice Assignment UI Closure: complete.
+- DAILY-PROD-3 - Audio Library And Output Retrieval: complete. `DAILY-PROD-3A` added read-only `GET /api/audio-library`, active-artifact semantics, runtime QA labels, safe playback/download, loading/error/empty/refresh states, and browser/runtime validation.
 
 ## Current Strategic Phase
 
@@ -43,18 +44,18 @@ Chapter production tasks, including Chapter 369 voice selection or Casting Plan 
 
 ## Active System Milestone
 
-**DAILY-PROD-3 - Audio Library And Output Retrieval**
+**DAILY-PROD-4 - Range Readiness And Exception Queue**
 
-Build a non-technical retrieval surface for completed production audio.
+Build the read-only readiness layer for selecting a chapter range, skipping already completed chapters, and surfacing only the exceptions that need operator judgment before later batch prepare/render work.
 
 The milestone must:
 
-- list chapters with active production audio;
-- use the existing active artifact binding;
-- show current runtime QA state;
-- allow safe playback and download/open-file access;
-- preserve immutable artifact and targeted-remediation boundaries;
-- remain read-only during browsing.
+- inspect a selected book/chapter range without creating drafts, jobs, previews, artifacts, or audio;
+- identify completed chapters that can be skipped from active artifact state;
+- identify text, speaker, voice, casting, prepared/rendered, and unresolved-state blockers per chapter;
+- produce a non-technical exception queue grouped by required operator action;
+- preserve Chapter 369 and existing production boundaries unless explicitly selected by the operator;
+- keep batch approval, prepare, render, and QA closeout for later milestones.
 
 ## Ordered Daily Production UX Roadmap
 
@@ -69,7 +70,7 @@ The milestone must:
 
 See `NEXT_TASK.md` for:
 
-`DAILY-PROD-3A - Audio Library Completed Output List And Playback Entry`
+`DAILY-PROD-4A - Range Readiness Preflight And Exception Queue Contract`
 
 ## Paused
 

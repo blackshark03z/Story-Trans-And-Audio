@@ -16,6 +16,15 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DAILY-PROD-3A - Audio Library Completed Output List And Playback Entry**: completed the read-only completed-output retrieval surface and closed `DAILY-PROD-3`.
+  - **Backend contract**: added read-only `GET /api/audio-library`, returning active output items from `chapters.active_audio_artifact_id` and active output bindings rather than newest Job or newest artifact heuristics.
+  - **Binding safety**: invalid or mismatched active bindings fail closed; response URLs are safe API routes only and do not expose raw filesystem artifact paths.
+  - **UI**: added the modular `#/audio` Audio Library view with loading, empty, error/retry, refresh, book/chapter cards, runtime Human QA labels, shared playback, and download.
+  - **Safety**: UI renders item data with safe DOM APIs, rejects unsafe artifact URLs, does not autoplay, clears playback when leaving the route, and performs no passive browsing mutation.
+  - **Runtime QA**: current runtime state is displayed as-is; at validation chapters `364-367` were `pending` and chapter `368` was `accepted`.
+  - **Validation**: `node --check ui\app.js` passed, focused UI/navigation tests passed (`38`), full offline suite passed (`1061` tests, `1` skipped), and runtime/browser smoke showed `16` Audio Library items, bad URL count `0`, chapters `364-368` present, and Chapter `369` absent.
+  - **Boundaries**: Chapter `369` remained unchanged; no provider, Gemini, TTS, database, QA, job, artifact, audio, render, or protected-path mutation occurred.
+  - **Commits**: backend `836b08552eb71df51cb7b2b5ce764f68459789d1`; UI `85040745081f6b01b84fb3f1d68fcce7c9797ed1`.
 - **DAILY-PROD-2B2 - Contextual voice detour and return**: completed the bounded return path from voice-assignment surfaces to Voice Library and back.
   - **Return context**: added a same-tab `sessionStorage` contract with allowlisted routes, origin types, operations, field IDs, expiry, source draft capture, entity IDs, and Casting Plan revision checks. Malformed, expired, external-route, stale entity, stale plan, inactive voice, or non-selectable voice contexts fail closed.
   - **Supported origins**: contextual actions are injected for Book Voice Profile selectors, Character Override selectors, Production voice-blocker guidance, and the existing Final Voice Map review/catalog surface. No per-utterance override surface was added.

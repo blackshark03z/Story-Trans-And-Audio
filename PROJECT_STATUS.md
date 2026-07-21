@@ -1,18 +1,22 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-20T21:15 (Asia/Saigon)
-**Milestone:** DAILY-PROD-3 Active - Audio Library And Output Retrieval
+**Cập nhật:** 2026-07-21T20:03:32 +07:00 (Asia/Bangkok)
+**Milestone:** DAILY-PROD-4 Active - Range Readiness And Exception Queue
 **Strategic state:** `PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP`
-**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1` is complete. `DAILY-PROD-2` is complete. Current milestone: `DAILY-PROD-3` - Audio Library And Output Retrieval. Exact next task: `DAILY-PROD-3A` - Audio Library Completed Output List And Playback Entry. Production remains a modular, state-resolved, single-current-stage workflow. Reusable voice assignment selectors share one canonical preset/custom voice catalog across Book Voice Profile, Character Manager, and Final Voice Map surfaces, and operators can detour to Voice Library from an assignment context, then return to the exact book/chapter/stage/field without auto-saving, approving, preparing, rendering, or calling provider/TTS.
+**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1`, `DAILY-PROD-2`, and `DAILY-PROD-3` are complete. Current milestone: `DAILY-PROD-4` - Range Readiness And Exception Queue. Production remains a modular, state-resolved, single-current-stage workflow. Reusable voice assignment selectors share one canonical preset/custom voice catalog across Book Voice Profile, Character Manager, and Final Voice Map surfaces, operators can detour to Voice Library from an assignment context and return safely, and the Audio Library now provides a read-only completed-output retrieval surface with active-artifact playback/download.
 
-**Last verified against commit:** `13e9352d3523e9af5a02dbfe81922129fa8a5218` before `DAILY-PROD-2A` implementation
+**Last verified against commit:** `85040745081f6b01b84fb3f1d68fcce7c9797ed1`
 **Last verified branch:** `main`
-**Last verified date:** 2026-07-20
+**Last verified date:** 2026-07-21
 **Canonical runtime:** `http://127.0.0.1:8772`
 **Runtime schema:** `12`
+**Runtime:** canonical, schema `12`
+**DAILY-PROD-3A:** complete
+**DAILY-PROD-3:** complete
 
 **Current production state:**
 - Chapters `364-368` are completed Human QA PASS production evidence with active artifacts `69`, `72`, `78`, `75`, and `84`.
+- Runtime QA currently reports chapters `364-367` as `pending` and chapter `368` as `accepted`; this runtime state is displayed as-is and was not rewritten from historical Human QA documentation.
 - Chapter `369` is paused as a production operation, not a roadmap milestone: active Text Revision `738`, Speaker Draft `15` approved, Casting Plan `24` revision `1` draft/unapproved, Jobs `0`, JobChapters `0`, artifacts `0`, active audio `none`, and audio status `not_created`.
 - Preview provenance guard is complete and reusable: legacy custom preview cache entries without immutable `custom_voice_id` provenance are quarantined rather than served as valid listening evidence.
 - The production backend, casting boundaries, prepared-job lifecycle, rendering, repair, artifact, and Human QA flows are production-proven.
@@ -32,11 +36,16 @@
 - Final Voice Map loading remains read-only; selector/display changes do not auto-save, approve a Casting Plan, prepare a job, start render, create previews, call providers, or rewrite approved plan/job snapshots. Existing Casting Plan draft save and approval boundaries remain separate.
 - Voice Library remains the custom voice creation/reference-audio/revision/preview-management surface. Assignment selectors are read-only catalog consumers and do not generate previews, call providers, or change preferred revisions.
 - `DAILY-PROD-2` Definition of Done is satisfied: usable custom voices are consistently available in reusable assignment selectors and existing Casting selectors, custom synthesis revision/provenance is visible, unavailable legacy selections are preserved/flagged, Production can route to Voice Library for missing/suitable voice setup, catalog/resolver refresh is safe, and immutable historical snapshots remain unchanged.
+- `DAILY-PROD-3A` added the completed-output Audio Library. Backend commit `836b08552eb71df51cb7b2b5ce764f68459789d1` introduced read-only `GET /api/audio-library`; UI commit `85040745081f6b01b84fb3f1d68fcce7c9797ed1` added the `#/audio` list, loading/empty/error/retry/refresh states, shared playback, download, runtime QA labels, safe DOM rendering, route-clear behavior, no autoplay, and invalid URL rejection.
+- Audio Library uses `chapters.active_audio_artifact_id` and active output bindings as the source of truth. It does not select newest Job/artifact, does not expose raw output paths, and fails closed for invalid active bindings.
+- `DAILY-PROD-3A` validation passed: `node --check ui\app.js`, focused UI/navigation suite (`38` tests), full offline suite (`1061` tests, `1` skipped), and runtime/browser smoke with `16` Audio Library items, bad URL count `0`, chapters `364-368` present, and Chapter `369` absent.
+- `DAILY-PROD-3` milestone assessment is complete: required retrieval capabilities are implemented. Filtering/detail/timeline/remediation entry remain target or later workflow capabilities and are not blockers for the current useful read-only retrieval surface.
+- `DAILY-PROD-3` Definition of Done is satisfied: completed/active output list, book/chapter organization, current runtime QA state, active audio playback, primary audio download, loading/error/empty/refresh, and passive read-only browsing are all present.
 - Browser smoke used an isolated runtime to verify contextual detour activation, logical custom voice creation, reference WAV upload, usable catalog resolution, unsaved return preselection, explicit Book Voice Profile save, cancel, and stale-context rejection. Isolated non-GET requests were limited to custom voice creation, custom revision upload, and explicit profile save; isolated jobs/job_chapters/artifacts remained `0`.
 - `DAILY-PROD-2B2-D1` canonical browser smoke loaded Chapter `369` read-only as `CASTING_REVIEW`, opened the Final Voice Map contextual Voice Library detour, verified same-tab return context, canceled back to Production, and recorded `0` canonical non-GET requests. Post-smoke verification confirmed Chapter `369` remained unchanged.
 - Chapter `369` remains deferred and unchanged; optional distinct-voice work is not active.
 - `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this closure is `SYSTEM_ROADMAP / READY_FOR_IMPLEMENTATION`.
-- Exact next task: `DAILY-PROD-3A` - Audio Library Completed Output List And Playback Entry.
+- Exact next task: `DAILY-PROD-4A` - Range Readiness Preflight And Exception Queue Contract.
 
 **Task DAILY-PROD-2B2 verified implementation state:**
 - Repository/runtime baseline passed before implementation: branch `main`, `HEAD == origin/main == 4476ddd973761eba65fc45526e735c59ada48e0e`, runtime `http://127.0.0.1:8772`, schema `12`, and only protected untracked `experiment_b_transcript/` plus `runs/` were present.

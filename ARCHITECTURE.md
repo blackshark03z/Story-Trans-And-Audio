@@ -9,7 +9,7 @@ Story Audio: EPUB → approved text → resolved casting → audio → speech ti
 YouTube Auto: Handoff V1 → visual timeline/bible → image → subtitle render → video → metadata/thumbnail
 ```
 
-Current roadmap state: Story Audio is production-ready and operates under the Daily Production UX roadmap. `DAILY-PROD-1` and `DAILY-PROD-2` are complete. `DAILY-PROD-3 - Audio Library And Output Retrieval` is the active system milestone. The exact authorized task is defined in `NEXT_TASK.md`. Chapter 369 remains paused production/editorial work, not a roadmap driver.
+Current roadmap state: Story Audio is production-ready and operates under the Daily Production UX roadmap. `DAILY-PROD-1`, `DAILY-PROD-2`, and `DAILY-PROD-3` are complete. `DAILY-PROD-4 - Range Readiness And Exception Queue` is the active system milestone. The exact authorized task is defined in `NEXT_TASK.md`. Chapter 369 remains paused production/editorial work, not a roadmap driver.
 
 ADR-013 được triển khai ở schema v3: Book Voice Profile ba nhóm (narrator/male/female), unknown fallback, optional character override và UI Manual Casting hiển thị effective resolution.
 
