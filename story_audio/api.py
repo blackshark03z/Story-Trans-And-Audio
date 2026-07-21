@@ -65,6 +65,7 @@ from .pipeline import (
     prepare_job,
     start_prepared_job,
 )
+from .range_readiness import get_range_readiness
 from .storage import ContentStore
 from .speaker_assignment import (
     SpeakerAssignmentError,
@@ -513,6 +514,25 @@ def audio_library() -> dict[str, Any]:
             }
         )
     return {"items": items, "total": len(items)}
+
+
+@app.get("/api/production/range-readiness")
+def production_range_readiness(
+    book_id: int = Query(..., gt=0),
+    from_chapter: int = Query(..., ge=0),
+    to_chapter: int = Query(..., ge=0),
+) -> dict[str, Any]:
+    try:
+        return get_range_readiness(
+            db,
+            book_id=book_id,
+            from_chapter=from_chapter,
+            to_chapter=to_chapter,
+        )
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
 
 
 @app.get("/api/books/{book_id}/chapters")

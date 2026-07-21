@@ -1,6 +1,6 @@
 # Project
 
-Updated: 2026-07-21 15:38:56 +07:00
+Updated: 2026-07-21 20:50:39 +07:00
 
 ## Product Goal
 
@@ -25,32 +25,32 @@ Production must remain a sequential state-driven workflow with one primary next 
 
 ## Current Strategic Milestone
 
-DAILY-PROD-3 - Audio Library And Output Retrieval
+DAILY-PROD-4 - Range Readiness And Exception Queue
 
 ## Current Authorized Task
 
-DAILY-PROD-3A - Audio Library Completed Output List And Playback Entry
+DAILY-PROD-4A - Range Readiness Preflight And Exception Queue Contract
 
 ## MVP / Milestone Success Criteria
 
-DAILY-PROD-3A is complete when:
+DAILY-PROD-4A is complete when:
 
-- Audio Library lists chapters that have active production audio.
-- Each chapter appears exactly once.
-- Active audio is identified by `chapters.active_audio_artifact_id`.
-- Output is not inferred from newest Job or latest completion time.
-- Operator can open or play the active artifact through the existing safe route.
-- QA state comes from current runtime/API/database state.
-- Browsing the library does not modify artifacts, QA state, or production data.
+- Operator can request a read-only chapter range within one book.
+- Each chapter appears exactly once with one current readiness state and one next action.
+- Exception queue is deterministic and contains only chapters requiring operator action.
+- Summary counts match the chapter list and exception queue.
+- Active output is identified by `chapters.active_audio_artifact_id`.
+- Runtime QA state controls whether rendered audio is pending QA or complete.
+- Preflight does not modify production data, jobs, drafts, plans, QA, artifacts, or audio.
 
 ## In Scope
 
-- Read-only completed/active audio listing.
-- Book/chapter identity.
-- Current runtime QA state.
-- Active artifact playback entry.
-- Primary audio download/open-file entry.
-- Focused offline tests.
+- Read-only range readiness endpoint.
+- Book/chapter range validation.
+- Current runtime QA and active-output pointer semantics.
+- Prepared/running/rendered/complete workflow precedence.
+- Deterministic exception queue and summary counts.
+- Focused and full offline validation.
 
 ## Out Of Scope / Later
 
@@ -58,7 +58,6 @@ DAILY-PROD-3A is complete when:
 - QA state reconciliation from historical documentation.
 - Artifact regeneration.
 - Targeted remediation.
-- Range readiness.
 - Batch workflow.
 - Batch approval, prepare, render, or QA.
 - New provider or TTS behavior.
