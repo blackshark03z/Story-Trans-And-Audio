@@ -73,6 +73,8 @@ Text chương không được lưu đầy đủ trong SQLite. DB chỉ lưu revi
 - [Trạng thái hiện tại](PROJECT_STATUS.md)
 - [Roadmap](ROADMAP.md) - chiến lược và phase hiện tại
 - [Next Task](NEXT_TASK.md) - hành động hoặc quyết định đang được ủy quyền
+- [Documentation source-of-truth policy](DOCUMENTATION_SOURCES.md)
+- [Daily Production workflow](docs/DAILY_PRODUCTION_WORKFLOW.md)
 - [Quyết định kiến trúc](docs/DECISIONS.md)
 - [Data model](docs/DATA_MODEL.md)
 - [Testing strategy](docs/TESTING.md)

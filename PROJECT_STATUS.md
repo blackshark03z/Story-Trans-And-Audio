@@ -1,9 +1,9 @@
 ﻿# Trạng thái dự án
 
 **Cập nhật:** 2026-07-20T21:15 (Asia/Saigon)
-**Milestone:** DAILY-PROD-2 Complete - Custom Voice Assignment UI Closure
+**Milestone:** DAILY-PROD-3 Active - Audio Library And Output Retrieval
 **Strategic state:** `PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP`
-**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. The operator selected `CHOOSE_C_DEFER_CH369_AND_ACTIVATE_DAILY_PRODUCTION_UX_ROADMAP`; `DAILY-PROD-1` and `DAILY-PROD-2` are implemented. Production remains a modular, state-resolved, single-current-stage workflow. Reusable voice assignment selectors share one canonical preset/custom voice catalog across Book Voice Profile, Character Manager, and Final Voice Map surfaces, and operators can detour to Voice Library from an assignment context, then return to the exact book/chapter/stage/field without auto-saving, approving, preparing, rendering, or calling provider/TTS.
+**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1` is complete. `DAILY-PROD-2` is complete. Current milestone: `DAILY-PROD-3` - Audio Library And Output Retrieval. Exact next task: `DAILY-PROD-3A` - Audio Library Completed Output List And Playback Entry. Production remains a modular, state-resolved, single-current-stage workflow. Reusable voice assignment selectors share one canonical preset/custom voice catalog across Book Voice Profile, Character Manager, and Final Voice Map surfaces, and operators can detour to Voice Library from an assignment context, then return to the exact book/chapter/stage/field without auto-saving, approving, preparing, rendering, or calling provider/TTS.
 
 **Last verified against commit:** `13e9352d3523e9af5a02dbfe81922129fa8a5218` before `DAILY-PROD-2A` implementation
 **Last verified branch:** `main`

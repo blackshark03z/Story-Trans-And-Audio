@@ -26,6 +26,8 @@ Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve
 - Task 11D3C Production-Go Decision: final readiness re-audit recorded `PRODUCTION_GO`; a second acceptance chapter is not required for rollout.
 - Production validation evidence: Chapters 364-368 completed routine production with Human QA PASS and active artifacts 69, 72, 78, 75, and 84.
 - Reusable hardening after production blockers: runtime identity/active-output clarity, separated speaker-review workflow, prepared-job lifecycle, targeted text correction workflow, repair-block workflow, and custom voice preview provenance fail-closed guard.
+- DAILY-PROD-1 - Modular Navigation And Sequential Production Shell: complete.
+- DAILY-PROD-2 - Custom Voice Assignment UI Closure: complete.
 
 ## Current Strategic Phase
 
@@ -41,16 +43,18 @@ Chapter production tasks, including Chapter 369 voice selection or Casting Plan 
 
 ## Active System Milestone
 
-**DAILY-PROD-1 — Modular Navigation And Sequential Production Shell**
+**DAILY-PROD-3 - Audio Library And Output Retrieval**
 
-Build the smallest safe shell that separates Home, Production, Voice Library, Books And Characters, Audio Library, and Settings while making Production a sequential state-driven flow with one primary next action.
+Build a non-technical retrieval surface for completed production audio.
 
-DAILY-PROD-1 must:
+The milestone must:
 
-- Preserve existing backend APIs and persisted production state.
-- Avoid provider, TTS, preview, Casting Plan approval, job creation, or audio rendering in shell acceptance.
-- Route Chapter 369 read-only to its current Final Voice Map review state without mutating it.
-- Not implement DAILY-PROD-2 through DAILY-PROD-6 prematurely.
+- list chapters with active production audio;
+- use the existing active artifact binding;
+- show current runtime QA state;
+- allow safe playback and download/open-file access;
+- preserve immutable artifact and targeted-remediation boundaries;
+- remain read-only during browsing.
 
 ## Ordered Daily Production UX Roadmap
 
@@ -63,7 +67,9 @@ DAILY-PROD-1 must:
 
 ## Next
 
-See `NEXT_TASK.md` for the bounded DAILY-PROD-1 implementation task. It must conform to this roadmap and cannot silently advance later milestones.
+See `NEXT_TASK.md` for:
+
+`DAILY-PROD-3A - Audio Library Completed Output List And Playback Entry`
 
 ## Paused
 

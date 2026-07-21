@@ -4,11 +4,15 @@ File nÃ y dÃ nh cho ká»¹ sÆ° vÃ  cÃ¡c phiÃªn Codex tiáº¿p theo
 
 ## Thá»© tá»± Ä‘á»c
 
-1. `PROJECT_STATUS.md` â€” tráº¡ng thÃ¡i tháº­t vÃ  viá»‡c tiáº¿p theo.
-2. `README.md` â€” cÃ¡ch cháº¡y vÃ  sá»­ dá»¥ng.
-3. `docs/DECISIONS.md` â€” nhá»¯ng quyáº¿t Ä‘á»‹nh khÃ´ng nÃªn tá»± Ã½ Ä‘áº£o ngÆ°á»£c.
-4. `docs/DATA_MODEL.md` â€” entity, state vÃ  invalidation.
-5. Chá»‰ Ä‘á»c pháº§n liÃªn quan trong `ARCHITECTURE.md`; khÃ´ng cáº§n náº¡p toÃ n bá»™ khi sá»­a lá»—i nhá».
+1. Verify Git/runtime state directly before trusting summaries.
+2. `.ai/PROJECT.md` - compact stable project context.
+3. `.ai/STATE.md` - compact current handoff state.
+4. `.ai/DECISIONS.md` - continuity decisions for takeover.
+5. `ROADMAP.md` - strategic direction and active milestone.
+6. `PROJECT_STATUS.md` - concise last verified product/runtime state.
+7. `NEXT_TASK.md` - one authorized next task.
+8. Read relevant canonical docs such as `DOCUMENTATION_SOURCES.md`, `docs/DAILY_PRODUCTION_WORKFLOW.md`, `docs/DECISIONS.md`, `docs/DATA_MODEL.md`, `docs/RUNBOOK.md`, and `docs/TESTING.md`.
+9. Read external ACTIVE_TASK capsule only after repository docs and real state have been checked.
 
 ## Báº£n Ä‘á»“ mÃ£ nguá»“n
 
