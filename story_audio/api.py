@@ -429,6 +429,92 @@ def list_books() -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
+@app.get("/api/audio-library")
+def audio_library() -> dict[str, Any]:
+    rows = db.fetch_all(
+        """
+        SELECT c.id AS chapter_id,
+               c.book_id,
+               c.chapter_number,
+               c.title AS chapter_title,
+               c.audio_status,
+               c.active_audio_artifact_id,
+               c.human_approval_json,
+               b.title AS book_title,
+               a.id AS artifact_id,
+               a.artifact_type,
+               a.sha256,
+               a.size_bytes,
+               a.duration_ms,
+               a.status AS artifact_status,
+               a.created_at AS artifact_created_at,
+               a.verified_at AS artifact_verified_at
+        FROM chapters c
+        JOIN books b ON b.id = c.book_id
+        JOIN artifacts a
+             ON a.id = c.active_audio_artifact_id
+            AND a.deleted_at IS NULL
+        WHERE c.active_audio_artifact_id IS NOT NULL
+        ORDER BY b.title COLLATE NOCASE, c.chapter_number, c.id
+        """
+    )
+    chapter_ids = [int(row["chapter_id"]) for row in rows]
+    active_bindings = get_active_output_bindings(db, chapter_ids)
+    items: list[dict[str, Any]] = []
+    seen_chapters: set[int] = set()
+    for row in rows:
+        chapter_id = int(row["chapter_id"])
+        if chapter_id in seen_chapters:
+            continue
+        binding = active_bindings.get(chapter_id, {})
+        artifact_id = int(row["artifact_id"])
+        if binding.get("active_output_artifact_id") != artifact_id:
+            continue
+        chapter_data, human_approval = _decorate_human_approval(
+            {
+                "id": chapter_id,
+                "active_audio_artifact_id": row["active_audio_artifact_id"],
+                "human_approval_json": row["human_approval_json"],
+            },
+            _parse_human_approval(row["human_approval_json"]),
+            binding,
+        )
+        seen_chapters.add(chapter_id)
+        items.append(
+            {
+                "book_id": int(row["book_id"]),
+                "book_title": row["book_title"],
+                "chapter_id": chapter_id,
+                "chapter_number": int(row["chapter_number"]),
+                "chapter_title": row["chapter_title"],
+                "audio_status": row["audio_status"],
+                "artifact_id": artifact_id,
+                "artifact_kind": row["artifact_type"],
+                "artifact_status": row["artifact_status"],
+                "file_url": f"/api/artifacts/{artifact_id}/file",
+                "download_url": f"/api/artifacts/{artifact_id}/file",
+                "sha256": row["sha256"],
+                "size_bytes": int(row["size_bytes"]) if row["size_bytes"] is not None else None,
+                "duration_ms": int(row["duration_ms"]) if row["duration_ms"] is not None else None,
+                "artifact_created_at": row["artifact_created_at"],
+                "artifact_verified_at": row["artifact_verified_at"],
+                "job_id": binding.get("active_output_job_id"),
+                "job_chapter_id": binding.get("active_output_job_chapter_id"),
+                "job_chapter_status": binding.get("active_output_job_chapter_status"),
+                "casting_plan_id": binding.get("active_output_casting_plan_id"),
+                "casting_plan_revision": binding.get("active_output_casting_plan_revision"),
+                "human_qa_status": chapter_data["human_qa_status"],
+                "human_approval_status": chapter_data["human_approval_status"],
+                "human_approval_label": chapter_data["human_approval_label"],
+                "human_approval_warning": chapter_data["human_approval_warning"],
+                "human_approval_matches_active_artifact": (
+                    human_approval.get("matches_active_artifact") if human_approval else None
+                ),
+            }
+        )
+    return {"items": items, "total": len(items)}
+
+
 @app.get("/api/books/{book_id}/chapters")
 def list_chapters(
     book_id: int,

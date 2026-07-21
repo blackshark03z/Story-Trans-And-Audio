@@ -1,115 +1,91 @@
 # DAILY-PROD-3A Durable Checkpoint State
 
-Updated: 2026-07-21 15:38:56 +07:00
+Updated: 2026-07-21 16:18:38 +07:00
 
 ## Current Goal
 
-Prepare durable handoff and then implement DAILY-PROD-3A.
+Close out DAILY-PROD-3A Phase 1, the read-only Audio Library backend contract.
 
 ## Status
 
-in_progress
+complete
 
-## Documentation Reconciliation
+## Current Phase
 
-- Documentation reconciliation: complete.
-- Active milestone: `DAILY-PROD-3` - Audio Library And Output Retrieval.
-- Next task: `DAILY-PROD-3A` - Audio Library Completed Output List And Playback Entry.
-- Implementation: not started.
-- Runtime fresh verification: unavailable.
+DAILY-PROD-3A Phase 1 backend contract complete.
 
-## Baseline
+## Implementation
 
-- Repository: `D:\Youtube\Story Trans And Audio`
-- Branch: `main`
-- HEAD: `6d231771f8b8f2249a4dd76521db97f8a8392f9a`
-- Subject: `fix: stabilize contextual voice detour activation`
-- Implementation: not started
-- Tracked worktree before durable checkpoint: clean
-- Protected untracked paths:
+- Implemented `GET /api/audio-library`.
+- Endpoint returns `{items, total}`.
+- Each completed output chapter appears at most once.
+- Active output selection uses `chapters.active_audio_artifact_id`.
+- Active Job/Casting Plan binding reuses `get_active_output_bindings`.
+- Human QA state reuses `_decorate_human_approval`.
+- Playback and download use safe `/api/artifacts/{artifact_id}/file` URLs.
+- The response does not expose artifact filesystem paths or the full Human Approval snapshot.
+- Audio Library UI integration has not started.
+
+## Runtime
+
+- Runtime URL: `http://127.0.0.1:8772`.
+- Runtime identity: canonical live root verified.
+- `data_root = D:\Youtube\Story Trans And Audio\data`
+- `is_canonical_live_data_root = true`
+- `is_canonical_live_db = true`
+- `schema_version = 12`
+- `latest_schema_version = 12`
+- `GET /api/audio-library`: PASS.
+- Total active-output items: 16.
+- Chapters `364-368` present with artifacts `69`, `72`, `78`, `75`, `84`.
+- Chapter `369` absent because it has no active audio artifact.
+- Runtime QA state:
+  - Chapter `364`: `pending`
+  - Chapter `365`: `pending`
+  - Chapter `366`: `pending`
+  - Chapter `367`: `pending`
+  - Chapter `368`: `accepted`
+- Duplicate chapter count: 0.
+- Bad file URL count: 0.
+- Forbidden path/full-approval field count: 0.
+
+## Tests
+
+- Focused suite:
+  - `python -m unittest tests.test_audio_library_api tests.test_active_output tests.test_human_approval_api -v`
+  - PASS, 14 tests.
+- Full offline suite:
+  - `python -m unittest discover -s tests -v`
+  - PASS, 1050 tests, 1 skipped.
+- `git diff --check`: pending final commit validation.
+
+## Repository State
+
+- Branch: `main`.
+- Phase start HEAD: `9303ba9c5b6c938367d8840620d79b933e0ace90`.
+- Phase start subject: `docs: reconcile DAILY-PROD-3 documentation state`.
+- Local `main` is ahead of `origin/main` by existing documentation checkpoint commits; this task does not push.
+- Expected committed files for Phase 1 closeout:
+  - `.ai/STATE.md`
+  - `story_audio/api.py`
+  - `tests/test_audio_library_api.py`
+- Protected untracked paths preserved:
   - `experiment_b_transcript/`
   - `runs/`
 
-## Investigation Completed
+## Safety
 
-- Read task attachment for `DAILY-PROD-3A`.
-- Verified baseline Git state before investigation.
-- Read relevant canonical docs:
-  - `NEXT_TASK.md`
-  - `ROADMAP.md`
-  - `docs/DAILY_PRODUCTION_WORKFLOW.md`
-  - `PROJECT_STATUS.md`
-  - `docs/DECISIONS.md`
-  - `ARCHITECTURE.md`
-  - `docs/DATA_MODEL.md`
-  - `docs/RUNBOOK.md`
-  - `docs/TESTING.md`
-  - `CHANGELOG.md`
-- Inspected existing code paths:
-  - `story_audio/active_output.py`
-  - `story_audio/api.py`
-  - `story_audio/db.py`
-  - `ui/index.html`
-  - `ui/app.js` search results around routing, active output, audio, and QA state
-  - related tests surfaced by search, including active output, human approval, production state, and shell UI tests
-
-## Confirmed Source-Of-Truth Findings
-
-- Active artifact selection must use `chapters.active_audio_artifact_id` plus `story_audio.active_output.get_active_output_bindings`.
-- Audio Library must not select output by newest Job, highest Job ID, or latest completion time.
-- Existing playback route is `GET /api/artifacts/{artifact_id}/file`.
-- Chapter detail decorates Human QA state through `_decorate_human_approval` using `chapters.human_approval_json` and active artifact matching.
-- The existing Audio Library view in `ui/index.html` is currently a placeholder and points users back to Production.
-- No implementation for `GET /api/audio-library` was found yet.
-- The documentation/runtime mismatch must not be repaired by editing production data.
-
-## Runtime State
-
-- Runtime `http://127.0.0.1:8772` is not currently reachable at this durable checkpoint.
-- Earlier read-only GET inspection in this session found the runtime was schema 12 on canonical live DB.
-- Earlier read-only GET inspection found chapters 364-368 have active outputs.
-- Earlier read-only GET inspection found Chapter 369 had no job, artifact, or audio.
-- Earlier runtime/API state found only Chapter 368 reported `human_approval_status=approved` and `human_qa_status=accepted`.
-- Earlier runtime/API state found Chapters 364-367 have active audio artifacts but QA fields reported pending.
-- Documentation/runtime mismatch: historical docs record Human QA PASS for Chapters 364-367, but runtime fields observed earlier were still pending.
-- These runtime QA findings were not fresh-verified during this final checkpoint because the runtime is unavailable.
-
-## Changed Files
-
-- Durable checkpoint files only:
-  - `.ai/PROJECT.md`
-  - `.ai/STATE.md`
-  - `.ai/DECISIONS.md`
-- External capsule files may be updated after commit:
-  - `D:\Youtube_AI_HANDOFFS\Story Audio\ACTIVE_TASK.md`
-  - `D:\Youtube_AI_HANDOFFS\Story Audio\GIT_STATE.txt`
-  - `D:\Youtube_AI_HANDOFFS\Story Audio\LAST_TEST_RESULT.txt`
-
-## Tests And Validation
-
-- `git diff --check`: to be run before commit.
-- Focused implementation tests: not run, because implementation has not started.
-- Full offline suite: not run, because this is a documentation-only checkpoint.
-- `node --check ui\app.js`: not run, because no JavaScript file has been edited.
-
-## Unchecked / Remaining
-
-- Runtime needs to be restored or verified by the project-approved operational process before browser/runtime acceptance.
-- Schema columns for artifacts/jobs/job_chapters still need focused inspection before implementing the aggregate endpoint.
-- Backend response contract for Audio Library has not been implemented.
-- UI replacement for the placeholder Audio Library has not been implemented.
-- Focused backend and UI tests have not been added.
-
-## Blocker
-
-- No implementation blocker found yet.
-- Runtime unavailable blocks fresh runtime and browser acceptance until resolved.
+- No UI implementation was started.
+- No database, QA state, artifact, audio, or Chapter 369 production state was mutated.
+- No provider, Gemini, or TTS call was made.
+- No migrations were changed.
+- No push is part of this closeout.
 
 ## Next Exact Action
 
-1. Restore or verify runtime using the project-approved operational process.
-2. Open `story_audio/api.py`.
-3. Identify the right location for a read-only Audio Library endpoint.
-4. Open `story_audio/active_output.py` and reuse the active-output binding helper.
-5. Add a focused backend test proving the active pointer is used instead of newest Job.
-6. Do not start UI work until the backend response contract is verified.
+1. Open `ui/index.html`, `ui/app.js`, and `ui/styles.css`.
+2. Inspect the existing `#/audio` top-level view and current artifact playback helpers.
+3. Render `GET /api/audio-library` items as a non-technical book/chapter list.
+4. Reuse the safe artifact URL for playback/download.
+5. Add focused UI contract tests.
+6. Preserve read-only behavior and QA state exactly as returned by the API.
