@@ -1,6 +1,6 @@
 # Project
 
-Updated: 2026-07-22 21:00:56 +07:00
+Updated: 2026-07-22
 
 ## Product Goal
 
@@ -29,22 +29,22 @@ DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout
 
 ## Current Authorized Task
 
-DAILY-PROD-5B Phase 10 - Isolated End-to-End PREPARE Adapter Assembly And Recovery Acceptance
+DAILY-PROD-5B Phase 11 — Runtime PREPARE Wiring, Canonical Activation, And Operator Rollout Design Contract
 
 ## MVP / Milestone Success Criteria
 
-DAILY-PROD-5B Phases 1-9 are complete. Phase 10 is complete when the accepted isolated components are assembled behind the orchestrator on disposable schema-15 databases with durable terminal-result and restart acceptance:
+DAILY-PROD-5B Phases 1-10 are complete in isolated scope. Phase 11 is design-only and is complete when the runtime dependency graph, canonical rollout, operator controls, and rollback boundary are reviewed without implementation:
 
-- Orchestrator and owner-fenced transaction service are integrated through injection only.
-- Durable APPLIED/REJECTED/FAILED result ordering and historical replay are proven.
-- Duplicate, stale-plan, fencing, response-loss, rollback, ambiguous-outcome, and restart paths are fail-closed.
-- No canonical migration, runtime orchestration wiring, API/UI execution path, production Job/JobChapter creation, worker wake, provider/Gemini/TTS call, or START_RENDER integration is implemented.
+- Runtime dependency wiring and feature-flag default-off behavior are explicit.
+- Canonical schema 12 -> 15 activation, backup, maintenance, hash, rollback, recovery, and kill-switch procedures are explicit.
+- API/status, operator confirmation, audit/redaction, Chapter 369 protection, and production acceptance contracts are explicit.
+- No runtime migration, API/UI execution path, production Job/JobChapter creation, worker wake, provider/Gemini/TTS call, or START_RENDER integration is implemented.
 
 ## In Scope
 
-- Assemble existing isolated request/orchestrator/transaction/linkage/result modules.
-- Use explicit dormant schema 12 -> 15 only on temporary databases.
-- Prove durable terminal results, replay, concurrency, fencing, stale-plan, failure, response-loss, and restart behavior.
+- Inspect runtime/startup/service conventions and design the Phase 11 rollout boundary.
+- Keep the accepted Phase 10 adapter and dormant schema 12 -> 15 evidence isolated to temporary databases.
+- Define API/status, operator confirmation, audit/redaction, maintenance, backup/rollback, feature-flag, recovery, and kill-switch contracts.
 
 ## Out Of Scope / Later
 
@@ -64,6 +64,7 @@ DAILY-PROD-5B Phases 1-9 are complete. Phase 10 is complete when the accepted is
 - API integration.
 - New provider or TTS behavior.
 - Canonical schema migration, unless proven necessary and approved separately.
+- Runtime PREPARE wiring implementation, canonical activation, production PREPARE execution, API/UI mutation controls, worker wake, and START_RENDER.
 
 ## Technical Context
 
@@ -108,8 +109,8 @@ node --check ui\app.js
 - Explicit dormant schema 13-15 activation is authorized only for temporary or isolated databases.
 - Canonical production migration remains unauthorized.
 - PREPARE execution endpoint remains unauthorized.
-- Phase 10 end-to-end adapter assembly is authorized only through dependency injection on isolated/temporary databases.
-- Runtime batch PREPARE adapter/orchestrator integration remains unauthorized.
+- Phase 10 end-to-end adapter assembly is complete only through dependency injection on isolated/temporary databases.
+- Phase 11 runtime PREPARE wiring and rollout design is authorized; runtime implementation remains unauthorized.
 - Canonical schema 13/14 or later activation remains unauthorized.
 - START_RENDER remains separate.
 - Approval, prepare, and render start remain separate actions.

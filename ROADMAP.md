@@ -40,6 +40,7 @@ Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve
 - DAILY-PROD-5B Phase 7 - Dormant Request-to-Job Linkage Persistence: complete. Added dormant schema-14 linkage artifact, pure isolated linkage repository, request/Job uniqueness, transaction evidence validation, deterministic replay/conflict behavior, concurrency/rollback tests, and no canonical activation or pipeline integration.
 - DAILY-PROD-5B Phase 8 - Same-Transaction PREPARE Adapter Integration Design: complete. Defined the caller-owned transaction boundary, authoritative input revalidation, ownership fencing prerequisites, overlap-race mitigation, immutable JobChapter evidence, commit/recovery semantics, evidence-gated APPLIED handoff, and isolated model validation; implementation remains blocked until Phase 9.
 - DAILY-PROD-5B Phase 9 - Isolated Same-Transaction PREPARE Prerequisites: complete. Added dormant schema 15 ownership/fencing/lease evidence, caller-owned `BEGIN IMMEDIATE`, transaction-scoped revalidation and Job/JobChapter/linkage writers, overlap serialization, rollback/ambiguous-outcome recovery, and process-restart acceptance without runtime wiring or canonical activation.
+- DAILY-PROD-5B Phase 10 - Isolated End-to-End PREPARE Adapter Assembly: complete. Assembled request replay, ownership/fencing, second-plan validation, authoritative transaction revalidation, one Job/N JobChapter/linkage/COMMITTED attempt, durable evidence-gated APPLIED persistence, replay, concurrency, bounded busy, response-loss, process-restart, rollback, ambiguous-commit, redaction, render-compatible pin, and temporary-root acceptance. Implementation commit `c47d829cddd3e16914d5bf60b4beb20063299820`; runtime wiring and canonical activation remain unauthorized.
 
 ## Current Strategic Phase
 
@@ -70,13 +71,10 @@ The milestone must:
 
 Current boundary:
 
-1. Assemble the accepted Phase 1-9 components into one end-to-end PREPARE adapter on temporary schema-15 databases only.
-2. Keep dormant schema artifacts dormant and canonical/default schema at version 12.
-3. Prove orchestrator result persistence, replay, fencing, stale-plan rejection, failure injection, and restart recovery with synthetic facts.
-4. Keep runtime adapter/orchestrator wiring, PREPARE API/UI, production Job creation, provider/Gemini/TTS, worker wake, and START_RENDER unauthorized.
-5. Keep render start as a separate explicit action.
-6. Define monitor/resume, partial-failure, retry, and recovery behavior before broad execution.
-7. Close QA/recovery workflows only through later bounded tasks.
+1. Treat DAILY-PROD-5B Phases 1-10 as complete and keep dormant schema artifacts dormant with canonical/default schema at version 12.
+2. Review only the Phase 11 runtime PREPARE wiring, canonical activation, operator rollout, backup/rollback, audit, maintenance, feature-flag, and kill-switch design boundary.
+3. Keep runtime adapter/orchestrator wiring, PREPARE API/UI, production Job creation, provider/Gemini/TTS, worker wake, and START_RENDER unauthorized.
+4. Keep START_RENDER as a separate explicit lifecycle action and do not advance to DAILY-PROD-6.
 
 ## Ordered Daily Production UX Roadmap
 
@@ -91,11 +89,11 @@ Current boundary:
 
 See `NEXT_TASK.md` for:
 
-`DAILY-PROD-5B Phase 10 - Isolated End-to-End PREPARE Adapter Assembly And Recovery Acceptance`
+`DAILY-PROD-5B Phase 11 — Runtime PREPARE Wiring, Canonical Activation, And Operator Rollout Design Contract`
 
 ## Paused
 
-No paused tasks.
+Chapter 369 remains paused as production/editorial work; this does not authorize production PREPARE.
 
 ## Deferred (Awaiting User Approval)
 

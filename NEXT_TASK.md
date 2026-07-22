@@ -1,47 +1,50 @@
 # Next Task
 
 Task classification:
-`SYSTEM_ROADMAP / ISOLATED_END_TO_END_ADAPTER_ASSEMBLY_AUTHORIZED / RUNTIME_WIRING_NOT_AUTHORIZED / CANONICAL_ACTIVATION_NOT_AUTHORIZED / PRODUCTION_PREPARE_EXECUTION_NOT_AUTHORIZED / API_INTEGRATION_NOT_AUTHORIZED`
+`SYSTEM_ROADMAP / RUNTIME_PREPARE_WIRING_DESIGN_AUTHORIZED / RUNTIME_IMPLEMENTATION_NOT_AUTHORIZED / CANONICAL_ACTIVATION_NOT_AUTHORIZED / PRODUCTION_PREPARE_EXECUTION_NOT_AUTHORIZED / START_RENDER_NOT_AUTHORIZED`
 
 Active milestone:
 `DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout`
 
 Exact next task:
-`DAILY-PROD-5B Phase 10 - Isolated End-to-End PREPARE Adapter Assembly And Recovery Acceptance`
-
-Checkpoint authority:
-
-- Phase 9 implementation commit: `9d0adf9a72e2d64e3bf3c4e8c6a42e3df813b544`.
-- Phase 9 verdict: `DAILY_PROD_5B_PHASE_9_COMPLETE_ISOLATED_ONLY`.
-- Dormant schema chain: explicit temporary `12 -> 13 -> 14 -> 15`; canonical/default schema remains `12 / 12`.
-- Focused/affected validation: `233` tests PASS; full offline validation: `1481` tests PASS, `1` skipped.
-- Canonical DB and Chapter 369 were not mutated.
+`DAILY-PROD-5B Phase 11 — Runtime PREPARE Wiring, Canonical Activation, And Operator Rollout Design Contract`
 
 Operator pain:
 
-The isolated transaction prerequisites now exist, but the orchestrator, owner-fenced transaction service, Job/JobChapter writer, durable linkage, and terminal request-result store have not yet been assembled into one end-to-end temporary-database PREPARE adapter with historical replay and recovery acceptance.
+The isolated PREPARE adapter has passed end-to-end transaction, replay, fencing, concurrency and recovery acceptance, but production runtime wiring, canonical migration rollout, operator controls, audit visibility and rollback procedures have not been reviewed as one deployment boundary.
 
-Allowed Phase 10 scope:
+Allowed Phase 11 scope:
 
-1. Assemble the existing isolated modules behind an injected adapter.
-2. Use disposable databases with the explicit dormant schema `12 -> 15` chain and synthetic facts only.
-3. Call the existing orchestrator with the injected isolated adapter.
-4. Create synthetic prepared Jobs and JobChapters only in temporary databases.
-5. Persist durable `APPLIED`, `REJECTED`, and `FAILED` request results after evidence-gated transaction outcomes.
-6. Prove concurrent duplicate requests, stale plans, owner fencing, response-loss recovery, failure injection, historical replay, and end-to-end process restart.
-7. Preserve legacy single-chapter behavior and the explicit START_RENDER separation.
+- Inspect runtime API/startup/service conventions.
+- Design runtime adapter dependency wiring.
+- Design canonical schema 12 -> 15 activation sequence.
+- Design backup, hash verification, and rollback procedure.
+- Design preflight and maintenance-mode requirements.
+- Design API request/status contract and idempotency fields.
+- Design operator confirmation boundary and audit/redaction.
+- Design rollout feature flag, recovery flow, and kill switch.
+- Design Chapter 369 protection and production acceptance plan.
+- Pure contracts, model tests, and documentation only.
 
-Explicitly excluded:
+Excluded:
 
-- Runtime import or pipeline/orchestrator wiring.
-- Active migration registration or canonical schema activation.
-- Production DB access or real production Job/JobChapter creation.
-- API route or UI mutation controls.
-- Worker wake, START_RENDER, provider, Gemini, TTS, audio, segments, attempts, or artifacts.
-- Chapter 369 production or any protected-path mutation.
+- Active migration or canonical DB mutation.
+- Production API route or UI mutation control.
+- Actual PREPARE execution or Job/JobChapter creation.
+- Worker wake, START_RENDER, provider, Gemini, or TTS.
+- Chapter 369 production action.
 
-Required stop conditions:
+Acceptance criteria:
 
-- Stop if assembly requires a runtime import, canonical DB access, active migration, API/UI change, production mutation, worker wake, or provider/TTS call.
-- Stop if a duplicate/recovery path can create a second Job or if `APPLIED` can be recorded without exact post-commit evidence.
-- Stop if ownership fencing, stale-plan rejection, rollback absence proof, or ambiguous-outcome handling fails closed.
+1. Runtime dependency graph is explicit.
+2. No import-time migration or mutation.
+3. Canonical migration sequence is explicit.
+4. Backup, hash, and rollback procedure is explicit.
+5. Maintenance-mode requirement is explicit.
+6. API idempotency and confirmation fields are explicit.
+7. Status and recovery endpoint behavior is explicit.
+8. Authorization and feature flag default off.
+9. Logs redact owner tokens and sensitive paths.
+10. Operator can kill or disable PREPARE without affecting read-only planning.
+11. START_RENDER remains separate.
+12. No runtime implementation occurs.

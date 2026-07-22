@@ -16,6 +16,14 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DAILY-PROD-5B Phase 10 - Isolated End-to-End PREPARE Adapter Assembly**: implementation commit `c47d829cddd3e16914d5bf60b4beb20063299820` assembles the Phase 5-9 contracts behind an explicitly injected adapter on disposable schema-15 databases only.
+  - Added replay-first durable request handling, request ownership, execution token hash/lease/generation fencing, second-plan validation, authoritative in-transaction revalidation, overlap serialization, and deterministic conflict rejection.
+  - Added one atomic prepared Job, N JobChapters, one request-to-Job linkage, and one COMMITTED execution attempt with post-commit durable evidence reload before APPLIED persistence.
+  - Added render-compatible immutable TTS, Casting Plan, voice, and utterance pins; compact bounded result references; fixed public redaction; legacy store compatibility; and explicit temporary-root/marker enforcement.
+  - Added response-loss, APPLIED persistence-loss, process-restart, expired-owner race, terminal-write race, bounded-busy, rollback, failure-injection, and ambiguous-commit acceptance.
+  - Validation passed: Phase 10 core `59` tests, focused affected `404` tests, concurrency `9` tests repeated ten times, full offline `1524` tests with `1` skip, syntax and `node --check ui/app.js`, and Doctor `critical_errors=0`.
+  - Canonical safety passed: runtime/schema `12 / 12`; DB hash `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984`, mtime unchanged; dormant tables and WAL/SHM absent; Chapter `369` remained unchanged with zero jobs/artifacts.
+  - Runtime adapter wiring, canonical activation, production PREPARE, API/UI mutation, worker wake, provider/Gemini/TTS, and START_RENDER remain unauthorized. Next boundary: Phase 11 design-only runtime rollout review.
 - **DAILY-PROD-5B Phase 9 - Isolated Same-Transaction PREPARE Prerequisites**: implementation checkpoint `9d0adf9a72e2d64e3bf3c4e8c6a42e3df813b544` resolves all four Phase 8 blockers in disposable databases only.
   - Added dormant schema 15 execution-attempt persistence with token-hash security, monotonic fencing generation, bounded lease, terminal outcome constraints, and no raw token at rest.
   - Added caller-owned `BEGIN IMMEDIATE`, authoritative request/Text Revision/Casting Plan/voice-pin revalidation, transaction-scoped prepared Job/JobChapter and linkage writers, and exact post-commit evidence reload.

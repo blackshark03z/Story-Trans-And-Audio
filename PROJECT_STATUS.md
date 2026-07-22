@@ -1,11 +1,11 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-22T21:00:56 +07:00 (Asia/Bangkok)
+**Cập nhật:** 2026-07-22 (Asia/Bangkok)
 **Milestone:** DAILY-PROD-5 Active - Batch Approval, Prepare, Render And QA Closeout
 **Strategic state:** `PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP`
-**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1` through `DAILY-PROD-4`, `DAILY-PROD-5A`, and `DAILY-PROD-5B` Phases 1 through 9 are complete. Phase 9 resolved all four same-transaction blockers in isolated schema-15 infrastructure; runtime batch PREPARE remains unauthorized. The active boundary is Phase 10 isolated end-to-end adapter assembly and recovery acceptance.
+**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1` through `DAILY-PROD-4`, `DAILY-PROD-5A`, and `DAILY-PROD-5B` Phases 1 through 10 are complete in isolated scope. Phase 10 proves the end-to-end PREPARE adapter only on disposable schema-15 databases; runtime wiring, canonical activation, and production PREPARE remain unauthorized. The next boundary is Phase 11 runtime-readiness and rollout design.
 
-**Last verified implementation commit:** `9d0adf9a72e2d64e3bf3c4e8c6a42e3df813b544`
+**Last verified implementation commit:** `c47d829cddd3e16914d5bf60b4beb20063299820`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-22
 **Canonical runtime:** `http://127.0.0.1:8772`
@@ -25,13 +25,17 @@
 **DAILY-PROD-5B Phase 7:** complete
 **DAILY-PROD-5B Phase 8:** complete
 **DAILY-PROD-5B Phase 9:** complete
+**DAILY-PROD-5B Phase 10:** complete - isolated end-to-end adapter only
 **DAILY-PROD-5:** active
-**Mutation authorization:** `ISOLATED_END_TO_END_ADAPTER_ASSEMBLY_AUTHORIZED`
+**Mutation authorization:** `RUNTIME_PREPARE_WIRING_DESIGN_AUTHORIZED`
 **Isolated schema-13 integration validation:** `COMPLETE`
 **Isolated PREPARE orchestration contract:** `COMPLETE`
 **Job transaction adapter design:** `COMPLETE`
 **Isolated linkage persistence implementation:** `COMPLETE`
 **Isolated same-transaction prerequisite resolution:** `COMPLETE`
+**Isolated end-to-end PREPARE adapter:** `COMPLETE / TEMPORARY_DATABASE_ONLY`
+**Phase 10 implementation commit:** `c47d829cddd3e16914d5bf60b4beb20063299820`
+**Phase 10 validation:** `1524` tests PASS, `1` skipped; focused affected `404` PASS; Doctor `critical_errors=0`
 **Runtime adapter/orchestrator integration:** `NOT_AUTHORIZED`
 **Linkage pipeline integration:** `NOT_AUTHORIZED`
 **Job transaction adapter implementation:** `NOT_AUTHORIZED`
@@ -39,6 +43,7 @@
 **PREPARE execution:** `NOT_AUTHORIZED`
 **API integration:** `NOT_AUTHORIZED`
 **START_RENDER:** `NOT_AUTHORIZED`
+**Phase 11 runtime-readiness design:** `AUTHORIZED / IMPLEMENTATION_NOT_AUTHORIZED`
 **Dormant migrations:** `story_audio/migrations/dormant/0013_batch_prepare_requests.sql`, `story_audio/migrations/dormant/0014_batch_prepare_job_links.sql`, `story_audio/migrations/dormant/0015_batch_prepare_execution_attempts.sql`
 **Durable request store:** `story_audio/batch_prepare_store.py`
 **PREPARE orchestration:** `story_audio/batch_prepare_orchestrator.py`

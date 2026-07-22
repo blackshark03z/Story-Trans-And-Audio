@@ -1,6 +1,6 @@
 # Continuity Decisions
 
-Updated: 2026-07-22 21:00:56 +07:00
+Updated: 2026-07-22
 
 ## CONT-001 - Real state outranks checkpoint
 
@@ -238,6 +238,22 @@ Phase 9 implemented the transaction prerequisites only as dormant, isolated infr
 Phase 10 must assemble the existing orchestrator, request store, owner-fenced transaction service, Job/JobChapter writer, linkage, and terminal result persistence on temporary schema-15 databases. It must prove full historical replay, stale-plan rejection, fencing, duplicate concurrency, response-loss recovery, failure injection, and process restart before runtime integration may be considered.
 
 Canonical migration, runtime import/wiring, production PREPARE execution, API/UI controls, worker wake, provider/Gemini/TTS, and START_RENDER remain unauthorized.
+
+## CONT-019 - Production PREPARE requires a reviewed runtime wiring and rollout boundary
+
+Phase 10 proves isolated behavior only. Its adapter creates synthetic prepared
+Jobs inside disposable schema-15 databases and is not imported by runtime/API/UI
+or the production worker.
+
+Canonical activation must be planned separately. Runtime feature flag default-off
+behavior, operator confirmation, audit visibility, redaction, maintenance mode,
+backup/hash/rollback, recovery, and a kill switch must be reviewed as one Phase 11
+deployment boundary before any production mutation is considered.
+
+START_RENDER remains a separate lifecycle and authorization gate. Runtime
+implementation, canonical schema activation, production PREPARE, API/UI mutation,
+worker wake, provider/Gemini/TTS, and Chapter 369 production action remain
+unauthorized.
 
 ## References
 
