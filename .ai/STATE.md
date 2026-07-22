@@ -1,6 +1,6 @@
 # DAILY-PROD Checkpoint State
 
-Updated: 2026-07-22 19:42:07 +07:00
+Updated: 2026-07-22 20:02:24 +07:00
 
 ## Current Phase
 
@@ -8,8 +8,8 @@ Updated: 2026-07-22 19:42:07 +07:00
 
 ## Starting Commit
 
-- `5701598ce2d769980471f4573ebbccb9664d5cf7`
-- `docs: close phase 4 prepare persistence acceptance`
+- `024359462ef0d295efa21be5a0963798c348d0fd`
+- `docs: close PREPARE Job adapter design and authorize linkage persistence`
 
 ## Phase 5 Checkpoint
 
@@ -281,10 +281,70 @@ Remaining validation:
 
 ## Next Exact Action
 
-1. Inspect dormant migration activation boundary.
-2. Define isolated schema-13 to schema-14 linkage migration.
-3. Enforce unique request and Job linkage.
-4. Implement pure linkage repository create/replay/conflict behavior.
-5. Validate concurrency and rollback on temporary databases.
-6. Prove canonical schema and DB remain unchanged.
-7. Stop before pipeline or orchestration integration.
+1. Review dormant linkage persistence implementation.
+2. Run full offline closeout validation.
+3. Commit only the migration/store/test checkpoint.
+4. Keep pipeline integration, canonical activation, API integration, PREPARE execution, and START_RENDER unauthorized.
+
+## Phase 7 Implementation Checkpoint
+
+- Status: `DAILY-PROD-5B_PHASE_7_IMPLEMENTATION_COMPLETE_UNCOMMITTED`.
+- Starting commit: `024359462ef0d295efa21be5a0963798c348d0fd`.
+- Authorization: `ISOLATED_REQUEST_JOB_LINKAGE_PERSISTENCE_IMPLEMENTATION_AUTHORIZED`.
+- Pipeline integration: `NOT_AUTHORIZED`.
+- Real adapter implementation: `NOT_AUTHORIZED`.
+- Canonical activation: `NOT_AUTHORIZED`.
+- PREPARE execution: `NOT_AUTHORIZED`.
+- API integration: `NOT_AUTHORIZED`.
+- START_RENDER: `NOT_AUTHORIZED`.
+
+Implemented artifacts:
+
+- Dormant migration: `story_audio/migrations/dormant/0014_batch_prepare_job_links.sql`.
+- Linkage repository: `story_audio/batch_prepare_job_link_store.py`.
+- Migration tests: `tests/test_batch_prepare_job_link_migration.py`.
+- Repository tests: `tests/test_batch_prepare_job_link_store.py`.
+
+Implemented behavior:
+
+- Explicit schema `13 -> 14` migration and full isolated `12 -> 13 -> 14` chain.
+- `batch_prepare_job_links` table remains dormant and is not auto-discovered by routine migration startup.
+- Database-enforced one request row to at most one linkage.
+- Database-enforced one request identity to at most one linkage.
+- Database-enforced one Job to at most one linkage.
+- Composite parent binding `(batch_prepare_request_id, request_identity)` prevents request ID/identity mismatch.
+- Committed prepared evidence requires matching expected/actual chapter counts, prepared status, transaction evidence version `1`, committed timestamp, `worker_woken = 0`, and `render_started = 0`.
+- Linkage repository validates parent request exists, identity matches, target phase is `PREPARE`, plan fingerprint matches, and new linkage only starts from `APPLYING`.
+- Existing exact linkage can replay after parent request becomes `APPLIED`; new linkage for non-`APPLYING` request is rejected.
+- Linkage repository validates parent Job exists, status is `prepared`, scope/book match when available, JobChapter count matches, and duplicate JobChapter chapter binding is absent.
+- Deterministic create/replay/conflict behavior: exact replay, `REQUEST_LINK_CONFLICT`, `JOB_LINK_CONFLICT`, `LINKAGE_EVIDENCE_CONFLICT`, and fail-closed corrupt-row handling.
+- Historical linkage evidence uses safe bounded fields only and does not recompute the current batch plan or read full chapter text.
+- Concurrency tests prove same exact linkage creates one row and replays the other caller; request and Job conflicts have one database winner.
+- Store does not auto-migrate, create schema, create Job, create JobChapter, update request state, call pipeline, wake worker, start render, call provider/Gemini/TTS, register API routes, or touch UI.
+
+Canonical safety:
+
+- Runtime identity: canonical data root and canonical DB are true.
+- Runtime schema/latest schema: `12 / 12`.
+- Canonical DB opened writable by Phase 7: no.
+- Canonical DB read-only quick_check: `ok`.
+- Canonical DB hash: `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`.
+- Canonical DB size: `4009984` bytes.
+- Canonical DB mtime: `2026-07-20T12:31:47.4292255+07:00`.
+- Canonical `batch_prepare_requests` table: absent.
+- Canonical `batch_prepare_job_links` table: absent.
+- Counts unchanged: speaker drafts `15`, casting plans `23`, jobs `21`, job chapters `21`, segments `688`, artifacts `84`.
+- Chapter 369 unchanged: active Text Revision `738`, Casting Plan `24` revision `1` draft/unapproved, jobs `0`, artifacts `0`, active audio none, audio status `not_created`.
+
+Validation:
+
+- Syntax: PASS for `story_audio/batch_prepare_job_link_store.py`.
+- New migration/store suite: `20` tests PASS.
+- Affected persistence/adapter/migration/prepared-job/DB suite: `142` tests PASS.
+- Isolated repository smoke: PASS for schema chain, valid linkage, exact replay, request conflict, Job conflict, parent-APPLIED replay, concurrent create, no real Job creation beyond synthetic fixtures, and no production mutation.
+- Canonical read-only safety check: PASS; runtime schema/latest, hash, size, mtime, tables, counts, and Chapter 369 facts unchanged.
+
+Remaining:
+
+- Phase 7 closeout/full-suite/commit is separate.
+- Pipeline integration and real execution require separate authorization.
