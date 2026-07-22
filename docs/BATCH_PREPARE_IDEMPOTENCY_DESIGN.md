@@ -2,8 +2,8 @@
 
 Status markers:
 
-- `DESIGN_ONLY`
-- `NO_MIGRATION_IMPLEMENTED`
+- `SCHEMA_STORE_IMPLEMENTED_NO_EXECUTION`
+- `MIGRATION_13_IMPLEMENTED_DORMANT`
 - `NO_EXECUTION_ENDPOINT`
 - `PREPARE_EXECUTION_NOT_AUTHORIZED`
 
@@ -49,8 +49,10 @@ This design defines the persistence and atomicity contract required before a lat
 
 ## 5. Non-Goals
 
-- No migration is implemented in this phase.
-- No table is created.
+- Schema 13 exists only as a dormant explicit-target artifact under
+  `story_audio/migrations/dormant/0013_batch_prepare_requests.sql`.
+- The default migration registry still auto-discovers only migrations through schema 12.
+- The durable request store is implemented, but it does not auto-migrate and fails if the table is absent.
 - No API route is registered.
 - No call to `prepare_job`, `start_prepared_job`, provider, Gemini, or TTS is introduced.
 - No UI is changed.
@@ -279,13 +281,15 @@ Public errors must not expose tracebacks.
 
 ## 17. Proposed Schema
 
-No migration is implemented in this phase.
+Schema 13 is implemented as a dormant explicit-target migration artifact.
 
-Future migration proposal:
+Migration proposal:
 
 - Current schema: `12`
 - Future schema: `13`
 - Table: `batch_prepare_requests`
+- Activation: `DORMANT_EXPLICIT_TARGET_ONLY`
+- Default auto-discovery: disabled; routine canonical startup remains schema 12.
 
 Proposed columns:
 
@@ -340,9 +344,9 @@ Recommended stale `APPLYING` review threshold: `30` minutes.
 
 ## 19. Migration And Testing Plan
 
-Future implementation must:
+Implementation must:
 
-- Add migration `0013_<name>.sql`.
+- Keep migration `0013_batch_prepare_requests.sql` dormant until canonical activation is separately authorized.
 - Update migration tests from schema `12 -> 13`.
 - Test unique `client_request_id` and `request_identity`.
 - Test `CHECK` constraints for request state and target phase.
@@ -351,7 +355,7 @@ Future implementation must:
 - Test no worker wake on PREPARE.
 - Test START_RENDER remains separate.
 
-This phase does not create the migration.
+This phase creates only the dormant migration artifact and repository store/tests. It does not register a production-active migration, add an API route, or execute PREPARE.
 
 ## 20. Authorization Gates
 

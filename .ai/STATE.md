@@ -1,120 +1,81 @@
 # DAILY-PROD Checkpoint State
 
-Updated: 2026-07-22 15:49:10 +07:00
+Updated: 2026-07-22 16:22:26 +07:00
 
 ## Current Phase
 
-`DAILY-PROD-5B Phase 3` - Schema 13 Migration And Durable PREPARE Request Store.
+`DAILY-PROD-5B Phase 3 closeout` - Dormant Schema 13 Store Checkpoint.
 
-## Completed Checkpoint
+## Starting Commit
 
-`DAILY-PROD-5B Phase 2` is complete.
-
-Design commit:
-
-- `68f4f3d059f08004d6fcb4d4d06505ad802f3c11`
-- `feat: define PREPARE idempotency persistence contract`
-
-Phase 2 artifacts:
-
-- `docs/BATCH_PREPARE_IDEMPOTENCY_DESIGN.md`
-- `story_audio/batch_prepare_persistence_contract.py`
-- `tests/test_batch_prepare_persistence_contract.py`
-
-## Phase 2 Acceptance
-
-Accepted capabilities:
-
-- Durable `client_request_id` rules.
-- Deterministic canonical request identity.
-- Payload binding to target phase, book/range scope, and plan fingerprint.
-- PREPARE-only phase.
-- Explicit request states: `PLANNED`, `APPLYING`, `APPLIED`, `REJECTED`, `FAILED`.
-- Duplicate same-payload replay.
-- Different-payload `REQUEST_ID_CONFLICT`.
-- Duplicate `APPLYING` in-progress replay.
-- `APPLIED`, `REJECTED`, and `FAILED` historical replay.
-- `FAILED` requires operator review and a fresh request ID for a new attempt.
-- Retry-after-timeout semantics.
-- Stale `APPLYING` reconciliation contract.
-- Option A atomicity: commit request `APPLYING` before the all-or-nothing Job/JobChapter transaction.
-- Concurrency/uniqueness guard.
-- Fingerprint race revalidation.
-- One request -> one Job -> N JobChapter rows.
-- Bounded versioned `result_payload_json`.
-- Public failure taxonomy and retention policy.
-- Proposed schema `12 -> 13` and proposed `batch_prepare_requests` table.
-- No migration implementation.
-- No execution endpoint.
-
-Verdict:
-
-- `DAILY-PROD-5B_PHASE_2_COMPLETE`
-
-## Latest Validation
-
-Phase 2 closeout validation:
-
-- Pure persistence tests: `50` PASS.
-- Focused/affected suite: `102` PASS.
-- Full offline suite: `1208` PASS, `1` skipped.
-- Doctor: PASS, `critical_errors=0`.
-
-Canonical read-only verification:
-
-- Runtime: `http://127.0.0.1:8772`
-- Canonical live root/db: true
-- Current runtime schema: `12`
-- Proposed future schema: `13`
-- Batch plan Book `1`, chapters `364-369`, target `PREPARE`: included `0`, excluded `6`
-- Authorization: `MUTATION_NOT_AUTHORIZED`
-- `execution_endpoint_available=false`
-
-Sensitive counts unchanged:
-
-- `speaker_assignment_drafts`: `15`
-- `casting_plans`: `23`
-- `jobs`: `21`
-- `job_chapters`: `21`
-- `segments`: `688`
-- `artifacts`: `84`
-
-Chapter 369 unchanged:
-
-- Active Text Revision `738`
-- Casting Plan `24` revision `1` remains draft/unapproved
-- Jobs `0`
-- Artifacts `0`
-- Active audio none
-- Audio status `not_created`
+- `d4571edea8fd1d0e247bf2d10f703dec045017cf`
+- `docs: close PREPARE persistence design and authorize migration work`
 
 ## Authorization Boundary
 
-Migration implementation authorization:
+Migration/store implementation:
 
-- `AUTHORIZED_FOR_ISOLATED_DEVELOPMENT`
+- `MIGRATION_IMPLEMENTATION_AUTHORIZED_FOR_ISOLATED_DEVELOPMENT`
 
-Canonical migration authorization:
-
-- `NOT_AUTHORIZED`
-
-PREPARE execution authorization:
+Canonical schema activation:
 
 - `NOT_AUTHORIZED`
 
-START_RENDER authorization:
+PREPARE execution:
 
 - `NOT_AUTHORIZED`
 
-Phase 3 may implement repository migration code, a durable request store, and repository-level tests using temporary/isolated databases only.
+START_RENDER:
 
-Phase 3 must not implement API execution routes, call `prepare_job`, create Jobs or JobChapters, migrate canonical `data/app.db`, modify UI, start render, or call providers/Gemini/TTS.
+- `NOT_AUTHORIZED`
 
-## Next Exact Action
+## Migration
 
-1. Implement schema 13 migration in repository.
-2. Add durable `batch_prepare_requests` store.
-3. Add repository-level idempotency and replay tests.
-4. Test only against temporary/isolated databases.
-5. Verify canonical DB remains schema 12.
-6. Stop before API or `prepare_job` integration.
+- Artifact: `story_audio/migrations/dormant/0013_batch_prepare_requests.sql`
+- Proposed schema: `13`
+- Table: `batch_prepare_requests`
+- Activation: `MIGRATION_13_IMPLEMENTED_DORMANT`
+- Default/latest schema: `12`
+- Routine startup safety: top-level migration discovery still stops at `0012_speaker_draft_reviews.sql`; dormant directory is not auto-discovered.
+- Temporary schema-12 -> 13 result: PASS using explicit isolated target.
+- Canonical activation: `NOT_AUTHORIZED`
+
+## Store
+
+- Module: `story_audio/batch_prepare_store.py`
+- Durable create/replay: implemented.
+- Payload conflict: deterministic `REQUEST_ID_CONFLICT` for same request ID with different bound scope, phase, fingerprint, or request identity.
+- Atomic state transitions: implemented with guarded `WHERE id=? AND state=?` updates.
+- Historical replay: APPLIED/REJECTED/FAILED replay stored payloads, not current readiness.
+- Stale APPLYING listing: read-only and deterministic by caller-provided cutoff.
+- Result payload: schema version `1`, JSON object, 16 KiB encoded-byte limit, public error-message limit, unsafe replay fields rejected, invalid stored JSON fails clearly.
+- Auto-migration: none; absent table fails clearly.
+- Execution calls: none; no `prepare_job`, `create_job`, `start_prepared_job`, worker wake, provider, Gemini, or TTS.
+
+## Validation
+
+- Syntax: PASS for `story_audio/batch_prepare_store.py` and `story_audio/batch_prepare_persistence_contract.py`.
+- Focused migration/store/affected suite: `133` tests PASS.
+- Full offline suite: `1239` tests PASS, `1` skipped.
+- Doctor: PASS, `critical_errors=0`, expected warning remains `speaker_assignment_drafts: drafts=15 invalid=9`.
+- Canonical runtime: `http://127.0.0.1:8772`
+- Runtime schema/latest schema: `12 / 12`
+- Canonical DB read-only quick_check: `ok`
+- Canonical DB hash: `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`
+- Canonical DB size: `4009984` bytes
+- Canonical DB mtime: `2026-07-20T12:31:47.429225`
+- Canonical `batch_prepare_requests` table: absent
+- Counts unchanged: speaker drafts `15`, casting plans `23`, jobs `21`, job chapters `21`, segments `688`, artifacts `84`
+- Chapter 369 unchanged: active Text Revision `738`, Casting Plan `24` revision `1` draft/unapproved, jobs `0`, artifacts `0`, active audio none, audio status `not_created`
+
+## Remaining
+
+Phase 3 implementation is ready for checkpoint commit.
+
+Next exact action after commit:
+
+1. Reconcile DAILY-PROD-5B Phase 3 canonical documentation.
+2. Assess isolated migration activation/integration testing authorization.
+3. Keep canonical activation unauthorized.
+4. Keep PREPARE execution unauthorized.
+5. Keep START_RENDER separate.

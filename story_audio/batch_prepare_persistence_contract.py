@@ -8,7 +8,7 @@ from dataclasses import asdict, dataclass
 from typing import Any
 
 
-DESIGN_STATUS = "DESIGN_ONLY"
+DESIGN_STATUS = "SCHEMA_STORE_IMPLEMENTED_NO_EXECUTION"
 SUPPORTED_PHASE = "PREPARE"
 AUTHORIZATION_STATUS = "PREPARE_EXECUTION_NOT_AUTHORIZED"
 CONTRACT_SCHEMA = "story-audio-batch-prepare-idempotency-contract/v1"
@@ -450,7 +450,10 @@ def get_persistence_design_contract() -> dict[str, Any]:
         "proposed_migration": {
             "current_schema_version": CURRENT_SCHEMA_VERSION,
             "future_schema_version": PROPOSED_SCHEMA_VERSION,
-            "implemented": False,
+            "implemented": True,
+            "activation": "DORMANT_EXPLICIT_TARGET_ONLY",
+            "artifact_path": "story_audio/migrations/dormant/0013_batch_prepare_requests.sql",
+            "default_auto_discovered": False,
             "table": PROPOSED_REQUEST_TABLE,
             "columns": [
                 ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
@@ -486,7 +489,7 @@ def get_persistence_design_contract() -> dict[str, Any]:
             ],
         },
         "authorization_gates": [
-            "migration review and implementation in a separate task",
+            "canonical schema activation in a separate task",
             "offline migration upgrade tests",
             "runtime API route implementation in a separate task",
             "explicit confirmation remains mandatory",

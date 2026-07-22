@@ -262,7 +262,9 @@ class BatchPreparePersistenceContractTests(unittest.TestCase):
         self.assertEqual(migration["current_schema_version"], 12)
         self.assertEqual(migration["future_schema_version"], PROPOSED_SCHEMA_VERSION)
         self.assertEqual(migration["table"], PROPOSED_REQUEST_TABLE)
-        self.assertFalse(migration["implemented"])
+        self.assertTrue(migration["implemented"])
+        self.assertEqual(migration["activation"], "DORMANT_EXPLICIT_TARGET_ONLY")
+        self.assertFalse(migration["default_auto_discovered"])
         self.assertIn("UNIQUE(client_request_id)", migration["unique_constraints"])
         self.assertIn("from_chapter <= to_chapter", migration["check_constraints"])
         columns = dict(migration["columns"])
@@ -273,6 +275,7 @@ class BatchPreparePersistenceContractTests(unittest.TestCase):
     def test_proposed_schema_has_no_implementation_file(self) -> None:
         self.assertFalse(Path("story_audio/schema.py").exists())
         self.assertFalse(Path("story_audio/migrations/0013_batch_prepare_requests.sql").exists())
+        self.assertTrue(Path("story_audio/migrations/dormant/0013_batch_prepare_requests.sql").exists())
 
     def test_retention_contract_does_not_cleanup_before_replay_window(self) -> None:
         retention = get_persistence_design_contract()["retention"]
