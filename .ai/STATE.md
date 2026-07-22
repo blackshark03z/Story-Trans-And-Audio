@@ -1,10 +1,10 @@
 # DAILY-PROD Checkpoint State
 
-Updated: 2026-07-22 19:00:42 +07:00
+Updated: 2026-07-22 20:33:00 +07:00
 
 ## Current Phase
 
-`DAILY-PROD-5B Phase 6` - Isolated PREPARE Job Transaction Adapter Design Contract.
+`DAILY-PROD-5B Phase 6 Closeout` - Full Validation And Job Adapter Design Checkpoint.
 
 ## Starting Commit
 
@@ -146,6 +146,61 @@ No runtime source bug fixes were needed.
 
 `DAILY-PROD-5B Phase 6` - Isolated PREPARE Job Transaction Adapter Design Contract.
 
+## Phase 6 Adapter Design Checkpoint
+
+- Starting commit: `85337ffef95cd280dc6176ddeb79dceefec7ecbb`.
+- Authorization: `ISOLATED_JOB_TRANSACTION_ADAPTER_DESIGN_AUTHORIZED`.
+- Adapter implementation: `NOT_AUTHORIZED`.
+- Canonical activation: `NOT_AUTHORIZED`.
+- PREPARE execution: `NOT_AUTHORIZED`.
+- API integration: `NOT_AUTHORIZED`.
+- START_RENDER: `NOT_AUTHORIZED`.
+- Module: `story_audio/batch_prepare_job_adapter_contract.py`.
+- Design document: `docs/BATCH_PREPARE_JOB_ADAPTER_DESIGN.md`.
+- Test suite: `tests/test_batch_prepare_job_adapter_contract.py`.
+
+Design coverage:
+
+- Existing prepared-job lifecycle evidence from `story_audio/pipeline.py`, `story_audio/db.py`, migrations, and prepared-job tests.
+- APPLYING adapter input contract bound to request identity, client request ID, scope, plan fingerprint, target phase, second validated current-plan snapshot, and no-render instruction.
+- Eligible chapter snapshot contract bound to chapter, active Text Revision, approved Casting Plan identity, eligibility evidence, and deterministic order.
+- One durable request to zero-or-one prepared Job invariant.
+- One Job to all eligible JobChapter rows atomically.
+- Committed-success evidence stronger than a function return.
+- Duplicate invocation classification that never treats a second Job as safe.
+- Existing prepared/active/legacy/conflicting Job mapping.
+- Failure taxonomy for pre-transaction conflicts, rollback, ambiguous outcomes, invalid commit evidence, linkage conflict, and APPLIED-result recovery.
+- Process interruption matrix.
+- Historical replay payload fields and forbidden payload fields.
+- Read-only reconciliation evidence classifier.
+- No-worker/no-render boundary.
+
+Recommended future linkage:
+
+- A dedicated request-to-Job linkage table written in the same Job/JobChapter transaction.
+- Database uniqueness on request identity and job reference.
+- `batch_prepare_requests.job_id` remains useful as a replay pointer but is not sufficient alone if written after the Job transaction commits.
+- Legacy Jobs without linkage require conservative conflict or operator review handling.
+
+Remaining:
+
+- Full closeout validation and commit are separate.
+- Real adapter implementation and PREPARE execution still require separate authorization.
+
+## Phase 6 Closeout
+
+- Verdict: `DAILY-PROD-5B_PHASE_6_COMPLETE`.
+- Adapter contract remains design/model only.
+- Lifecycle evidence was reviewed against `story_audio/pipeline.py`, `story_audio/db.py`, migrations, and prepared-job tests.
+- Dedicated request-to-Job linkage table remains the recommended future design because it can enforce one request/one Job and can be inserted in the same Job/JobChapter transaction.
+- Future implementation requires database uniqueness on request identity and job reference.
+- `batch_prepare_requests.job_id` remains a replay pointer, not sufficient same-transaction commit evidence by itself.
+- Committed-success evidence rejects uncommitted Job references, mismatched request identity, mismatched plan fingerprint, mismatched chapter snapshot digest, non-prepared status, count mismatch, missing/extra chapter evidence, duplicate JobChapter references, worker wake, and render start.
+- Duplicate invocation never claims a second Job is safe.
+- Process interruption matrix requires no rerun after commit and committed-result recovery when the request result is missing.
+- Reconciliation classifier remains pure/read-only and returns only deterministic decisions.
+- No API route, real adapter implementation, real Job/JobChapter creation, canonical schema activation, UI integration, provider call, TTS call, worker wake, or START_RENDER was added.
+
 ## Orchestration Checkpoint
 
 - Module: `story_audio/batch_prepare_orchestrator.py`
@@ -181,14 +236,30 @@ No runtime source bug fixes were needed.
 
 Remaining validation:
 
-- Phase 6 adapter design contract must remain pure/fake-only until a later explicit implementation authorization.
+- Phase 6 adapter design contract remains pure/fake-only until a later explicit implementation authorization.
+
+## Phase 6 Validation
+
+- Syntax: PASS for `story_audio/batch_prepare_job_adapter_contract.py`.
+- Focused adapter/orchestrator/prepared-job/store/persistence suite: `169` tests PASS.
+- Repeated adapter contract suite: `72` tests PASS.
+- Full offline suite: `1337` tests PASS, `1` skipped.
+- Pure model smoke: PASS for valid committed success, uncommitted reference rejection, duplicate committed linkage replay, multiple matching Jobs operator review, and commit-before-request-result recovery.
+- Runtime check: PASS, canonical data root/db true and schema/latest `12 / 12`.
+- Canonical DB opened writable by Phase 6: no.
+- Canonical DB read-only quick_check: `ok`.
+- Canonical DB hash: `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`.
+- Canonical DB size: `4009984` bytes.
+- Canonical DB mtime ns: `1784525507429225500`.
+- Canonical `batch_prepare_requests` table: absent.
+- Counts unchanged: speaker drafts `15`, casting plans `23`, jobs `21`, job chapters `21`, segments `688`, artifacts `84`.
+- Chapter 369 unchanged: active Text Revision `738`, Casting Plan `24` revision `1` draft/unapproved, jobs `0`, artifacts `0`, active audio none, audio status `not_created`.
+- Doctor: PASS, `critical_errors=0`; expected warning remains `speaker_assignment_drafts: drafts=15 invalid=9`.
+- Post-Doctor canonical byte-level recheck: PASS; hash/size/mtime unchanged.
 
 ## Next Exact Action
 
-1. Inspect existing Job/JobChapter preparation transaction.
-2. Define adapter input and success evidence.
-3. Define one-request/one-Job linkage.
-4. Define duplicate and ambiguous-outcome behavior.
-5. Define conflict and failure mapping.
-6. Use only pure/fake adapter models.
-7. Stop before pipeline integration or real Job writes.
+1. Reconcile DAILY-PROD-5B Phase 6 canonical documentation.
+2. Assess isolated linkage/schema implementation authorization.
+3. Keep pipeline integration, canonical activation, and real execution unauthorized.
+4. Keep START_RENDER separate.
