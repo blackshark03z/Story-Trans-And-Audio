@@ -29,17 +29,18 @@ DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout
 
 ## Current Authorized Task
 
-DAILY-PROD-5B Phase 12 - Canonical Clone Migration Rehearsal And Disabled Runtime Wiring Skeleton
+DAILY-PROD-5B Phase 13 - Clone-Only Disabled Runtime Integration And Operator Authentication Boundary Acceptance
 
 ## MVP / Milestone Success Criteria
 
-DAILY-PROD-5B Phases 1-11 are complete. Phase 12 is bounded to clone rehearsal and a disabled wiring skeleton:
+DAILY-PROD-5B Phases 1-12 are complete. Phase 12 proved clone migration/rollback and a disabled wiring skeleton. Phase 13 is bounded to clone-only disabled runtime integration and operator authentication contract work:
 
 - A verified external clone preserves canonical source provenance and is the only migration target.
 - Clone migration proves exact schema 12 -> 15, legacy/protected state, and postflight.
 - Clone rollback restores the original clone hash and schema.
 - Runtime wiring remains hard-default-off, unreachable, and constructs no mutation service.
 - No canonical migration, enabled API/UI mutation, production Job, worker wake, provider/Gemini/TTS, or START_RENDER is authorized.
+- Authentication remains `AUTH_MISSING_BLOCKS_PRODUCTION`; local binding is not operator authentication.
 
 ## In Scope
 
@@ -112,7 +113,8 @@ node --check ui\app.js
 - PREPARE execution endpoint remains unauthorized.
 - Phase 10 end-to-end adapter assembly is complete only through dependency injection on isolated/temporary databases.
 - Phase 11 rollout design is complete in commit `bca068e`.
-- Phase 12 clone rehearsal and disabled skeleton are authorized only within the exact task boundary.
+- Phase 12 clone rehearsal and disabled skeleton are complete in implementation commit `843f688`.
+- Phase 13 clone-only disabled runtime integration and operator-authentication contract are authorized only within the exact task boundary.
 - Production runtime PREPARE implementation remains unauthorized.
 - Canonical schema 13/14 or later activation remains unauthorized.
 - START_RENDER remains separate.

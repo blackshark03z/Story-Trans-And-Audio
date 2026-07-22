@@ -4,16 +4,18 @@ Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve
 
 ## Current Boundary - 2026-07-23
 
-`DAILY-PROD-5A` and `DAILY-PROD-5B` Phases 1 through 11 are complete;
-`DAILY-PROD-5B` remains active. Phase 11 design commit `bca068e` proves only pure
-rollout contracts and model tests. The next authorized task is `DAILY-PROD-5B
-Phase 12 - Canonical Clone Migration Rehearsal And Disabled Runtime Wiring
-Skeleton`.
+`DAILY-PROD-5A` and `DAILY-PROD-5B` Phases 1 through 12 are complete;
+`DAILY-PROD-5B` remains active. Phase 12 implementation commit `843f688`
+verified an external clone migration/rollback rehearsal and an unreachable
+hard-default-off wiring skeleton. The next authorized task is `DAILY-PROD-5B
+Phase 13 - Clone-Only Disabled Runtime Integration And Operator Authentication
+Boundary Acceptance`.
 
-Phase 12 may use a verified external clone and add an unreachable hard-default-off
-wiring skeleton. It may not migrate canonical production, register or enable a
-PREPARE mutation route, create a production Job, modify UI, wake the worker, call
-providers/TTS, start render, advance to `DAILY-PROD-6`, or claim production rollout.
+Phase 12 is complete. Phase 13 may use a migrated external clone and add only
+disabled runtime integration plus an explicit operator-authentication contract.
+It may not migrate canonical production, register or enable a PREPARE mutation
+route, create a production Job, modify UI, wake the worker, call providers/TTS,
+start render, advance to `DAILY-PROD-6`, or claim production rollout.
 
 ## Completed
 
@@ -54,6 +56,8 @@ providers/TTS, start render, advance to `DAILY-PROD-6`, or claim production roll
 - DAILY-PROD-5B Phase 8 - Same-Transaction PREPARE Adapter Integration Design: complete. Defined the caller-owned transaction boundary, authoritative input revalidation, ownership fencing prerequisites, overlap-race mitigation, immutable JobChapter evidence, commit/recovery semantics, evidence-gated APPLIED handoff, and isolated model validation; implementation remains blocked until Phase 9.
 - DAILY-PROD-5B Phase 9 - Isolated Same-Transaction PREPARE Prerequisites: complete. Added dormant schema 15 ownership/fencing/lease evidence, caller-owned `BEGIN IMMEDIATE`, transaction-scoped revalidation and Job/JobChapter/linkage writers, overlap serialization, rollback/ambiguous-outcome recovery, and process-restart acceptance without runtime wiring or canonical activation.
 - DAILY-PROD-5B Phase 10 - Isolated End-to-End PREPARE Adapter Assembly: complete. Assembled request replay, ownership/fencing, second-plan validation, authoritative transaction revalidation, one Job/N JobChapter/linkage/COMMITTED attempt, durable evidence-gated APPLIED persistence, replay, concurrency, bounded busy, response-loss, process-restart, rollback, ambiguous-commit, redaction, render-compatible pin, and temporary-root acceptance. Implementation commit `c47d829cddd3e16914d5bf60b4beb20063299820`; runtime wiring and canonical activation remain unauthorized.
+- DAILY-PROD-5B Phase 11 - Runtime PREPARE Rollout Design: complete. Pure rollout, backup/restore, operator, audit, kill-switch, authentication, and START_RENDER separation contracts are documented and remain design-only.
+- DAILY-PROD-5B Phase 12 - Clone Rehearsal And Disabled Runtime Wiring: complete. Implementation commit `843f688` added read-only-source external clone creation, explicit dormant migration `12 -> 15`, stage failure rollback, exact backup-hash full-file restore, bounded evidence, disabled wiring, and isolation tests. Canonical schema remains `12`; production mutation remains unauthorized.
 
 ## Current Strategic Phase
 
@@ -84,9 +88,9 @@ The milestone must:
 
 Current boundary:
 
-1. Treat DAILY-PROD-5B Phases 1-10 as complete and keep dormant schema artifacts dormant with canonical/default schema at version 12.
-2. Review only the Phase 11 runtime PREPARE wiring, canonical activation, operator rollout, backup/rollback, audit, maintenance, feature-flag, and kill-switch design boundary.
-3. Keep runtime adapter/orchestrator wiring, PREPARE API/UI, production Job creation, provider/Gemini/TTS, worker wake, and START_RENDER unauthorized.
+1. Keep dormant schema artifacts dormant with canonical/default schema at version 12.
+2. Begin only clone-backed disabled runtime integration and the operator-authentication contract.
+3. Keep runtime mutation, PREPARE API/UI, production Job creation, provider/Gemini/TTS, worker wake, and START_RENDER unauthorized.
 4. Keep START_RENDER as a separate explicit lifecycle action and do not advance to DAILY-PROD-6.
 
 ## Ordered Daily Production UX Roadmap
@@ -99,6 +103,10 @@ Current boundary:
 6. `DAILY-PROD-6` - Multi-Chapter Production Acceptance.
 
 ## Next
+
+`DAILY-PROD-5B Phase 13 - Clone-Only Disabled Runtime Integration And Operator Authentication Boundary Acceptance`
+
+## Historical Next (superseded)
 
 See `NEXT_TASK.md` for:
 

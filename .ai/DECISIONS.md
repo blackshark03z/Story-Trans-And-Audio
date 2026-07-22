@@ -2,6 +2,18 @@
 
 Updated: 2026-07-23
 
+## CONT-021 - Production PREPARE requires clone-runtime proof and operator authentication
+
+Phase 12 clone migration and full-file rollback are required but insufficient for
+production activation. The disabled wiring must next be proven inside a
+clone-backed process across startup and restart without constructing mutation
+services. Operator authentication must be explicit and must preserve
+`AUTH_MISSING_BLOCKS_PRODUCTION` until accepted evidence exists.
+
+Enabled PREPARE routes, canonical activation, production Job creation, UI
+mutation, worker wake, and START_RENDER remain unauthorized. START_RENDER stays
+a separate lifecycle permission.
+
 ## CONT-020 - Canonical PREPARE rollout requires clone rehearsal and disabled wiring proof
 
 Isolated PREPARE acceptance and the Phase 11 rollout design are necessary but are

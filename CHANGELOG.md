@@ -4,6 +4,17 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ## Unreleased
 
+### DAILY-PROD-5B Phase 12
+
+- Added implementation checkpoint `843f688` with a clone-only SQLite online-backup rehearsal and an unreachable default-off PREPARE runtime wiring skeleton.
+- Rehearsed explicit dormant schema migration `12 -> 13 -> 14 -> 15` outside the repository; verified migration hashes, tables, indexes, foreign keys, CHECK constraints, legacy counts, Chapter 369 facts, and zero request/linkage/attempt rows.
+- Rehearsed stage failures for migrations 13, 14, and 15; each failed transaction rolled back to its predecessor schema. Full-file rollback restored the exact schema-12 backup hash and archived stale clone WAL/SHM sidecars.
+- Disabled wiring defaults feature availability, mutation, operator window, and canonical schema readiness off; kill switch remains active. No mutation service, writable DB, migration, route, Job, worker wake, START_RENDER, or provider/Gemini/TTS call is reachable.
+- Preserved read-only batch planning and range readiness. Authentication remains `AUTH_MISSING_BLOCKS_PRODUCTION`; no operator-auth bypass was added.
+- Validation: Phase 12 focused `91` PASS; full offline `1575` PASS with `1` established skip; `node --check ui/app.js`; Doctor `critical_errors=0`.
+- Canonical runtime remained schema/latest `12 / 12`, DB SHA-256 `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984`, mtime unchanged, dormant tables absent, and Chapter 369 unchanged.
+- Exact next task: `DAILY-PROD-5B Phase 13 - Clone-Only Disabled Runtime Integration And Operator Authentication Boundary Acceptance`. Canonical activation, enabled PREPARE, production Job creation, UI mutation, worker wake, START_RENDER, and push remain unauthorized.
+
 ### DAILY-PROD-5B Phase 11
 
 - Added pure runtime dependency, feature-flag, kill-switch, canonical activation,
