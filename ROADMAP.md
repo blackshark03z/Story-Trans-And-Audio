@@ -37,6 +37,8 @@ Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve
 - DAILY-PROD-5B Phase 4 - Isolated Schema 13 Persistence Acceptance: complete. Temporary schema-12 production-like fixtures explicitly activate dormant schema 13 and validate legacy-data preservation, connection/process restart persistence, same-request replay, payload conflicts, APPLIED/REJECTED/FAILED historical replay, concurrent uniqueness, transition races, terminal overwrite protection, stale APPLYING read-only detection, rollback behavior, canonical path guards, and full offline validation while canonical schema/latest remains `12 / 12`.
 - DAILY-PROD-5B Phase 5 - Isolated PREPARE Orchestration Contract: complete. Added the isolated service-level orchestration contract with request validation, current-plan authority, durable create-or-replay, atomic `PLANNED -> APPLYING` ownership, ownership-loser replay, second fingerprint validation, injected fake FuturePrepareTransaction, durable APPLIED/REJECTED/FAILED ordering, timeout replay, deterministic operator actions, and classify-only stale APPLYING reconciliation while canonical schema/latest remains `12 / 12`.
 - DAILY-PROD-5B Phase 6 - PREPARE Job Transaction Adapter Design Contract: complete. Accepted the adapter design contract for one-request/one-Job behavior, one Job plus N JobChapter transaction semantics, prepared-job worker isolation, explicit start separation, deterministic chapter snapshots, conflict/failure taxonomy, interruption recovery, historical replay, reconciliation classification, and dedicated request-to-Job linkage persistence while canonical schema/latest remains `12 / 12`.
+- DAILY-PROD-5B Phase 7 - Dormant Request-to-Job Linkage Persistence: complete. Added dormant schema-14 linkage artifact, pure isolated linkage repository, request/Job uniqueness, transaction evidence validation, deterministic replay/conflict behavior, concurrency/rollback tests, and no canonical activation or pipeline integration.
+- DAILY-PROD-5B Phase 8 - Same-Transaction PREPARE Adapter Integration Design: complete. Defined the caller-owned transaction boundary, authoritative input revalidation, ownership fencing prerequisites, overlap-race mitigation, immutable JobChapter evidence, commit/recovery semantics, evidence-gated APPLIED handoff, and isolated model validation; implementation remains blocked until Phase 9.
 
 ## Current Strategic Phase
 
@@ -67,12 +69,12 @@ The milestone must:
 
 Current boundary:
 
-1. Implement dormant request-to-Job linkage persistence and repository contract in isolated temporary databases only.
-2. Keep schema 14 dormant/proposed, schema 13 dormant, and canonical/default schema at version 12 until later explicit canonical migration authorization.
-3. Keep pipeline integration, real adapter implementation, PREPARE execution, API integration, UI, provider/Gemini/TTS, and START_RENDER unauthorized.
-4. Keep future Job creation represented only by pure/fake adapter models and isolated linkage rows during Phase 7.
+1. Resolve same-transaction PREPARE prerequisites in isolated temporary databases only.
+2. Keep dormant schema artifacts dormant and canonical/default schema at version 12.
+3. Permit only behavior-preserving transaction seam extraction, owner fencing evidence, overlap serialization, failure injection, and pure/isolated tests.
+4. Keep runtime adapter/orchestrator wiring, PREPARE API/UI, production Job creation, provider/Gemini/TTS, worker wake, and START_RENDER unauthorized.
 5. Keep render start as a separate explicit action.
-6. Define monitor/resume, partial-failure and retry behavior before broad execution.
+6. Define monitor/resume, partial-failure, retry, and recovery behavior before broad execution.
 7. Close QA/recovery workflows only through later bounded tasks.
 
 ## Ordered Daily Production UX Roadmap
@@ -88,7 +90,7 @@ Current boundary:
 
 See `NEXT_TASK.md` for:
 
-`DAILY-PROD-5B Phase 7 - Dormant Request-to-Job Linkage Persistence And Repository Contract`
+`DAILY-PROD-5B Phase 9 - Isolated Same-Transaction PREPARE Prerequisite Resolution`
 
 ## Paused
 

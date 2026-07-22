@@ -1,6 +1,6 @@
 # Project
 
-Updated: 2026-07-22 19:42:07 +07:00
+Updated: 2026-07-22 21:00:56 +07:00
 
 ## Product Goal
 
@@ -29,27 +29,26 @@ DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout
 
 ## Current Authorized Task
 
-DAILY-PROD-5B Phase 7 - Dormant Request-to-Job Linkage Persistence And Repository Contract
+DAILY-PROD-5B Phase 9 - Isolated Same-Transaction PREPARE Prerequisite Resolution
 
 ## MVP / Milestone Success Criteria
 
-DAILY-PROD-5B Phase 6 is complete. Phase 7 is complete when:
+DAILY-PROD-5B Phases 1-8 are complete. Phase 9 is complete when isolated tests resolve these implementation blockers without activating batch PREPARE:
 
-- A dormant schema artifact defines request-to-Job linkage after schema 13.
-- Isolated schema upgrades preserve existing schema-13 PREPARE request records.
-- A pure linkage repository enforces one request to at most one Job and one Job to at most one request.
-- Linkage records persist versioned transaction evidence, plan fingerprint, chapter snapshot digest, prepared status, and no-worker/no-render evidence.
-- Create/replay/conflict lookup is deterministic under concurrency.
-- No active migration registration, canonical schema activation, pipeline integration, real Job/JobChapter creation, API route, UI work, provider/Gemini/TTS call, PREPARE execution, or START_RENDER integration is implemented.
+- `BLOCKED_BY_TRANSACTION_ABSTRACTION`.
+- `BLOCKED_BY_AUTHORITATIVE_INPUT_REVALIDATION`.
+- `BLOCKED_BY_OWNERSHIP_EVIDENCE`.
+- `BLOCKED_BY_CONFLICT_RACE`.
+- Post-commit audit and ambiguous-outcome behavior are proven fail-closed.
+- No canonical migration, runtime orchestration wiring, API/UI execution path, production Job/JobChapter creation, worker wake, provider/Gemini/TTS call, or START_RENDER integration is implemented.
 
 ## In Scope
 
-- Inspect dormant migration conventions.
-- Create a dormant request-to-Job linkage migration after schema 13.
-- Create pure linkage repository/store code.
-- Enforce unique request identity and unique Job relation for linkage records.
-- Persist bounded transaction-evidence metadata.
-- Add isolated migration, repository, concurrency, rollback, and canonical path protection tests using temporary databases only.
+- Introduce caller-owned transaction and transaction-scoped request/input/Job/JobChapter/linkage seams in isolated development.
+- Revalidate chapter eligibility, active Text Revision, approved Casting Plan, and immutable pins inside the owning transaction.
+- Add durable owner token, monotonic fencing generation, and lease/execution-attempt evidence through a later dormant migration if required.
+- Move overlap inspection under SQLite write serialization and prove exactly-one-winner behavior across processes.
+- Add isolated failure injection, rollback, ambiguous-commit recovery, evidence-gated APPLIED handoff, and legacy compatibility tests.
 
 ## Out Of Scope / Later
 
@@ -63,9 +62,9 @@ DAILY-PROD-5B Phase 6 is complete. Phase 7 is complete when:
 - Batch execution endpoint implementation.
 - Production database or runtime mutation.
 - Real Job creation or JobChapter creation.
-- Real adapter implementation.
-- Pipeline integration.
-- Pipeline calls.
+- Runtime adapter/orchestrator integration.
+- Executable batch PREPARE pipeline wiring.
+- Behavior-changing production pipeline calls.
 - API integration.
 - New provider or TTS behavior.
 - Canonical schema migration, unless proven necessary and approved separately.
@@ -113,9 +112,9 @@ node --check ui\app.js
 - Explicit schema-13 activation is authorized only for temporary or isolated databases.
 - Canonical production migration remains unauthorized.
 - PREPARE execution endpoint remains unauthorized.
-- Real Job transaction adapter implementation remains unauthorized.
-- Dormant request-to-Job linkage persistence is authorized only for isolated/temporary databases.
-- Linkage pipeline integration remains unauthorized.
+- Phase 9 prerequisite implementation is authorized only for isolated/temporary databases and behavior-preserving seams.
+- Real batch PREPARE adapter/orchestrator integration remains unauthorized.
+- Canonical schema 13/14 or later activation remains unauthorized.
 - START_RENDER remains separate.
 - Approval, prepare, and render start remain separate actions.
 - Immutable plan/job/artifact history must be preserved.

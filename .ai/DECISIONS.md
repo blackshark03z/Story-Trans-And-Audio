@@ -1,6 +1,6 @@
 # Continuity Decisions
 
-Updated: 2026-07-22 19:42:07 +07:00
+Updated: 2026-07-22 21:00:56 +07:00
 
 ## CONT-001 - Real state outranks checkpoint
 
@@ -214,6 +214,22 @@ The migration must remain dormant.
 
 Pipeline integration, real Job creation, canonical schema activation, API
 integration, PREPARE execution, and START_RENDER remain unauthorized.
+
+## CONT-017 - Same-transaction prerequisites must close before runtime PREPARE wiring
+
+Phase 8 accepted a design/model contract but concluded `IMPLEMENTATION_NOT_READY`.
+
+Phase 9 is authorized only to resolve and test these prerequisites on temporary or isolated databases:
+
+- one caller-owned SQLite write transaction and transaction-scoped repositories;
+- authoritative chapter eligibility, active Text Revision, approved Casting Plan, and immutable-pin revalidation inside that transaction;
+- durable owner token, monotonic fencing generation, lease/execution-attempt evidence, and guarded terminal writes;
+- overlap conflict inspection after `BEGIN IMMEDIATE`, with exactly-one-winner concurrency evidence;
+- one matching transaction reference across prepared Job, JobChapter, linkage, and post-commit evidence;
+- observed rollback/absence before `ROLLBACK_CONFIRMED`;
+- evidence-gated APPLIED handoff and non-authoritative post-commit audit failure semantics.
+
+Behavior-preserving seam extraction and later dormant migration artifacts are allowed only as needed for isolated proof. Runtime adapter/orchestrator wiring, active migration registration, canonical activation, batch PREPARE API/UI, production Job/JobChapter creation, worker wake, provider/Gemini/TTS, and START_RENDER remain unauthorized.
 
 ## References
 
