@@ -137,6 +137,35 @@
             <button id="retryRangeReadiness" class="ghost" type="button">Thử lại</button>
           </div>
           <div id="preview" class="preview empty" aria-live="polite">Chưa có kết quả.</div>
+          <section id="batchPlanPanel" class="plan-review-panel" aria-labelledby="batchPlanHeading">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">Read-only batch plan</p>
+                <h2 id="batchPlanHeading">Lập kế hoạch batch</h2>
+              </div>
+              <span class="pill">MUTATION_NOT_AUTHORIZED</span>
+            </div>
+            <p class="section-guide">Tạo bản xem trước từ readiness đang hiển thị. Phần này không duyệt, không chuẩn bị job, không render và không đổi dữ liệu production.</p>
+            <div class="form-grid">
+              <label for="batchPlanTargetPhase">Phase cần lập kế hoạch
+                <select id="batchPlanTargetPhase" aria-describedby="batchPlanStatus">
+                  <option value="APPROVAL">Duyệt bản đồ giọng</option>
+                  <option value="PREPARE" selected>Chuẩn bị job</option>
+                  <option value="START_RENDER">Bắt đầu render</option>
+                  <option value="RESUME_OR_MONITOR">Tiếp tục hoặc theo dõi render</option>
+                  <option value="QA_CLOSEOUT">Hoàn tất Human QA</option>
+                  <option value="NO_ACTION">Chỉ xem trạng thái</option>
+                </select>
+              </label>
+            </div>
+            <button id="buildBatchPlan" class="secondary full" type="button" disabled>Lập kế hoạch batch</button>
+            <div id="batchPlanStatus" class="plan-review-status muted" role="status" aria-live="polite">Chạy readiness trước khi lập kế hoạch batch.</div>
+            <div id="batchPlanError" class="issue error hidden" role="alert">
+              <span id="batchPlanErrorText">Không tải được batch plan.</span>
+              <button id="retryBatchPlan" class="ghost" type="button">Thử lại</button>
+            </div>
+            <div id="batchPlanResult" class="plan-review-result empty" aria-live="polite">Chưa có kế hoạch batch.</div>
+          </section>
         </section>
       </section>
 

@@ -1,17 +1,17 @@
 # DAILY-PROD Checkpoint State
 
-Updated: 2026-07-22 12:58:00 +07:00
+Updated: 2026-07-22 13:49:35 +07:00
 
 ## Current Phase
 
-`DAILY-PROD-5A Phase 1` - read-only batch scope plan and mutation safety contract.
+`DAILY-PROD-5A Phase 2` - read-only Batch Plan Review UI.
 
-## Starting Commit
+## Backend Checkpoint
 
-`5d5d495acb3d1d5bfe15307ca609069b1cafe1d5`
+`4784c16c69fbfc6d714c1a636068e35ab41e3bb1`
 
 Subject:
-`docs: close DAILY-PROD-4 and define batch planning boundary`
+`feat: add read-only batch planning API`
 
 ## Status
 
@@ -21,97 +21,62 @@ closeout-complete
 
 `MUTATION_NOT_AUTHORIZED`
 
-No batch mutation endpoint is authorized or implemented.
+No batch mutation endpoint, execution control, approval, prepare, start, resume, render, QA mutation, provider call, or TTS action is authorized or implemented in this phase.
 
-## Implementation
+## UI Implementation
 
 Files changed:
-- `story_audio/batch_plan.py`
-- `story_audio/api.py`
-- `tests/test_batch_plan_api.py`
+- `ui/index.html`
+- `ui/app.js`
+- `ui/styles.css`
+- `tests/test_batch_plan_ui.py`
 - `.ai/STATE.md`
 
-Endpoint:
-- `GET /api/production/batch-plan`
+Production range surface:
+- Reuses the existing book/from/to range scope.
+- Keeps Batch Plan below range readiness.
+- Requires readiness for the current scope before enabling the plan action.
+- Does not create a second book or chapter selector.
 
-Query:
-- `book_id`
-- `from_chapter`
-- `to_chapter`
-- `target_phase`
+Target phase selector:
+- Supports exactly `APPROVAL`, `PREPARE`, `START_RENDER`, `RESUME_OR_MONITOR`, `QA_CLOSEOUT`, and `NO_ACTION`.
+- Defaults to `PREPARE`.
+- Changing target phase clears the old plan and does not auto-fetch.
 
-Supported target phases:
-- `APPROVAL`
-- `PREPARE`
-- `START_RENDER`
-- `RESUME_OR_MONITOR`
-- `QA_CLOSEOUT`
-- `NO_ACTION`
+Read-only plan action:
+- Button: `Lập kế hoạch batch`.
+- Calls only `GET /api/production/batch-plan`.
+- Sends `book_id`, `from_chapter`, `to_chapter`, and `target_phase`.
+- Uses request-id plus scope/phase key stale-response protection.
 
-Invalid target phases fail with HTTP `400`.
+Rendered plan:
+- Prominent authorization banner: `Chỉ xem trước — chưa được phép thực thi batch`.
+- Shows `MUTATION_NOT_AUTHORIZED`, no execution endpoint, and no production mutation.
+- Shows backend summary fields.
+- Shows included rows only from backend `included`.
+- Shows excluded rows only from backend `excluded`.
+- Maps reason codes to operator-friendly labels.
+- Unknown reason falls back to `Chưa xác định lý do`.
+- Shows safety contract from backend `execution_contract`.
+- Shows fingerprint as truncated secondary metadata.
+- Row action only opens the existing single-chapter Production flow.
 
-Response behavior:
-- Reuses `get_range_readiness`; no second readiness resolver.
-- Returns deterministic `plan_fingerprint`.
-- Returns one included or excluded row per chapter.
-- Returns reason codes and operator messages.
-- Does not expose absolute paths, content blob paths, voice snapshots, casting snapshots, or utterance payloads.
-- Always returns authorization status `MUTATION_NOT_AUTHORIZED`.
-- Always returns `requires_explicit_confirmation = true`.
-- Always returns `execution_endpoint_available = false`.
-
-Prepare eligibility:
-- `READY_TO_PREPARE` -> `ELIGIBLE`
-- `COMPLETE` -> `EXCLUDED_COMPLETE`
-- `RENDERED_NOT_QA` -> `EXCLUDED_RENDERED_NOT_QA`
-- `PREPARED` -> `EXCLUDED_ALREADY_PREPARED`
-- `RENDERING_OR_PAUSED` -> `EXCLUDED_RUNNING_OR_PAUSED`
-- `TEXT_BLOCKED`, `SPEAKER_EXCEPTIONS`, `VOICE_BLOCKED`, `CASTING_REVIEW` -> `EXCLUDED_BLOCKED`
-- `STATE_UNRESOLVED` and unknown states -> `EXCLUDED_UNSUPPORTED`
-
-Safety semantics:
-- Idempotency status: `PARTIALLY_SUPPORTED`
-- Retry status: `PARTIALLY_SUPPORTED`
-- Partial-failure status: `PARTIALLY_SUPPORTED`
-- Policy: `PLAN_ONLY_NOT_EXECUTED`
-- Reason: single-chapter prepare/start/retry boundaries exist, but no persisted batch execution or batch idempotency record exists in Phase 1.
-
-## Lifecycle Investigation
-
-Prepare lifecycle:
-- `prepare_job` calls `create_job(..., start_immediately=False)`.
-- It creates one Job and pinned JobChapter rows in status `prepared`/`pending`.
-- It validates approved Casting Plan and active Text Revision when a casting plan is supplied.
-- It rejects duplicate prepared/live jobs through existing conflict checks.
-
-Start lifecycle:
-- `start_prepared_job` atomically transitions the same job from `prepared` to `scheduled`.
-- Worker wake happens in the API route after the transition.
-- Repeated/non-prepared starts raise conflict.
-
-Worker selection:
-- Worker pickup statuses are `scheduled`, `queued`, and `interrupted`.
-- `prepared` is intentionally excluded.
-
-Resume/retry:
-- Existing resume route sets job status to `queued`.
-- Existing retry routes operate on failed job chapters or failed/interrupted segments.
-- Verified segments are immutable and not retried.
-
-Partial failure:
-- Worker records per-JobChapter completion/failure.
-- A job can complete with `completed_with_errors`.
-- No batch rollback/execution policy exists yet.
+Safety boundary:
+- No batch execution button or fake disabled execution workflow was added.
+- No UI mutation endpoint was added.
+- Batch result rendering uses `createElement`, `textContent`, and attributes instead of API-data `innerHTML`.
+- Leaving Production hides the Production view and the Batch Plan panel.
 
 ## Validation
 
 Baseline:
 - Branch `main`
-- Starting HEAD matched `5d5d495acb3d1d5bfe15307ca609069b1cafe1d5`
+- Starting HEAD matched `4784c16c69fbfc6d714c1a636068e35ab41e3bb1`
+- Initial tracked worktree was clean
 - Protected untracked paths were only `experiment_b_transcript/` and `runs/`
 
 Canonical runtime:
-- Reloaded `http://127.0.0.1:8772` successfully.
+- `http://127.0.0.1:8772/api/runtime` reachable
 - Runtime root: `D:\Youtube\Story Trans And Audio`
 - Data root: `D:\Youtube\Story Trans And Audio\data`
 - DB path: `D:\Youtube\Story Trans And Audio\data\app.db`
@@ -119,40 +84,42 @@ Canonical runtime:
 - Canonical live data root: true
 - Canonical live DB: true
 
-Doctor:
-- `scripts\doctor.py`: PASS with `critical_errors=0`
-
-Focused validation:
-- `py_compile story_audio\batch_plan.py story_audio\api.py`: PASS
-- `python -m unittest tests.test_batch_plan_api tests.test_range_readiness_api tests.test_active_output tests.test_prepared_jobs -v`: PASS, 49 tests
-
-Full offline validation:
-- `python -m unittest discover -s tests -v`: PASS, 1112 tests, 1 skipped
-
-Canonical runtime GET smoke:
-- Scope: Book `1`, chapters `364-369`
-- Target phase: `PREPARE`
-- Repeated response deterministic: true
-- Plan fingerprint: `3ecbe9c69353157f2e0f6e4af48ec21616891469ef2c7c704bfe0f69dcc211b1`
-- Included: `0`
-- Excluded: `6`
-- `364-367`: `EXCLUDED_RENDERED_NOT_QA`, reason `HUMAN_QA_NOT_ACCEPTED`
-- `368`: `EXCLUDED_COMPLETE`, reason `ACTIVE_OUTPUT_COMPLETE`
-- `369`: `EXCLUDED_BLOCKED`, reason `CASTING_PLAN_NOT_APPROVED`
+Backend contract smoke:
+- `GET /api/production/batch-plan?book_id=1&from_chapter=364&to_chapter=369&target_phase=PREPARE`: PASS
 - Authorization: `MUTATION_NOT_AUTHORIZED`
 - Execution endpoint available: false
-- No path or internal snapshot leakage detected
 
-Target-phase smoke:
-- `APPROVAL`: PASS, included `1`, excluded `5`
-- `PREPARE`: PASS, included `0`, excluded `6`
-- `START_RENDER`: PASS, included `0`, excluded `6`
-- `RESUME_OR_MONITOR`: PASS, included `0`, excluded `6`
-- `QA_CLOSEOUT`: PASS, included `4`, excluded `2`
-- `NO_ACTION`: PASS, included `1`, excluded `5`
-- Invalid phase: HTTP `400`
+Syntax:
+- `node --check ui\app.js`: PASS
+- `node --check ui\production_state.js`: PASS
 
-Sensitive table counts before and after live smoke:
+Focused and affected tests:
+- `python -m unittest tests.test_batch_plan_ui tests.test_range_readiness_ui tests.test_daily_prod_shell_ui tests.test_runtime_identity_ui -v`: PASS, 49 tests
+
+Full offline validation:
+- `python -m unittest discover -s tests -v`: PASS, 1127 tests, 1 skipped
+
+Browser smoke:
+- Browser: Codex in-app browser
+- Scope: Book `1`, chapters `364-369`
+- Range readiness: PASS
+- Target phase: `PREPARE`
+- Batch plan: PASS
+- Included: `0`
+- Excluded: `6`
+- Reasons: `364-367` Human QA pending, `368` active output complete, `369` Casting Plan not approved
+- Authorization warning: visible
+- Execution endpoint unavailable: visible
+- Fingerprint: visible as truncated metadata
+- Safety statuses: `PARTIALLY_SUPPORTED` shown as `Hỗ trợ một phần`
+- Open Chapter `369`: navigated to existing Production flow and settled on `CASTING_REVIEW`
+- Open Chapter evidence: route `#/production?book=1&chapter=369`, Casting Plan `#24 / v1`
+- Refresh/dedupe: rebuilding the plan remained `6` rows total, no duplicate rows
+- Phase invalidation: changing to `QA_CLOSEOUT` cleared old plan
+- Route isolation: leaving Production hid the Production view and Batch Plan panel
+- Network-method capture: direct browser network capture was not available; source review and focused tests prove the Batch Plan action uses GET-only and no mutation request path
+
+Sensitive table counts before and after browser smoke:
 - `speaker_assignment_drafts`: 15 -> 15
 - `casting_plans`: 23 -> 23
 - `jobs`: 21 -> 21
@@ -160,7 +127,7 @@ Sensitive table counts before and after live smoke:
 - `segments`: 688 -> 688
 - `artifacts`: 84 -> 84
 
-Chapter 369 after smoke:
+Chapter 369 after browser smoke:
 - Casting Plan 24 revision 1 remains `draft`, `approved_at = null`
 - Jobs: 0
 - Artifacts: 0
@@ -169,13 +136,17 @@ Chapter 369 after smoke:
 
 ## Remaining
 
-UI work has not started.
+Phase 2 closeout validation is complete and ready for checkpoint commit.
 
-Batch mutation remains unauthorized and unimplemented.
+Remaining:
+1. Create the Phase 2 checkpoint commit.
+2. Keep batch execution unauthorized.
+3. Do not start documentation closeout or batch execution in this task.
 
 ## Next Exact Action
 
-1. Review the committed read-only batch-plan checkpoint.
-2. Decide whether DAILY-PROD-5A requires a read-only Batch Plan UI.
-3. Keep execution endpoints and batch mutation unauthorized.
-4. Require a separate owner/Tech Lead decision before mutation design.
+1. Review the committed DAILY-PROD-5A backend and UI checkpoints.
+2. Reconcile PROJECT_STATUS.md, ROADMAP.md, NEXT_TASK.md, and CHANGELOG.md.
+3. Decide whether DAILY-PROD-5A is complete.
+4. Decide the smallest safe next DAILY-PROD-5 task.
+5. Keep mutation unauthorized pending explicit review.
