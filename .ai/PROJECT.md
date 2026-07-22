@@ -1,6 +1,6 @@
 # Project
 
-Updated: 2026-07-22 18:17:10 +07:00
+Updated: 2026-07-22 19:00:42 +07:00
 
 ## Product Goal
 
@@ -29,23 +29,24 @@ DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout
 
 ## Current Authorized Task
 
-DAILY-PROD-5B Phase 5 - Isolated PREPARE Orchestration And Reconciliation Contract
+DAILY-PROD-5B Phase 6 - Isolated PREPARE Job Transaction Adapter Design Contract
 
 ## MVP / Milestone Success Criteria
 
-DAILY-PROD-5B Phase 4 is complete. Phase 5 is complete when:
+DAILY-PROD-5B Phase 5 is complete. Phase 6 is complete when:
 
-- A pure orchestration contract coordinates request intake, current-plan revalidation, durable create-or-replay, atomic `PLANNED -> APPLYING` ownership, pre-mutation fingerprint revalidation, injected future Job-transaction dependency, durable APPLIED/REJECTED/FAILED recording, ambiguous timeout replay, and stale APPLYING reconciliation.
-- Orchestration tests use fakes and temporary or isolated databases only.
-- No API route, canonical schema activation, `prepare_job`/`create_job` invocation, real Job/JobChapter creation, UI work, provider/Gemini/TTS call, or START_RENDER integration is implemented.
+- Existing `prepare_job`/`create_job` behavior is inspected and documented without invoking it.
+- A pure adapter input/result contract defines request identity, scope, plan fingerprint, one-request/one-Job linkage, Job/JobChapter transaction evidence, deterministic conflict/failure results, and ambiguous-outcome handling.
+- Adapter tests use pure/fake model dependencies only.
+- No API route, canonical schema activation, pipeline call, real Job/JobChapter creation, UI work, provider/Gemini/TTS call, PREPARE execution, or START_RENDER integration is implemented.
 
 ## In Scope
 
-- Define pure PREPARE orchestration state flow.
-- Define request-store, current-plan, and future Job-transaction dependency interfaces.
-- Define durable ownership acquisition and pre-mutation fingerprint revalidation.
-- Define durable result persistence ordering, timeout replay, stale APPLYING reconciliation, and operator-review outcomes.
-- Add pure/offline orchestration tests with fake or isolated dependencies.
+- Inspect existing Job preparation lifecycle and transaction evidence.
+- Define pure PREPARE Job transaction adapter contracts.
+- Define one-request/one-Job durable linkage and duplicate protection.
+- Define committed-success evidence, deterministic conflict/failure mapping, ambiguous-outcome behavior, and historical replay evidence.
+- Add pure/offline adapter design and model tests with fake dependencies only.
 
 ## Out Of Scope / Later
 
@@ -59,6 +60,9 @@ DAILY-PROD-5B Phase 4 is complete. Phase 5 is complete when:
 - Batch execution endpoint implementation.
 - Production database or runtime mutation.
 - Real Job creation or JobChapter creation.
+- Real adapter implementation.
+- Pipeline calls.
+- API integration.
 - New provider or TTS behavior.
 - Canonical schema migration, unless proven necessary and approved separately.
 
@@ -105,6 +109,7 @@ node --check ui\app.js
 - Explicit schema-13 activation is authorized only for temporary or isolated databases.
 - Canonical production migration remains unauthorized.
 - PREPARE execution endpoint remains unauthorized.
+- Real Job transaction adapter implementation remains unauthorized.
 - START_RENDER remains separate.
 - Approval, prepare, and render start remain separate actions.
 - Immutable plan/job/artifact history must be preserved.

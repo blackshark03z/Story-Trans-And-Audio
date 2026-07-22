@@ -1,6 +1,6 @@
 # Continuity Decisions
 
-Updated: 2026-07-22 18:17:10 +07:00
+Updated: 2026-07-22 19:00:42 +07:00
 
 ## CONT-001 - Real state outranks checkpoint
 
@@ -169,6 +169,29 @@ The next phase may define and test an isolated orchestration contract that coord
 - stale APPLYING reconciliation.
 
 The future Job dependency must remain injected or fake. This decision does not authorize canonical schema activation, API route registration, `prepare_job` or `create_job` invocation, real Job/JobChapter creation, UI controls, START_RENDER, provider/Gemini/TTS calls, or Chapter 369 production action.
+
+## CONT-015 - Job transaction adapter requires a reviewed durable boundary
+
+The PREPARE orchestration contract is complete.
+
+The next phase may design an isolated adapter contract between an `APPLYING`
+request and the existing Job/JobChapter preparation transaction.
+
+The design must establish:
+
+- one request to at most one Job;
+- atomic Job and JobChapter creation;
+- durable request-to-Job linkage;
+- committed-success evidence;
+- deterministic conflict mapping;
+- ambiguous-outcome recovery evidence;
+- protection against duplicate adapter invocation;
+- no worker wake or render start.
+
+This authorization permits design and isolated model testing only.
+
+Real pipeline invocation, Job creation, canonical schema activation, API
+integration, PREPARE execution, and START_RENDER remain unauthorized.
 
 ## References
 

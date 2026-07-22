@@ -1,11 +1,11 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-22T18:17:10 +07:00 (Asia/Bangkok)
+**Cập nhật:** 2026-07-22T19:00:42 +07:00 (Asia/Bangkok)
 **Milestone:** DAILY-PROD-5 Active - Batch Approval, Prepare, Render And QA Closeout
 **Strategic state:** `PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP`
-**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1`, `DAILY-PROD-2`, `DAILY-PROD-3`, `DAILY-PROD-4`, `DAILY-PROD-5A`, and `DAILY-PROD-5B` Phases 1 through 4 are complete. Current milestone: `DAILY-PROD-5` - Batch Approval, Prepare, Render And QA Closeout. Production remains a modular, state-resolved, single-current-stage workflow with reusable voice selectors, contextual Voice Library detour/return, completed-output Audio Library, read-only range readiness/exception queue, a read-only batch scope plan, a pure PREPARE safety contract, a complete PREPARE idempotency persistence design, a dormant durable PREPARE request store, and accepted isolated schema-13 persistence validation. The next authorized boundary is isolated PREPARE orchestration design only.
+**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1`, `DAILY-PROD-2`, `DAILY-PROD-3`, `DAILY-PROD-4`, `DAILY-PROD-5A`, and `DAILY-PROD-5B` Phases 1 through 5 are complete. Current milestone: `DAILY-PROD-5` - Batch Approval, Prepare, Render And QA Closeout. Production remains a modular, state-resolved, single-current-stage workflow with reusable voice selectors, contextual Voice Library detour/return, completed-output Audio Library, read-only range readiness/exception queue, a read-only batch scope plan, a pure PREPARE safety contract, complete PREPARE idempotency persistence design, dormant durable PREPARE request store, accepted isolated schema-13 persistence validation, and accepted isolated PREPARE orchestration contract. The next authorized boundary is isolated PREPARE Job transaction adapter design only.
 
-**Last verified against commit:** `f650f6936f89d400579acb882f05704799f6c3c8`
+**Last verified against commit:** `306fd7d2d147ad0dc19e2c00a91cce94d9208ece`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-22
 **Canonical runtime:** `http://127.0.0.1:8772`
@@ -18,15 +18,20 @@
 **DAILY-PROD-5B Phase 2:** complete
 **DAILY-PROD-5B Phase 3:** complete
 **DAILY-PROD-5B Phase 4:** complete
+**DAILY-PROD-5B Phase 5:** complete
 **DAILY-PROD-5:** active
 **Mutation authorization:** `MUTATION_NOT_AUTHORIZED`
 **Isolated schema-13 integration validation:** `COMPLETE`
-**Isolated PREPARE orchestration design:** `AUTHORIZED`
+**Isolated PREPARE orchestration contract:** `COMPLETE`
+**Job transaction adapter design:** `AUTHORIZED`
+**Job transaction adapter implementation:** `NOT_AUTHORIZED`
 **Canonical migration authorization:** `NOT_AUTHORIZED`
 **PREPARE execution:** `NOT_AUTHORIZED`
+**API integration:** `NOT_AUTHORIZED`
 **START_RENDER:** `NOT_AUTHORIZED`
 **Dormant migration:** `story_audio/migrations/dormant/0013_batch_prepare_requests.sql`
 **Durable request store:** `story_audio/batch_prepare_store.py`
+**PREPARE orchestration:** `story_audio/batch_prepare_orchestrator.py`
 **DAILY-PROD-4A:** complete
 **DAILY-PROD-4:** complete
 **DAILY-PROD-3A:** complete
@@ -84,13 +89,14 @@
 - Phase 3 validation passed: focused/affected suite `133` tests PASS, full offline suite `1239` PASS with `1` skipped, Doctor `critical_errors=0`, canonical DB `quick_check=ok`, hash `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984` bytes, mtime `2026-07-20T12:31:47.429225`, and unchanged sensitive counts (`speaker_assignment_drafts=15`, `casting_plans=23`, `jobs=21`, `job_chapters=21`, `segments=688`, `artifacts=84`).
 - `DAILY-PROD-5B Phase 4` is complete. Commit `f650f6936f89d400579acb882f05704799f6c3c8` accepted isolated schema-13 persistence validation with synthetic production-like schema-12 fixtures, explicit dormant schema-13 activation, legacy-data preservation, connection restart, subprocess restart, durable request persistence, same-request replay, payload conflict replay, APPLIED/REJECTED/FAILED historical replay, concurrent uniqueness, atomic transition races, terminal overwrite protection, stale APPLYING read-only detection, migration rollback, store-operation rollback, invalid stored JSON fail-closed behavior, and canonical path guards.
 - Phase 4 validation passed: isolated integration suite `9` tests PASS twice, affected suite `142` tests PASS, full offline suite `1248` tests PASS with `1` skipped, Doctor `critical_errors=0`, canonical runtime schema/latest `12 / 12`, canonical `batch_prepare_requests` absent, canonical DB hash `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984` bytes, mtime `2026-07-20T12:31:47.429225`, and unchanged sensitive counts.
-- Isolated PREPARE orchestration design is authorized for pure contract, fake/injected dependencies, offline tests, and temporary or isolated databases when needed. Canonical schema activation remains unauthorized, PREPARE execution endpoint and `prepare_job`/`create_job` integration remain unauthorized, real Job/JobChapter creation remains unauthorized, UI remains out of scope, and START_RENDER remains separate and unauthorized.
-- `DAILY-PROD-5` remains active. Exact next task: `DAILY-PROD-5B Phase 5` - Isolated PREPARE Orchestration And Reconciliation Contract. Phase 5 may define and test the service-level orchestration contract for current-plan validation, durable create-or-replay, atomic APPLYING ownership, pre-mutation fingerprint revalidation, injected future Job transaction behavior, APPLIED/REJECTED/FAILED recording, timeout replay, and stale APPLYING reconciliation; it must stop before canonical activation, API integration, real Job creation, UI, provider/Gemini/TTS, Chapter `369` mutation, or START_RENDER.
+- `DAILY-PROD-5B Phase 5` is complete. Commit `306fd7d2d147ad0dc19e2c00a91cce94d9208ece` added the isolated PREPARE orchestration contract with current-plan authority, durable create-or-replay, atomic APPLYING ownership, ownership-loser replay, second fingerprint guard, injected fake FuturePrepareTransaction, durable APPLIED/REJECTED/FAILED ordering, timeout replay, deterministic operator actions, and classify-only stale APPLYING reconciliation.
+- Phase 5 validation passed: focused/affected suite `137` tests PASS, repeated orchestrator suite `16` tests PASS, full offline suite `1265` tests PASS with `1` skipped, Doctor `critical_errors=0`, canonical runtime schema/latest `12 / 12`, canonical `batch_prepare_requests` absent, canonical DB hash `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984` bytes, mtime `2026-07-20T12:31:47.429225`, and unchanged sensitive counts.
+- Job transaction adapter design is authorized next for pure contracts, fake/model tests, transaction-boundary analysis, request-to-Job linkage design, conflict mapping, and ambiguous-outcome recovery design. Adapter implementation, canonical schema activation, PREPARE execution endpoint, `prepare_job`/`create_job` integration, real Job/JobChapter creation, UI, provider/Gemini/TTS, and START_RENDER remain unauthorized.
 - Browser smoke used an isolated runtime to verify contextual detour activation, logical custom voice creation, reference WAV upload, usable catalog resolution, unsaved return preselection, explicit Book Voice Profile save, cancel, and stale-context rejection. Isolated non-GET requests were limited to custom voice creation, custom revision upload, and explicit profile save; isolated jobs/job_chapters/artifacts remained `0`.
 - `DAILY-PROD-2B2-D1` canonical browser smoke loaded Chapter `369` read-only as `CASTING_REVIEW`, opened the Final Voice Map contextual Voice Library detour, verified same-tab return context, canceled back to Production, and recorded `0` canonical non-GET requests. Post-smoke verification confirmed Chapter `369` remained unchanged.
 - Chapter `369` remains deferred and unchanged; optional distinct-voice work is not active.
-- `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this closure is `SYSTEM_ROADMAP / ORCHESTRATION_DESIGN_AUTHORIZED / CANONICAL_ACTIVATION_NOT_AUTHORIZED / PREPARE_EXECUTION_NOT_AUTHORIZED`.
-- Exact next task: `DAILY-PROD-5B Phase 5` - Isolated PREPARE Orchestration And Reconciliation Contract.
+- `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this closure is `SYSTEM_ROADMAP / JOB_ADAPTER_DESIGN_AUTHORIZED / ADAPTER_IMPLEMENTATION_NOT_AUTHORIZED / CANONICAL_ACTIVATION_NOT_AUTHORIZED / PREPARE_EXECUTION_NOT_AUTHORIZED`.
+- Exact next task: `DAILY-PROD-5B Phase 6` - Isolated PREPARE Job Transaction Adapter Design Contract.
 
 **Task DAILY-PROD-2B2 verified implementation state:**
 - Repository/runtime baseline passed before implementation: branch `main`, `HEAD == origin/main == 4476ddd973761eba65fc45526e735c59ada48e0e`, runtime `http://127.0.0.1:8772`, schema `12`, and only protected untracked `experiment_b_transcript/` plus `runs/` were present.

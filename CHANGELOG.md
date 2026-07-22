@@ -16,6 +16,17 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DAILY-PROD-5B Phase 5 - Isolated PREPARE Orchestration Contract**: completed the isolated service-level PREPARE orchestration contract without canonical activation, API integration, real Job creation, or PREPARE execution.
+  - **Current-plan authority**: orchestration validates the PREPARE contract against the current batch plan at intake and again before the fake future transaction boundary.
+  - **Durable create/replay**: requests use durable create-or-replay semantics, atomic `PLANNED -> APPLYING` ownership, ownership-loser replay, historical terminal replay, and timeout replay from the stored record.
+  - **Second fingerprint guard**: stale plans after ownership are rejected deterministically before any fake transaction call; new fingerprints are not silently adopted.
+  - **Fake future boundary**: the future transaction is injected and fake-only; APPLIED is recorded only after simulated success is durably persisted, and deterministic REJECTED/FAILED handling remains public-safe.
+  - **Reconciliation**: stale APPLYING reconciliation is classify-only and non-mutating, with deterministic operator actions for in-progress, retryable, review-required, recovery-required, and corrupt-record cases.
+  - **Authorization fields**: public responses keep `mutation_authorized=false`, `execution_endpoint_available=false`, `real_job_execution=false`, and `prepare_starts_render=false`.
+  - **Validation**: focused/affected suite passed (`137` tests), repeated orchestrator suite passed (`16` tests), full offline suite passed (`1265` tests, `1` skipped), and Doctor passed with `critical_errors=0`.
+  - **Canonical safety**: canonical runtime stayed schema/latest `12 / 12`; `batch_prepare_requests` remained absent; DB hash `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984` bytes, and mtime `2026-07-20T12:31:47.429225` were preserved.
+  - **Commit**: `306fd7d2d147ad0dc19e2c00a91cce94d9208ece`.
+  - **Decision**: isolated Job transaction adapter design is authorized next; adapter implementation, canonical schema activation, API integration, PREPARE execution, real Job/JobChapter creation, UI, and START_RENDER remain unauthorized.
 - **DAILY-PROD-5B Phase 4 - Isolated Schema 13 Persistence Acceptance**: completed the isolated acceptance checkpoint for dormant PREPARE request persistence without canonical activation or PREPARE execution.
   - **Isolated fixture**: added synthetic production-like schema-12 temporary fixtures that explicitly activate dormant schema 13 and verify legacy-data preservation.
   - **Restart and replay**: validated connection/process restart persistence, same-request replay after restart, payload conflict after restart, and APPLIED/REJECTED/FAILED historical replay.

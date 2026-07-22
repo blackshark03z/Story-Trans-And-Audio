@@ -1,33 +1,34 @@
 # Next Task
 
 Task classification:
-SYSTEM_ROADMAP / ORCHESTRATION_DESIGN_AUTHORIZED / CANONICAL_ACTIVATION_NOT_AUTHORIZED / PREPARE_EXECUTION_NOT_AUTHORIZED
+SYSTEM_ROADMAP / JOB_ADAPTER_DESIGN_AUTHORIZED / ADAPTER_IMPLEMENTATION_NOT_AUTHORIZED / CANONICAL_ACTIVATION_NOT_AUTHORIZED / PREPARE_EXECUTION_NOT_AUTHORIZED
 
 Active milestone:
 DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout
 
 Exact next task:
-`DAILY-PROD-5B Phase 5` - Isolated PREPARE Orchestration And Reconciliation Contract
+`DAILY-PROD-5B Phase 6` - Isolated PREPARE Job Transaction Adapter Design Contract
 
 Current strategic state:
 PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP
 
 Current status:
-`DAILY-PROD-5A` and `DAILY-PROD-5B` Phases 1 through 4 are complete. Phase 4 accepted isolated schema-13 PREPARE request persistence with restart, replay, concurrency, race, rollback, stale APPLYING, and canonical path-safety evidence. Canonical/default runtime schema remains `12`; dormant proposed schema remains `13`.
+`DAILY-PROD-5A` and `DAILY-PROD-5B` Phases 1 through 5 are complete. Phase 5 accepted the isolated PREPARE orchestration contract for request intake, current-plan authority, durable create/replay, atomic ownership, second fingerprint validation, fake future transaction boundary, durable result ordering, timeout replay, and classify-only stale APPLYING reconciliation. Canonical/default runtime schema remains `12`; dormant proposed schema remains `13`.
 
 Operator pain:
-The plan contract, durable request store, and isolated persistence acceptance are complete, but the system still lacks a reviewed service-level contract that coordinates plan revalidation, durable ownership, timeout replay, future Job creation, and stale APPLYING reconciliation without double execution.
+The durable request store and orchestration contract are complete, but the system still lacks a reviewed boundary between an APPLYING request and the existing Job/JobChapter transaction. Without that boundary, future integration could create duplicate Jobs or record APPLIED without durable transaction evidence.
 
 Current baseline for the next task:
 
 - Branch `main`
-- Last verified commit: `f650f6936f89d400579acb882f05704799f6c3c8`
+- Last verified commit: `306fd7d2d147ad0dc19e2c00a91cce94d9208ece`
 - Canonical Story Audio runtime: `http://127.0.0.1:8772`
 - Runtime schema/latest schema: `12 / 12`
 - Dormant proposed schema: `13`
 - Dormant migration: `story_audio/migrations/dormant/0013_batch_prepare_requests.sql`
 - Durable request store: `story_audio/batch_prepare_store.py`
-- Phase 4 validation baseline: isolated suite `9` pass twice; affected suite `142` pass; full offline suite `1248` pass, `1` skipped; Doctor `critical_errors=0`.
+- Orchestrator: `story_audio/batch_prepare_orchestrator.py`
+- Phase 5 validation baseline: focused/affected suite `137` pass; repeated orchestrator suite `16` pass; full offline suite `1265` pass, `1` skipped; Doctor `critical_errors=0`.
 - Canonical DB has no `batch_prepare_requests` table, SHA-256 `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984` bytes, mtime `2026-07-20T12:31:47.429225`, and `quick_check=ok`.
 - Protected untracked paths must remain untouched:
   - `experiment_b_transcript/`
@@ -35,63 +36,62 @@ Current baseline for the next task:
 
 Allowed scope:
 
-- Inspect existing service/API conventions.
-- Define pure orchestration state flow.
-- Define request-store dependency interface.
-- Define current-plan dependency interface.
-- Define future Job-transaction dependency interface.
-- Define durable ownership acquisition.
-- Define pre-mutation fingerprint revalidation.
-- Define result persistence ordering.
-- Define timeout replay.
-- Define stale APPLYING reconciliation decisions.
-- Define operator-review outcomes.
-- Add pure/offline orchestration tests.
-- Use temporary or isolated databases only where needed.
+- Inspect existing Job preparation lifecycle.
+- Define adapter input/result contracts.
+- Define one-request/one-Job invariant.
+- Define Job/JobChapter atomic transaction evidence.
+- Define request-to-Job linkage.
+- Define conflict mapping.
+- Define ambiguous-outcome handling.
+- Define duplicate-Job prevention.
+- Define historical replay evidence.
+- Add pure design/model tests.
+- Use fake adapters only.
 
 Excluded scope:
 
+- Real `prepare_job` or `create_job` call.
+- Job/JobChapter write.
+- Pipeline modification.
 - API route.
 - Canonical schema activation.
-- `prepare_job` or `create_job` invocation.
-- Real Job/JobChapter creation.
-- Production DB mutation.
 - UI.
+- Worker wake.
 - START_RENDER.
 - Provider/Gemini/TTS.
 - Chapter 369 production action.
 
 Acceptance criteria:
 
-1. Request intake validates the Phase 1 contract.
-2. Durable request record is created or replayed before ownership.
-3. Same request never gains two execution owners.
-4. Payload mismatch returns `REQUEST_ID_CONFLICT`.
-5. APPLIED/REJECTED/FAILED requests replay historically.
-6. `PLANNED -> APPLYING` ownership is atomic.
-7. Fingerprint is revalidated immediately before the future mutation dependency.
-8. Stale fingerprint records deterministic rejection without Job creation.
-9. Future Job creation is represented only by an injected fake/interface.
-10. APPLIED is recorded only after simulated future transaction success.
-11. Failure before success cannot produce false APPLIED.
-12. Ambiguous client timeout replays durable state.
-13. Stale APPLYING records are classified for retry or operator review.
-14. Reconciliation does not automatically execute PREPARE.
-15. PREPARE never starts render.
-16. No API or real mutation is implemented.
+1. Existing Job preparation lifecycle is documented from source/tests.
+2. Adapter input binds request identity, scope, and plan fingerprint.
+3. One request can produce at most one Job.
+4. One Job contains all eligible JobChapter rows atomically.
+5. Adapter success requires durable transaction evidence.
+6. APPLIED cannot be recorded from an uncommitted result.
+7. Existing prepared/active Job conflict maps deterministically.
+8. Duplicate adapter invocation cannot be treated as safe without durable linkage.
+9. Ambiguous outcomes require reconciliation/operator review.
+10. Request-to-Job linkage fields are specified.
+11. Historical replay fields are specified.
+12. Adapter never wakes worker or starts render.
+13. No real pipeline call or DB mutation is implemented.
 
 Safety gate:
 
-- `ISOLATED_PREPARE_ORCHESTRATION_DESIGN_AUTHORIZED` applies only to pure design, fake dependencies, offline tests, and temporary/isolated databases when needed.
+- `ISOLATED_JOB_TRANSACTION_ADAPTER_DESIGN_AUTHORIZED` applies only to pure design, fake dependencies, offline tests, and temporary/isolated databases when needed.
+- `REAL_JOB_ADAPTER_IMPLEMENTATION_NOT_AUTHORIZED` remains in force.
 - `CANONICAL_SCHEMA_13_ACTIVATION_NOT_AUTHORIZED` remains in force.
 - `PREPARE_EXECUTION_NOT_AUTHORIZED` remains in force.
+- `API_INTEGRATION_NOT_AUTHORIZED` remains in force.
 - `START_RENDER` remains separate and unauthorized.
 
 Exact next action:
 
-1. Define the pure PREPARE orchestration contract.
-2. Define atomic durable ownership and replay behavior.
-3. Define pre-mutation fingerprint revalidation.
-4. Define stale APPLYING reconciliation.
-5. Add offline tests with fake/injected future Job dependencies.
-6. Stop before canonical activation, API integration, real Job creation, UI, or START_RENDER.
+1. Inspect existing Job/JobChapter preparation transaction.
+2. Define adapter input and success evidence.
+3. Define one-request/one-Job linkage.
+4. Define duplicate and ambiguous-outcome behavior.
+5. Define conflict and failure mapping.
+6. Use only pure/fake adapter models.
+7. Stop before pipeline integration or real Job writes.
