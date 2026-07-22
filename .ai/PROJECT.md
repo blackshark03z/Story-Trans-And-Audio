@@ -1,6 +1,6 @@
 # Project
 
-Updated: 2026-07-22 17:06:00 +07:00
+Updated: 2026-07-22 18:17:10 +07:00
 
 ## Product Goal
 
@@ -29,25 +29,23 @@ DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout
 
 ## Current Authorized Task
 
-DAILY-PROD-5B Phase 4 - Isolated Schema 13 Activation And Request Store Integration Validation
+DAILY-PROD-5B Phase 5 - Isolated PREPARE Orchestration And Reconciliation Contract
 
 ## MVP / Milestone Success Criteria
 
-DAILY-PROD-5B Phase 4 is complete when:
+DAILY-PROD-5B Phase 4 is complete. Phase 5 is complete when:
 
-- A temporary schema-12 production-like fixture explicitly activates dormant schema 13.
-- Legacy rows, durable request records, and historical replay survive process/connection restart.
-- Concurrent request creation, payload conflicts, transition races, stale APPLYING detection, and failure recovery are validated.
-- Canonical/default runtime schema remains `12`, and canonical DB remains byte-for-byte unchanged.
-- PREPARE execution endpoint, `prepare_job`, Job/JobChapter creation, UI changes, and START_RENDER remain unauthorized.
+- A pure orchestration contract coordinates request intake, current-plan revalidation, durable create-or-replay, atomic `PLANNED -> APPLYING` ownership, pre-mutation fingerprint revalidation, injected future Job-transaction dependency, durable APPLIED/REJECTED/FAILED recording, ambiguous timeout replay, and stale APPLYING reconciliation.
+- Orchestration tests use fakes and temporary or isolated databases only.
+- No API route, canonical schema activation, `prepare_job`/`create_job` invocation, real Job/JobChapter creation, UI work, provider/Gemini/TTS call, or START_RENDER integration is implemented.
 
 ## In Scope
 
-- Build temporary schema-12 production-like fixtures.
-- Explicitly activate dormant schema 13 on isolated databases.
-- Validate restart persistence, historical APPLIED/REJECTED/FAILED replay, and create-or-replay after restart.
-- Validate concurrent uniqueness, payload conflict, atomic transition races, stale APPLYING detection, and failure recovery.
-- Verify canonical DB byte-level safety.
+- Define pure PREPARE orchestration state flow.
+- Define request-store, current-plan, and future Job-transaction dependency interfaces.
+- Define durable ownership acquisition and pre-mutation fingerprint revalidation.
+- Define durable result persistence ordering, timeout replay, stale APPLYING reconciliation, and operator-review outcomes.
+- Add pure/offline orchestration tests with fake or isolated dependencies.
 
 ## Out Of Scope / Later
 
@@ -60,7 +58,7 @@ DAILY-PROD-5B Phase 4 is complete when:
 - Batch approval, prepare, render, or QA execution.
 - Batch execution endpoint implementation.
 - Production database or runtime mutation.
-- Job creation or JobChapter creation.
+- Real Job creation or JobChapter creation.
 - New provider or TTS behavior.
 - Canonical schema migration, unless proven necessary and approved separately.
 

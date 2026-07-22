@@ -1,6 +1,6 @@
 # Continuity Decisions
 
-Updated: 2026-07-22 17:06:00 +07:00
+Updated: 2026-07-22 18:17:10 +07:00
 
 ## CONT-001 - Real state outranks checkpoint
 
@@ -152,6 +152,23 @@ Before canonical activation or PREPARE execution can be considered, an isolated 
 This authorization applies only to temporary or isolated databases.
 
 Canonical schema activation, PREPARE execution, and START_RENDER remain unauthorized.
+
+## CONT-014 - PREPARE orchestration must be reviewed before execution integration
+
+The dormant request store and isolated schema-13 persistence acceptance are complete.
+
+The next phase may define and test an isolated orchestration contract that coordinates:
+
+- current plan validation;
+- durable create-or-replay;
+- atomic APPLYING ownership;
+- pre-mutation fingerprint revalidation;
+- future Job-transaction dependency;
+- durable APPLIED, REJECTED, and FAILED recording;
+- timeout replay;
+- stale APPLYING reconciliation.
+
+The future Job dependency must remain injected or fake. This decision does not authorize canonical schema activation, API route registration, `prepare_job` or `create_job` invocation, real Job/JobChapter creation, UI controls, START_RENDER, provider/Gemini/TTS calls, or Chapter 369 production action.
 
 ## References
 

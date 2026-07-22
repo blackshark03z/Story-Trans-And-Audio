@@ -34,6 +34,7 @@ Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve
 - DAILY-PROD-5B Phase 1 - Pure PREPARE Mutation Safety Contract: complete. Added a pure PREPARE-only contract with required plan fingerprint, stale-plan rejection, exact boolean confirmation, current-plan authority, deterministic planned intent, no-eligible safe result, honest safety statuses, and no execution endpoint or production mutation.
 - DAILY-PROD-5B Phase 2 - PREPARE Idempotency Persistence Design: complete. Defined durable `client_request_id`, canonical request identity, payload binding, explicit request state machine, duplicate/timeout replay, Option A atomicity, stale APPLYING reconciliation, fingerprint race guard, one request/one Job, bounded historical result replay, retention, and proposed schema 13 `batch_prepare_requests`; no migration or execution endpoint was implemented.
 - DAILY-PROD-5B Phase 3 - Dormant PREPARE Request Persistence: complete. Added dormant schema-13 migration artifact `story_audio/migrations/dormant/0013_batch_prepare_requests.sql` and durable request store `story_audio/batch_prepare_store.py` with create-or-replay, payload conflict detection, SQLite uniqueness, guarded transitions, historical result replay, stale APPLYING lookup, bounded result payloads, no auto-migration, no execution integration, canonical/default schema `12 / 12`, and full offline validation.
+- DAILY-PROD-5B Phase 4 - Isolated Schema 13 Persistence Acceptance: complete. Temporary schema-12 production-like fixtures explicitly activate dormant schema 13 and validate legacy-data preservation, connection/process restart persistence, same-request replay, payload conflicts, APPLIED/REJECTED/FAILED historical replay, concurrent uniqueness, transition races, terminal overwrite protection, stale APPLYING read-only detection, rollback behavior, canonical path guards, and full offline validation while canonical schema/latest remains `12 / 12`.
 
 ## Current Strategic Phase
 
@@ -64,12 +65,13 @@ The milestone must:
 
 Current boundary:
 
-1. Validate isolated schema-13 activation and durable PREPARE request-store integration on temporary production-like databases only.
+1. Define the isolated PREPARE orchestration and stale-APPLYING reconciliation contract.
 2. Keep canonical production schema at version 12 until a later explicit canonical migration authorization.
-3. Keep PREPARE execution endpoint unauthorized until isolated restart, concurrency, stale APPLYING, historical replay, and failure-recovery behavior are accepted.
-4. Keep render start as a separate explicit action.
-5. Define monitor/resume, partial-failure and retry behavior before broad execution.
-6. Close QA/recovery workflows only through later bounded tasks.
+3. Keep PREPARE execution endpoint unauthorized until orchestration design is reviewed and separately authorized.
+4. Keep future Job creation represented only by an injected or fake dependency during Phase 5.
+5. Keep render start as a separate explicit action.
+6. Define monitor/resume, partial-failure and retry behavior before broad execution.
+7. Close QA/recovery workflows only through later bounded tasks.
 
 ## Ordered Daily Production UX Roadmap
 
@@ -84,7 +86,7 @@ Current boundary:
 
 See `NEXT_TASK.md` for:
 
-`DAILY-PROD-5B Phase 4 - Isolated Schema 13 Activation And Request Store Integration Validation`
+`DAILY-PROD-5B Phase 5 - Isolated PREPARE Orchestration And Reconciliation Contract`
 
 ## Paused
 

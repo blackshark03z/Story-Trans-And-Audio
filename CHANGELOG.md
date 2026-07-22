@@ -16,6 +16,15 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DAILY-PROD-5B Phase 4 - Isolated Schema 13 Persistence Acceptance**: completed the isolated acceptance checkpoint for dormant PREPARE request persistence without canonical activation or PREPARE execution.
+  - **Isolated fixture**: added synthetic production-like schema-12 temporary fixtures that explicitly activate dormant schema 13 and verify legacy-data preservation.
+  - **Restart and replay**: validated connection/process restart persistence, same-request replay after restart, payload conflict after restart, and APPLIED/REJECTED/FAILED historical replay.
+  - **Concurrency and races**: validated concurrent same-request uniqueness, concurrent same-ID/different-payload conflict, atomic `PLANNED -> APPLYING` ownership, atomic terminal-state race handling, and terminal overwrite protection.
+  - **Failure recovery**: validated stale APPLYING read-only detection, migration rollback without false schema 13, store-operation rollback without false APPLIED state, invalid stored JSON fail-closed behavior, and canonical path guards.
+  - **Validation**: isolated integration suite passed (`9` tests, run twice), affected suite passed (`142` tests), full offline suite passed (`1248` tests, `1` skipped), and Doctor passed with `critical_errors=0`.
+  - **Canonical safety**: canonical runtime stayed schema/latest `12 / 12`; `batch_prepare_requests` remained absent; DB hash `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984` bytes, and mtime `2026-07-20T12:31:47.429225` were preserved.
+  - **Commit**: `f650f6936f89d400579acb882f05704799f6c3c8`.
+  - **Decision**: isolated PREPARE orchestration design is authorized next; canonical schema activation, PREPARE execution, real Job/JobChapter creation, UI, and START_RENDER remain unauthorized.
 - **DAILY-PROD-5B Phase 3 - Dormant PREPARE Request Persistence**: completed the repository implementation checkpoint for durable PREPARE idempotency storage without activating canonical schema 13 or adding execution integration.
   - **Dormant migration**: added `story_audio/migrations/dormant/0013_batch_prepare_requests.sql` as an explicit-only schema-13 artifact; routine startup and top-level migration discovery still keep default/latest schema at `12 / 12`.
   - **Request table design**: implemented `batch_prepare_requests` with unique `client_request_id`, unique canonical `request_identity`, PREPARE-only phase, state allowlist, range constraints, stale APPLYING query indexes, bounded versioned `result_payload_json`, and reconciliation timestamps.
