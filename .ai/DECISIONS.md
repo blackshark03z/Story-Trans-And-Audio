@@ -90,6 +90,26 @@ It must not automatically start synthesis.
 
 START_RENDER, RESUME, and QA mutation require separate bounded tasks and separate review.
 
+## CONT-011 - PREPARE execution requires durable request idempotency
+
+The pure PREPARE contract is complete, but execution remains unauthorized.
+
+Before PREPARE mutation can be implemented, the system must define:
+
+- durable request identity;
+- client request ID binding;
+- plan fingerprint binding;
+- request state transitions;
+- duplicate in-progress behavior;
+- duplicate completed-result replay;
+- retry after ambiguous client timeout;
+- atomicity policy;
+- per-chapter durable audit/result evidence.
+
+A database transaction alone is not sufficient as the external idempotency contract.
+
+START_RENDER remains separate.
+
 ## References
 
 - `docs/AI_TECH_LEAD_PROTOCOL.md`

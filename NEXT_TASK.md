@@ -9,79 +9,86 @@ DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout
 Completed:
 DAILY-PROD-5A - Batch Scope Plan And Mutation Safety Contract
 
+DAILY-PROD-5B Phase 1 - Pure PREPARE Mutation Safety Contract
+
 Current strategic state:
 PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP
 
 Current status:
-`DAILY-PROD-1`, `DAILY-PROD-2`, `DAILY-PROD-3`, `DAILY-PROD-4`, and `DAILY-PROD-5A` are complete. Production has a modular shell, read-only state resolver, isolated current-step panels, shared preset/custom voice selectors, contextual Voice Library detour/return, a read-only completed-output Audio Library, a read-only range readiness/exception queue, and a read-only batch scope plan.
+`DAILY-PROD-1`, `DAILY-PROD-2`, `DAILY-PROD-3`, `DAILY-PROD-4`, `DAILY-PROD-5A`, and `DAILY-PROD-5B Phase 1` are complete. The system can inspect deterministic batch plans and validate a PREPARE request through a pure fail-closed contract, but PREPARE execution remains unauthorized.
 
 Current baseline for the next task:
 - Branch `main`
-- Last verified commit: `b364b51ed72a4c1e506de12e368a6b5a69a3356e`
+- Last verified commit: `a3d6f956a103ed563f5bd9ea6496ea0da307440c`
 - Canonical Story Audio runtime: `http://127.0.0.1:8772`
 - Runtime schema: `12`
 - Protected untracked paths must remain untouched:
   - `experiment_b_transcript/`
   - `runs/`
-- `DAILY-PROD-5A` backend checkpoint: `4784c16c69fbfc6d714c1a636068e35ab41e3bb1`
-- `DAILY-PROD-5A` UI checkpoint: `b364b51ed72a4c1e506de12e368a6b5a69a3356e`
-- Batch plan for Book `1`, chapters `364-369`, target `PREPARE`, was verified as included `0`, excluded `6`, authorization `MUTATION_NOT_AUTHORIZED`, and execution endpoint unavailable.
-- Runtime exclusions from the batch-plan smoke were chapters `364-367` `HUMAN_QA_NOT_ACCEPTED`, chapter `368` `ACTIVE_OUTPUT_COMPLETE`, and chapter `369` `CASTING_PLAN_NOT_APPROVED`.
+- Pure PREPARE contract checkpoint: `a3d6f956a103ed563f5bd9ea6496ea0da307440c`
+- Validation baseline: focused/affected tests `57` pass; full offline suite `1158` pass, `1` skipped; Doctor `critical_errors=0`.
+- Canonical PREPARE contract smoke for Book `1`, chapters `364-369`, returned included `0`, excluded `6`, valid result `REJECTED_NO_ELIGIBLE_CHAPTERS`, stale result `REJECTED_STALE_PLAN`, missing-confirmation result `REJECTED_CONFIRMATION_REQUIRED`, and unchanged sensitive counts.
 - Chapter `369`: active Text Revision `738`, Speaker Assignment Draft `15` approved, Casting Plan `24` revision `1` draft/unapproved, no Jobs, no JobChapters, no production segments, no production attempts, no artifacts, no active audio, and audio status `not_created`.
 
+Execution authorization:
+PREPARE_EXECUTION_NOT_AUTHORIZED
+
 Exact next task:
-`DAILY-PROD-5B` - Batch Prepare Mutation Contract And Stale-Plan Guard
+`DAILY-PROD-5B Phase 2` - PREPARE Idempotency Persistence And Atomic Execution Design
 
 Operator pain:
-Operators can inspect a deterministic batch plan but cannot yet safely authorize preparation. The system lacks a reviewed mutation contract for stale-plan rejection, duplicate requests, partial failure, per-chapter execution evidence, and retry behavior.
+The system can validate a PREPARE request but cannot safely execute one after repeated submission, client timeout, or process interruption because there is no durable request identity, result replay, or batch-level retry contract.
 
 Allowed scope:
-- Inspect the existing single-chapter `prepare_job` lifecycle.
-- Define the PREPARE-only batch request/response contract.
-- Require the deterministic plan fingerprint from `GET /api/production/batch-plan`.
-- Define stale-plan rejection.
-- Define explicit operator confirmation.
-- Define idempotency behavior.
-- Define existing prepared Job behavior.
-- Define duplicate-request behavior.
-- Define per-chapter success/failure result shape.
-- Define partial-failure boundaries.
-- Define retry behavior.
-- Define audit/evidence fields.
-- Add contract-focused offline tests.
-- Stop before implementation of any mutation endpoint or production mutation.
+- Inspect schema and migration conventions.
+- Design durable PREPARE request identity.
+- Define client request ID rules.
+- Bind request to scope, target phase, and plan fingerprint.
+- Define request state machine.
+- Define duplicate request replay.
+- Define in-progress duplicate response.
+- Define completed duplicate response.
+- Define failed request behavior.
+- Define retry after client timeout.
+- Define transaction and atomicity policy.
+- Decide whether one batch creates one Job or multiple Jobs.
+- Define per-chapter audit/result representation.
+- Define migration requirements.
+- Define retention and cleanup policy.
+- Define exact authorization gates for later implementation.
+- Add design/contract tests where possible.
+- Perform no production mutation.
 
 Excluded scope:
 - Do not implement an execution endpoint.
-- Do not mutate the database or runtime state.
-- Do not approve Speaker Drafts or Casting Plans.
-- Do not prepare or start jobs.
-- Do not render, regenerate, retry, assemble, or mutate audio/artifacts.
-- Do not perform Human QA mutation.
+- Do not create Jobs or JobChapters.
+- Do not start or resume render.
+- Do not mutate Human QA.
 - Do not call provider, Gemini, VieNeu/TTS, or preview synthesis.
-- Do not perform batch approval, batch prepare, batch render, or batch QA closeout.
-- Do not resolve Chapter `369` production/editorial work unless a later task explicitly selects it.
+- Do not create artifacts or audio.
+- Do not perform Chapter `369` production action.
 
 Acceptance criteria:
-1. PREPARE is the only mutation phase considered.
-2. Request must include the deterministic plan fingerprint.
-3. Stale fingerprint must be rejected.
-4. Explicit confirmation is mandatory.
-5. Duplicate submission behavior is defined.
-6. Existing prepared Job is not duplicated.
-7. Per-chapter results are deterministic.
-8. Partial failure semantics are explicit.
-9. Prepare never starts synthesis.
-10. Initial task performs no production mutation.
-11. Actual mutation implementation requires a separate review.
+1. Durable request identity is defined.
+2. Same client request ID cannot bind to different scope or fingerprint.
+3. Duplicate completed request returns the original result.
+4. Duplicate in-progress request does not start a second mutation.
+5. Stale fingerprint is rejected before mutation.
+6. Request state machine is explicit.
+7. Atomicity policy is explicit.
+8. Retry-after-timeout behavior is explicit.
+9. Per-chapter audit/result schema is explicit.
+10. Migration requirement is documented.
+11. PREPARE remains separate from START_RENDER.
+12. No execution endpoint or production mutation is implemented.
 
 Safety gate:
-Batch mutation remains unauthorized. The next task must stop before approving plans, preparing jobs, starting renders, generating audio, changing QA state, or implementing a live execution endpoint.
+PREPARE execution remains unauthorized. Phase 2 may design persistence, request identity, replay, atomicity, and retry behavior, but must stop before migration implementation, execution endpoint, Job creation, or production mutation.
 
 Exact next action:
-1. Inspect the existing single-job PREPARE lifecycle.
-2. Define the PREPARE-only batch mutation contract.
-3. Define plan fingerprint and stale-plan rejection.
-4. Define duplicate-request, partial-failure and retry semantics.
-5. Add contract-focused tests.
-6. Stop before implementation of any mutation endpoint.
+1. Inspect schema and migration conventions.
+2. Design durable PREPARE request identity.
+3. Define request state machine and fingerprint binding.
+4. Define duplicate replay and retry-after-timeout.
+5. Define atomicity and per-chapter audit/result schema.
+6. Stop before migration implementation or execution endpoint.

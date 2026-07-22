@@ -31,6 +31,7 @@ Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve
 - DAILY-PROD-3 - Audio Library And Output Retrieval: complete. `DAILY-PROD-3A` added read-only `GET /api/audio-library`, active-artifact semantics, runtime QA labels, safe playback/download, loading/error/empty/refresh states, and browser/runtime validation.
 - DAILY-PROD-4 - Range Readiness And Exception Queue: complete. `DAILY-PROD-4A` added read-only `GET /api/production/range-readiness`, active-output and QA semantics, deterministic workflow precedence, summary counts, ordered chapter list, exception queue, safe single-chapter navigation, and runtime/browser validation with no production mutation.
 - DAILY-PROD-5A - Batch Scope Plan And Mutation Safety Contract: complete. Added read-only `GET /api/production/batch-plan`, deterministic target-phase planning and fingerprints, included/excluded rows, reason codes, safety contract, authorization `MUTATION_NOT_AUTHORIZED`, unavailable execution endpoint, read-only UI review, stale-response protection, and runtime/browser validation with no production mutation.
+- DAILY-PROD-5B Phase 1 - Pure PREPARE Mutation Safety Contract: complete. Added a pure PREPARE-only contract with required plan fingerprint, stale-plan rejection, exact boolean confirmation, current-plan authority, deterministic planned intent, no-eligible safe result, honest safety statuses, and no execution endpoint or production mutation.
 
 ## Current Strategic Phase
 
@@ -61,8 +62,8 @@ The milestone must:
 
 Remaining direction:
 
-1. Define the PREPARE mutation contract and stale-plan guard.
-2. Implement controlled PREPARE execution only after contract review.
+1. Define PREPARE idempotency persistence and atomic execution design.
+2. Implement controlled PREPARE execution only after durable idempotency/replay/audit review.
 3. Keep render start as a separate explicit action.
 4. Define monitor/resume, partial-failure and retry behavior before broad execution.
 5. Close QA/recovery workflows only through later bounded tasks.
@@ -80,7 +81,7 @@ Remaining direction:
 
 See `NEXT_TASK.md` for:
 
-`DAILY-PROD-5B - Batch Prepare Mutation Contract And Stale-Plan Guard`
+`DAILY-PROD-5B Phase 2 - PREPARE Idempotency Persistence And Atomic Execution Design`
 
 ## Paused
 

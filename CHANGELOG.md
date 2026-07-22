@@ -16,6 +16,14 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DAILY-PROD-5B Phase 1 - PREPARE Mutation Safety Contract**: completed the pure PREPARE-only contract and deferred execution.
+  - **Request contract**: requires `book_id`, `from_chapter`, `to_chapter`, `target_phase`, `plan_fingerprint`, and exact boolean `explicit_confirmation=true`; only `target_phase=PREPARE` is supported.
+  - **Authority**: current read-only batch plan is the only eligibility authority; client included/excluded rows are ignored; stale fingerprints and scope mismatch are rejected; no eligible chapters fail safely as `REJECTED_NO_ELIGIBLE_CHAPTERS`.
+  - **Execution boundary**: accepted/rejected responses report `mutation_authorized=false`, `execution_endpoint_available=false`, and `prepare_starts_render=false`.
+  - **Safety semantics**: idempotency and duplicate request handling are honestly reported as `PARTIALLY_SUPPORTED`; partial failure is `NOT_YET_DEFINED`; retry is `PARTIALLY_SUPPORTED`.
+  - **Validation**: focused/affected tests passed (`57`), full offline suite passed (`1158` tests, `1` skipped), Doctor passed with `critical_errors=0`, and canonical read-only smoke remained unchanged with Book `1`, chapters `364-369`, included `0`, excluded `6`.
+  - **Evidence**: PREPARE creates one durable `prepared` Job and pinned `JobChapter` rows inside one transaction, does not wake the worker, and worker pickup excludes prepared jobs; `START_RENDER` remains a separate transition.
+  - **Decision**: PREPARE execution remains unauthorized. Next task: `DAILY-PROD-5B Phase 2` - PREPARE Idempotency Persistence And Atomic Execution Design.
 - **DAILY-PROD-5A - Batch Scope Plan And Mutation Safety Contract**: completed the read-only batch planning layer and kept batch execution fail-closed.
   - **Backend contract**: added `GET /api/production/batch-plan` with supported target phases, deterministic selected-range semantics, deterministic plan fingerprint, included/excluded rows, exclusion reason codes, summary counts, and authorization `MUTATION_NOT_AUTHORIZED`.
   - **Execution boundary**: `execution_endpoint_available` remains `false`; idempotency, retry/resume, and partial-failure behavior are honestly reported as partially supported planning evidence only, not executable mutation.

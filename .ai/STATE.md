@@ -1,13 +1,16 @@
 # DAILY-PROD Checkpoint State
 
-Updated: 2026-07-22 14:43:14 +07:00
+Updated: 2026-07-22 14:57:45 +07:00
 
 ## Current Phase
 
-`DAILY-PROD-5B Phase 1 closeout` - PREPARE mutation contract and stale-plan guard.
+`DAILY-PROD-5B Phase 1` complete.
+
+Current next task:
+`DAILY-PROD-5B Phase 2` - PREPARE Idempotency Persistence And Atomic Execution Design.
 
 Starting commit:
-`3eb84283ee76a47d7236ef8c756a555904e8699b`
+`a3d6f956a103ed563f5bd9ea6496ea0da307440c`
 
 ## Mutation Authorization
 
@@ -137,15 +140,16 @@ Doctor:
 Phase 1 implementation, full validation, and read-only canonical smoke are complete.
 
 Remaining:
-1. Create the pure contract checkpoint commit.
-2. Keep PREPARE execution unauthorized.
-3. Do not begin documentation closeout or execution endpoint implementation in this task.
+1. Design durable PREPARE request identity.
+2. Define request state machine, replay and retry semantics.
+3. Define atomicity and per-chapter audit/result schema.
+4. Stop before migration implementation or execution endpoint.
 
 ## Next Exact Action
 
-1. Review the committed pure PREPARE safety contract.
-2. Reconcile DAILY-PROD-5B Phase 1 documentation.
-3. Decide whether a bounded PREPARE execution implementation is authorized.
-4. If authorized later, require stale-plan guard and explicit confirmation.
-5. Keep START_RENDER separate.
-6. Do not implement execution automatically after this checkpoint.
+1. Inspect schema and migration conventions.
+2. Design durable PREPARE request identity.
+3. Define request state machine and fingerprint binding.
+4. Define duplicate replay and retry-after-timeout.
+5. Define atomicity and per-chapter audit/result schema.
+6. Stop before migration implementation or execution endpoint.
