@@ -89,6 +89,18 @@ class FailingAppliedStore:
         raise RuntimeError("terminal persistence failed")
 
 
+class LegacyStoreProxy:
+    """Implements the pre-Phase-10 store surface without replay-first lookup."""
+
+    def __init__(self, inner: BatchPrepareRequestStore):
+        self.inner = inner
+
+    def __getattr__(self, name):
+        if name == "get_request_by_client_request_id":
+            raise AttributeError(name)
+        return getattr(self.inner, name)
+
+
 class BatchPrepareOrchestratorTests(IsolatedTestCase):
     def setUp(self) -> None:
         super().setUp()
@@ -186,6 +198,18 @@ class BatchPrepareOrchestratorTests(IsolatedTestCase):
         replay = orchestrator.prepare(self._request(plan))
         self.assertEqual(replay["status"], "APPLIED_REPLAYED")
         self.assertTrue(replay["replay"])
+        self.assertEqual(len(future.calls), 1)
+
+    def test_previous_store_surface_remains_compatible(self) -> None:
+        plan = self._plan(self._row(10))
+        future = FakeFutureTransaction()
+        orchestrator = self._orchestrator(
+            PlanProvider(plan),
+            future,
+            store=LegacyStoreProxy(self.store),
+        )
+        result = orchestrator.prepare(self._request(plan))
+        self.assertEqual(result["request_state"], "APPLIED")
         self.assertEqual(len(future.calls), 1)
 
     def test_invalid_request_does_not_call_plan_store_or_future(self) -> None:
@@ -342,7 +366,7 @@ class BatchPrepareOrchestratorTests(IsolatedTestCase):
             classify_stale_applying_request(record=applying, current_plan={"plan_fingerprint": "0" * 64}, is_stale=True),
         ]
         self.assertEqual(decisions[0]["decision"], RECONCILE_STILL_IN_PROGRESS)
-        self.assertEqual(decisions[1]["decision"], RECONCILE_SAFE_TO_MARK_FAILED_RETRYABLE)
+        self.assertEqual(decisions[1]["decision"], RECONCILE_OPERATOR_REVIEW_REQUIRED)
         self.assertEqual(decisions[2]["decision"], RECONCILE_OPERATOR_REVIEW_REQUIRED)
         self.assertEqual(decisions[3]["decision"], RECONCILE_APPLIED_RESULT_RECOVERY_REQUIRED)
         self.assertEqual(decisions[4]["decision"], RECONCILE_OPERATOR_REVIEW_REQUIRED)
@@ -355,6 +379,21 @@ class BatchPrepareOrchestratorTests(IsolatedTestCase):
             classify_stale_applying_request(record=applying, current_plan=plan, execution_evidence={"status": "applied"}, is_stale=True),
             classify_stale_applying_request(record=applying, current_plan={"plan_fingerprint": "0" * 64}, is_stale=True),
         ])
+
+    def test_reconciliation_requires_explicit_no_commit_evidence_before_retryable_classification(self) -> None:
+        plan = self._plan(self._row(10))
+        request = self._request(plan)
+        record = self.store.create_or_replay_request(request)
+        applying = self.store.compare_and_transition_state(record.id, expected_state=STATE_PLANNED, next_state=STATE_APPLYING)
+        missing = classify_stale_applying_request(record=applying, current_plan=plan, is_stale=True)
+        proven = classify_stale_applying_request(
+            record=applying,
+            current_plan=plan,
+            execution_evidence={"status": "ROLLBACK_CONFIRMED"},
+            is_stale=True,
+        )
+        self.assertEqual(missing["decision"], RECONCILE_OPERATOR_REVIEW_REQUIRED)
+        self.assertEqual(proven["decision"], RECONCILE_SAFE_TO_MARK_FAILED_RETRYABLE)
 
     def test_reconciliation_rejects_non_applying_record_without_mutation(self) -> None:
         plan = self._plan(self._row(10))

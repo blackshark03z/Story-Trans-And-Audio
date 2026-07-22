@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sqlite3
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -14,6 +15,7 @@ from .batch_prepare_execution_attempt_store import (
 from .batch_prepare_job_link_store import BatchPrepareJobLinkInput, BatchPrepareJobLinkStore
 from .batch_prepare_transaction_manager import (
     BatchPrepareTransactionManager,
+    IsolatedTransactionBusy,
     assert_isolated_database_path,
 )
 from .batch_prepare_transaction_revalidator import (
@@ -101,10 +103,11 @@ class BatchPrepareIsolatedTransactionService:
         injector = failure_injector or (lambda _stage, _context: None)
         provisional_job_id: int | None = None
         owner_validated = False
-        transaction = self.manager.begin(snapshot.transaction_reference)
+        transaction = None
         committed = False
         commit_started = False
         try:
+            transaction = self.manager.begin(snapshot.transaction_reference)
             connection = transaction.require_active()
             request = connection.execute(
                 "SELECT * FROM batch_prepare_requests WHERE id=?", (int(snapshot.request_id),)
@@ -150,7 +153,12 @@ class BatchPrepareIsolatedTransactionService:
                     provisional_job_id = int(context["job_id"])
                 injector(stage, context)
 
-            write = self.jobs.insert(transaction, validated, stage_hook=writer_hook)
+            write = self.jobs.insert(
+                transaction,
+                validated,
+                settings_json=self._settings_json(validated.chapters),
+                stage_hook=writer_hook,
+            )
             provisional_job_id = write.job_id
             timestamp = utcnow()
             link_result = self.links.create_or_replay_in_connection(
@@ -183,10 +191,13 @@ class BatchPrepareIsolatedTransactionService:
             commit_started = True
             transaction.commit()
             committed = True
+        except IsolatedTransactionBusy:
+            raise
         except Exception as exc:
-            if transaction.active:
+            if transaction is not None and transaction.active:
                 transaction.rollback()
-            transaction.close()
+            if transaction is not None:
+                transaction.close()
             if committed or commit_started:
                 recovered = self._recover_after_uncertain_commit(snapshot, injector)
                 if recovered is not None:
@@ -202,15 +213,40 @@ class BatchPrepareIsolatedTransactionService:
                 raise AmbiguousPrepareOutcome("commit outcome could not be proven; transaction was not rerun") from exc
             if owner_validated:
                 self._record_confirmed_rollback(snapshot, provisional_job_id)
+            elif transaction is None:
+                self._record_begin_failure_rollback(snapshot)
             raise
         finally:
-            if transaction.connection:
+            if transaction is not None and transaction.connection:
                 try:
                     transaction.close()
                 except sqlite3.Error:
                     pass
         injector("after_commit_before_evidence", {"request_id": snapshot.request_id})
         return self.recover(snapshot, failure_injector=injector, replay=False)
+
+    @staticmethod
+    def _settings_json(chapters) -> str:
+        snapshots: list[dict[str, Any]] = []
+        for chapter in chapters:
+            try:
+                decoded = json.loads(chapter.voice_snapshot_json)
+            except (TypeError, json.JSONDecodeError) as exc:
+                raise IsolatedPrepareServiceError("voice snapshot JSON is invalid") from exc
+            settings = decoded.get("tts_settings") if isinstance(decoded, dict) else None
+            if settings is not None:
+                if not isinstance(settings, dict):
+                    raise IsolatedPrepareServiceError("voice snapshot TTS settings must be an object")
+                snapshots.append(settings)
+        if not snapshots:
+            return "{}"
+        canonical = json.dumps(snapshots[0], ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        if any(
+            json.dumps(item, ensure_ascii=False, sort_keys=True, separators=(",", ":")) != canonical
+            for item in snapshots[1:]
+        ) or len(snapshots) != len(chapters):
+            raise IsolatedPrepareServiceError("all prepared chapters must pin the same TTS settings")
+        return canonical
 
     def recover(
         self,
@@ -322,6 +358,20 @@ class BatchPrepareIsolatedTransactionService:
             request_id=snapshot.request_id,
             generation=snapshot.owner_generation,
         )
+
+    def _record_begin_failure_rollback(self, snapshot: PrepareTransactionSnapshot) -> None:
+        with self.db.connect() as connection:
+            self.attempts.validate_owner_in_connection(
+                connection,
+                request_id=snapshot.request_id,
+                request_identity=snapshot.request_identity,
+                generation=snapshot.owner_generation,
+                owner_token=snapshot.owner_token,
+                plan_fingerprint=snapshot.plan_fingerprint,
+                chapter_snapshot_digest=snapshot.chapter_snapshot_digest,
+                transaction_reference=snapshot.transaction_reference,
+            )
+        self._record_confirmed_rollback(snapshot, None)
 
 
 __all__ = [

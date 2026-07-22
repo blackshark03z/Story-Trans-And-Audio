@@ -45,6 +45,7 @@ FUTURE_REJECTED = "SIMULATED_REJECTED"
 FUTURE_FAILED_RETRYABLE = "SIMULATED_FAILED_RETRYABLE"
 FUTURE_FAILED_REVIEW_REQUIRED = "SIMULATED_FAILED_REVIEW_REQUIRED"
 FUTURE_AMBIGUOUS = "SIMULATED_AMBIGUOUS"
+FUTURE_IN_PROGRESS = "SIMULATED_IN_PROGRESS"
 
 OPERATOR_NONE = "NONE"
 OPERATOR_REVIEW_REQUEST = "REVIEW_REQUEST"
@@ -70,6 +71,9 @@ class PrepareRequestStore(Protocol):
         ...
 
     def get_request(self, request_id: int) -> BatchPrepareRequestRecord | None:
+        ...
+
+    def get_request_by_client_request_id(self, client_request_id: str) -> BatchPrepareRequestRecord | None:
         ...
 
     def compare_and_transition_state(
@@ -118,10 +122,12 @@ class PrepareRequestStore(Protocol):
 class FuturePrepareResult:
     status: str
     simulated_job_reference: str | None = None
+    job_id: int | None = None
     chapter_results: tuple[Mapping[str, Any], ...] = ()
     error_code: str | None = None
     error_message: str | None = None
     audit_fields: Mapping[str, Any] | None = None
+    durable_fields: Mapping[str, Any] | None = None
 
 
 class FuturePrepareTransaction(Protocol):
@@ -139,9 +145,44 @@ def _scope(binding) -> dict[str, int]:
 
 def _safe_error_message(message: str | None, fallback: str) -> str:
     text = str(message or fallback)
-    for marker in ("Traceback", "sqlite", "SELECT ", "INSERT ", "UPDATE ", "DELETE "):
-        text = text.replace(marker, "[redacted]")
+    lowered = text.lower()
+    unsafe_markers = (
+        "traceback", "sqlite", "select ", "insert ", "update ", "delete ",
+        "owner_token", "token=", "secret", "password", "api_key", ":\\", "/home/", "/users/",
+    )
+    if any(marker in lowered for marker in unsafe_markers):
+        return fallback[:1000]
     return text[:1000]
+
+
+_DURABLE_RESULT_FIELDS = frozenset(
+    {
+        "adapter_schema",
+        "evidence_schema",
+        "chapter_snapshot_digest",
+        "future_job_reference",
+        "chapter_count",
+        "chapter_job_chapter_refs",
+        "prepared_status",
+        "transaction_committed",
+        "transaction_committed_at",
+        "execution_generation",
+        "durable_linkage_verified",
+        "worker_woken",
+        "render_started",
+        "recovery_source",
+        "recovery_classification",
+        "operator_action",
+        "real_job_execution",
+        "mutation_authorized",
+        "execution_endpoint_available",
+        "prepare_starts_render",
+    }
+)
+
+
+def _bounded_durable_fields(fields: Mapping[str, Any] | None) -> dict[str, Any]:
+    return {key: value for key, value in dict(fields or {}).items() if key in _DURABLE_RESULT_FIELDS}
 
 
 def _status_for_state(record: BatchPrepareRequestRecord) -> tuple[str, str]:
@@ -249,13 +290,15 @@ def _build_payload(
     error_code: str | None = None,
     error_message: str | None = None,
     simulated_job_reference: str | None = None,
+    job_id: int | None = None,
     audit_fields: Mapping[str, Any] | None = None,
+    durable_fields: Mapping[str, Any] | None = None,
     attempt_count: int = 0,
 ) -> dict[str, Any]:
     payload = build_result_payload(
         binding,
         state=state,
-        job_id=None,
+        job_id=job_id,
         chapter_results=[dict(row) for row in chapter_results],
         error_code=error_code,
         error_message=_safe_error_message(error_message, "public safe message") if error_message else None,
@@ -267,6 +310,8 @@ def _build_payload(
         payload["future_job_reference"] = simulated_job_reference
     if audit_fields:
         payload["audit_fields"] = dict(audit_fields)
+    if durable_fields:
+        payload.update(_bounded_durable_fields(durable_fields))
     return payload
 
 
@@ -297,6 +342,44 @@ class BatchPrepareOrchestrator:
                 operator_action=OPERATOR_REVIEW_REQUEST,
             )
         request_dict = dict(request)
+        try:
+            binding = build_request_binding(request_dict)
+        except PreparePersistenceContractError as exc:
+            return _public_response(
+                status=STATUS_INVALID,
+                record=None,
+                binding=None,
+                replay=False,
+                ownership_acquired=False,
+                future_transaction_called=False,
+                result=None,
+                error_code="INVALID_REQUEST",
+                error_message=str(exc),
+                operator_action=OPERATOR_REVIEW_REQUEST,
+            )
+
+        lookup = getattr(self.request_store, "get_request_by_client_request_id", None)
+        existing = lookup(binding.client_request_id) if callable(lookup) else None
+        if existing is not None:
+            if existing.request_identity != binding.request_identity:
+                return _public_response(
+                    status=STATUS_CONFLICT,
+                    record=existing,
+                    binding=binding,
+                    replay=True,
+                    ownership_acquired=False,
+                    future_transaction_called=False,
+                    result=None,
+                    error_code=REQUEST_ID_CONFLICT,
+                    error_message="client_request_id is already bound to a different PREPARE request",
+                    operator_action=OPERATOR_CREATE_NEW_REQUEST,
+                )
+            if existing.state != STATE_PLANNED:
+                recovered = self._recover_applying(binding, existing)
+                if recovered is not None:
+                    return recovered
+                return _response_from_record(self.request_store, existing, binding=binding)
+
         intake = evaluate_prepare_contract(request_dict, self.current_plan_provider)
         if intake["status"] not in {CONTRACT_ACCEPTED, REJECTED_NO_ELIGIBLE_CHAPTERS}:
             return _public_response(
@@ -312,7 +395,6 @@ class BatchPrepareOrchestrator:
                 operator_action=_operator_action_for_contract_status(str(intake["status"])),
             )
         try:
-            binding = build_request_binding(request_dict)
             record = self.request_store.create_or_replay_request(request_dict)
         except BatchPrepareRequestConflict as exc:
             return _public_response(
@@ -327,21 +409,10 @@ class BatchPrepareOrchestrator:
                 error_message=str(exc),
                 operator_action=OPERATOR_CREATE_NEW_REQUEST,
             )
-        except PreparePersistenceContractError as exc:
-            return _public_response(
-                status=STATUS_INVALID,
-                record=None,
-                binding=None,
-                replay=False,
-                ownership_acquired=False,
-                future_transaction_called=False,
-                result={"contract": intake},
-                error_code="INVALID_REQUEST",
-                error_message=str(exc),
-                operator_action=OPERATOR_REVIEW_REQUEST,
-            )
-
         if record.state != STATE_PLANNED:
+            recovered = self._recover_applying(binding, record)
+            if recovered is not None:
+                return recovered
             return _response_from_record(self.request_store, record, binding=binding)
 
         if intake["status"] == REJECTED_NO_ELIGIBLE_CHAPTERS:
@@ -383,8 +454,26 @@ class BatchPrepareOrchestrator:
                 )
             return _response_from_record(self.request_store, current, binding=binding, status_override=STATUS_OWNERSHIP_LOST)
 
+        acquisition = None
+        acquire = getattr(self.future_prepare_transaction, "acquire", None)
+        if callable(acquire):
+            try:
+                acquisition = acquire(
+                    {
+                        "request_id": applying.id,
+                        "request": binding.as_dict(),
+                        "plan": intake,
+                        "eligible_chapters": list(intake.get("eligible_chapters") or []),
+                    }
+                )
+            except Exception as exc:  # noqa: BLE001 - injected ownership boundary fails closed.
+                return self._record_future_failure(binding, applying, intake, exc)
+
         second = evaluate_prepare_contract(request_dict, self.current_plan_provider)
         if second["status"] != CONTRACT_ACCEPTED:
+            cancel = getattr(self.future_prepare_transaction, "cancel_acquisition", None)
+            if acquisition is not None and callable(cancel):
+                cancel(acquisition, reason="PLAN_STALE_BEFORE_TRANSACTION")
             payload = _build_payload(
                 binding,
                 state=STATE_REJECTED,
@@ -393,44 +482,37 @@ class BatchPrepareOrchestrator:
                 error_message=str(second.get("reason") or "Request rejected before future transaction."),
                 attempt_count=applying.attempt_count,
             )
-            rejected = self.request_store.record_rejection(
-                applying.id,
-                result_payload=payload,
-                error_code=str(payload["error_code"]),
-                error_message=str(payload["error_message"]),
-            )
+            try:
+                rejected = self.request_store.record_rejection(
+                    applying.id,
+                    result_payload=payload,
+                    error_code=str(payload["error_code"]),
+                    error_message=str(payload["error_message"]),
+                )
+            except BatchPrepareStateConflict:
+                return self._terminal_race_response(binding, applying.id)
             return _response_from_record(self.request_store, rejected, binding=binding, replay=False, status_override=STATUS_REJECTED)
 
         try:
             future_result = self.future_prepare_transaction.prepare(
                 {
                     "request": binding.as_dict(),
+                    "request_id": applying.id,
                     "plan": second,
                     "eligible_chapters": list(second.get("eligible_chapters") or second.get("included") or []),
+                    "execution_acquisition": acquisition,
                     "execution_authorized": False,
                     "real_job_execution": False,
                 }
             )
         except Exception as exc:  # noqa: BLE001 - service boundary must fail closed with public-safe output.
-            payload = _build_payload(
-                binding,
-                state=STATE_FAILED,
-                chapter_results=_chapter_results_from_plan(second, "FAILED", "not_created"),
-                error_code="FAILED_REVIEW_REQUIRED",
-                error_message=_safe_error_message(str(exc), "Future transaction failed."),
-                attempt_count=applying.attempt_count,
-            )
-            failed = self.request_store.record_failure(
-                applying.id,
-                result_payload=payload,
-                error_code="FAILED_REVIEW_REQUIRED",
-                error_message=str(payload["error_message"]),
-            )
-            return _response_from_record(self.request_store, failed, binding=binding, replay=False, status_override=STATUS_FAILED)
+            return self._record_future_failure(binding, applying, second, exc)
 
         try:
             return self._persist_future_result(binding, applying, future_result)
-        except Exception as exc:  # noqa: BLE001 - persistence failure must not be reported as success.
+        except BatchPrepareStateConflict:
+            return self._terminal_race_response(binding, applying.id)
+        except Exception:  # noqa: BLE001 - persistence failure must not be reported as success.
             return _public_response(
                 status=STATUS_FAILED,
                 record=applying,
@@ -440,7 +522,7 @@ class BatchPrepareOrchestrator:
                 future_transaction_called=True,
                 result=None,
                 error_code="FAILED_REVIEW_REQUIRED",
-                error_message=_safe_error_message(str(exc), "Terminal result persistence failed."),
+                error_message="Terminal result persistence failed; durable recovery is required.",
                 operator_action=OPERATOR_REVIEW_REQUEST,
             )
 
@@ -452,16 +534,38 @@ class BatchPrepareOrchestrator:
     ) -> dict[str, Any]:
         status = str(future_result.status or "").upper()
         chapters = list(future_result.chapter_results)
+        if status == FUTURE_IN_PROGRESS:
+            return _public_response(
+                status=STATUS_APPLYING,
+                record=applying,
+                binding=binding,
+                replay=False,
+                ownership_acquired=True,
+                future_transaction_called=True,
+                result=_bounded_durable_fields(future_result.durable_fields),
+                error_code=None,
+                error_message=None,
+                operator_action=OPERATOR_WAIT_AND_RETRY_STATUS,
+            )
         if status == FUTURE_SUCCESS:
+            validate_applied = getattr(self.future_prepare_transaction, "validate_applied_result", None)
+            if callable(validate_applied):
+                validate_applied(record=applying, binding=binding, result=future_result)
             payload = _build_payload(
                 binding,
                 state=STATE_APPLIED,
                 chapter_results=chapters,
                 simulated_job_reference=future_result.simulated_job_reference,
+                job_id=future_result.job_id,
                 audit_fields=future_result.audit_fields,
+                durable_fields=future_result.durable_fields,
                 attempt_count=applying.attempt_count,
             )
-            applied = self.request_store.record_applied_result(applying.id, job_id=None, result_payload=payload)
+            applied = self.request_store.record_applied_result(
+                applying.id,
+                job_id=future_result.job_id,
+                result_payload=payload,
+            )
             response = _response_from_record(self.request_store, applied, binding=binding, replay=False, status_override=STATUS_ACCEPTED)
             response["ownership_acquired"] = True
             response["future_transaction_called"] = True
@@ -497,6 +601,7 @@ class BatchPrepareOrchestrator:
             error_code=future_result.error_code or code,
             error_message=future_result.error_message or "Future transaction did not produce a durable success.",
             audit_fields=future_result.audit_fields,
+            durable_fields=future_result.durable_fields,
             attempt_count=applying.attempt_count,
         )
         failed = self.request_store.record_failure(
@@ -509,6 +614,109 @@ class BatchPrepareOrchestrator:
         response["ownership_acquired"] = True
         response["future_transaction_called"] = True
         return response
+
+    def _recover_applying(self, binding, record: BatchPrepareRequestRecord) -> dict[str, Any] | None:
+        if record.state != STATE_APPLYING:
+            return None
+        recover = getattr(self.future_prepare_transaction, "recover_applying", None)
+        if not callable(recover):
+            return None
+        try:
+            future_result = recover(record=record, binding=binding)
+        except Exception:  # noqa: BLE001 - corrupt recovery evidence must not escape or mutate state.
+            return _public_response(
+                status=STATUS_FAILED,
+                record=record,
+                binding=binding,
+                replay=True,
+                ownership_acquired=False,
+                future_transaction_called=False,
+                result=None,
+                error_code="FAILED_REVIEW_REQUIRED",
+                error_message="Durable PREPARE recovery evidence requires operator review.",
+                operator_action=OPERATOR_REVIEW_REQUEST,
+            )
+        if future_result is None:
+            return None
+        try:
+            response = self._persist_future_result(binding, record, future_result)
+            response["replay"] = True
+            response["ownership_acquired"] = False
+            response["future_transaction_called"] = False
+            return response
+        except BatchPrepareStateConflict:
+            return self._terminal_race_response(binding, record.id)
+        except Exception:  # noqa: BLE001 - recovery persistence must remain fail closed.
+            return _public_response(
+                status=STATUS_FAILED,
+                record=record,
+                binding=binding,
+                replay=True,
+                ownership_acquired=False,
+                future_transaction_called=False,
+                result=None,
+                error_code="FAILED_REVIEW_REQUIRED",
+                error_message="Recovered result persistence failed; durable recovery is required.",
+                operator_action=OPERATOR_REVIEW_REQUEST,
+            )
+
+    def _record_future_failure(
+        self,
+        binding,
+        applying: BatchPrepareRequestRecord,
+        plan: Mapping[str, Any],
+        _exc: Exception,
+    ) -> dict[str, Any]:
+        payload = _build_payload(
+            binding,
+            state=STATE_FAILED,
+            chapter_results=_chapter_results_from_plan(plan, "FAILED", "not_created"),
+            error_code="FAILED_REVIEW_REQUIRED",
+            error_message="Future PREPARE execution failed; review durable request evidence.",
+            attempt_count=applying.attempt_count,
+        )
+        try:
+            failed = self.request_store.record_failure(
+                applying.id,
+                result_payload=payload,
+                error_code="FAILED_REVIEW_REQUIRED",
+                error_message=str(payload["error_message"]),
+            )
+        except BatchPrepareStateConflict:
+            current = self.request_store.get_request(applying.id)
+            if current is None:
+                raise
+            return _response_from_record(
+                self.request_store,
+                current,
+                binding=binding,
+                replay=True,
+                status_override=STATUS_OWNERSHIP_LOST,
+            )
+        return _response_from_record(
+            self.request_store,
+            failed,
+            binding=binding,
+            replay=False,
+            status_override=STATUS_FAILED,
+        )
+
+    def _terminal_race_response(self, binding, request_id: int) -> dict[str, Any]:
+        current = self.request_store.get_request(request_id)
+        if current is None or current.request_identity != binding.request_identity:
+            return _public_response(
+                status=STATUS_FAILED,
+                record=current,
+                binding=binding,
+                replay=True,
+                ownership_acquired=False,
+                future_transaction_called=False,
+                result=None,
+                error_code="FAILED_REVIEW_REQUIRED",
+                error_message="Durable request state changed unexpectedly.",
+                operator_action=OPERATOR_REVIEW_REQUEST,
+            )
+        return _response_from_record(self.request_store, current, binding=binding, replay=True)
 
 
 def _error_code_for_contract_status(status: str) -> str:
@@ -581,12 +789,20 @@ def classify_stale_applying_request(
             "automatic_mutation": False,
             "reason": "External evidence is ambiguous.",
         }
+    if evidence_status not in {"NOT_FOUND", "ROLLBACK_CONFIRMED", "EXPIRED_NO_COMMIT"}:
+        return {
+            "schema": ORCHESTRATION_SCHEMA,
+            "decision": RECONCILE_OPERATOR_REVIEW_REQUIRED,
+            "operator_action": OPERATOR_INVESTIGATE_AMBIGUOUS_APPLYING,
+            "automatic_mutation": False,
+            "reason": "Execution evidence is missing or was not durably classified.",
+        }
     return {
         "schema": ORCHESTRATION_SCHEMA,
         "decision": RECONCILE_SAFE_TO_MARK_FAILED_RETRYABLE,
         "operator_action": OPERATOR_CREATE_NEW_REQUEST,
         "automatic_mutation": False,
-        "reason": "No execution evidence is attached to the stale APPLYING request.",
+        "reason": "Durable evidence proves that no execution committed.",
     }
 
 
