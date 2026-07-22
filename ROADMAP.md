@@ -39,6 +39,7 @@ Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve
 - DAILY-PROD-5B Phase 6 - PREPARE Job Transaction Adapter Design Contract: complete. Accepted the adapter design contract for one-request/one-Job behavior, one Job plus N JobChapter transaction semantics, prepared-job worker isolation, explicit start separation, deterministic chapter snapshots, conflict/failure taxonomy, interruption recovery, historical replay, reconciliation classification, and dedicated request-to-Job linkage persistence while canonical schema/latest remains `12 / 12`.
 - DAILY-PROD-5B Phase 7 - Dormant Request-to-Job Linkage Persistence: complete. Added dormant schema-14 linkage artifact, pure isolated linkage repository, request/Job uniqueness, transaction evidence validation, deterministic replay/conflict behavior, concurrency/rollback tests, and no canonical activation or pipeline integration.
 - DAILY-PROD-5B Phase 8 - Same-Transaction PREPARE Adapter Integration Design: complete. Defined the caller-owned transaction boundary, authoritative input revalidation, ownership fencing prerequisites, overlap-race mitigation, immutable JobChapter evidence, commit/recovery semantics, evidence-gated APPLIED handoff, and isolated model validation; implementation remains blocked until Phase 9.
+- DAILY-PROD-5B Phase 9 - Isolated Same-Transaction PREPARE Prerequisites: complete. Added dormant schema 15 ownership/fencing/lease evidence, caller-owned `BEGIN IMMEDIATE`, transaction-scoped revalidation and Job/JobChapter/linkage writers, overlap serialization, rollback/ambiguous-outcome recovery, and process-restart acceptance without runtime wiring or canonical activation.
 
 ## Current Strategic Phase
 
@@ -69,9 +70,9 @@ The milestone must:
 
 Current boundary:
 
-1. Resolve same-transaction PREPARE prerequisites in isolated temporary databases only.
+1. Assemble the accepted Phase 1-9 components into one end-to-end PREPARE adapter on temporary schema-15 databases only.
 2. Keep dormant schema artifacts dormant and canonical/default schema at version 12.
-3. Permit only behavior-preserving transaction seam extraction, owner fencing evidence, overlap serialization, failure injection, and pure/isolated tests.
+3. Prove orchestrator result persistence, replay, fencing, stale-plan rejection, failure injection, and restart recovery with synthetic facts.
 4. Keep runtime adapter/orchestrator wiring, PREPARE API/UI, production Job creation, provider/Gemini/TTS, worker wake, and START_RENDER unauthorized.
 5. Keep render start as a separate explicit action.
 6. Define monitor/resume, partial-failure, retry, and recovery behavior before broad execution.
@@ -90,7 +91,7 @@ Current boundary:
 
 See `NEXT_TASK.md` for:
 
-`DAILY-PROD-5B Phase 9 - Isolated Same-Transaction PREPARE Prerequisite Resolution`
+`DAILY-PROD-5B Phase 10 - Isolated End-to-End PREPARE Adapter Assembly And Recovery Acceptance`
 
 ## Paused
 

@@ -231,6 +231,14 @@ Phase 9 is authorized only to resolve and test these prerequisites on temporary 
 
 Behavior-preserving seam extraction and later dormant migration artifacts are allowed only as needed for isolated proof. Runtime adapter/orchestrator wiring, active migration registration, canonical activation, batch PREPARE API/UI, production Job/JobChapter creation, worker wake, provider/Gemini/TTS, and START_RENDER remain unauthorized.
 
+## CONT-018 - Runtime PREPARE wiring requires isolated end-to-end adapter acceptance
+
+Phase 9 implemented the transaction prerequisites only as dormant, isolated infrastructure. Dormant schema 15, owner token hashing, fencing generation, lease evidence, caller-owned `BEGIN IMMEDIATE`, authoritative revalidation, prepared Job/JobChapter/linkage writes, overlap serialization, and rollback/recovery tests do not authorize runtime use.
+
+Phase 10 must assemble the existing orchestrator, request store, owner-fenced transaction service, Job/JobChapter writer, linkage, and terminal result persistence on temporary schema-15 databases. It must prove full historical replay, stale-plan rejection, fencing, duplicate concurrency, response-loss recovery, failure injection, and process restart before runtime integration may be considered.
+
+Canonical migration, runtime import/wiring, production PREPARE execution, API/UI controls, worker wake, provider/Gemini/TTS, and START_RENDER remain unauthorized.
+
 ## References
 
 - `docs/AI_TECH_LEAD_PROTOCOL.md`

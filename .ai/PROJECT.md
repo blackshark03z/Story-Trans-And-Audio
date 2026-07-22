@@ -29,26 +29,22 @@ DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout
 
 ## Current Authorized Task
 
-DAILY-PROD-5B Phase 9 - Isolated Same-Transaction PREPARE Prerequisite Resolution
+DAILY-PROD-5B Phase 10 - Isolated End-to-End PREPARE Adapter Assembly And Recovery Acceptance
 
 ## MVP / Milestone Success Criteria
 
-DAILY-PROD-5B Phases 1-8 are complete. Phase 9 is complete when isolated tests resolve these implementation blockers without activating batch PREPARE:
+DAILY-PROD-5B Phases 1-9 are complete. Phase 10 is complete when the accepted isolated components are assembled behind the orchestrator on disposable schema-15 databases with durable terminal-result and restart acceptance:
 
-- `BLOCKED_BY_TRANSACTION_ABSTRACTION`.
-- `BLOCKED_BY_AUTHORITATIVE_INPUT_REVALIDATION`.
-- `BLOCKED_BY_OWNERSHIP_EVIDENCE`.
-- `BLOCKED_BY_CONFLICT_RACE`.
-- Post-commit audit and ambiguous-outcome behavior are proven fail-closed.
+- Orchestrator and owner-fenced transaction service are integrated through injection only.
+- Durable APPLIED/REJECTED/FAILED result ordering and historical replay are proven.
+- Duplicate, stale-plan, fencing, response-loss, rollback, ambiguous-outcome, and restart paths are fail-closed.
 - No canonical migration, runtime orchestration wiring, API/UI execution path, production Job/JobChapter creation, worker wake, provider/Gemini/TTS call, or START_RENDER integration is implemented.
 
 ## In Scope
 
-- Introduce caller-owned transaction and transaction-scoped request/input/Job/JobChapter/linkage seams in isolated development.
-- Revalidate chapter eligibility, active Text Revision, approved Casting Plan, and immutable pins inside the owning transaction.
-- Add durable owner token, monotonic fencing generation, and lease/execution-attempt evidence through a later dormant migration if required.
-- Move overlap inspection under SQLite write serialization and prove exactly-one-winner behavior across processes.
-- Add isolated failure injection, rollback, ambiguous-commit recovery, evidence-gated APPLIED handoff, and legacy compatibility tests.
+- Assemble existing isolated request/orchestrator/transaction/linkage/result modules.
+- Use explicit dormant schema 12 -> 15 only on temporary databases.
+- Prove durable terminal results, replay, concurrency, fencing, stale-plan, failure, response-loss, and restart behavior.
 
 ## Out Of Scope / Later
 
@@ -109,11 +105,11 @@ node --check ui\app.js
 ## Constraints
 
 - Read-only inspection must not create provider cost, jobs, previews, artifacts, or audio.
-- Explicit schema-13 activation is authorized only for temporary or isolated databases.
+- Explicit dormant schema 13-15 activation is authorized only for temporary or isolated databases.
 - Canonical production migration remains unauthorized.
 - PREPARE execution endpoint remains unauthorized.
-- Phase 9 prerequisite implementation is authorized only for isolated/temporary databases and behavior-preserving seams.
-- Real batch PREPARE adapter/orchestrator integration remains unauthorized.
+- Phase 10 end-to-end adapter assembly is authorized only through dependency injection on isolated/temporary databases.
+- Runtime batch PREPARE adapter/orchestrator integration remains unauthorized.
 - Canonical schema 13/14 or later activation remains unauthorized.
 - START_RENDER remains separate.
 - Approval, prepare, and render start remain separate actions.

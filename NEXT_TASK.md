@@ -1,58 +1,47 @@
 # Next Task
 
 Task classification:
-`SYSTEM_ROADMAP / PHASE_9_PREREQUISITES_AUTHORIZED_ISOLATED_ONLY / RUNTIME_ADAPTER_NOT_AUTHORIZED / CANONICAL_ACTIVATION_NOT_AUTHORIZED / PREPARE_EXECUTION_NOT_AUTHORIZED`
+`SYSTEM_ROADMAP / ISOLATED_END_TO_END_ADAPTER_ASSEMBLY_AUTHORIZED / RUNTIME_WIRING_NOT_AUTHORIZED / CANONICAL_ACTIVATION_NOT_AUTHORIZED / PRODUCTION_PREPARE_EXECUTION_NOT_AUTHORIZED / API_INTEGRATION_NOT_AUTHORIZED`
 
 Active milestone:
 `DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout`
 
 Exact next task:
-`DAILY-PROD-5B Phase 9 - Isolated Same-Transaction PREPARE Prerequisite Resolution`
+`DAILY-PROD-5B Phase 10 - Isolated End-to-End PREPARE Adapter Assembly And Recovery Acceptance`
 
 Checkpoint authority:
 
-- Phase 8 design/model commit: `24087732b8a05d94eaf5a3af2c743602123923e8`.
-- Phase 8 verdict: `DAILY_PROD_5B_PHASE_8_COMPLETE`.
-- Canonical runtime schema/latest schema: `12 / 12`.
-- Canonical database was not mutated; Chapter 369 remains at zero jobs and artifacts.
-- Protected untracked paths remain `experiment_b_transcript/` and `runs/`.
+- Phase 9 implementation commit: `9d0adf9a72e2d64e3bf3c4e8c6a42e3df813b544`.
+- Phase 9 verdict: `DAILY_PROD_5B_PHASE_9_COMPLETE_ISOLATED_ONLY`.
+- Dormant schema chain: explicit temporary `12 -> 13 -> 14 -> 15`; canonical/default schema remains `12 / 12`.
+- Focused/affected validation: `233` tests PASS; full offline validation: `1481` tests PASS, `1` skipped.
+- Canonical DB and Chapter 369 were not mutated.
 
-Phase 9 purpose:
+Operator pain:
 
-Resolve and prove the prerequisites that Phase 8 found blocking before any runtime batch PREPARE integration:
+The isolated transaction prerequisites now exist, but the orchestrator, owner-fenced transaction service, Job/JobChapter writer, durable linkage, and terminal request-result store have not yet been assembled into one end-to-end temporary-database PREPARE adapter with historical replay and recovery acceptance.
 
-1. Add a caller-owned SQLite write transaction and transaction-scoped request, authoritative-input, Job, JobChapter, and linkage seams.
-2. Revalidate chapter eligibility, active Text Revision, approved Casting Plan, ownership token, fencing generation, lease, and immutable pins inside that transaction.
-3. Resolve overlap conflict races under SQLite writer serialization and prove exactly-one-winner behavior across independent connections/processes.
-4. Add or validate durable owner token, monotonic fencing generation, and lease/execution-attempt evidence in dormant/isolated schema work only.
-5. Add failure injection, rollback/absence proof, ambiguous-commit recovery, post-commit evidence reload, audit-failure semantics, and evidence-gated APPLIED handoff tests.
-6. Preserve legacy single-chapter job behavior and prove no worker wake, provider/TTS, or START_RENDER from prerequisite code.
+Allowed Phase 10 scope:
 
-Allowed scope:
-
-- Temporary or isolated databases only.
-- Behavior-preserving transaction seam extraction and pure/isolated tests.
-- Dormant migration artifacts after the existing dormant linkage artifact, only when required for isolated proof.
-- Read-only canonical safety checks.
+1. Assemble the existing isolated modules behind an injected adapter.
+2. Use disposable databases with the explicit dormant schema `12 -> 15` chain and synthetic facts only.
+3. Call the existing orchestrator with the injected isolated adapter.
+4. Create synthetic prepared Jobs and JobChapters only in temporary databases.
+5. Persist durable `APPLIED`, `REJECTED`, and `FAILED` request results after evidence-gated transaction outcomes.
+6. Prove concurrent duplicate requests, stale plans, owner fencing, response-loss recovery, failure injection, historical replay, and end-to-end process restart.
+7. Preserve legacy single-chapter behavior and the explicit START_RENDER separation.
 
 Explicitly excluded:
 
+- Runtime import or pipeline/orchestrator wiring.
 - Active migration registration or canonical schema activation.
-- Runtime batch PREPARE adapter/orchestrator wiring.
-- PREPARE API/UI execution controls.
-- Real production Job/JobChapter creation.
-- Worker wake, provider/Gemini/TTS, audio, artifacts, or START_RENDER.
-- Chapter 369 production or any mutation of Text Revisions, Casting Plans, voices, `experiment_b_transcript/`, or `runs/`.
+- Production DB access or real production Job/JobChapter creation.
+- API route or UI mutation controls.
+- Worker wake, START_RENDER, provider, Gemini, TTS, audio, segments, attempts, or artifacts.
+- Chapter 369 production or any protected-path mutation.
 
 Required stop conditions:
 
-- Stop if a proposed change needs canonical DB access, production mutation, provider/TTS work, or runtime execution wiring.
-- Stop if a transaction seam changes legacy single-job behavior without a separate approved task.
-- Do not claim real adapter readiness until all Phase 8 blockers have isolated evidence and the operator authorizes a separate integration task.
-
-Phase 8 validation reference:
-
-- Focused model tests: `90` PASS.
-- Affected suite: `198` PASS.
-- Full offline suite: `1447` PASS, `1` skipped.
-- Doctor: `critical_errors=0`; canonical DB SHA-256 `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984`, mtime unchanged.
+- Stop if assembly requires a runtime import, canonical DB access, active migration, API/UI change, production mutation, worker wake, or provider/TTS call.
+- Stop if a duplicate/recovery path can create a second Job or if `APPLIED` can be recorded without exact post-commit evidence.
+- Stop if ownership fencing, stale-plan rejection, rollback absence proof, or ambiguous-outcome handling fails closed.

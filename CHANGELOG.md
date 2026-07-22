@@ -16,6 +16,13 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DAILY-PROD-5B Phase 9 - Isolated Same-Transaction PREPARE Prerequisites**: implementation checkpoint `9d0adf9a72e2d64e3bf3c4e8c6a42e3df813b544` resolves all four Phase 8 blockers in disposable databases only.
+  - Added dormant schema 15 execution-attempt persistence with token-hash security, monotonic fencing generation, bounded lease, terminal outcome constraints, and no raw token at rest.
+  - Added caller-owned `BEGIN IMMEDIATE`, authoritative request/Text Revision/Casting Plan/voice-pin revalidation, transaction-scoped prepared Job/JobChapter and linkage writers, and exact post-commit evidence reload.
+  - Added same-request and overlapping-request one-winner concurrency, non-overlap acceptance, seven pre-commit failure points, rollback absence proof, ambiguous commit handling, response-loss recovery, and three-process restart coverage.
+  - Validation passed: focused/affected `233`, repeated timing-sensitive suites stable, full offline `1481` tests with `1` skip, syntax and `node --check` PASS, Doctor `critical_errors=0`.
+  - Canonical safety passed: schema/latest `12 / 12`; DB hash `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984`, mtime/counts/Chapter 369 unchanged; dormant tables absent.
+  - Decision: Phase 10 isolated adapter assembly is authorized. Runtime wiring, canonical activation, production PREPARE, API/UI, worker wake, provider/Gemini/TTS, and START_RENDER remain unauthorized.
 - **DAILY-PROD-5B Phase 8 - Same-Transaction PREPARE Adapter Integration Design**: completed the design/model checkpoint and committed it as `24087732b8a05d94eaf5a3af2c743602123923e8`.
   - **Transaction boundary**: defined one caller-owned SQLite write transaction for request revalidation, authoritative chapter/revision/plan reads, overlap checks, one prepared Job, all pinned JobChapter rows, and request-to-Job linkage before commit.
   - **Safety evidence**: added owner token/fencing/lease prerequisites, exact operation multiplicity, immutable JobChapter identity/pin/status validation, shared transaction-reference evidence, observed rollback requirements, evidence-gated APPLIED handoff, and post-commit audit failure semantics.
