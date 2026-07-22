@@ -33,6 +33,7 @@ Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve
 - DAILY-PROD-5A - Batch Scope Plan And Mutation Safety Contract: complete. Added read-only `GET /api/production/batch-plan`, deterministic target-phase planning and fingerprints, included/excluded rows, reason codes, safety contract, authorization `MUTATION_NOT_AUTHORIZED`, unavailable execution endpoint, read-only UI review, stale-response protection, and runtime/browser validation with no production mutation.
 - DAILY-PROD-5B Phase 1 - Pure PREPARE Mutation Safety Contract: complete. Added a pure PREPARE-only contract with required plan fingerprint, stale-plan rejection, exact boolean confirmation, current-plan authority, deterministic planned intent, no-eligible safe result, honest safety statuses, and no execution endpoint or production mutation.
 - DAILY-PROD-5B Phase 2 - PREPARE Idempotency Persistence Design: complete. Defined durable `client_request_id`, canonical request identity, payload binding, explicit request state machine, duplicate/timeout replay, Option A atomicity, stale APPLYING reconciliation, fingerprint race guard, one request/one Job, bounded historical result replay, retention, and proposed schema 13 `batch_prepare_requests`; no migration or execution endpoint was implemented.
+- DAILY-PROD-5B Phase 3 - Dormant PREPARE Request Persistence: complete. Added dormant schema-13 migration artifact `story_audio/migrations/dormant/0013_batch_prepare_requests.sql` and durable request store `story_audio/batch_prepare_store.py` with create-or-replay, payload conflict detection, SQLite uniqueness, guarded transitions, historical result replay, stale APPLYING lookup, bounded result payloads, no auto-migration, no execution integration, canonical/default schema `12 / 12`, and full offline validation.
 
 ## Current Strategic Phase
 
@@ -63,9 +64,9 @@ The milestone must:
 
 Current boundary:
 
-1. Implement schema 13 migration and durable PREPARE request storage in isolated development only.
+1. Validate isolated schema-13 activation and durable PREPARE request-store integration on temporary production-like databases only.
 2. Keep canonical production schema at version 12 until a later explicit canonical migration authorization.
-3. Keep PREPARE execution endpoint unauthorized until durable persistence is implemented and reviewed.
+3. Keep PREPARE execution endpoint unauthorized until isolated restart, concurrency, stale APPLYING, historical replay, and failure-recovery behavior are accepted.
 4. Keep render start as a separate explicit action.
 5. Define monitor/resume, partial-failure and retry behavior before broad execution.
 6. Close QA/recovery workflows only through later bounded tasks.
@@ -83,7 +84,7 @@ Current boundary:
 
 See `NEXT_TASK.md` for:
 
-`DAILY-PROD-5B Phase 3 - Schema 13 Migration And Durable PREPARE Request Store`
+`DAILY-PROD-5B Phase 4 - Isolated Schema 13 Activation And Request Store Integration Validation`
 
 ## Paused
 

@@ -1,91 +1,98 @@
 # Next Task
 
 Task classification:
-SYSTEM_ROADMAP / MIGRATION_IMPLEMENTATION_AUTHORIZED / PREPARE_EXECUTION_NOT_AUTHORIZED
+SYSTEM_ROADMAP / ISOLATED_SCHEMA_13_TESTING_AUTHORIZED / CANONICAL_ACTIVATION_NOT_AUTHORIZED / PREPARE_EXECUTION_NOT_AUTHORIZED
 
 Active milestone:
 DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout
 
 Exact next task:
-`DAILY-PROD-5B Phase 3` - Schema 13 Migration And Durable PREPARE Request Store
+`DAILY-PROD-5B Phase 4` - Isolated Schema 13 Activation And Request Store Integration Validation
 
 Current strategic state:
 PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP
 
 Current status:
-`DAILY-PROD-5A`, `DAILY-PROD-5B Phase 1`, and `DAILY-PROD-5B Phase 2` are complete. The PREPARE safety and persistence contracts are defined, but the system still lacks a durable request record capable of preventing duplicate mutation after client timeout or process interruption.
+`DAILY-PROD-5A`, `DAILY-PROD-5B Phase 1`, `DAILY-PROD-5B Phase 2`, and `DAILY-PROD-5B Phase 3` are complete. Phase 3 added a dormant schema-13 migration artifact and durable PREPARE request store in repository code, while canonical/default runtime schema remains `12`.
+
+Operator pain:
+The dormant migration and request store pass unit and repository tests, but the complete persistence lifecycle has not yet been validated across explicit migration, process restart, concurrent connections, and failure recovery in a production-like isolated database.
 
 Current baseline for the next task:
 
 - Branch `main`
-- Last verified commit: `68f4f3d059f08004d6fcb4d4d06505ad802f3c11`
+- Last verified commit: `e4684905c6e7b3efd23cfef89a7da9dadf0f75e1`
 - Canonical Story Audio runtime: `http://127.0.0.1:8772`
-- Runtime schema: `12`
-- Proposed future schema: `13`
+- Runtime schema/latest schema: `12 / 12`
+- Dormant proposed schema: `13`
+- Dormant migration: `story_audio/migrations/dormant/0013_batch_prepare_requests.sql`
+- Durable request store: `story_audio/batch_prepare_store.py`
 - Protected untracked paths must remain untouched:
   - `experiment_b_transcript/`
   - `runs/`
-- Phase 2 validation baseline: pure persistence tests `50` pass; focused/affected tests `102` pass; full offline suite `1208` pass, `1` skipped; Doctor `critical_errors=0`.
-- Canonical PREPARE batch-plan smoke for Book `1`, chapters `364-369`, returned included `0`, excluded `6`, authorization `MUTATION_NOT_AUTHORIZED`, execution endpoint unavailable, and unchanged sensitive counts.
+- Phase 3 validation baseline: focused/affected tests `133` pass; full offline suite `1239` pass, `1` skipped; Doctor `critical_errors=0`.
+- Canonical DB has no `batch_prepare_requests` table, SHA-256 `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984` bytes, mtime `2026-07-20T12:31:47.429225`, and `quick_check=ok`.
 - Chapter `369`: active Text Revision `738`, Casting Plan `24` revision `1` draft/unapproved, no Jobs, no JobChapters, no artifacts, no active audio, and audio status `not_created`.
-
-Operator pain:
-The PREPARE safety and persistence contracts are defined, but the system still lacks a durable request record capable of preventing duplicate mutation after client timeout or process interruption.
 
 Allowed scope:
 
-- Implement schema 13 migration.
-- Add `batch_prepare_requests` persistence.
-- Add unique request and canonical identity constraints.
-- Add request state constraints.
-- Add result schema/payload storage.
-- Add applying reconciliation timestamps.
-- Implement repository-level create-or-replay behavior.
-- Implement payload-conflict detection.
-- Implement atomic request state transitions.
-- Implement historical result replay.
-- Test only on temporary/isolated databases.
-- Preserve schema 12 canonical production DB.
+- Temporary schema-12 production-like fixtures.
+- Explicit dormant migration activation.
+- Process/connection restart.
+- Create-or-replay persistence.
+- Historical replay after restart.
+- Concurrent request creation.
+- State transition races.
+- Stale APPLYING simulation.
+- Failure injection.
+- Isolated acceptance harness and tests.
+- Canonical byte-level safety verification.
 
 Excluded scope:
 
-- Canonical DB migration.
+- Top-level migration registration.
+- Default/latest schema bump.
+- Canonical migration.
 - API route.
-- PREPARE execution.
 - `prepare_job`.
-- Job/JobChapter creation.
-- Start/resume render.
+- Job/JobChapter execution.
+- Render start.
 - UI.
-- QA mutation.
 - Provider/Gemini/TTS.
-- Chapter `369` production action.
+- Chapter `369` production mutation.
 
 Acceptance criteria:
 
-1. Migration upgrades a temporary schema-12 DB to schema 13.
-2. Legacy data remains intact.
-3. `batch_prepare_requests` table matches reviewed design.
-4. Same request ID/same payload resolves same record.
-5. Same request ID/different payload conflicts.
-6. Duplicate `APPLYING` does not create a second record.
-7. `APPLIED`/`REJECTED`/`FAILED` result can be replayed historically.
-8. State transitions are atomic and allowlisted.
-9. Applying reconciliation fields are queryable.
-10. Result payload is bounded and versioned.
-11. Migration is idempotent according to repository conventions.
-12. Downgrade/partial migration failure behavior is tested or documented.
-13. Canonical production DB remains schema 12.
-14. No execution endpoint or Job mutation exists.
+1. Temporary schema-12 fixture upgrades explicitly to schema 13.
+2. Legacy rows and counts survive upgrade.
+3. Reopened DB remains schema 13.
+4. Request records survive process/connection restart.
+5. Same request replays after restart.
+6. Different payload remains a conflict after restart.
+7. APPLIED result replays historically after restart.
+8. REJECTED result replays historically after restart.
+9. FAILED result replays historically after restart.
+10. Concurrent same request creates one durable row.
+11. Concurrent different payload same ID conflicts.
+12. State-transition races have one winner.
+13. Stale APPLYING records are detected without mutation.
+14. Injected failures do not leave false APPLIED state.
+15. Failed migration does not leave schema marked 13.
+16. Default/latest runtime schema remains 12.
+17. Canonical DB remains byte-for-byte unchanged.
+18. No PREPARE execution or Job creation occurs.
 
 Safety gate:
 
-- `SCHEMA_13_MIGRATION_IMPLEMENTATION_AUTHORIZED` applies only to repository migration code and isolated development/testing.
+- `ISOLATED_SCHEMA_13_INTEGRATION_VALIDATION_AUTHORIZED` applies only to temporary or isolated databases.
+- `CANONICAL_SCHEMA_13_ACTIVATION_NOT_AUTHORIZED` remains in force.
 - `PREPARE_EXECUTION_NOT_AUTHORIZED` remains in force.
 - `START_RENDER` remains separate and unauthorized.
 
 Exact next action:
 
-1. Implement schema 13 migration in isolated development.
-2. Implement durable PREPARE request store.
-3. Add repository-level persistence tests.
-4. Keep canonical migration and PREPARE execution unauthorized.
+1. Build a production-like temporary schema-12 fixture.
+2. Explicitly activate dormant schema 13 on that temporary database.
+3. Validate restart persistence, historical replay, concurrency, stale APPLYING, and failure recovery.
+4. Prove canonical DB remains byte-for-byte unchanged.
+5. Stop before canonical activation, API execution, `prepare_job`, UI, or START_RENDER.

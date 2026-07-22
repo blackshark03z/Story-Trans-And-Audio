@@ -1,25 +1,30 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-22T15:49:10 +07:00 (Asia/Bangkok)
+**Cập nhật:** 2026-07-22T17:06:00 +07:00 (Asia/Bangkok)
 **Milestone:** DAILY-PROD-5 Active - Batch Approval, Prepare, Render And QA Closeout
 **Strategic state:** `PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP`
-**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1`, `DAILY-PROD-2`, `DAILY-PROD-3`, `DAILY-PROD-4`, `DAILY-PROD-5A`, `DAILY-PROD-5B Phase 1`, and `DAILY-PROD-5B Phase 2` are complete. Current milestone: `DAILY-PROD-5` - Batch Approval, Prepare, Render And QA Closeout. Production remains a modular, state-resolved, single-current-stage workflow with reusable voice selectors, contextual Voice Library detour/return, completed-output Audio Library, read-only range readiness/exception queue, a read-only batch scope plan, a pure PREPARE safety contract, and a complete PREPARE idempotency persistence design.
+**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1`, `DAILY-PROD-2`, `DAILY-PROD-3`, `DAILY-PROD-4`, `DAILY-PROD-5A`, `DAILY-PROD-5B Phase 1`, `DAILY-PROD-5B Phase 2`, and `DAILY-PROD-5B Phase 3` are complete. Current milestone: `DAILY-PROD-5` - Batch Approval, Prepare, Render And QA Closeout. Production remains a modular, state-resolved, single-current-stage workflow with reusable voice selectors, contextual Voice Library detour/return, completed-output Audio Library, read-only range readiness/exception queue, a read-only batch scope plan, a pure PREPARE safety contract, a complete PREPARE idempotency persistence design, and a dormant durable PREPARE request store awaiting isolated schema-13 integration validation.
 
-**Last verified against commit:** `68f4f3d059f08004d6fcb4d4d06505ad802f3c11`
+**Last verified against commit:** `e4684905c6e7b3efd23cfef89a7da9dadf0f75e1`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-22
 **Canonical runtime:** `http://127.0.0.1:8772`
 **Runtime schema:** `12`
+**Default/latest schema:** `12`
 **Runtime:** canonical, schema `12`
+**Dormant proposed schema:** `13`
 **DAILY-PROD-5A:** complete
 **DAILY-PROD-5B Phase 1:** complete
 **DAILY-PROD-5B Phase 2:** complete
+**DAILY-PROD-5B Phase 3:** complete
 **DAILY-PROD-5:** active
 **Mutation authorization:** `MUTATION_NOT_AUTHORIZED`
-**Migration implementation:** `AUTHORIZED_FOR_ISOLATED_DEVELOPMENT`
+**Isolated schema-13 integration validation:** `AUTHORIZED`
 **Canonical migration authorization:** `NOT_AUTHORIZED`
 **PREPARE execution:** `NOT_AUTHORIZED`
-**Proposed future schema:** `13`
+**START_RENDER:** `NOT_AUTHORIZED`
+**Dormant migration:** `story_audio/migrations/dormant/0013_batch_prepare_requests.sql`
+**Durable request store:** `story_audio/batch_prepare_store.py`
 **DAILY-PROD-4A:** complete
 **DAILY-PROD-4:** complete
 **DAILY-PROD-3A:** complete
@@ -71,13 +76,17 @@
 - PREPARE execution is not authorized. Blocking gaps: no persisted idempotency record, no duplicate result replay, no durable request audit identity, partial-failure policy not defined, no retry-after-timeout contract, and no per-chapter durable result evidence.
 - `DAILY-PROD-5B Phase 2` is complete. Commit `68f4f3d059f08004d6fcb4d4d06505ad802f3c11` added the PREPARE idempotency persistence design: durable `client_request_id`, deterministic canonical request identity, payload binding conflict, explicit request state machine, duplicate/timeout replay, Option A atomicity, stale APPLYING reconciliation, concurrency/uniqueness guard, fingerprint race revalidation, one request/one Job, bounded versioned historical result replay, public failure taxonomy, retention, and proposed schema 13 `batch_prepare_requests`.
 - Phase 2 validation passed: pure persistence tests `50`, focused/affected suite `102`, full offline suite `1208` with `1` skipped, Doctor `critical_errors=0`, and canonical read-only verification kept schema `12` with unchanged counts (`speaker_assignment_drafts=15`, `casting_plans=23`, `jobs=21`, `job_chapters=21`, `segments=688`, `artifacts=84`). Chapter `369` remained unchanged.
-- Schema 13 migration implementation is authorized for isolated development/testing only. Canonical production migration remains unauthorized, canonical runtime schema remains `12`, and PREPARE execution endpoint remains unauthorized.
-- `DAILY-PROD-5` remains active. Exact next task: `DAILY-PROD-5B Phase 3` - Schema 13 Migration And Durable PREPARE Request Store. Phase 3 may implement repository migration/store code and isolated tests only; it must stop before API execution endpoint, `prepare_job`, Job/JobChapter creation, canonical DB migration, UI, provider/Gemini/TTS, or START_RENDER.
+- `DAILY-PROD-5B Phase 3` is complete. Commit `e4684905c6e7b3efd23cfef89a7da9dadf0f75e1` added dormant schema-13 PREPARE request persistence: `story_audio/migrations/dormant/0013_batch_prepare_requests.sql` and `story_audio/batch_prepare_store.py`.
+- Phase 3 keeps default/latest schema at `12 / 12`; routine startup does not auto-discover the dormant migration, canonical `batch_prepare_requests` remains absent, and schema 13 is not active in canonical production.
+- The durable request store implements create-or-replay, deterministic payload conflict detection, SQLite uniqueness protection, guarded atomic state transitions, historical APPLIED/REJECTED/FAILED replay, read-only stale APPLYING lookup, and bounded versioned result payload safety.
+- Phase 3 validation passed: focused/affected suite `133` tests PASS, full offline suite `1239` PASS with `1` skipped, Doctor `critical_errors=0`, canonical DB `quick_check=ok`, hash `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984` bytes, mtime `2026-07-20T12:31:47.429225`, and unchanged sensitive counts (`speaker_assignment_drafts=15`, `casting_plans=23`, `jobs=21`, `job_chapters=21`, `segments=688`, `artifacts=84`).
+- Isolated schema-13 integration validation is authorized for temporary/isolated databases only. Canonical schema activation remains unauthorized, PREPARE execution endpoint and `prepare_job` integration remain unauthorized, Job/JobChapter execution remains unauthorized, and START_RENDER remains separate and unauthorized.
+- `DAILY-PROD-5` remains active. Exact next task: `DAILY-PROD-5B Phase 4` - Isolated Schema 13 Activation And Request Store Integration Validation. Phase 4 may validate explicit temp-DB migration, restart persistence, historical replay, concurrency, stale APPLYING, and failure recovery only; it must stop before canonical activation, API execution endpoint, `prepare_job`, Job/JobChapter creation, UI, provider/Gemini/TTS, Chapter `369` mutation, or START_RENDER.
 - Browser smoke used an isolated runtime to verify contextual detour activation, logical custom voice creation, reference WAV upload, usable catalog resolution, unsaved return preselection, explicit Book Voice Profile save, cancel, and stale-context rejection. Isolated non-GET requests were limited to custom voice creation, custom revision upload, and explicit profile save; isolated jobs/job_chapters/artifacts remained `0`.
 - `DAILY-PROD-2B2-D1` canonical browser smoke loaded Chapter `369` read-only as `CASTING_REVIEW`, opened the Final Voice Map contextual Voice Library detour, verified same-tab return context, canceled back to Production, and recorded `0` canonical non-GET requests. Post-smoke verification confirmed Chapter `369` remained unchanged.
 - Chapter `369` remains deferred and unchanged; optional distinct-voice work is not active.
-- `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this closure is `SYSTEM_ROADMAP / MIGRATION_IMPLEMENTATION_AUTHORIZED / PREPARE_EXECUTION_NOT_AUTHORIZED`.
-- Exact next task: `DAILY-PROD-5B Phase 3` - Schema 13 Migration And Durable PREPARE Request Store.
+- `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this closure is `SYSTEM_ROADMAP / ISOLATED_SCHEMA_13_TESTING_AUTHORIZED / CANONICAL_ACTIVATION_NOT_AUTHORIZED / PREPARE_EXECUTION_NOT_AUTHORIZED`.
+- Exact next task: `DAILY-PROD-5B Phase 4` - Isolated Schema 13 Activation And Request Store Integration Validation.
 
 **Task DAILY-PROD-2B2 verified implementation state:**
 - Repository/runtime baseline passed before implementation: branch `main`, `HEAD == origin/main == 4476ddd973761eba65fc45526e735c59ada48e0e`, runtime `http://127.0.0.1:8772`, schema `12`, and only protected untracked `experiment_b_transcript/` plus `runs/` were present.

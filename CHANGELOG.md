@@ -16,6 +16,15 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DAILY-PROD-5B Phase 3 - Dormant PREPARE Request Persistence**: completed the repository implementation checkpoint for durable PREPARE idempotency storage without activating canonical schema 13 or adding execution integration.
+  - **Dormant migration**: added `story_audio/migrations/dormant/0013_batch_prepare_requests.sql` as an explicit-only schema-13 artifact; routine startup and top-level migration discovery still keep default/latest schema at `12 / 12`.
+  - **Request table design**: implemented `batch_prepare_requests` with unique `client_request_id`, unique canonical `request_identity`, PREPARE-only phase, state allowlist, range constraints, stale APPLYING query indexes, bounded versioned `result_payload_json`, and reconciliation timestamps.
+  - **Store behavior**: added `story_audio/batch_prepare_store.py` with durable create-or-replay, deterministic payload conflict detection, SQLite uniqueness protection for concurrent creation, guarded atomic state transitions, historical APPLIED/REJECTED/FAILED replay, and read-only stale APPLYING listing.
+  - **Safety boundaries**: the store does not auto-migrate, does not register an API route, does not call `prepare_job`, does not create Jobs/JobChapters, does not wake the worker, and does not call provider/Gemini/TTS.
+  - **Validation**: focused migration/store/affected suite passed (`133`), full offline suite passed (`1239` tests, `1` skipped), and Doctor passed with `critical_errors=0`.
+  - **Canonical safety**: canonical runtime stayed schema/latest `12 / 12`; `batch_prepare_requests` remained absent; SQLite `quick_check=ok`; DB hash `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984` bytes, and mtime `2026-07-20T12:31:47.429225` were preserved; sensitive counts remained unchanged.
+  - **Commit**: `e4684905c6e7b3efd23cfef89a7da9dadf0f75e1`.
+  - **Decision**: isolated schema-13 integration validation is authorized for temporary databases only; canonical schema activation, PREPARE execution, and START_RENDER remain unauthorized.
 - **DAILY-PROD-5B Phase 2 - PREPARE Idempotency Persistence Design**: completed the design-only persistence and atomicity checkpoint for safe future PREPARE mutation.
   - **Request identity**: defined required `client_request_id`, deterministic canonical request identity, PREPARE-only payload binding, and `REQUEST_ID_CONFLICT` for same ID with different phase/scope/fingerprint.
   - **State and replay**: defined request states `PLANNED`, `APPLYING`, `APPLIED`, `REJECTED`, and `FAILED`; duplicate same-payload requests replay current state, in-progress, historical result, rejection, or failure without creating another mutation.

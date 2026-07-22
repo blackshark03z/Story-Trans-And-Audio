@@ -1,6 +1,6 @@
 # Continuity Decisions
 
-Updated: 2026-07-22 14:11:49 +07:00
+Updated: 2026-07-22 17:06:00 +07:00
 
 ## CONT-001 - Real state outranks checkpoint
 
@@ -133,6 +133,25 @@ This authorization does not permit:
 - prepare_job invocation;
 - Job or JobChapter creation;
 - START_RENDER.
+
+## CONT-013 - Schema 13 must pass isolated restart and concurrency acceptance
+
+The dormant schema-13 migration and PREPARE request store are implemented.
+
+Before canonical activation or PREPARE execution can be considered, an isolated production-like database must verify:
+
+- explicit schema-12 to schema-13 migration;
+- legacy-data preservation;
+- restart persistence;
+- historical result replay;
+- request uniqueness across concurrent connections;
+- atomic transition races;
+- stale APPLYING detection;
+- migration and store failure recovery.
+
+This authorization applies only to temporary or isolated databases.
+
+Canonical schema activation, PREPARE execution, and START_RENDER remain unauthorized.
 
 ## References
 

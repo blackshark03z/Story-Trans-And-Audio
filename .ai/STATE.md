@@ -1,21 +1,28 @@
 # DAILY-PROD Checkpoint State
 
-Updated: 2026-07-22 16:22:26 +07:00
+Updated: 2026-07-22 17:06:00 +07:00
 
 ## Current Phase
 
-`DAILY-PROD-5B Phase 3 closeout` - Dormant Schema 13 Store Checkpoint.
+`DAILY-PROD-5B Phase 4` - Isolated Schema 13 Activation And Request Store Integration Validation.
 
-## Starting Commit
+## Completed Checkpoint
 
-- `d4571edea8fd1d0e247bf2d10f703dec045017cf`
-- `docs: close PREPARE persistence design and authorize migration work`
+`DAILY-PROD-5B Phase 3` is complete.
+
+- Commit: `e4684905c6e7b3efd23cfef89a7da9dadf0f75e1`
+- Subject: `feat: add dormant PREPARE request persistence`
+- Dormant migration: `story_audio/migrations/dormant/0013_batch_prepare_requests.sql`
+- Durable request store: `story_audio/batch_prepare_store.py`
+- Default/latest schema: `12 / 12`
+- Dormant proposed schema: `13`
+- Migration activation: `MIGRATION_13_IMPLEMENTED_DORMANT`
 
 ## Authorization Boundary
 
-Migration/store implementation:
+Isolated schema-13 activation:
 
-- `MIGRATION_IMPLEMENTATION_AUTHORIZED_FOR_ISOLATED_DEVELOPMENT`
+- `AUTHORIZED`
 
 Canonical schema activation:
 
@@ -29,32 +36,21 @@ START_RENDER:
 
 - `NOT_AUTHORIZED`
 
-## Migration
+## Phase 3 Acceptance
 
-- Artifact: `story_audio/migrations/dormant/0013_batch_prepare_requests.sql`
-- Proposed schema: `13`
-- Table: `batch_prepare_requests`
-- Activation: `MIGRATION_13_IMPLEMENTED_DORMANT`
-- Default/latest schema: `12`
-- Routine startup safety: top-level migration discovery still stops at `0012_speaker_draft_reviews.sql`; dormant directory is not auto-discovered.
-- Temporary schema-12 -> 13 result: PASS using explicit isolated target.
-- Canonical activation: `NOT_AUTHORIZED`
-
-## Store
-
-- Module: `story_audio/batch_prepare_store.py`
-- Durable create/replay: implemented.
-- Payload conflict: deterministic `REQUEST_ID_CONFLICT` for same request ID with different bound scope, phase, fingerprint, or request identity.
-- Atomic state transitions: implemented with guarded `WHERE id=? AND state=?` updates.
-- Historical replay: APPLIED/REJECTED/FAILED replay stored payloads, not current readiness.
-- Stale APPLYING listing: read-only and deterministic by caller-provided cutoff.
-- Result payload: schema version `1`, JSON object, 16 KiB encoded-byte limit, public error-message limit, unsafe replay fields rejected, invalid stored JSON fails clearly.
-- Auto-migration: none; absent table fails clearly.
-- Execution calls: none; no `prepare_job`, `create_job`, `start_prepared_job`, worker wake, provider, Gemini, or TTS.
+- Dormant schema-13 migration artifact implemented.
+- Routine startup does not auto-discover or auto-apply schema 13.
+- `batch_prepare_requests` request identity, uniqueness, state, result, and reconciliation fields implemented.
+- Durable create-or-replay behavior implemented.
+- Payload conflict detection implemented as deterministic `REQUEST_ID_CONFLICT`.
+- Atomic state transitions use guarded compare-and-transition updates.
+- Historical APPLIED/REJECTED/FAILED result replay is implemented.
+- Stale APPLYING listing is read-only and deterministic by caller-provided cutoff.
+- Result payloads are schema-versioned, JSON object only, public-field bounded, and capped at 16 KiB encoded bytes.
+- Store does not auto-migrate and does not call `prepare_job`, create Jobs/JobChapters, wake worker, or call providers/TTS/Gemini.
 
 ## Validation
 
-- Syntax: PASS for `story_audio/batch_prepare_store.py` and `story_audio/batch_prepare_persistence_contract.py`.
 - Focused migration/store/affected suite: `133` tests PASS.
 - Full offline suite: `1239` tests PASS, `1` skipped.
 - Doctor: PASS, `critical_errors=0`, expected warning remains `speaker_assignment_drafts: drafts=15 invalid=9`.
@@ -68,14 +64,16 @@ START_RENDER:
 - Counts unchanged: speaker drafts `15`, casting plans `23`, jobs `21`, job chapters `21`, segments `688`, artifacts `84`
 - Chapter 369 unchanged: active Text Revision `738`, Casting Plan `24` revision `1` draft/unapproved, jobs `0`, artifacts `0`, active audio none, audio status `not_created`
 
-## Remaining
+## Current Task
 
-Phase 3 implementation is ready for checkpoint commit.
+`DAILY-PROD-5B Phase 4` - Isolated Schema 13 Activation And Request Store Integration Validation.
 
-Next exact action after commit:
+## Next Exact Action
 
-1. Reconcile DAILY-PROD-5B Phase 3 canonical documentation.
-2. Assess isolated migration activation/integration testing authorization.
-3. Keep canonical activation unauthorized.
-4. Keep PREPARE execution unauthorized.
-5. Keep START_RENDER separate.
+1. Build a production-like temporary schema-12 fixture.
+2. Explicitly activate dormant schema 13.
+3. Validate restart persistence and historical replay.
+4. Validate concurrent request and transition races.
+5. Validate stale APPLYING detection and failure recovery.
+6. Prove canonical DB remains byte-for-byte unchanged.
+7. Stop before canonical activation or execution integration.

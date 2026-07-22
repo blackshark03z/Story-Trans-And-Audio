@@ -1,6 +1,6 @@
 # Project
 
-Updated: 2026-07-22 15:49:10 +07:00
+Updated: 2026-07-22 17:06:00 +07:00
 
 ## Product Goal
 
@@ -29,26 +29,25 @@ DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout
 
 ## Current Authorized Task
 
-DAILY-PROD-5B Phase 3 - Schema 13 Migration And Durable PREPARE Request Store
+DAILY-PROD-5B Phase 4 - Isolated Schema 13 Activation And Request Store Integration Validation
 
 ## MVP / Milestone Success Criteria
 
-DAILY-PROD-5B Phase 3 is complete when:
+DAILY-PROD-5B Phase 4 is complete when:
 
-- Schema 13 migration is implemented and tested only against temporary/isolated databases.
-- `batch_prepare_requests` persists durable PREPARE request identity, state, bounded replay result, and reconciliation timestamps.
-- Repository-level create-or-replay behavior handles same-request replay, payload conflict, allowlisted atomic transitions, and historical result replay.
-- Canonical production DB remains schema 12 unless a later task explicitly authorizes canonical migration.
+- A temporary schema-12 production-like fixture explicitly activates dormant schema 13.
+- Legacy rows, durable request records, and historical replay survive process/connection restart.
+- Concurrent request creation, payload conflicts, transition races, stale APPLYING detection, and failure recovery are validated.
+- Canonical/default runtime schema remains `12`, and canonical DB remains byte-for-byte unchanged.
 - PREPARE execution endpoint, `prepare_job`, Job/JobChapter creation, UI changes, and START_RENDER remain unauthorized.
 
 ## In Scope
 
-- Implement schema 13 migration in repository code.
-- Add durable `batch_prepare_requests` persistence/store.
-- Add unique client request and canonical request identity constraints.
-- Add request state constraints, result schema/payload storage, and applying reconciliation timestamps.
-- Implement repository-level create-or-replay, payload-conflict detection, atomic state transitions, and historical result replay.
-- Test only on temporary/isolated databases.
+- Build temporary schema-12 production-like fixtures.
+- Explicitly activate dormant schema 13 on isolated databases.
+- Validate restart persistence, historical APPLIED/REJECTED/FAILED replay, and create-or-replay after restart.
+- Validate concurrent uniqueness, payload conflict, atomic transition races, stale APPLYING detection, and failure recovery.
+- Verify canonical DB byte-level safety.
 
 ## Out Of Scope / Later
 
@@ -105,7 +104,7 @@ node --check ui\app.js
 ## Constraints
 
 - Read-only inspection must not create provider cost, jobs, previews, artifacts, or audio.
-- Repository migration and persistence implementation are authorized for isolated development only.
+- Explicit schema-13 activation is authorized only for temporary or isolated databases.
 - Canonical production migration remains unauthorized.
 - PREPARE execution endpoint remains unauthorized.
 - START_RENDER remains separate.
