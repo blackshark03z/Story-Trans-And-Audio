@@ -31,6 +31,7 @@ from .character_bible import (
     plan_character_bible_import,
 )
 from .active_output import annotate_chapter_rows, annotate_job_rows, get_active_output_bindings
+from .batch_plan import build_batch_plan
 from .custom_voice import CustomVoiceRepository
 from .custom_voice_api import (
     build_voice_catalog_handler,
@@ -529,6 +530,27 @@ def production_range_readiness(
             from_chapter=from_chapter,
             to_chapter=to_chapter,
         )
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/production/batch-plan")
+def production_batch_plan(
+    book_id: int = Query(..., gt=0),
+    from_chapter: int = Query(..., ge=0),
+    to_chapter: int = Query(..., ge=0),
+    target_phase: str = Query(..., min_length=1),
+) -> dict[str, Any]:
+    try:
+        readiness = get_range_readiness(
+            db,
+            book_id=book_id,
+            from_chapter=from_chapter,
+            to_chapter=to_chapter,
+        )
+        return build_batch_plan(readiness, target_phase=target_phase)
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from exc
     except ValueError as exc:
