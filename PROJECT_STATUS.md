@@ -1,11 +1,11 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-22T14:57:45 +07:00 (Asia/Bangkok)
+**Cập nhật:** 2026-07-22T15:49:10 +07:00 (Asia/Bangkok)
 **Milestone:** DAILY-PROD-5 Active - Batch Approval, Prepare, Render And QA Closeout
 **Strategic state:** `PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP`
-**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1`, `DAILY-PROD-2`, `DAILY-PROD-3`, `DAILY-PROD-4`, `DAILY-PROD-5A`, and `DAILY-PROD-5B Phase 1` are complete. Current milestone: `DAILY-PROD-5` - Batch Approval, Prepare, Render And QA Closeout. Production remains a modular, state-resolved, single-current-stage workflow with reusable voice selectors, contextual Voice Library detour/return, completed-output Audio Library, read-only range readiness/exception queue, a read-only batch scope plan, and a pure PREPARE safety contract.
+**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1`, `DAILY-PROD-2`, `DAILY-PROD-3`, `DAILY-PROD-4`, `DAILY-PROD-5A`, `DAILY-PROD-5B Phase 1`, and `DAILY-PROD-5B Phase 2` are complete. Current milestone: `DAILY-PROD-5` - Batch Approval, Prepare, Render And QA Closeout. Production remains a modular, state-resolved, single-current-stage workflow with reusable voice selectors, contextual Voice Library detour/return, completed-output Audio Library, read-only range readiness/exception queue, a read-only batch scope plan, a pure PREPARE safety contract, and a complete PREPARE idempotency persistence design.
 
-**Last verified against commit:** `a3d6f956a103ed563f5bd9ea6496ea0da307440c`
+**Last verified against commit:** `68f4f3d059f08004d6fcb4d4d06505ad802f3c11`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-22
 **Canonical runtime:** `http://127.0.0.1:8772`
@@ -13,8 +13,13 @@
 **Runtime:** canonical, schema `12`
 **DAILY-PROD-5A:** complete
 **DAILY-PROD-5B Phase 1:** complete
+**DAILY-PROD-5B Phase 2:** complete
 **DAILY-PROD-5:** active
 **Mutation authorization:** `MUTATION_NOT_AUTHORIZED`
+**Migration implementation:** `AUTHORIZED_FOR_ISOLATED_DEVELOPMENT`
+**Canonical migration authorization:** `NOT_AUTHORIZED`
+**PREPARE execution:** `NOT_AUTHORIZED`
+**Proposed future schema:** `13`
 **DAILY-PROD-4A:** complete
 **DAILY-PROD-4:** complete
 **DAILY-PROD-3A:** complete
@@ -64,12 +69,15 @@
 - Phase 1 safety statuses are intentionally honest: idempotency `PARTIALLY_SUPPORTED`, duplicate request `PARTIALLY_SUPPORTED`, partial failure `NOT_YET_DEFINED`, retry `PARTIALLY_SUPPORTED`, `mutation_authorized = false`, `execution_endpoint_available = false`, and `prepare_starts_render = false`.
 - Phase 1 validation passed: focused/affected tests (`57`), full offline suite (`1158` tests, `1` skipped), Doctor `critical_errors = 0`, and canonical read-only smoke for Book `1`, chapters `364-369`, with included `0`, excluded `6`, valid result `REJECTED_NO_ELIGIBLE_CHAPTERS`, stale result `REJECTED_STALE_PLAN`, missing-confirmation result `REJECTED_CONFIRMATION_REQUIRED`, and unchanged sensitive counts.
 - PREPARE execution is not authorized. Blocking gaps: no persisted idempotency record, no duplicate result replay, no durable request audit identity, partial-failure policy not defined, no retry-after-timeout contract, and no per-chapter durable result evidence.
-- `DAILY-PROD-5` remains active. Exact next task: `DAILY-PROD-5B Phase 2` - PREPARE Idempotency Persistence And Atomic Execution Design. Phase 2 is design/schema/contract only and must stop before migration implementation, execution endpoint, or production mutation.
+- `DAILY-PROD-5B Phase 2` is complete. Commit `68f4f3d059f08004d6fcb4d4d06505ad802f3c11` added the PREPARE idempotency persistence design: durable `client_request_id`, deterministic canonical request identity, payload binding conflict, explicit request state machine, duplicate/timeout replay, Option A atomicity, stale APPLYING reconciliation, concurrency/uniqueness guard, fingerprint race revalidation, one request/one Job, bounded versioned historical result replay, public failure taxonomy, retention, and proposed schema 13 `batch_prepare_requests`.
+- Phase 2 validation passed: pure persistence tests `50`, focused/affected suite `102`, full offline suite `1208` with `1` skipped, Doctor `critical_errors=0`, and canonical read-only verification kept schema `12` with unchanged counts (`speaker_assignment_drafts=15`, `casting_plans=23`, `jobs=21`, `job_chapters=21`, `segments=688`, `artifacts=84`). Chapter `369` remained unchanged.
+- Schema 13 migration implementation is authorized for isolated development/testing only. Canonical production migration remains unauthorized, canonical runtime schema remains `12`, and PREPARE execution endpoint remains unauthorized.
+- `DAILY-PROD-5` remains active. Exact next task: `DAILY-PROD-5B Phase 3` - Schema 13 Migration And Durable PREPARE Request Store. Phase 3 may implement repository migration/store code and isolated tests only; it must stop before API execution endpoint, `prepare_job`, Job/JobChapter creation, canonical DB migration, UI, provider/Gemini/TTS, or START_RENDER.
 - Browser smoke used an isolated runtime to verify contextual detour activation, logical custom voice creation, reference WAV upload, usable catalog resolution, unsaved return preselection, explicit Book Voice Profile save, cancel, and stale-context rejection. Isolated non-GET requests were limited to custom voice creation, custom revision upload, and explicit profile save; isolated jobs/job_chapters/artifacts remained `0`.
 - `DAILY-PROD-2B2-D1` canonical browser smoke loaded Chapter `369` read-only as `CASTING_REVIEW`, opened the Final Voice Map contextual Voice Library detour, verified same-tab return context, canceled back to Production, and recorded `0` canonical non-GET requests. Post-smoke verification confirmed Chapter `369` remained unchanged.
 - Chapter `369` remains deferred and unchanged; optional distinct-voice work is not active.
-- `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this closure is `SYSTEM_ROADMAP / CONTRACT_READY / MUTATION_NOT_AUTHORIZED`.
-- Exact next task: `DAILY-PROD-5B Phase 2` - PREPARE Idempotency Persistence And Atomic Execution Design.
+- `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this closure is `SYSTEM_ROADMAP / MIGRATION_IMPLEMENTATION_AUTHORIZED / PREPARE_EXECUTION_NOT_AUTHORIZED`.
+- Exact next task: `DAILY-PROD-5B Phase 3` - Schema 13 Migration And Durable PREPARE Request Store.
 
 **Task DAILY-PROD-2B2 verified implementation state:**
 - Repository/runtime baseline passed before implementation: branch `main`, `HEAD == origin/main == 4476ddd973761eba65fc45526e735c59ada48e0e`, runtime `http://127.0.0.1:8772`, schema `12`, and only protected untracked `experiment_b_transcript/` plus `runs/` were present.

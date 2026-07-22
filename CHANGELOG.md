@@ -16,6 +16,16 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DAILY-PROD-5B Phase 2 - PREPARE Idempotency Persistence Design**: completed the design-only persistence and atomicity checkpoint for safe future PREPARE mutation.
+  - **Request identity**: defined required `client_request_id`, deterministic canonical request identity, PREPARE-only payload binding, and `REQUEST_ID_CONFLICT` for same ID with different phase/scope/fingerprint.
+  - **State and replay**: defined request states `PLANNED`, `APPLYING`, `APPLIED`, `REJECTED`, and `FAILED`; duplicate same-payload requests replay current state, in-progress, historical result, rejection, or failure without creating another mutation.
+  - **Timeout/retry**: duplicate retry after client timeout resolves through a durable request record; `FAILED` remains replay-only and requires operator review plus a fresh request ID for a new attempt.
+  - **Atomicity**: chose Option A, committing request `APPLYING` before the all-or-nothing Job/JobChapter transaction, with stale APPLYING reconciliation and a strict no-second-Job rule for ambiguous recovery.
+  - **Safety guards**: documented concurrency/uniqueness constraints, fingerprint race revalidation, one request/one Job, bounded versioned `result_payload_json`, public failure taxonomy, and indefinite initial retention.
+  - **Proposed schema**: documented future schema `13` and proposed `batch_prepare_requests`; no migration, table, API route, execution endpoint, UI change, or production mutation was implemented.
+  - **Validation**: pure persistence tests passed (`50`), focused/affected suite passed (`102`), full offline suite passed (`1208` tests, `1` skipped), Doctor passed with `critical_errors=0`, and canonical counts remained unchanged.
+  - **Commit**: `68f4f3d059f08004d6fcb4d4d06505ad802f3c11`.
+  - **Decision**: schema 13 migration/store implementation is authorized for isolated development only; canonical migration and PREPARE execution remain unauthorized.
 - **DAILY-PROD-5B Phase 1 - PREPARE Mutation Safety Contract**: completed the pure PREPARE-only contract and deferred execution.
   - **Request contract**: requires `book_id`, `from_chapter`, `to_chapter`, `target_phase`, `plan_fingerprint`, and exact boolean `explicit_confirmation=true`; only `target_phase=PREPARE` is supported.
   - **Authority**: current read-only batch plan is the only eligibility authority; client included/excluded rows are ignored; stale fingerprints and scope mismatch are rejected; no eligible chapters fail safely as `REJECTED_NO_ELIGIBLE_CHAPTERS`.

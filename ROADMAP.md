@@ -32,6 +32,7 @@ Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve
 - DAILY-PROD-4 - Range Readiness And Exception Queue: complete. `DAILY-PROD-4A` added read-only `GET /api/production/range-readiness`, active-output and QA semantics, deterministic workflow precedence, summary counts, ordered chapter list, exception queue, safe single-chapter navigation, and runtime/browser validation with no production mutation.
 - DAILY-PROD-5A - Batch Scope Plan And Mutation Safety Contract: complete. Added read-only `GET /api/production/batch-plan`, deterministic target-phase planning and fingerprints, included/excluded rows, reason codes, safety contract, authorization `MUTATION_NOT_AUTHORIZED`, unavailable execution endpoint, read-only UI review, stale-response protection, and runtime/browser validation with no production mutation.
 - DAILY-PROD-5B Phase 1 - Pure PREPARE Mutation Safety Contract: complete. Added a pure PREPARE-only contract with required plan fingerprint, stale-plan rejection, exact boolean confirmation, current-plan authority, deterministic planned intent, no-eligible safe result, honest safety statuses, and no execution endpoint or production mutation.
+- DAILY-PROD-5B Phase 2 - PREPARE Idempotency Persistence Design: complete. Defined durable `client_request_id`, canonical request identity, payload binding, explicit request state machine, duplicate/timeout replay, Option A atomicity, stale APPLYING reconciliation, fingerprint race guard, one request/one Job, bounded historical result replay, retention, and proposed schema 13 `batch_prepare_requests`; no migration or execution endpoint was implemented.
 
 ## Current Strategic Phase
 
@@ -60,13 +61,14 @@ The milestone must:
 - define idempotent behavior for repeated actions, partial failures, retries, and already-complete chapters;
 - stop before provider/TTS work unless a later task explicitly authorizes execution.
 
-Remaining direction:
+Current boundary:
 
-1. Define PREPARE idempotency persistence and atomic execution design.
-2. Implement controlled PREPARE execution only after durable idempotency/replay/audit review.
-3. Keep render start as a separate explicit action.
-4. Define monitor/resume, partial-failure and retry behavior before broad execution.
-5. Close QA/recovery workflows only through later bounded tasks.
+1. Implement schema 13 migration and durable PREPARE request storage in isolated development only.
+2. Keep canonical production schema at version 12 until a later explicit canonical migration authorization.
+3. Keep PREPARE execution endpoint unauthorized until durable persistence is implemented and reviewed.
+4. Keep render start as a separate explicit action.
+5. Define monitor/resume, partial-failure and retry behavior before broad execution.
+6. Close QA/recovery workflows only through later bounded tasks.
 
 ## Ordered Daily Production UX Roadmap
 
@@ -81,7 +83,7 @@ Remaining direction:
 
 See `NEXT_TASK.md` for:
 
-`DAILY-PROD-5B Phase 2 - PREPARE Idempotency Persistence And Atomic Execution Design`
+`DAILY-PROD-5B Phase 3 - Schema 13 Migration And Durable PREPARE Request Store`
 
 ## Paused
 

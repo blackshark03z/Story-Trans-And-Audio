@@ -1,6 +1,6 @@
 # Project
 
-Updated: 2026-07-22 14:57:45 +07:00
+Updated: 2026-07-22 15:49:10 +07:00
 
 ## Product Goal
 
@@ -29,27 +29,26 @@ DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout
 
 ## Current Authorized Task
 
-DAILY-PROD-5B Phase 2 - PREPARE Idempotency Persistence And Atomic Execution Design
+DAILY-PROD-5B Phase 3 - Schema 13 Migration And Durable PREPARE Request Store
 
 ## MVP / Milestone Success Criteria
 
-DAILY-PROD-5B Phase 2 is complete when:
+DAILY-PROD-5B Phase 3 is complete when:
 
-- Durable PREPARE request identity is defined.
-- Client request ID rules are defined.
-- Request state machine and replay behavior are explicit.
-- Atomicity policy and per-chapter audit/result evidence are explicit.
-- Migration requirements and retention policy are documented.
-- The task stops before implementing an execution endpoint or mutating production data.
+- Schema 13 migration is implemented and tested only against temporary/isolated databases.
+- `batch_prepare_requests` persists durable PREPARE request identity, state, bounded replay result, and reconciliation timestamps.
+- Repository-level create-or-replay behavior handles same-request replay, payload conflict, allowlisted atomic transitions, and historical result replay.
+- Canonical production DB remains schema 12 unless a later task explicitly authorizes canonical migration.
+- PREPARE execution endpoint, `prepare_job`, Job/JobChapter creation, UI changes, and START_RENDER remain unauthorized.
 
 ## In Scope
 
-- Inspect schema and migration conventions.
-- Design durable PREPARE request identity and client request ID rules.
-- Bind request to scope, phase, and plan fingerprint.
-- Define request state machine, duplicate replay, in-progress response, failure behavior, retry-after-timeout, atomicity policy, and per-chapter audit/result schema.
-- Define migration, retention, and later authorization gates.
-- Add design/contract tests where possible.
+- Implement schema 13 migration in repository code.
+- Add durable `batch_prepare_requests` persistence/store.
+- Add unique client request and canonical request identity constraints.
+- Add request state constraints, result schema/payload storage, and applying reconciliation timestamps.
+- Implement repository-level create-or-replay, payload-conflict detection, atomic state transitions, and historical result replay.
+- Test only on temporary/isolated databases.
 
 ## Out Of Scope / Later
 
@@ -57,13 +56,14 @@ DAILY-PROD-5B Phase 2 is complete when:
 - QA state reconciliation from historical documentation.
 - Artifact regeneration.
 - Targeted remediation.
+- Canonical production DB migration.
 - Batch mutation endpoints.
 - Batch approval, prepare, render, or QA execution.
 - Batch execution endpoint implementation.
-- Database or runtime mutation.
+- Production database or runtime mutation.
 - Job creation or JobChapter creation.
 - New provider or TTS behavior.
-- Schema migration, unless proven necessary and approved separately.
+- Canonical schema migration, unless proven necessary and approved separately.
 
 ## Technical Context
 
@@ -105,8 +105,10 @@ node --check ui\app.js
 ## Constraints
 
 - Read-only inspection must not create provider cost, jobs, previews, artifacts, or audio.
-- PREPARE execution remains unauthorized.
-- The next task defines durable PREPARE idempotency and atomic execution semantics. It must stop before implementing an execution endpoint or mutating production data.
+- Repository migration and persistence implementation are authorized for isolated development only.
+- Canonical production migration remains unauthorized.
+- PREPARE execution endpoint remains unauthorized.
+- START_RENDER remains separate.
 - Approval, prepare, and render start remain separate actions.
 - Immutable plan/job/artifact history must be preserved.
 - Runtime data must not be rewritten to match documentation.

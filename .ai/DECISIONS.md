@@ -110,6 +110,30 @@ A database transaction alone is not sufficient as the external idempotency contr
 
 START_RENDER remains separate.
 
+## CONT-012 - Persistence may be implemented before PREPARE execution
+
+The PREPARE idempotency design is complete.
+
+Schema migration and durable request-store implementation may proceed in isolated development and temporary databases.
+
+The implementation must provide:
+
+- unique client request binding;
+- canonical request identity;
+- state constraints;
+- atomic transitions;
+- historical result replay;
+- stale APPLYING reconciliation evidence;
+- bounded versioned result payloads.
+
+This authorization does not permit:
+
+- canonical production migration;
+- PREPARE execution endpoint;
+- prepare_job invocation;
+- Job or JobChapter creation;
+- START_RENDER.
+
 ## References
 
 - `docs/AI_TECH_LEAD_PROTOCOL.md`
