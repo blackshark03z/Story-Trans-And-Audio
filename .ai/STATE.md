@@ -1,104 +1,99 @@
 # DAILY-PROD Checkpoint State
 
-Updated: 2026-07-21 20:50:39 +07:00
+Updated: 2026-07-22 11:42:36 +07:00
 
 ## Current Goal
 
-Close out `DAILY-PROD-4A Phase 1` backend-only range readiness preflight and exception queue contract.
+Close out `DAILY-PROD-4A Phase 2` range readiness and exception queue UI integration with a clean UI checkpoint commit.
 
 ## Status
 
-phase-1-backend-closeout-validated-pending-commit
+phase-2-ui-closeout-validated-pending-commit
 
-## DAILY-PROD-4A Phase 1
+## DAILY-PROD-4A Phase 2
 
-Starting commit:
-`98762152b9b98ff9dc4f53df769a6dde9bf5cb7e`
+Backend checkpoint:
+`eaffadb5d56411c15fdeeb969361eb97a5cbfb8f`
 
 Branch:
 `main`
 
-Backend endpoint:
-`GET /api/production/range-readiness`
+Runtime:
+`http://127.0.0.1:8772`
 
-Query contract:
-- `book_id`
-- `from_chapter`
-- `to_chapter`
+Implemented UI:
+- Production scope panel shows read-only range readiness controls.
+- Operator can choose `from_chapter == to_chapter` or a chapter range.
+- `Kiem tra pham vi` calls `GET /api/production/range-readiness`.
+- Summary renders total, complete, ready_to_prepare, needs_attention, and prepared/rendering/paused counts from the backend response.
+- Chapter list preserves backend order.
+- Exception queue renders only backend `exceptions`.
+- Exception actions open the existing single-chapter Production route and do not perform mutations.
+- Loading, friendly error, retry, refresh, scope-change invalidation, and stale-response protection are present.
+- API-provided range data is rendered with `createElement`, `textContent`, and safe attributes.
+- Selecting a book clears stale single-chapter dialog/casting/speaker context so the range panel is not hidden by a previous chapter state.
+- Asset query versions were bumped to prevent stale cached UI during runtime validation.
 
-Implemented:
-- Read-only helper `story_audio/range_readiness.py`.
-- Read-only route in `story_audio/api.py`.
-- Focused tests in `tests/test_range_readiness_api.py`.
+Files changed:
+- `ui/index.html`
+- `ui/app.js`
+- `ui/styles.css`
+- `ui/production_state.js`
+- `tests/test_range_readiness_ui.py`
+- `.ai/STATE.md`
 
-Supported readiness states:
-- `TEXT_BLOCKED` -> `RESOLVE_TEXT`.
-- `SPEAKER_EXCEPTIONS` -> `REVIEW_SPEAKERS`.
-- `VOICE_BLOCKED` -> `CONFIGURE_VOICES`.
-- `CASTING_REVIEW` -> `REVIEW_FINAL_VOICE_MAP`.
-- `READY_TO_PREPARE` -> `PREPARE`.
-- `PREPARED` -> `START_RENDER`.
-- `RENDERING_OR_PAUSED` -> `MONITOR_OR_RESUME`.
-- `RENDERED_NOT_QA` -> `QA`.
-- `COMPLETE` -> `VIEW_OUTPUTS_OR_SELECT_NEXT_SCOPE`.
-- `STATE_UNRESOLVED` -> `RELOAD_READ_ONLY`.
+Validation:
+- `node --check ui\app.js`: PASS.
+- `node --check ui\production_state.js`: PASS.
+- `python -m unittest tests.test_range_readiness_ui tests.test_production_state_resolver tests.test_daily_prod_step_isolation -v`: PASS, 42 tests.
+- Affected UI/navigation suite including range, shell, resolver, runtime identity, audio library, contextual voice detour, and step isolation: PASS, 81 tests.
+- Full offline suite: PASS, 1095 tests, 1 skipped.
+- `git diff --check`: PASS, line-ending warnings only.
 
-Readiness semantics:
-- One primary state and one next action per chapter.
-- Active output is resolved from `chapters.active_audio_artifact_id`, not newest historical job.
-- Runtime Human QA must be accepted for `COMPLETE`; pending output resolves to `RENDERED_NOT_QA`.
-- Prepared/running/paused jobs take precedence over upstream reusable configuration.
-- Exception queue is deterministic, chapter ordered, and excludes `COMPLETE` and `READY_TO_PREPARE`.
-- Invalid active output binding fails closed and does not fall back to historical artifacts.
-- Voice blocking checks missing narrator voice and empty per-utterance `resolved_voice_id` from the verified Casting Plan blob payload.
-
-Canonical runtime:
-- Restarted and verified on `http://127.0.0.1:8772`.
+Canonical runtime recheck:
 - Runtime root/data root matched this repository.
 - `is_canonical_live_data_root`: `true`.
 - `is_canonical_live_db`: `true`.
 - Schema: `12`.
-- Config: Gemini configured, TTS not loaded.
-- Doctor: critical errors `0`; warning only for existing invalid historical speaker drafts.
-
-Canonical smoke:
 - Scope: Book `1`, chapters `364-369`.
-- Chapter order: `364,365,366,367,368,369`.
-- States: `364-367 RENDERED_NOT_QA`, `368 COMPLETE`, `369 CASTING_REVIEW`.
-- Next actions: chapters `364-367` `QA`, chapter `368` `VIEW_OUTPUTS_OR_SELECT_NEXT_SCOPE`, chapter `369` `REVIEW_FINAL_VOICE_MAP`.
-- Summary: total `6`, complete `1`, ready_to_prepare `0`, needs_attention `5`, rendered_not_qa `4`.
-- Exception queue: chapters `364-367` `qa_required`, chapter `369` `casting_review`, no duplicates.
-- Chapter `368` is not in the exception queue.
-- Response does not expose absolute filesystem path markers.
+- Summary: total `6`, complete `1`, ready_to_prepare `0`, needs_attention `5`, prepared/rendering/paused `0`.
+- Ordered rows: `364,365,366,367,368,369`.
+- Runtime states: `364-367 RENDERED_NOT_QA`, `368 COMPLETE`, `369 CASTING_REVIEW`.
+- Exception queue: `364-367`, `369`, no duplicates; `368` excluded.
+
+Browser smoke:
+- Browser: Codex in-app browser.
+- Scope: Book `1`, chapters `364-369`.
+- Summary UI: total `6`, complete `1`, ready_to_prepare `0`, needs_attention `5`, prepared/rendering/paused `0`.
+- Ordered rows: `364,365,366,367,368,369`.
+- UI labels: `364-367` Cho Human QA, `368` Hoan tat, `369` Can duyet ban do giong.
+- Exception queue: `364-367`, `369`, no duplicates; `368` excluded.
+- Open Chapter action navigated to `#/production?book=1&chapter=369`.
+- Single-chapter resolver showed `CASTING_REVIEW`.
+- Refresh kept `6` chapter cards and `5` exception cards.
+- Changing the range cleared the old result.
+- Leaving Production hid the range view.
+- Direct browser network-method capture was not available; source review and focused tests confirm the range preflight path is GET-only.
 
 Production mutation:
-- None.
-- Sensitive table counts before/after canonical smoke were unchanged for `speaker_assignment_drafts`, `casting_plans`, `jobs`, `job_chapters`, `segments`, and `artifacts`.
-- Chapter `369` remained unmutated: active text revision `738`, Casting Plan `24` revision `1` draft, zero jobs.
-
-Validation:
-- `python -m py_compile story_audio\range_readiness.py story_audio\api.py`: PASS.
-- `python -m unittest tests.test_range_readiness_api tests.test_active_output tests.test_human_approval_api tests.test_production_state_resolver tests.test_prepared_jobs -v`: PASS, `50` tests.
-- `python -m unittest discover -s tests -v`: PASS, `1080` tests, `1` skipped.
-- `git diff --check`: PASS before closeout doc updates; line-ending warnings only.
-
-Safety:
-- Backend/checkpoint only.
-- No UI changes.
-- No migration.
-- No production database edits.
-- No Speaker Draft, Casting Plan, Job, JobChapter, Segment, Artifact, Audio, QA, preview, provider, Gemini, or TTS mutation.
-- No Chapter `369` production mutation.
-- No push.
+- None observed.
+- Sensitive table counts before/after browser smoke were unchanged:
+  - `speaker_assignment_drafts`: 15
+  - `casting_plans`: 23
+  - `jobs`: 21
+  - `job_chapters`: 21
+  - `segments`: 688
+  - `artifacts`: 84
+- Chapter `369` remained unmutated: Casting Plan `24` revision `1` draft/unapproved, zero jobs, zero artifacts, no active audio.
+- No provider, Gemini, TTS, preview, render, artifact, audio, job, QA, draft, or plan mutation.
 
 ## Remaining
 
-`DAILY-PROD-4A` UI integration has not started.
+No further `DAILY-PROD-4A` implementation is authorized until documentation closeout and milestone assessment.
 
 ## Next Exact Action
 
-1. Review the committed Phase 1 backend contract.
-2. Open the existing Production range-selection UI.
-3. Integrate the range-readiness response read-only.
-4. Render range summary and deterministic exception queue.
-5. Do not add prepare/render/batch mutation actions in the UI phase.
+1. Review the committed DAILY-PROD-4A backend and UI checkpoints.
+2. Update `PROJECT_STATUS.md`, `NEXT_TASK.md`, `CHANGELOG.md`, `ROADMAP.md` if required.
+3. Decide whether DAILY-PROD-4 is complete or requires one bounded subtask.
+4. Do not start batch prepare/render before that decision.

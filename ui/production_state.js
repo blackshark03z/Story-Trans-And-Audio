@@ -18,7 +18,7 @@
     {id:'productionStageIsolation',stages:['scope','text','speakers','voices','voice_map','prepare','render','qa'],kind:'shell'},
     {id:'workspace',stages:['scope'],kind:'work'},
     {id:'productionQueuePanel',stages:['render'],kind:'work'},
-    {id:'productionLegacyJobPanel',stages:[],kind:'legacy'},
+    {id:'productionLegacyJobPanel',stages:['scope'],kind:'work'},
     {id:'flowStepSelectChapter',stages:['scope'],kind:'work'},
     {id:'flowStepReviewText',stages:['text'],kind:'work'},
     {id:'flowStepAssignVoices',stages:['speakers','voices'],kind:'work'},
@@ -73,6 +73,7 @@
       blockerReason:meta.blockerReason||'',
       targetPanel:meta.target,
       mutationActionsMayBeDisplayed:MUTATION_STATES.has(conceptualState)&&!meta.readOnlyOnly,
+      rangeReadinessAvailable:!!meta.rangeReadinessAvailable,
       diagnosticDetails:meta.diagnosticDetails||[],
       stages,
     };
@@ -96,7 +97,8 @@
   function stagePanelStates(vm,ownership=STAGE_PANEL_OWNERSHIP){
     const unresolved=vm?.conceptualState==='STATE_UNRESOLVED';
     return ownership.map(panel=>{
-      const active=panel.kind==='shell'||(!unresolved&&panel.stages.includes(vm?.currentStageKey));
+      const blockedNoScopeRange=vm?.conceptualState==='NO_SCOPE'&&panel.id==='productionLegacyJobPanel'&&!vm.rangeReadinessAvailable;
+      const active=panel.kind==='shell'||(!unresolved&&!blockedNoScopeRange&&panel.stages.includes(vm?.currentStageKey));
       return {
         id:panel.id,
         kind:panel.kind,
@@ -168,7 +170,7 @@
   function resolveProductionState(input={}){
     if(input.loading)return buildViewModel('STATE_UNRESOLVED',{title:'Đang tải trạng thái sản xuất',explanation:'Đang đọc trạng thái hiện tại; các hành động tạo job/render tạm thời không hiển thị.',readOnlyOnly:true,diagnosticDetails:['loading']});
     if(input.apiError)return buildViewModel('STATE_UNRESOLVED',{blockerReason:String(input.apiError),readOnlyOnly:true,diagnosticDetails:['api_error']});
-    if(!hasValidScope(input))return buildViewModel('NO_SCOPE');
+    if(!hasValidScope(input))return buildViewModel('NO_SCOPE',{rangeReadinessAvailable:!!n(input?.book?.id??input?.book_id)});
     const jobs=scopedJobs(input);
     const liveJobs=jobs.filter(job=>PREPARED_JOB_STATUSES.has(lower(job.status))||ACTIVE_JOB_STATUSES.has(lower(job.status)));
     if(liveJobs.length>1)return buildViewModel('STATE_UNRESOLVED',{blockerReason:'Có nhiều job active/resumable cho cùng một chương.',readOnlyOnly:true,diagnosticDetails:liveJobs.map(job=>`job:${job.id}:${job.status}`)});

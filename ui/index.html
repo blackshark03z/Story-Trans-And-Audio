@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Story Audio</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=20260709-guided-production-flow-polish">
+  <link rel="stylesheet" href="/assets/styles.css?v=20260721-range-readiness-ui-closeout">
 </head>
 <body>
   <header class="topbar">
@@ -112,43 +112,31 @@
           </div>
         </aside>
 
-        <section class="panel job-panel" id="productionLegacyJobPanel">
+        <section class="panel job-panel range-readiness-panel" id="productionLegacyJobPanel" aria-labelledby="rangeReadinessHeading">
           <div class="section-head">
             <div>
-              <p class="eyebrow">Tạo audio</p>
-              <h2>Chọn khoảng chương</h2>
+              <p class="eyebrow">Readiness</p>
+              <h2 id="rangeReadinessHeading">Kiểm tra phạm vi</h2>
             </div>
+            <button id="refreshRangeReadiness" class="ghost" type="button" disabled>Làm mới trạng thái</button>
           </div>
+          <p class="section-guide">Chọn một chương hoặc một khoảng chương để xem trạng thái read-only. Kết quả chỉ điều hướng tới flow một-chapter hiện có, không chuẩn bị job hay render.</p>
           <div class="form-grid">
-            <label>Từ chương<input id="fromChapter" type="number" min="1" value="1"></label>
-            <label>Đến chương<input id="toChapter" type="number" min="1" value="1"></label>
-            <label class="wide">Giọng đọc
-              <div class="inline-control">
-                <select id="voiceSelect"><option value="">Chưa tải danh sách giọng</option></select>
-                <button id="loadVoices" class="ghost">Tải giọng</button>
-                <button id="previewVoice" class="secondary" disabled>▶ Preview 10–20s</button>
-              </div>
-              <div id="voicePreviewBox" class="voice-preview hidden">
-                <audio id="voicePreviewAudio" controls preload="metadata"></audio>
-                <span id="voicePreviewStatus" class="muted"></span>
-              </div>
+            <label for="fromChapter">Từ chương
+              <input id="fromChapter" type="number" min="1" value="1" aria-describedby="rangeReadinessValidation">
             </label>
-            <label>Gemini
-              <select id="repairMode">
-                <option value="all_selected">Sửa dấu câu toàn bộ</option>
-                <option value="qa_only">Chỉ đoạn QA cảnh báo</option>
-                <option value="off">Không dùng Gemini</option>
-              </select>
+            <label for="toChapter">Đến chương
+              <input id="toChapter" type="number" min="1" value="1" aria-describedby="rangeReadinessValidation">
             </label>
-            <label>Định dạng
-              <select id="outputFormat"><option value="m4a">M4A</option><option value="mp3">MP3</option></select>
-            </label>
-            <label class="check wide"><input id="skipCompleted" type="checkbox" checked> Bỏ qua chương đã có audio</label>
           </div>
-          <button id="previewBtn" class="secondary full">Kiểm tra phạm vi</button>
-          <div id="preview" class="preview empty">Chưa kiểm tra phạm vi.</div>
-          <button id="runBtn" class="primary full" disabled data-runtime-mutation-control>Thêm vào hàng đợi</button>
-          <p class="hint">Sau khi tạo job, bạn có 10 giây để hoàn tác. Job chỉ dừng tại ranh giới segment an toàn.</p>
+          <p id="rangeReadinessValidation" class="issue warning hidden" role="alert"></p>
+          <button id="previewBtn" class="secondary full" type="button">Kiểm tra phạm vi</button>
+          <div id="rangeReadinessStatus" class="range-readiness-status muted" role="status" aria-live="polite">Chưa kiểm tra phạm vi.</div>
+          <div id="rangeReadinessError" class="issue error hidden" role="alert">
+            <span id="rangeReadinessErrorText">Không tải được readiness cho phạm vi này.</span>
+            <button id="retryRangeReadiness" class="ghost" type="button">Thử lại</button>
+          </div>
+          <div id="preview" class="preview empty" aria-live="polite">Chưa có kết quả.</div>
         </section>
       </section>
 
@@ -158,6 +146,13 @@
           <button id="refreshJobs" class="ghost">Làm mới</button>
         </div>
         <div id="jobs" class="jobs"><p class="muted">Chưa có job.</p></div>
+        <div class="hidden" aria-hidden="true">
+          <select id="voiceSelect"><option value=""></option></select>
+          <select id="repairMode"><option value="off"></option></select>
+          <select id="outputFormat"><option value="m4a">M4A</option></select>
+          <input id="skipCompleted" type="checkbox">
+          <button id="runBtn" class="primary full" disabled data-runtime-mutation-control>Legacy guarded job action</button>
+        </div>
       </section>
     </section>
 
@@ -697,8 +692,8 @@
     <div id="segmentDiagnosticBody" class="diagnostic-body"></div>
   </dialog>
   <div id="toast" class="toast hidden"></div>
-  <script src="/assets/production_state.js?v=20260720-daily-prod-1b"></script>
-  <script src="/assets/app.js?v=20260720-daily-prod-2b2"></script>
+  <script src="/assets/production_state.js?v=20260721-range-readiness-ui-closeout"></script>
+  <script src="/assets/app.js?v=20260721-range-readiness-ui-closeout"></script>
   <script src="/assets/casting_voice_map.js?v=20260720-daily-prod-2b1"></script>
   <script src="/assets/contextual_voice_detour.js?v=20260720-daily-prod-2b2"></script>
 </body>
