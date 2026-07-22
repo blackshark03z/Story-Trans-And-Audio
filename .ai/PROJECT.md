@@ -1,6 +1,6 @@
 # Project
 
-Updated: 2026-07-22 19:00:42 +07:00
+Updated: 2026-07-22 19:42:07 +07:00
 
 ## Product Goal
 
@@ -29,24 +29,27 @@ DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout
 
 ## Current Authorized Task
 
-DAILY-PROD-5B Phase 6 - Isolated PREPARE Job Transaction Adapter Design Contract
+DAILY-PROD-5B Phase 7 - Dormant Request-to-Job Linkage Persistence And Repository Contract
 
 ## MVP / Milestone Success Criteria
 
-DAILY-PROD-5B Phase 5 is complete. Phase 6 is complete when:
+DAILY-PROD-5B Phase 6 is complete. Phase 7 is complete when:
 
-- Existing `prepare_job`/`create_job` behavior is inspected and documented without invoking it.
-- A pure adapter input/result contract defines request identity, scope, plan fingerprint, one-request/one-Job linkage, Job/JobChapter transaction evidence, deterministic conflict/failure results, and ambiguous-outcome handling.
-- Adapter tests use pure/fake model dependencies only.
-- No API route, canonical schema activation, pipeline call, real Job/JobChapter creation, UI work, provider/Gemini/TTS call, PREPARE execution, or START_RENDER integration is implemented.
+- A dormant schema artifact defines request-to-Job linkage after schema 13.
+- Isolated schema upgrades preserve existing schema-13 PREPARE request records.
+- A pure linkage repository enforces one request to at most one Job and one Job to at most one request.
+- Linkage records persist versioned transaction evidence, plan fingerprint, chapter snapshot digest, prepared status, and no-worker/no-render evidence.
+- Create/replay/conflict lookup is deterministic under concurrency.
+- No active migration registration, canonical schema activation, pipeline integration, real Job/JobChapter creation, API route, UI work, provider/Gemini/TTS call, PREPARE execution, or START_RENDER integration is implemented.
 
 ## In Scope
 
-- Inspect existing Job preparation lifecycle and transaction evidence.
-- Define pure PREPARE Job transaction adapter contracts.
-- Define one-request/one-Job durable linkage and duplicate protection.
-- Define committed-success evidence, deterministic conflict/failure mapping, ambiguous-outcome behavior, and historical replay evidence.
-- Add pure/offline adapter design and model tests with fake dependencies only.
+- Inspect dormant migration conventions.
+- Create a dormant request-to-Job linkage migration after schema 13.
+- Create pure linkage repository/store code.
+- Enforce unique request identity and unique Job relation for linkage records.
+- Persist bounded transaction-evidence metadata.
+- Add isolated migration, repository, concurrency, rollback, and canonical path protection tests using temporary databases only.
 
 ## Out Of Scope / Later
 
@@ -54,13 +57,14 @@ DAILY-PROD-5B Phase 5 is complete. Phase 6 is complete when:
 - QA state reconciliation from historical documentation.
 - Artifact regeneration.
 - Targeted remediation.
-- Canonical production DB migration.
+- Active migration registration or canonical production DB migration.
 - Batch mutation endpoints.
 - Batch approval, prepare, render, or QA execution.
 - Batch execution endpoint implementation.
 - Production database or runtime mutation.
 - Real Job creation or JobChapter creation.
 - Real adapter implementation.
+- Pipeline integration.
 - Pipeline calls.
 - API integration.
 - New provider or TTS behavior.
@@ -110,6 +114,8 @@ node --check ui\app.js
 - Canonical production migration remains unauthorized.
 - PREPARE execution endpoint remains unauthorized.
 - Real Job transaction adapter implementation remains unauthorized.
+- Dormant request-to-Job linkage persistence is authorized only for isolated/temporary databases.
+- Linkage pipeline integration remains unauthorized.
 - START_RENDER remains separate.
 - Approval, prepare, and render start remain separate actions.
 - Immutable plan/job/artifact history must be preserved.

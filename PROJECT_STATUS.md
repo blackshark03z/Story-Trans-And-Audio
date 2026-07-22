@@ -1,29 +1,33 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-22T19:00:42 +07:00 (Asia/Bangkok)
+**Cập nhật:** 2026-07-22T19:42:07 +07:00 (Asia/Bangkok)
 **Milestone:** DAILY-PROD-5 Active - Batch Approval, Prepare, Render And QA Closeout
 **Strategic state:** `PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP`
-**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1`, `DAILY-PROD-2`, `DAILY-PROD-3`, `DAILY-PROD-4`, `DAILY-PROD-5A`, and `DAILY-PROD-5B` Phases 1 through 5 are complete. Current milestone: `DAILY-PROD-5` - Batch Approval, Prepare, Render And QA Closeout. Production remains a modular, state-resolved, single-current-stage workflow with reusable voice selectors, contextual Voice Library detour/return, completed-output Audio Library, read-only range readiness/exception queue, a read-only batch scope plan, a pure PREPARE safety contract, complete PREPARE idempotency persistence design, dormant durable PREPARE request store, accepted isolated schema-13 persistence validation, and accepted isolated PREPARE orchestration contract. The next authorized boundary is isolated PREPARE Job transaction adapter design only.
+**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1`, `DAILY-PROD-2`, `DAILY-PROD-3`, `DAILY-PROD-4`, `DAILY-PROD-5A`, and `DAILY-PROD-5B` Phases 1 through 6 are complete. Current milestone: `DAILY-PROD-5` - Batch Approval, Prepare, Render And QA Closeout. Production remains a modular, state-resolved, single-current-stage workflow with reusable voice selectors, contextual Voice Library detour/return, completed-output Audio Library, read-only range readiness/exception queue, a read-only batch scope plan, a pure PREPARE safety contract, complete PREPARE idempotency persistence design, dormant durable PREPARE request store, accepted isolated schema-13 persistence validation, accepted isolated PREPARE orchestration contract, and accepted PREPARE Job transaction adapter design contract. The next authorized boundary is isolated dormant request-to-Job linkage persistence only.
 
-**Last verified against commit:** `306fd7d2d147ad0dc19e2c00a91cce94d9208ece`
+**Last verified against commit:** `c1b3a40321aa783372751933fbec624b0a42ebb4`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-22
 **Canonical runtime:** `http://127.0.0.1:8772`
 **Runtime schema:** `12`
 **Default/latest schema:** `12`
 **Runtime:** canonical, schema `12`
-**Dormant proposed schema:** `13`
+**Dormant request persistence schema:** `13`
+**Proposed dormant linkage schema:** `14`
 **DAILY-PROD-5A:** complete
 **DAILY-PROD-5B Phase 1:** complete
 **DAILY-PROD-5B Phase 2:** complete
 **DAILY-PROD-5B Phase 3:** complete
 **DAILY-PROD-5B Phase 4:** complete
 **DAILY-PROD-5B Phase 5:** complete
+**DAILY-PROD-5B Phase 6:** complete
 **DAILY-PROD-5:** active
-**Mutation authorization:** `MUTATION_NOT_AUTHORIZED`
+**Mutation authorization:** `DORMANT_LINKAGE_PERSISTENCE_AUTHORIZED_ISOLATED_ONLY`
 **Isolated schema-13 integration validation:** `COMPLETE`
 **Isolated PREPARE orchestration contract:** `COMPLETE`
-**Job transaction adapter design:** `AUTHORIZED`
+**Job transaction adapter design:** `COMPLETE`
+**Isolated linkage persistence implementation:** `AUTHORIZED`
+**Linkage pipeline integration:** `NOT_AUTHORIZED`
 **Job transaction adapter implementation:** `NOT_AUTHORIZED`
 **Canonical migration authorization:** `NOT_AUTHORIZED`
 **PREPARE execution:** `NOT_AUTHORIZED`
@@ -32,6 +36,7 @@
 **Dormant migration:** `story_audio/migrations/dormant/0013_batch_prepare_requests.sql`
 **Durable request store:** `story_audio/batch_prepare_store.py`
 **PREPARE orchestration:** `story_audio/batch_prepare_orchestrator.py`
+**Job adapter contract:** `story_audio/batch_prepare_job_adapter_contract.py`
 **DAILY-PROD-4A:** complete
 **DAILY-PROD-4:** complete
 **DAILY-PROD-3A:** complete
@@ -91,12 +96,14 @@
 - Phase 4 validation passed: isolated integration suite `9` tests PASS twice, affected suite `142` tests PASS, full offline suite `1248` tests PASS with `1` skipped, Doctor `critical_errors=0`, canonical runtime schema/latest `12 / 12`, canonical `batch_prepare_requests` absent, canonical DB hash `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984` bytes, mtime `2026-07-20T12:31:47.429225`, and unchanged sensitive counts.
 - `DAILY-PROD-5B Phase 5` is complete. Commit `306fd7d2d147ad0dc19e2c00a91cce94d9208ece` added the isolated PREPARE orchestration contract with current-plan authority, durable create-or-replay, atomic APPLYING ownership, ownership-loser replay, second fingerprint guard, injected fake FuturePrepareTransaction, durable APPLIED/REJECTED/FAILED ordering, timeout replay, deterministic operator actions, and classify-only stale APPLYING reconciliation.
 - Phase 5 validation passed: focused/affected suite `137` tests PASS, repeated orchestrator suite `16` tests PASS, full offline suite `1265` tests PASS with `1` skipped, Doctor `critical_errors=0`, canonical runtime schema/latest `12 / 12`, canonical `batch_prepare_requests` absent, canonical DB hash `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984` bytes, mtime `2026-07-20T12:31:47.429225`, and unchanged sensitive counts.
-- Job transaction adapter design is authorized next for pure contracts, fake/model tests, transaction-boundary analysis, request-to-Job linkage design, conflict mapping, and ambiguous-outcome recovery design. Adapter implementation, canonical schema activation, PREPARE execution endpoint, `prepare_job`/`create_job` integration, real Job/JobChapter creation, UI, provider/Gemini/TTS, and START_RENDER remain unauthorized.
+- `DAILY-PROD-5B Phase 6` is complete. Commit `c1b3a40321aa783372751933fbec624b0a42ebb4` accepted the PREPARE Job transaction adapter design contract covering one-request/one-Job invariants, one Job plus N JobChapter transaction semantics, prepared-job worker isolation, explicit render start separation, deterministic chapter snapshots, conflict/failure taxonomy, interruption recovery, historical replay, reconciliation classification, and the dedicated request-to-Job linkage recommendation.
+- Phase 6 validation passed: focused/affected suite `169` tests PASS, repeated adapter suite `72` tests PASS, full offline suite `1337` tests PASS with `1` skipped, Doctor `critical_errors=0`, canonical runtime schema/latest `12 / 12`, canonical `batch_prepare_requests` absent, canonical DB hash `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984` bytes, mtime `2026-07-20T12:31:47.429225`, and unchanged sensitive counts.
+- Isolated dormant request-to-Job linkage persistence is authorized next for a proposed schema-14 dormant migration, pure linkage repository, unique request/Job linkage, transaction evidence metadata, create/replay/conflict lookup, and isolated temp-DB tests only. Active migration registration, canonical schema activation, pipeline integration, PREPARE execution endpoint, `prepare_job`/`create_job` integration, real Job/JobChapter creation, UI, provider/Gemini/TTS, and START_RENDER remain unauthorized.
 - Browser smoke used an isolated runtime to verify contextual detour activation, logical custom voice creation, reference WAV upload, usable catalog resolution, unsaved return preselection, explicit Book Voice Profile save, cancel, and stale-context rejection. Isolated non-GET requests were limited to custom voice creation, custom revision upload, and explicit profile save; isolated jobs/job_chapters/artifacts remained `0`.
 - `DAILY-PROD-2B2-D1` canonical browser smoke loaded Chapter `369` read-only as `CASTING_REVIEW`, opened the Final Voice Map contextual Voice Library detour, verified same-tab return context, canceled back to Production, and recorded `0` canonical non-GET requests. Post-smoke verification confirmed Chapter `369` remained unchanged.
 - Chapter `369` remains deferred and unchanged; optional distinct-voice work is not active.
-- `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this closure is `SYSTEM_ROADMAP / JOB_ADAPTER_DESIGN_AUTHORIZED / ADAPTER_IMPLEMENTATION_NOT_AUTHORIZED / CANONICAL_ACTIVATION_NOT_AUTHORIZED / PREPARE_EXECUTION_NOT_AUTHORIZED`.
-- Exact next task: `DAILY-PROD-5B Phase 6` - Isolated PREPARE Job Transaction Adapter Design Contract.
+- `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this closure is `SYSTEM_ROADMAP / DORMANT_LINKAGE_PERSISTENCE_IMPLEMENTATION_AUTHORIZED / PIPELINE_INTEGRATION_NOT_AUTHORIZED / CANONICAL_ACTIVATION_NOT_AUTHORIZED / PREPARE_EXECUTION_NOT_AUTHORIZED`.
+- Exact next task: `DAILY-PROD-5B Phase 7` - Dormant Request-to-Job Linkage Persistence And Repository Contract.
 
 **Task DAILY-PROD-2B2 verified implementation state:**
 - Repository/runtime baseline passed before implementation: branch `main`, `HEAD == origin/main == 4476ddd973761eba65fc45526e735c59ada48e0e`, runtime `http://127.0.0.1:8772`, schema `12`, and only protected untracked `experiment_b_transcript/` plus `runs/` were present.

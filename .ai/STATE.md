@@ -1,10 +1,10 @@
 # DAILY-PROD Checkpoint State
 
-Updated: 2026-07-22 20:33:00 +07:00
+Updated: 2026-07-22 19:42:07 +07:00
 
 ## Current Phase
 
-`DAILY-PROD-5B Phase 6 Closeout` - Full Validation And Job Adapter Design Checkpoint.
+`DAILY-PROD-5B Phase 7` - Dormant Request-to-Job Linkage Persistence And Repository Contract.
 
 ## Starting Commit
 
@@ -68,6 +68,14 @@ Job transaction adapter design:
 - `AUTHORIZED`
 
 Job transaction adapter implementation:
+
+- `NOT_AUTHORIZED`
+
+Dormant request-to-Job linkage persistence:
+
+- `AUTHORIZED_ISOLATED_ONLY`
+
+Linkage pipeline integration:
 
 - `NOT_AUTHORIZED`
 
@@ -189,6 +197,7 @@ Remaining:
 
 ## Phase 6 Closeout
 
+- Checkpoint: `c1b3a40321aa783372751933fbec624b0a42ebb4`.
 - Verdict: `DAILY-PROD-5B_PHASE_6_COMPLETE`.
 - Adapter contract remains design/model only.
 - Lifecycle evidence was reviewed against `story_audio/pipeline.py`, `story_audio/db.py`, migrations, and prepared-job tests.
@@ -200,6 +209,19 @@ Remaining:
 - Process interruption matrix requires no rerun after commit and committed-result recovery when the request result is missing.
 - Reconciliation classifier remains pure/read-only and returns only deterministic decisions.
 - No API route, real adapter implementation, real Job/JobChapter creation, canonical schema activation, UI integration, provider call, TTS call, worker wake, or START_RENDER was added.
+
+## Phase 7 Authorization
+
+- Current task: `DAILY-PROD-5B Phase 7` - Dormant Request-to-Job Linkage Persistence And Repository Contract.
+- Dormant linkage persistence implementation: `AUTHORIZED_ISOLATED_ONLY`.
+- Pipeline integration: `NOT_AUTHORIZED`.
+- Real adapter implementation: `NOT_AUTHORIZED`.
+- Canonical activation: `NOT_AUTHORIZED`.
+- PREPARE execution: `NOT_AUTHORIZED`.
+- API integration: `NOT_AUTHORIZED`.
+- START_RENDER: `NOT_AUTHORIZED`.
+
+Phase 7 may create a dormant schema-14 linkage artifact, pure linkage repository/store code, and isolated tests using temporary databases only. It must not register an active migration, bump default/latest schema, call `prepare_job`/`create_job`, create real production Job/JobChapter rows, integrate orchestration/pipeline/API/UI, wake the worker, or start render.
 
 ## Orchestration Checkpoint
 
@@ -259,7 +281,10 @@ Remaining validation:
 
 ## Next Exact Action
 
-1. Reconcile DAILY-PROD-5B Phase 6 canonical documentation.
-2. Assess isolated linkage/schema implementation authorization.
-3. Keep pipeline integration, canonical activation, and real execution unauthorized.
-4. Keep START_RENDER separate.
+1. Inspect dormant migration activation boundary.
+2. Define isolated schema-13 to schema-14 linkage migration.
+3. Enforce unique request and Job linkage.
+4. Implement pure linkage repository create/replay/conflict behavior.
+5. Validate concurrency and rollback on temporary databases.
+6. Prove canonical schema and DB remain unchanged.
+7. Stop before pipeline or orchestration integration.

@@ -16,6 +16,15 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DAILY-PROD-5B Phase 6 - PREPARE Job Transaction Adapter Design Contract**: completed the isolated adapter design checkpoint without linkage implementation, canonical activation, API integration, real Job creation, or PREPARE execution.
+  - **Lifecycle evidence**: verified the existing two-stage prepared-job lifecycle still creates durable `prepared` jobs, keeps prepared jobs outside worker pickup, uses a separate explicit start transition, and preserves legacy compatibility through prepare-then-start without creating two jobs.
+  - **Transaction contract**: defined a future adapter boundary that must create one durable Job plus N JobChapter rows in one transaction, pin chapter/text/casting/voice snapshot inputs, and commit no partial Job/JobChapter state on failure.
+  - **One-request/one-Job invariant**: accepted a dedicated durable request-to-Job linkage requirement with database uniqueness, committed transaction evidence metadata, deterministic duplicate invocation behavior, and conflict lookup before any real adapter integration.
+  - **Failure and recovery model**: documented deterministic conflict/failure taxonomy, ambiguous-outcome handling, interruption matrix, historical replay behavior, and reconciliation classification for prepared jobs, missing links, duplicate links, terminal Jobs, and corrupt records.
+  - **Validation**: focused/affected suite passed (`169` tests), repeated adapter suite passed (`72` tests), full offline suite passed (`1337` tests, `1` skipped), and Doctor passed with `critical_errors=0`.
+  - **Canonical safety**: canonical runtime stayed schema/latest `12 / 12`; `batch_prepare_requests` remained absent; DB hash `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984` bytes, and mtime `2026-07-20T12:31:47.429225` were preserved.
+  - **Commit**: `c1b3a40321aa783372751933fbec624b0a42ebb4`.
+  - **Decision**: isolated dormant request-to-Job linkage persistence is authorized next. Pipeline integration, real adapter implementation, canonical schema activation, API integration, PREPARE execution, UI, provider/Gemini/TTS, and START_RENDER remain unauthorized.
 - **DAILY-PROD-5B Phase 5 - Isolated PREPARE Orchestration Contract**: completed the isolated service-level PREPARE orchestration contract without canonical activation, API integration, real Job creation, or PREPARE execution.
   - **Current-plan authority**: orchestration validates the PREPARE contract against the current batch plan at intake and again before the fake future transaction boundary.
   - **Durable create/replay**: requests use durable create-or-replay semantics, atomic `PLANNED -> APPLYING` ownership, ownership-loser replay, historical terminal replay, and timeout replay from the stored record.

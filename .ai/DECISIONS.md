@@ -1,6 +1,6 @@
 # Continuity Decisions
 
-Updated: 2026-07-22 19:00:42 +07:00
+Updated: 2026-07-22 19:42:07 +07:00
 
 ## CONT-001 - Real state outranks checkpoint
 
@@ -191,6 +191,28 @@ The design must establish:
 This authorization permits design and isolated model testing only.
 
 Real pipeline invocation, Job creation, canonical schema activation, API
+integration, PREPARE execution, and START_RENDER remain unauthorized.
+
+## CONT-016 - Request-to-Job linkage must be durable before adapter integration
+
+The PREPARE Job transaction adapter design is complete.
+
+Before pipeline integration can be considered, the repository must provide a
+durable request-to-Job linkage that enforces:
+
+- one request to at most one Job;
+- one Job to at most one request;
+- transaction evidence metadata;
+- chapter snapshot and plan fingerprint binding;
+- duplicate invocation conflict detection;
+- committed-result recovery evidence.
+
+The linkage migration and repository may be implemented and tested only on
+temporary or isolated databases.
+
+The migration must remain dormant.
+
+Pipeline integration, real Job creation, canonical schema activation, API
 integration, PREPARE execution, and START_RENDER remain unauthorized.
 
 ## References
