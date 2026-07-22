@@ -29,6 +29,7 @@ Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve
 - DAILY-PROD-1 - Modular Navigation And Sequential Production Shell: complete.
 - DAILY-PROD-2 - Custom Voice Assignment UI Closure: complete.
 - DAILY-PROD-3 - Audio Library And Output Retrieval: complete. `DAILY-PROD-3A` added read-only `GET /api/audio-library`, active-artifact semantics, runtime QA labels, safe playback/download, loading/error/empty/refresh states, and browser/runtime validation.
+- DAILY-PROD-4 - Range Readiness And Exception Queue: complete. `DAILY-PROD-4A` added read-only `GET /api/production/range-readiness`, active-output and QA semantics, deterministic workflow precedence, summary counts, ordered chapter list, exception queue, safe single-chapter navigation, and runtime/browser validation with no production mutation.
 
 ## Current Strategic Phase
 
@@ -44,18 +45,18 @@ Chapter production tasks, including Chapter 369 voice selection or Casting Plan 
 
 ## Active System Milestone
 
-**DAILY-PROD-4 - Range Readiness And Exception Queue**
+**DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout**
 
-Build the read-only readiness layer for selecting a chapter range, skipping already completed chapters, and surfacing only the exceptions that need operator judgment before later batch prepare/render work.
+Build batch production behavior only after a deterministic read-only plan, clear eligibility rules, explicit operator confirmation, idempotency, partial-failure handling, retry behavior, and recovery boundaries are defined.
 
 The milestone must:
 
-- inspect a selected book/chapter range without creating drafts, jobs, previews, artifacts, or audio;
-- identify completed chapters that can be skipped from active artifact state;
-- identify text, speaker, voice, casting, prepared/rendered, and unresolved-state blockers per chapter;
-- produce a non-technical exception queue grouped by required operator action;
-- preserve Chapter 369 and existing production boundaries unless explicitly selected by the operator;
-- keep batch approval, prepare, render, and QA closeout for later milestones.
+- start with a read-only batch scope plan and mutation safety contract;
+- reuse `DAILY-PROD-4` range readiness as the eligibility source;
+- require explicit operator confirmation before any batch mutation;
+- preserve existing single-chapter approval, prepare, start, render, repair, and QA boundaries;
+- define idempotent behavior for repeated actions, partial failures, retries, and already-complete chapters;
+- stop before provider/TTS work unless a later task explicitly authorizes execution.
 
 ## Ordered Daily Production UX Roadmap
 
@@ -70,7 +71,7 @@ The milestone must:
 
 See `NEXT_TASK.md` for:
 
-`DAILY-PROD-4A - Range Readiness Preflight And Exception Queue Contract`
+`DAILY-PROD-5A - Batch Scope Plan And Mutation Safety Contract`
 
 ## Paused
 

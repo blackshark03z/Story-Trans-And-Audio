@@ -1,16 +1,18 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-21T20:03:32 +07:00 (Asia/Bangkok)
-**Milestone:** DAILY-PROD-4 Active - Range Readiness And Exception Queue
+**Cập nhật:** 2026-07-22T11:53:06 +07:00 (Asia/Bangkok)
+**Milestone:** DAILY-PROD-5 Active - Batch Approval, Prepare, Render And QA Closeout
 **Strategic state:** `PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP`
-**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1`, `DAILY-PROD-2`, and `DAILY-PROD-3` are complete. Current milestone: `DAILY-PROD-4` - Range Readiness And Exception Queue. Production remains a modular, state-resolved, single-current-stage workflow. Reusable voice assignment selectors share one canonical preset/custom voice catalog across Book Voice Profile, Character Manager, and Final Voice Map surfaces, operators can detour to Voice Library from an assignment context and return safely, and the Audio Library now provides a read-only completed-output retrieval surface with active-artifact playback/download.
+**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1`, `DAILY-PROD-2`, `DAILY-PROD-3`, and `DAILY-PROD-4` are complete. Current milestone: `DAILY-PROD-5` - Batch Approval, Prepare, Render And QA Closeout. Production remains a modular, state-resolved, single-current-stage workflow with reusable voice selectors, contextual Voice Library detour/return, completed-output Audio Library, and read-only range readiness/exception queue.
 
-**Last verified against commit:** `85040745081f6b01b84fb3f1d68fcce7c9797ed1`
+**Last verified against commit:** `537af32ab83e8d369dea954c787192f2d032681f`
 **Last verified branch:** `main`
-**Last verified date:** 2026-07-21
+**Last verified date:** 2026-07-22
 **Canonical runtime:** `http://127.0.0.1:8772`
 **Runtime schema:** `12`
 **Runtime:** canonical, schema `12`
+**DAILY-PROD-4A:** complete
+**DAILY-PROD-4:** complete
 **DAILY-PROD-3A:** complete
 **DAILY-PROD-3:** complete
 
@@ -41,11 +43,18 @@
 - `DAILY-PROD-3A` validation passed: `node --check ui\app.js`, focused UI/navigation suite (`38` tests), full offline suite (`1061` tests, `1` skipped), and runtime/browser smoke with `16` Audio Library items, bad URL count `0`, chapters `364-368` present, and Chapter `369` absent.
 - `DAILY-PROD-3` milestone assessment is complete: required retrieval capabilities are implemented. Filtering/detail/timeline/remediation entry remain target or later workflow capabilities and are not blockers for the current useful read-only retrieval surface.
 - `DAILY-PROD-3` Definition of Done is satisfied: completed/active output list, book/chapter organization, current runtime QA state, active audio playback, primary audio download, loading/error/empty/refresh, and passive read-only browsing are all present.
+- `DAILY-PROD-4A` added read-only range readiness and exception queue. Backend commit `eaffadb5d56411c15fdeeb969361eb97a5cbfb8f` introduced `GET /api/production/range-readiness`; UI commit `537af32ab83e8d369dea954c787192f2d032681f` added Production range controls, summary, ordered chapter list, exception queue, loading/error/retry/refresh, stale-response protection, and safe single-chapter navigation.
+- Range readiness uses `chapters.active_audio_artifact_id` plus active output bindings for completed-output semantics, not newest-job or newest-artifact heuristics. Runtime QA state determines whether rendered audio is `RENDERED_NOT_QA` or `COMPLETE`; unknown/pending QA fails to the QA-needed state, and invalid active bindings fail closed to `STATE_UNRESOLVED`.
+- Range workflow precedence is deterministic: prepared/running/rendered/complete downstream production state outranks upstream text/speaker/voice/casting state; draft or unapproved Final Voice Map resolves to `CASTING_REVIEW`; exceptions include only operator-action states and exclude `COMPLETE` plus `READY_TO_PREPARE`.
+- `DAILY-PROD-4A` validation passed: focused backend/API suite (`50` tests), focused UI range suite (`42` tests), affected UI/navigation suite (`81` tests), full offline suite (`1095` tests, `1` skipped), frontend syntax checks, runtime smoke, and browser smoke.
+- Canonical range smoke for Book `1`, chapters `364-369`, returned total `6`, complete `1`, ready_to_prepare `0`, needs_attention `5`, prepared/rendering/paused `0`; states were `364-367 RENDERED_NOT_QA`, `368 COMPLETE`, and `369 CASTING_REVIEW`; exceptions were `364-367` plus `369`, with no duplicates and Chapter `368` excluded.
+- `DAILY-PROD-4` milestone assessment is complete: range readiness and exception queue are implemented and validated. Batch approval, batch prepare, batch render, and batch QA closeout remain intentionally deferred to `DAILY-PROD-5`.
+- `DAILY-PROD-5` is now the active milestone. Exact next task: `DAILY-PROD-5A` - Batch Scope Plan And Mutation Safety Contract. Batch mutation is not authorized until the read-only contract, eligibility rules, idempotency, retry, and partial-failure boundaries are defined.
 - Browser smoke used an isolated runtime to verify contextual detour activation, logical custom voice creation, reference WAV upload, usable catalog resolution, unsaved return preselection, explicit Book Voice Profile save, cancel, and stale-context rejection. Isolated non-GET requests were limited to custom voice creation, custom revision upload, and explicit profile save; isolated jobs/job_chapters/artifacts remained `0`.
 - `DAILY-PROD-2B2-D1` canonical browser smoke loaded Chapter `369` read-only as `CASTING_REVIEW`, opened the Final Voice Map contextual Voice Library detour, verified same-tab return context, canceled back to Production, and recorded `0` canonical non-GET requests. Post-smoke verification confirmed Chapter `369` remained unchanged.
 - Chapter `369` remains deferred and unchanged; optional distinct-voice work is not active.
-- `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this closure is `SYSTEM_ROADMAP / READY_FOR_IMPLEMENTATION`.
-- Exact next task: `DAILY-PROD-4A` - Range Readiness Preflight And Exception Queue Contract.
+- `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this closure is `SYSTEM_ROADMAP / CONTRACT_READY / MUTATION_NOT_AUTHORIZED`.
+- Exact next task: `DAILY-PROD-5A` - Batch Scope Plan And Mutation Safety Contract.
 
 **Task DAILY-PROD-2B2 verified implementation state:**
 - Repository/runtime baseline passed before implementation: branch `main`, `HEAD == origin/main == 4476ddd973761eba65fc45526e735c59ada48e0e`, runtime `http://127.0.0.1:8772`, schema `12`, and only protected untracked `experiment_b_transcript/` plus `runs/` were present.

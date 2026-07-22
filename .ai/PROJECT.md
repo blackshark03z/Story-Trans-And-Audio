@@ -1,6 +1,6 @@
 # Project
 
-Updated: 2026-07-21 20:50:39 +07:00
+Updated: 2026-07-22 11:53:06 +07:00
 
 ## Product Goal
 
@@ -25,32 +25,30 @@ Production must remain a sequential state-driven workflow with one primary next 
 
 ## Current Strategic Milestone
 
-DAILY-PROD-4 - Range Readiness And Exception Queue
+DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout
 
 ## Current Authorized Task
 
-DAILY-PROD-4A - Range Readiness Preflight And Exception Queue Contract
+DAILY-PROD-5A - Batch Scope Plan And Mutation Safety Contract
 
 ## MVP / Milestone Success Criteria
 
-DAILY-PROD-4A is complete when:
+DAILY-PROD-5A is complete when:
 
-- Operator can request a read-only chapter range within one book.
-- Each chapter appears exactly once with one current readiness state and one next action.
-- Exception queue is deterministic and contains only chapters requiring operator action.
-- Summary counts match the chapter list and exception queue.
-- Active output is identified by `chapters.active_audio_artifact_id`.
-- Runtime QA state controls whether rendered audio is pending QA or complete.
-- Preflight does not modify production data, jobs, drafts, plans, QA, artifacts, or audio.
+- Batch scope planning is defined before mutation.
+- Eligibility and exclusions are explicit for each range readiness state.
+- Operator confirmation is required before any future batch mutation.
+- Idempotency, retry, partial-failure, and recovery behavior are documented.
+- Existing single-chapter lifecycle boundaries remain authoritative.
+- The task does not approve, prepare, start render, mutate QA, or call providers/TTS.
 
 ## In Scope
 
-- Read-only range readiness endpoint.
-- Book/chapter range validation.
-- Current runtime QA and active-output pointer semantics.
-- Prepared/running/rendered/complete workflow precedence.
-- Deterministic exception queue and summary counts.
-- Focused and full offline validation.
+- Read-only batch scope plan contract.
+- Eligibility and exclusion rules based on range readiness.
+- Operator confirmation boundary for future batch actions.
+- Idempotency, retry, partial-failure, and recovery semantics.
+- Documentation and focused tests for the read-only contract, if implementation is authorized.
 
 ## Out Of Scope / Later
 
@@ -58,8 +56,8 @@ DAILY-PROD-4A is complete when:
 - QA state reconciliation from historical documentation.
 - Artifact regeneration.
 - Targeted remediation.
-- Batch workflow.
-- Batch approval, prepare, render, or QA.
+- Batch mutation endpoints.
+- Batch approval, prepare, render, or QA execution.
 - New provider or TTS behavior.
 - Schema migration, unless proven necessary and approved separately.
 
@@ -103,6 +101,7 @@ node --check ui\app.js
 ## Constraints
 
 - Read-only inspection must not create provider cost, jobs, previews, artifacts, or audio.
+- Batch mutation is not authorized until the plan contract and safety gates are complete.
 - Approval, prepare, and render start remain separate actions.
 - Immutable plan/job/artifact history must be preserved.
 - Runtime data must not be rewritten to match documentation.

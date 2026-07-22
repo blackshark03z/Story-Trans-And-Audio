@@ -61,6 +61,14 @@ Do not create a migration for Audio Library if the existing schema/API/helpers a
 
 If a migration is genuinely required, stop and ask for a decision first.
 
+## CONT-009 - Batch mutation requires a reviewed read-only plan
+
+`DAILY-PROD-4` is complete with read-only range readiness and exception queue.
+
+`DAILY-PROD-5` may not begin with mutation. It must first define a deterministic batch scope plan, eligibility and exclusion rules, explicit operator confirmation, idempotency, retry, partial-failure, and recovery semantics.
+
+Until that contract exists, do not implement or use batch approval, batch prepare, batch render, batch QA, provider/TTS execution, or any batch mutation endpoint.
+
 ## References
 
 - `docs/AI_TECH_LEAD_PROTOCOL.md`

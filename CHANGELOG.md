@@ -16,6 +16,15 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DAILY-PROD-4A - Range Readiness Preflight And Exception Queue**: completed `DAILY-PROD-4` with a read-only range readiness layer and Production exception queue.
+  - **Backend contract**: added `GET /api/production/range-readiness`, returning one deterministic state and next action per chapter, summary counts, ordered rows, and an operator-action exception queue.
+  - **State semantics**: completed chapters are identified from `chapters.active_audio_artifact_id` and active output bindings, runtime QA controls `RENDERED_NOT_QA` versus `COMPLETE`, invalid bindings fail closed, and prepared/running/rendered downstream state takes precedence over upstream configuration.
+  - **UI**: added Production range controls, summary cards, ordered chapter list, exception queue, loading/error/retry/refresh, stale-response protection, scope invalidation, and safe navigation back into the existing single-chapter workflow.
+  - **Safety**: passive range inspection is GET-only and does not create drafts, plans, jobs, segments, attempts, artifacts, audio, provider calls, QA changes, or preview/TTS work.
+  - **Runtime acceptance**: canonical smoke for Book `1`, chapters `364-369`, returned total `6`, complete `1`, ready_to_prepare `0`, needs_attention `5`, with states `364-367 RENDERED_NOT_QA`, `368 COMPLETE`, and `369 CASTING_REVIEW`; exceptions contained `364-367` and `369`, with Chapter `368` excluded.
+  - **Validation**: focused backend/API tests passed (`50`), focused UI range tests passed (`42`), affected UI/navigation tests passed (`81`), full offline suite passed (`1095` tests, `1` skipped), and frontend syntax checks passed.
+  - **Milestone**: `DAILY-PROD-4` is complete. Next milestone: `DAILY-PROD-5` - Batch Approval, Prepare, Render And QA Closeout.
+  - **Commits**: backend `eaffadb5d56411c15fdeeb969361eb97a5cbfb8f`; UI `537af32ab83e8d369dea954c787192f2d032681f`.
 - **DAILY-PROD-3A - Audio Library Completed Output List And Playback Entry**: completed the read-only completed-output retrieval surface and closed `DAILY-PROD-3`.
   - **Backend contract**: added read-only `GET /api/audio-library`, returning active output items from `chapters.active_audio_artifact_id` and active output bindings rather than newest Job or newest artifact heuristics.
   - **Binding safety**: invalid or mismatched active bindings fail closed; response URLs are safe API routes only and do not expose raw filesystem artifact paths.
