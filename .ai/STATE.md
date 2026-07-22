@@ -1,10 +1,15 @@
 # DAILY-PROD Checkpoint State
 
-Updated: 2026-07-22 18:17:10 +07:00
+Updated: 2026-07-22 19:22:00 +07:00
 
 ## Current Phase
 
-`DAILY-PROD-5B Phase 5` - Isolated PREPARE Orchestration And Reconciliation Contract.
+`DAILY-PROD-5B Phase 5 closeout` - Full Validation And Orchestration Contract Checkpoint.
+
+## Starting Commit
+
+- `5701598ce2d769980471f4573ebbccb9664d5cf7`
+- `docs: close phase 4 prepare persistence acceptance`
 
 ## Phase 4 Checkpoint
 
@@ -37,6 +42,10 @@ PREPARE execution:
 - `NOT_AUTHORIZED`
 
 START_RENDER:
+
+- `NOT_AUTHORIZED`
+
+API integration:
 
 - `NOT_AUTHORIZED`
 
@@ -115,12 +124,48 @@ No runtime source bug fixes were needed.
 
 `DAILY-PROD-5B Phase 5` - Isolated PREPARE Orchestration And Reconciliation Contract.
 
+## Orchestration Checkpoint
+
+- Module: `story_audio/batch_prepare_orchestrator.py`
+- Design document: `docs/BATCH_PREPARE_ORCHESTRATION_DESIGN.md`
+- Test suite: `tests/test_batch_prepare_orchestrator.py`
+- Request validation uses the current pure PREPARE contract.
+- Current plan is recomputed at intake and again before the future transaction boundary.
+- Durable request is created or replayed before ownership.
+- Ownership uses store `PLANNED -> APPLYING` compare-and-transition.
+- Valid no-eligible requests persist deterministic `REJECTED` directly from `PLANNED`.
+- Future transaction is injected/fake-only and records APPLIED with `job_id = null`.
+- APPLIED is returned only after durable result persistence.
+- Timeout replay is durable-record based.
+- Stale APPLYING reconciliation is classification-only and non-mutating.
+- Operator actions are deterministic.
+- Authorization fields remain false: mutation, endpoint availability, real job execution, and render start.
+- No API route, real Job/JobChapter creation, canonical schema activation, UI integration, provider call, TTS call, or render start was added.
+- Phase 5 closeout review verified store/orchestrator transition consistency with the pure persistence contract.
+- Fake dependency cannot reach the existing execution lifecycle; API, pipeline, schema, migrations, and UI diffs are empty.
+
+## Validation
+
+- Syntax: PASS for `story_audio/batch_prepare_orchestrator.py` and `tests/test_batch_prepare_orchestrator.py`.
+- Focused orchestrator suite: `16` tests PASS.
+- Affected contract/store/integration/prepared-job suite: `137` tests PASS.
+- Isolated orchestration smoke: PASS through orchestrator tests for success, lost-response replay, stale-before-transaction, concurrent owner, ambiguous reconciliation, no real Job/JobChapter creation, and no production mutation.
+- Repeated orchestrator suite: `16` tests PASS.
+- Full offline suite: `1265` tests PASS, `1` skipped.
+- Runtime check: PASS, canonical data root/db true and schema/latest `12 / 12`.
+- Canonical read-only safety check: PASS; hash/size/mtime unchanged, `batch_prepare_requests` absent, Chapter 369 unchanged.
+- Doctor: PASS, `critical_errors=0`; expected warning remains `speaker_assignment_drafts: drafts=15 invalid=9`.
+- Post-Doctor canonical byte-level recheck: PASS; hash/size/mtime unchanged.
+
+Remaining validation:
+
+- Phase 5 documentation closeout and next authorization assessment.
+
 ## Next Exact Action
 
-1. Define pure PREPARE orchestration flow.
-2. Define atomic ownership acquisition.
-3. Define fingerprint revalidation before the future mutation dependency.
-4. Define durable result-recording order.
-5. Define timeout replay and stale APPLYING reconciliation.
-6. Use only fake or injected future Job dependencies.
-7. Stop before API integration, canonical schema activation, real Job creation, PREPARE execution, or START_RENDER.
+1. Review and reconcile Phase 5 canonical documentation.
+2. Assess whether an isolated real-Job transaction adapter may be designed.
+3. Keep API integration unauthorized.
+4. Keep canonical activation unauthorized.
+5. Keep real PREPARE execution unauthorized until adapter atomicity is reviewed.
+6. Keep START_RENDER separate.

@@ -248,16 +248,17 @@ class BatchPrepareRequestStore:
         self,
         request_id: int,
         *,
-        job_id: int,
+        job_id: int | None,
         result_payload: Mapping[str, Any],
     ) -> BatchPrepareRequestRecord:
         return self._record_terminal_result(
             request_id,
             next_state=STATE_APPLIED,
-            job_id=int(job_id),
+            job_id=int(job_id) if job_id is not None else None,
             result_payload=result_payload,
             error_code=None,
             error_message=None,
+            allowed_current_states=(STATE_APPLYING,),
         )
 
     def record_rejection(
@@ -275,6 +276,7 @@ class BatchPrepareRequestStore:
             result_payload=result_payload,
             error_code=error_code,
             error_message=error_message,
+            allowed_current_states=(STATE_PLANNED, STATE_APPLYING),
         )
 
     def record_failure(
@@ -292,6 +294,7 @@ class BatchPrepareRequestStore:
             result_payload=result_payload,
             error_code=error_code,
             error_message=error_message,
+            allowed_current_states=(STATE_APPLYING,),
         )
 
     def list_stale_applying_requests(self, *, older_than: str, limit: int = 100) -> list[BatchPrepareRequestRecord]:
@@ -337,6 +340,7 @@ class BatchPrepareRequestStore:
         result_payload: Mapping[str, Any],
         error_code: str | None,
         error_message: str | None,
+        allowed_current_states: tuple[str, ...],
     ) -> BatchPrepareRequestRecord:
         if error_code is not None and error_code not in FAILURE_CODES:
             raise PreparePersistenceContractError("error_code is not part of the public failure taxonomy")
@@ -344,6 +348,7 @@ class BatchPrepareRequestStore:
             raise PreparePersistenceContractError("error_message is too long")
         encoded_payload = _safe_json_payload(result_payload, expected_state=next_state)
         now = utcnow()
+        placeholders = ",".join("?" for _ in allowed_current_states)
         with self.db.transaction() as connection:
             _require_table(connection)
             cursor = connection.execute(
@@ -356,7 +361,7 @@ class BatchPrepareRequestStore:
                        error_message=?,
                        completed_at=?,
                        updated_at=?
-                   WHERE id=? AND state='APPLYING'""",
+                   WHERE id=? AND state IN (""" + placeholders + ")",
                 (
                     next_state,
                     job_id,
@@ -366,10 +371,12 @@ class BatchPrepareRequestStore:
                     now,
                     now,
                     int(request_id),
+                    *allowed_current_states,
                 ),
             )
             if cursor.rowcount != 1:
-                raise BatchPrepareStateConflict("Only APPLYING requests can record terminal results")
+                allowed = ",".join(allowed_current_states)
+                raise BatchPrepareStateConflict(f"Only {allowed} requests can record this terminal result")
             row = connection.execute("SELECT * FROM batch_prepare_requests WHERE id=?", (int(request_id),)).fetchone()
             return _row_to_record(row)  # type: ignore[return-value]
 

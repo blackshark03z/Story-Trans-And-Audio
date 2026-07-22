@@ -229,6 +229,21 @@ class BatchPrepareStoreTests(unittest.TestCase):
                 self.assertEqual(updated.state, target)
                 self.assertIsNotNone(updated.completed_at)
 
+    def test_planned_rejection_records_terminal_result_without_applying_ownership(self) -> None:
+        record = self.store.create_or_replay_request(self._request(client_request_id="planned-rejected"))
+        payload = self._payload(record, state=STATE_REJECTED, error_code="NO_ELIGIBLE_CHAPTERS")
+        updated = self.store.record_rejection(
+            record.id,
+            result_payload=payload,
+            error_code="NO_ELIGIBLE_CHAPTERS",
+            error_message="public safe message",
+        )
+        self.assertEqual(updated.state, STATE_REJECTED)
+        self.assertEqual(updated.attempt_count, 0)
+        self.assertIsNone(updated.applying_started_at)
+        self.assertIsNotNone(updated.completed_at)
+        self.assertEqual(self.store.build_historical_replay(record.id)["status"], "DUPLICATE_REJECTED_REPLAY_REJECTION")
+
     def test_invalid_and_terminal_transitions_are_rejected(self) -> None:
         record = self.store.create_or_replay_request(self._request())
         with self.assertRaises(BatchPrepareStateConflict):
