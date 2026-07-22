@@ -4,12 +4,37 @@ Updated: 2026-07-22 21:00:56 +07:00
 
 ## Current Phase
 
-`DAILY-PROD-5B Phase 9` - Isolated Same-Transaction PREPARE Prerequisite Resolution.
+`DAILY-PROD-5B Phase 9 implementation closeout` - Isolated Same-Transaction PREPARE Prerequisite Resolution.
 
 ## Starting Commit
 
-- `024359462ef0d295efa21be5a0963798c348d0fd`
-- `docs: close PREPARE Job adapter design and authorize linkage persistence`
+- `06d4a9846d42037bee826fd74c895f4ba1725761`
+- `docs: close phase 8 and authorize phase 9 prerequisites`
+
+## Phase 9 Implementation Checkpoint State
+
+- Authorization: `PHASE_9_PREREQUISITES_AUTHORIZED_ISOLATED_ONLY`.
+- Dormant ownership migration: `story_audio/migrations/dormant/0015_batch_prepare_execution_attempts.sql`.
+- Durable raw-token hash, monotonic fencing generation, bounded lease, and restart-stable ownership evidence: implemented.
+- Caller-owned `BEGIN IMMEDIATE` transaction manager: implemented.
+- Transaction-scoped request verification and authoritative chapter/Text Revision/Casting Plan/voice-pin revalidation: implemented.
+- Transaction-scoped prepared Job/JobChapter writer: implemented for disposable temporary databases only.
+- Transaction-scoped request-to-Job linkage seam: implemented without changing legacy autonomous behavior.
+- Overlap serialization and bounded busy outcome: implemented.
+- Rollback absence proof, ambiguous commit classification, response-loss recovery, and process-restart recovery: implemented.
+- Canonical path protection: implemented on every new writable Phase 9 entry point.
+- Runtime integration: `NOT_AUTHORIZED` and absent.
+- Canonical activation: `NOT_AUTHORIZED` and absent.
+- PREPARE execution: `NOT_AUTHORIZED` and absent.
+- API/UI: `NOT_AUTHORIZED` and absent.
+- START_RENDER: `NOT_AUTHORIZED` and absent.
+- Focused/affected acceptance: `233` tests PASS.
+- Repeated ownership/concurrency/service acceptance: PASS with stable counts and no timing failures.
+- Full offline suite: `1481` tests PASS, `1` skipped.
+- Syntax and `node --check ui/app.js`: PASS.
+- Doctor: PASS, `critical_errors=0`, expected speaker-draft warning only.
+- Canonical schema/latest: `12 / 12`; hash `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984`, mtime unchanged; dormant tables absent; Chapter 369 unchanged.
+- Remaining: implementation commit, then documentation closeout and Phase 10 assessment.
 
 ## Phase 5 Checkpoint
 

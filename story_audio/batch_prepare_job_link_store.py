@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 import re
 import sqlite3
 from dataclasses import asdict, dataclass
@@ -8,7 +7,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from .batch_prepare_persistence_contract import STATE_APPLIED, STATE_APPLYING
-from .config import canonical_production_db_path
+from .batch_prepare_transaction_manager import assert_isolated_database_path
 from .db import Database, utcnow
 
 
@@ -105,16 +104,14 @@ class BatchPrepareJobLinkResult:
     replay: bool
 
 
-def _canonical_key(path: Path) -> str:
-    return os.path.normcase(str(path.resolve()))
-
-
 def _assert_not_canonical(path: Path) -> None:
-    if _canonical_key(path) == _canonical_key(canonical_production_db_path()):
+    try:
+        assert_isolated_database_path(path)
+    except RuntimeError:
         raise BatchPrepareJobLinkValidationError(
             PARENT_JOB_INVALID,
             "batch prepare job link store is isolated-only and must not target the canonical DB",
-        )
+        ) from None
 
 
 def _require_hex64(value: str, field_name: str) -> str:
@@ -253,56 +250,61 @@ class BatchPrepareJobLinkStore:
     ) -> BatchPrepareJobLinkResult:
         _assert_not_canonical(self.db.path)
         item = _normalize_input(linkage)
-        now = utcnow()
         with self.db.transaction() as connection:
-            _require_table(connection)
+            return self.create_or_replay_in_connection(connection, item)
+
+    def create_or_replay_in_connection(
+        self,
+        connection: sqlite3.Connection,
+        linkage: BatchPrepareJobLinkInput | Mapping[str, Any],
+    ) -> BatchPrepareJobLinkResult:
+        """Write linkage using the caller's active transaction without committing it."""
+        _assert_not_canonical(self.db.path)
+        if not connection.in_transaction:
+            raise BatchPrepareJobLinkValidationError(
+                PARENT_JOB_INVALID,
+                "caller-owned linkage transaction is not active",
+            )
+        item = _normalize_input(linkage)
+        now = utcnow()
+        _require_table(connection)
+        existing = self._get_existing_for_input(connection, item)
+        if existing:
+            return BatchPrepareJobLinkResult(self._classify_existing(existing, item), replay=True)
+        self._validate_parent_request(connection, item, allow_applied_replay=False)
+        self._validate_parent_job(connection, item)
+        try:
+            cursor = connection.execute(
+                """INSERT INTO batch_prepare_job_links(
+                    batch_prepare_request_id,request_identity,job_id,plan_fingerprint,
+                    chapter_snapshot_digest,expected_chapter_count,actual_chapter_count,
+                    prepared_status,transaction_evidence_version,transaction_committed_at,
+                    worker_woken,render_started,result_schema_version,transaction_reference,
+                    evidence_source,created_at,updated_at
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    int(item.batch_prepare_request_id), item.request_identity, int(item.job_id),
+                    item.plan_fingerprint, item.chapter_snapshot_digest,
+                    int(item.expected_chapter_count), int(item.actual_chapter_count),
+                    item.prepared_status, int(item.transaction_evidence_version),
+                    item.transaction_committed_at, 1 if item.worker_woken else 0,
+                    1 if item.render_started else 0, int(item.result_schema_version),
+                    item.transaction_reference, item.evidence_source, now, now,
+                ),
+            )
+            row = connection.execute(
+                "SELECT * FROM batch_prepare_job_links WHERE id=?",
+                (int(cursor.lastrowid),),
+            ).fetchone()
+            return BatchPrepareJobLinkResult(_row_to_record(row), replay=False)  # type: ignore[arg-type]
+        except sqlite3.IntegrityError:
             existing = self._get_existing_for_input(connection, item)
             if existing:
                 return BatchPrepareJobLinkResult(self._classify_existing(existing, item), replay=True)
-            self._validate_parent_request(connection, item, allow_applied_replay=False)
-            self._validate_parent_job(connection, item)
-            try:
-                cursor = connection.execute(
-                    """INSERT INTO batch_prepare_job_links(
-                        batch_prepare_request_id,request_identity,job_id,plan_fingerprint,
-                        chapter_snapshot_digest,expected_chapter_count,actual_chapter_count,
-                        prepared_status,transaction_evidence_version,transaction_committed_at,
-                        worker_woken,render_started,result_schema_version,transaction_reference,
-                        evidence_source,created_at,updated_at
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                    (
-                        int(item.batch_prepare_request_id),
-                        item.request_identity,
-                        int(item.job_id),
-                        item.plan_fingerprint,
-                        item.chapter_snapshot_digest,
-                        int(item.expected_chapter_count),
-                        int(item.actual_chapter_count),
-                        item.prepared_status,
-                        int(item.transaction_evidence_version),
-                        item.transaction_committed_at,
-                        1 if item.worker_woken else 0,
-                        1 if item.render_started else 0,
-                        int(item.result_schema_version),
-                        item.transaction_reference,
-                        item.evidence_source,
-                        now,
-                        now,
-                    ),
-                )
-                row = connection.execute(
-                    "SELECT * FROM batch_prepare_job_links WHERE id=?",
-                    (int(cursor.lastrowid),),
-                ).fetchone()
-                return BatchPrepareJobLinkResult(_row_to_record(row), replay=False)  # type: ignore[arg-type]
-            except sqlite3.IntegrityError:
-                existing = self._get_existing_for_input(connection, item)
-                if existing:
-                    return BatchPrepareJobLinkResult(self._classify_existing(existing, item), replay=True)
-                raise BatchPrepareJobLinkConflict(
-                    LINKAGE_EVIDENCE_CONFLICT,
-                    "linkage insert lost a database uniqueness race",
-                )
+            raise BatchPrepareJobLinkConflict(
+                LINKAGE_EVIDENCE_CONFLICT,
+                "linkage insert lost a database uniqueness race",
+            )
 
     def get_by_request_id(self, request_id: int) -> BatchPrepareJobLinkRecord | None:
         with self.db.connect() as connection:

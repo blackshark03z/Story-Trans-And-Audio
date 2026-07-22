@@ -143,6 +143,21 @@ class BatchPrepareJobLinkStoreTests(unittest.TestCase):
         self.assertEqual(replay.record.created_at, first.record.created_at)
         self.assertEqual(self.database.fetch_one("SELECT COUNT(*) AS n FROM batch_prepare_job_links")["n"], 1)
 
+    def test_caller_owned_connection_seam_does_not_begin_or_commit(self) -> None:
+        store = self._store()
+        connection = self.database.connect()
+        try:
+            with self.assertRaises(BatchPrepareJobLinkValidationError):
+                store.create_or_replay_in_connection(connection, self._input())
+            connection.execute("BEGIN IMMEDIATE")
+            result = store.create_or_replay_in_connection(connection, self._input())
+            self.assertFalse(result.replay)
+            self.assertTrue(connection.in_transaction)
+            connection.rollback()
+        finally:
+            connection.close()
+        self.assertEqual(self.database.fetch_one("SELECT COUNT(*) AS n FROM batch_prepare_job_links")["n"], 0)
+
     def test_parent_request_validation_rejects_invalid_states_and_mismatches(self) -> None:
         cases = [
             ({"batch_prepare_request_id": 9999}, PARENT_REQUEST_INVALID),
