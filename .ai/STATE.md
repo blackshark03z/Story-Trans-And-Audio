@@ -358,3 +358,88 @@ Remaining:
 - Canonical safety: runtime schema/latest `12 / 12`, hash/size/mtime unchanged, `batch_prepare_requests` absent, `batch_prepare_job_links` absent, Chapter 369 unchanged.
 - Open authorization boundary: same-transaction adapter integration design assessment only; pipeline integration, real Job creation, canonical activation, API integration, PREPARE execution, and START_RENDER remain unauthorized.
 - Next exact action: documentation reconciliation and authorization assessment for the isolated same-transaction adapter integration boundary.
+
+## Phase 8 Same-Transaction Integration Design Checkpoint
+
+Updated: 2026-07-22 21:00:56 +07:00
+
+- Current phase: `DAILY-PROD-5B Phase 8` - Same-Transaction PREPARE Adapter Integration Design Contract.
+- Starting commit: `7dacb641b2c6188c50e4fb059bd2792c59c7bb2c`.
+- Authorization: `ISOLATED_SAME_TRANSACTION_ADAPTER_INTEGRATION_DESIGN_AUTHORIZED`.
+- Pipeline modification: `NOT_AUTHORIZED`.
+- Real adapter implementation: `NOT_AUTHORIZED`.
+- Real Job creation: `NOT_AUTHORIZED`.
+- Canonical activation: `NOT_AUTHORIZED`.
+- PREPARE execution: `NOT_AUTHORIZED`.
+- API integration: `NOT_AUTHORIZED`.
+- START_RENDER: `NOT_AUTHORIZED`.
+
+Artifacts:
+
+- Module: `story_audio/batch_prepare_job_transaction_integration_contract.py`.
+- Tests: `tests/test_batch_prepare_job_transaction_integration_contract.py`.
+- Design document: `docs/BATCH_PREPARE_JOB_TRANSACTION_INTEGRATION_DESIGN.md`.
+
+Design scope:
+
+- Future integration service owns one `BEGIN IMMEDIATE`-equivalent transaction.
+- Request row and authoritative chapter/revision/plan inputs are reloaded and verified inside the transaction.
+- Durable ownership requires owner token, fencing generation, active lease, and guarded terminal writes; `attempt_count` is audit metadata only.
+- Job conflict inspection runs inside the same transaction before insert.
+- One prepared Job and exactly N JobChapter rows are written in the caller-owned transaction.
+- Request-to-Job linkage is written in the same transaction before commit.
+- Durable commit evidence is reloaded after commit before APPLIED eligibility.
+- Commit evidence carries one matching transaction reference across Job, linkage, and post-commit reload.
+- `ROLLBACK_CONFIRMED` requires observed rollback/durable absence, and APPLIED handoff accepts only validator/recovery output.
+- Duplicate invocation, ambiguous recovery, interruption handling, and orchestrator handoff are pure/model-only.
+- No runtime mutation, pipeline integration, API route, canonical schema activation, provider/Gemini/TTS call, worker wake, or START_RENDER is implemented.
+
+Existing transaction evidence:
+
+- Existing `create_job`/`prepare_job` lifecycle owns its own `db.transaction()` and does not accept a caller-owned transaction.
+- Existing Job and JobChapter inserts share one internal transaction and rollback together.
+- Existing conflict check runs before the Job insert transaction, so it is not a DB-enforced overlap guard.
+- Existing request store and linkage store each open their own transactions; they need transaction-scoped variants before real integration.
+- Dormant schema 14 linkage uniqueness can prevent duplicate request/job linkage but cannot by itself prevent different requests from preparing overlapping chapter ranges.
+- Schema 14 `transaction_committed_at` is only meaningful with durable post-commit visibility; timestamp alone is not independent proof of commit.
+- Existing eligibility, active Text Revision, and approved Casting Plan reads leave a TOCTOU window because they are not transaction-scoped.
+- Existing post-commit audit can fail after durable Job commit and must not be represented as rollback.
+
+Implementation prerequisite assessment:
+
+- Overall decision: `IMPLEMENTATION_NOT_READY`.
+- Blockers: `BLOCKED_BY_TRANSACTION_ABSTRACTION`, `BLOCKED_BY_AUTHORITATIVE_INPUT_REVALIDATION`, `BLOCKED_BY_OWNERSHIP_EVIDENCE`, `BLOCKED_BY_CONFLICT_RACE`.
+- Required future changes: integration-owned transaction boundary, transaction-scoped request/input/Job/linkage repositories, owner token/fencing/lease evidence, SQLite-safe overlap serialization, failure injection, and non-authoritative or same-transaction audit semantics.
+
+Validation:
+
+- Syntax: PASS for `story_audio/batch_prepare_job_transaction_integration_contract.py`.
+- Focused pure/model suite: `90` tests PASS after review corrections.
+- Focused pure/model plus affected adapter/linkage/orchestrator/prepared-job suite: `198` tests PASS.
+- Full offline suite: `1447` tests PASS, `1` skipped.
+- Syntax and UI JavaScript checks: PASS.
+- Pure model smoke: PASS for exact operation ordering, unknown/duplicate rejection, immutable JobChapter pins, ownership fencing prerequisites, authoritative input revalidation, transaction-reference matching, evidence-gated handoff, unknown commit outcome ambiguity, APPLIED persistence failure no-rerun, and no real DB writes.
+- Runtime check: PASS, canonical data root/db true and schema/latest `12 / 12`.
+- Canonical DB opened writable by Phase 8: no.
+- Canonical DB read-only quick_check: `ok`.
+- Canonical DB hash: `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`.
+- Canonical DB size: `4009984` bytes.
+- Canonical DB mtime: `2026-07-20T12:31:47.4292255+07:00`.
+- Canonical `batch_prepare_requests` table: absent.
+- Canonical `batch_prepare_job_links` table: absent.
+- Counts unchanged: speaker drafts `15`, casting plans `23`, jobs `21`, job chapters `21`, segments `688`, artifacts `84`.
+- Chapter 369 unchanged: active Text Revision `738`, Casting Plan `24` revision `1` draft/unapproved, jobs `0`, artifacts `0`, active audio none, audio status `not_created`.
+- Doctor: PASS, `critical_errors=0`; expected warning remains `speaker_assignment_drafts: drafts=15 invalid=9`.
+- Post-Doctor canonical byte-level recheck: PASS; hash/size/mtime unchanged and transient WAL/SHM sidecars absent after connections closed.
+
+Remaining:
+
+- Phase 8 design/model checkpoint is validated and ready for its authorized checkpoint commit.
+- Pipeline modification, real adapter implementation, real Job creation, canonical activation, API integration, PREPARE execution, and START_RENDER remain unauthorized.
+
+Next Exact Action:
+
+1. Commit only the validated Phase 8 design/model checkpoint.
+2. Reconcile canonical documentation and record the Phase 8 closeout.
+3. Authorize only bounded isolated Phase 9 prerequisite resolution; do not start it in this task.
+4. Keep pipeline modification, canonical activation, real execution, API integration, and START_RENDER unauthorized.
