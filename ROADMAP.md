@@ -30,6 +30,7 @@ Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve
 - DAILY-PROD-2 - Custom Voice Assignment UI Closure: complete.
 - DAILY-PROD-3 - Audio Library And Output Retrieval: complete. `DAILY-PROD-3A` added read-only `GET /api/audio-library`, active-artifact semantics, runtime QA labels, safe playback/download, loading/error/empty/refresh states, and browser/runtime validation.
 - DAILY-PROD-4 - Range Readiness And Exception Queue: complete. `DAILY-PROD-4A` added read-only `GET /api/production/range-readiness`, active-output and QA semantics, deterministic workflow precedence, summary counts, ordered chapter list, exception queue, safe single-chapter navigation, and runtime/browser validation with no production mutation.
+- DAILY-PROD-5A - Batch Scope Plan And Mutation Safety Contract: complete. Added read-only `GET /api/production/batch-plan`, deterministic target-phase planning and fingerprints, included/excluded rows, reason codes, safety contract, authorization `MUTATION_NOT_AUTHORIZED`, unavailable execution endpoint, read-only UI review, stale-response protection, and runtime/browser validation with no production mutation.
 
 ## Current Strategic Phase
 
@@ -51,12 +52,20 @@ Build batch production behavior only after a deterministic read-only plan, clear
 
 The milestone must:
 
-- start with a read-only batch scope plan and mutation safety contract;
+- continue from the completed read-only batch scope plan and mutation safety contract;
 - reuse `DAILY-PROD-4` range readiness as the eligibility source;
 - require explicit operator confirmation before any batch mutation;
 - preserve existing single-chapter approval, prepare, start, render, repair, and QA boundaries;
 - define idempotent behavior for repeated actions, partial failures, retries, and already-complete chapters;
 - stop before provider/TTS work unless a later task explicitly authorizes execution.
+
+Remaining direction:
+
+1. Define the PREPARE mutation contract and stale-plan guard.
+2. Implement controlled PREPARE execution only after contract review.
+3. Keep render start as a separate explicit action.
+4. Define monitor/resume, partial-failure and retry behavior before broad execution.
+5. Close QA/recovery workflows only through later bounded tasks.
 
 ## Ordered Daily Production UX Roadmap
 
@@ -71,7 +80,7 @@ The milestone must:
 
 See `NEXT_TASK.md` for:
 
-`DAILY-PROD-5A - Batch Scope Plan And Mutation Safety Contract`
+`DAILY-PROD-5B - Batch Prepare Mutation Contract And Stale-Plan Guard`
 
 ## Paused
 

@@ -1,6 +1,6 @@
 # Project
 
-Updated: 2026-07-22 11:53:06 +07:00
+Updated: 2026-07-22 14:11:49 +07:00
 
 ## Product Goal
 
@@ -29,26 +29,26 @@ DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout
 
 ## Current Authorized Task
 
-DAILY-PROD-5A - Batch Scope Plan And Mutation Safety Contract
+DAILY-PROD-5B - Batch Prepare Mutation Contract And Stale-Plan Guard
 
 ## MVP / Milestone Success Criteria
 
-DAILY-PROD-5A is complete when:
+DAILY-PROD-5B is complete when:
 
-- Batch scope planning is defined before mutation.
-- Eligibility and exclusions are explicit for each range readiness state.
-- Operator confirmation is required before any future batch mutation.
-- Idempotency, retry, partial-failure, and recovery behavior are documented.
-- Existing single-chapter lifecycle boundaries remain authoritative.
-- The task does not approve, prepare, start render, mutate QA, or call providers/TTS.
+- The existing single-chapter prepare lifecycle has been inspected.
+- A PREPARE-only batch mutation contract is defined.
+- The request requires a deterministic batch-plan fingerprint.
+- Stale-plan rejection is defined.
+- Explicit operator confirmation is mandatory.
+- Idempotency, duplicate-request, partial-failure, retry, and per-chapter result behavior are defined.
+- The task stops before implementing a mutation endpoint or mutating production data.
 
 ## In Scope
 
-- Read-only batch scope plan contract.
-- Eligibility and exclusion rules based on range readiness.
-- Operator confirmation boundary for future batch actions.
-- Idempotency, retry, partial-failure, and recovery semantics.
-- Documentation and focused tests for the read-only contract, if implementation is authorized.
+- Inspect existing single-job prepare behavior.
+- Define PREPARE-only batch request/response contract.
+- Define plan fingerprint, stale-plan rejection, explicit confirmation, idempotency, duplicate-request behavior, per-chapter results, partial-failure boundaries, retry behavior, and audit fields.
+- Add contract-focused offline tests.
 
 ## Out Of Scope / Later
 
@@ -58,6 +58,8 @@ DAILY-PROD-5A is complete when:
 - Targeted remediation.
 - Batch mutation endpoints.
 - Batch approval, prepare, render, or QA execution.
+- Batch execution endpoint implementation.
+- Database or runtime mutation.
 - New provider or TTS behavior.
 - Schema migration, unless proven necessary and approved separately.
 
@@ -101,7 +103,8 @@ node --check ui\app.js
 ## Constraints
 
 - Read-only inspection must not create provider cost, jobs, previews, artifacts, or audio.
-- Batch mutation is not authorized until the plan contract and safety gates are complete.
+- Batch mutation remains unauthorized.
+- The next task defines a PREPARE-only mutation contract and safety tests. It must stop before implementing an execution endpoint or mutating production data.
 - Approval, prepare, and render start remain separate actions.
 - Immutable plan/job/artifact history must be preserved.
 - Runtime data must not be rewritten to match documentation.

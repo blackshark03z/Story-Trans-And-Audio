@@ -1,16 +1,18 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-22T11:53:06 +07:00 (Asia/Bangkok)
+**Cập nhật:** 2026-07-22T14:11:49 +07:00 (Asia/Bangkok)
 **Milestone:** DAILY-PROD-5 Active - Batch Approval, Prepare, Render And QA Closeout
 **Strategic state:** `PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP`
-**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1`, `DAILY-PROD-2`, `DAILY-PROD-3`, and `DAILY-PROD-4` are complete. Current milestone: `DAILY-PROD-5` - Batch Approval, Prepare, Render And QA Closeout. Production remains a modular, state-resolved, single-current-stage workflow with reusable voice selectors, contextual Voice Library detour/return, completed-output Audio Library, and read-only range readiness/exception queue.
+**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1`, `DAILY-PROD-2`, `DAILY-PROD-3`, `DAILY-PROD-4`, and `DAILY-PROD-5A` are complete. Current milestone: `DAILY-PROD-5` - Batch Approval, Prepare, Render And QA Closeout. Production remains a modular, state-resolved, single-current-stage workflow with reusable voice selectors, contextual Voice Library detour/return, completed-output Audio Library, read-only range readiness/exception queue, and a read-only batch scope plan.
 
-**Last verified against commit:** `537af32ab83e8d369dea954c787192f2d032681f`
+**Last verified against commit:** `b364b51ed72a4c1e506de12e368a6b5a69a3356e`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-22
 **Canonical runtime:** `http://127.0.0.1:8772`
 **Runtime schema:** `12`
 **Runtime:** canonical, schema `12`
+**DAILY-PROD-5A:** complete
+**DAILY-PROD-5:** active
 **DAILY-PROD-4A:** complete
 **DAILY-PROD-4:** complete
 **DAILY-PROD-3A:** complete
@@ -49,12 +51,18 @@
 - `DAILY-PROD-4A` validation passed: focused backend/API suite (`50` tests), focused UI range suite (`42` tests), affected UI/navigation suite (`81` tests), full offline suite (`1095` tests, `1` skipped), frontend syntax checks, runtime smoke, and browser smoke.
 - Canonical range smoke for Book `1`, chapters `364-369`, returned total `6`, complete `1`, ready_to_prepare `0`, needs_attention `5`, prepared/rendering/paused `0`; states were `364-367 RENDERED_NOT_QA`, `368 COMPLETE`, and `369 CASTING_REVIEW`; exceptions were `364-367` plus `369`, with no duplicates and Chapter `368` excluded.
 - `DAILY-PROD-4` milestone assessment is complete: range readiness and exception queue are implemented and validated. Batch approval, batch prepare, batch render, and batch QA closeout remain intentionally deferred to `DAILY-PROD-5`.
-- `DAILY-PROD-5` is now the active milestone. Exact next task: `DAILY-PROD-5A` - Batch Scope Plan And Mutation Safety Contract. Batch mutation is not authorized until the read-only contract, eligibility rules, idempotency, retry, and partial-failure boundaries are defined.
+- `DAILY-PROD-5A` is complete. Backend commit `4784c16c69fbfc6d714c1a636068e35ab41e3bb1` added read-only `GET /api/production/batch-plan`; UI commit `b364b51ed72a4c1e506de12e368a6b5a69a3356e` added the read-only Batch Plan Review UI.
+- Batch plans are deterministic and include selected range, target phase allowlist, plan fingerprint, included/excluded rows, clear exclusion reason codes, summary counts, authorization `MUTATION_NOT_AUTHORIZED`, `execution_endpoint_available = false`, and honest safety limitations for idempotency, retry/resume, and partial failure.
+- Batch Plan UI reuses the existing Production range scope, shows the authorization boundary, renders included/excluded lists and truncated fingerprint from backend data, protects against stale responses, and only navigates rows back into the existing single-chapter Production flow.
+- `DAILY-PROD-5A` validation passed: frontend syntax checks, focused/affected tests (`49`), full offline suite (`1127` tests, `1` skipped), canonical runtime smoke, and browser smoke. Direct browser HTTP-method capture was unavailable; source review and focused tests prove GET-only behavior.
+- Runtime batch-plan smoke for Book `1`, chapters `364-369`, target `PREPARE` returned included `0`, excluded `6`, fingerprint `3ecbe9c69353157f2e0f6e4af48ec21616891469ef2c7c704bfe0f69dcc211b1`, and unchanged sensitive counts.
+- Runtime facts remain: chapters `364-367` are excluded from PREPARE because runtime QA is not accepted, chapter `368` is excluded because active output is complete, and chapter `369` is excluded because Casting Plan `24` revision `1` is draft/unapproved.
+- `DAILY-PROD-5` remains active. Exact next task: `DAILY-PROD-5B` - Batch Prepare Mutation Contract And Stale-Plan Guard. Batch mutation remains unauthorized until that PREPARE-only contract is reviewed; the next task must stop before implementing an execution endpoint or mutating production data.
 - Browser smoke used an isolated runtime to verify contextual detour activation, logical custom voice creation, reference WAV upload, usable catalog resolution, unsaved return preselection, explicit Book Voice Profile save, cancel, and stale-context rejection. Isolated non-GET requests were limited to custom voice creation, custom revision upload, and explicit profile save; isolated jobs/job_chapters/artifacts remained `0`.
 - `DAILY-PROD-2B2-D1` canonical browser smoke loaded Chapter `369` read-only as `CASTING_REVIEW`, opened the Final Voice Map contextual Voice Library detour, verified same-tab return context, canceled back to Production, and recorded `0` canonical non-GET requests. Post-smoke verification confirmed Chapter `369` remained unchanged.
 - Chapter `369` remains deferred and unchanged; optional distinct-voice work is not active.
 - `NEXT_TASK.md` must conform to `ROADMAP.md` and may not silently redefine strategic direction. Current task classification after this closure is `SYSTEM_ROADMAP / CONTRACT_READY / MUTATION_NOT_AUTHORIZED`.
-- Exact next task: `DAILY-PROD-5A` - Batch Scope Plan And Mutation Safety Contract.
+- Exact next task: `DAILY-PROD-5B` - Batch Prepare Mutation Contract And Stale-Plan Guard.
 
 **Task DAILY-PROD-2B2 verified implementation state:**
 - Repository/runtime baseline passed before implementation: branch `main`, `HEAD == origin/main == 4476ddd973761eba65fc45526e735c59ada48e0e`, runtime `http://127.0.0.1:8772`, schema `12`, and only protected untracked `experiment_b_transcript/` plus `runs/` were present.

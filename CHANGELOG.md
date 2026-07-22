@@ -16,6 +16,15 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ### Added
 
+- **DAILY-PROD-5A - Batch Scope Plan And Mutation Safety Contract**: completed the read-only batch planning layer and kept batch execution fail-closed.
+  - **Backend contract**: added `GET /api/production/batch-plan` with supported target phases, deterministic selected-range semantics, deterministic plan fingerprint, included/excluded rows, exclusion reason codes, summary counts, and authorization `MUTATION_NOT_AUTHORIZED`.
+  - **Execution boundary**: `execution_endpoint_available` remains `false`; idempotency, retry/resume, and partial-failure behavior are honestly reported as partially supported planning evidence only, not executable mutation.
+  - **UI**: added the read-only Batch Plan Review surface under Production range readiness with scope reuse, target phase selection, authorization banner, summary, included/excluded lists, safety contract display, truncated fingerprint, loading/error/retry/refresh handling, stale-response protection, and safe chapter navigation.
+  - **Safety**: no batch execution button, mutation endpoint, approval, prepare, start render, resume, QA mutation, provider/Gemini/TTS call, job, artifact, audio, or protected-path mutation was added.
+  - **Runtime acceptance**: canonical smoke for Book `1`, chapters `364-369`, target `PREPARE`, returned included `0`, excluded `6`; chapters `364-367` were excluded for `HUMAN_QA_NOT_ACCEPTED`, chapter `368` for `ACTIVE_OUTPUT_COMPLETE`, and chapter `369` for `CASTING_PLAN_NOT_APPROVED`.
+  - **Validation**: frontend syntax checks passed, focused/affected tests passed (`49`), full offline suite passed (`1127` tests, `1` skipped), and canonical runtime/browser smoke confirmed no sensitive table count changes. Direct browser HTTP-method capture was unavailable; source review and focused tests prove GET-only behavior.
+  - **Commits**: backend `4784c16c69fbfc6d714c1a636068e35ab41e3bb1`; UI `b364b51ed72a4c1e506de12e368a6b5a69a3356e`.
+  - **Milestone**: `DAILY-PROD-5` remains active. Next task: `DAILY-PROD-5B` - Batch Prepare Mutation Contract And Stale-Plan Guard.
 - **DAILY-PROD-4A - Range Readiness Preflight And Exception Queue**: completed `DAILY-PROD-4` with a read-only range readiness layer and Production exception queue.
   - **Backend contract**: added `GET /api/production/range-readiness`, returning one deterministic state and next action per chapter, summary counts, ordered rows, and an operator-action exception queue.
   - **State semantics**: completed chapters are identified from `chapters.active_audio_artifact_id` and active output bindings, runtime QA controls `RENDERED_NOT_QA` versus `COMPLETE`, invalid bindings fail closed, and prepared/running/rendered downstream state takes precedence over upstream configuration.

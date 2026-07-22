@@ -1,6 +1,6 @@
 # Continuity Decisions
 
-Updated: 2026-07-21 15:38:56 +07:00
+Updated: 2026-07-22 14:11:49 +07:00
 
 ## CONT-001 - Real state outranks checkpoint
 
@@ -68,6 +68,27 @@ If a migration is genuinely required, stop and ask for a decision first.
 `DAILY-PROD-5` may not begin with mutation. It must first define a deterministic batch scope plan, eligibility and exclusion rules, explicit operator confirmation, idempotency, retry, partial-failure, and recovery semantics.
 
 Until that contract exists, do not implement or use batch approval, batch prepare, batch render, batch QA, provider/TTS execution, or any batch mutation endpoint.
+
+## CONT-010 - Batch PREPARE must be isolated from render start
+
+The first batch mutation contract may cover PREPARE only.
+
+It must require:
+
+- deterministic plan fingerprint;
+- stale-plan rejection;
+- explicit operator confirmation;
+- idempotency;
+- duplicate-request handling;
+- per-chapter results;
+- partial-failure semantics;
+- retry semantics.
+
+PREPARE must create durable prepared work only.
+
+It must not automatically start synthesis.
+
+START_RENDER, RESUME, and QA mutation require separate bounded tasks and separate review.
 
 ## References
 
