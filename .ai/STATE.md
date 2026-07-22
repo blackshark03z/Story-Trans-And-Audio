@@ -1,86 +1,119 @@
 # DAILY-PROD Checkpoint State
 
-Updated: 2026-07-22 14:11:49 +07:00
+Updated: 2026-07-22 14:43:14 +07:00
 
 ## Current Phase
 
-`DAILY-PROD-5A` is complete.
+`DAILY-PROD-5B Phase 1 closeout` - PREPARE mutation contract and stale-plan guard.
 
-Current milestone:
-`DAILY-PROD-5` - Batch Approval, Prepare, Render And QA Closeout.
-
-Current task:
-`DAILY-PROD-5B` - Batch Prepare Mutation Contract And Stale-Plan Guard.
-
-## Checkpoints
-
-Backend checkpoint:
-`4784c16c69fbfc6d714c1a636068e35ab41e3bb1`
-
-Subject:
-`feat: add read-only batch planning API`
-
-UI checkpoint:
-`b364b51ed72a4c1e506de12e368a6b5a69a3356e`
-
-Subject:
-`feat: add read-only batch planning UI`
-
-## DAILY-PROD-5A Acceptance
-
-Implemented:
-- Read-only `GET /api/production/batch-plan`.
-- Deterministic selected range and target phase allowlist.
-- Deterministic plan fingerprint.
-- Included/excluded chapter lists.
-- Clear exclusion reason codes.
-- Summary counts.
-- Authorization status `MUTATION_NOT_AUTHORIZED`.
-- `execution_endpoint_available = false`.
-- Honest safety limitations for idempotency, retry/resume, and partial failure.
-- Read-only Batch Plan Review UI under the Production range surface.
-- Authorization banner, safety contract display, truncated fingerprint, loading/error/retry/refresh, stale-response protection, and safe single-chapter navigation.
-
-Verdict:
-`DAILY-PROD-5A_COMPLETE`
+Starting commit:
+`3eb84283ee76a47d7236ef8c756a555904e8699b`
 
 ## Mutation Authorization
 
 `MUTATION_NOT_AUTHORIZED`
 
-No batch mutation endpoint, execution control, approval, prepare, start, resume, render, QA mutation, provider call, or TTS action is authorized for passive plan review.
+No batch execution endpoint, execution control, approval, prepare, start, resume, render, QA mutation, provider call, Gemini call, or TTS action is authorized in Phase 1.
 
-## Latest Validation
+## Implementation
+
+Added a pure contract module:
+- `story_audio/batch_prepare_contract.py`
+
+Added focused contract tests:
+- `tests/test_batch_prepare_contract.py`
+
+Implemented:
+- PREPARE-only request validation.
+- Required `book_id`, `from_chapter`, `to_chapter`, `target_phase`, `plan_fingerprint`, and `explicit_confirmation`.
+- Required `target_phase = PREPARE`.
+- Required 64-character lowercase hex plan fingerprint.
+- Deterministic stale-plan guard by recomputing the current PREPARE batch plan through an injected provider.
+- Confirmation guard: `explicit_confirmation` must be true.
+- Scope and target phase guard against the recomputed current plan.
+- Authorization guard: current plan must still be `MUTATION_NOT_AUTHORIZED` with `execution_endpoint_available = false`.
+- Execution intent schema built only from current plan `included` rows.
+- No eligible chapters returns `REJECTED_NO_ELIGIBLE_CHAPTERS`, not execution-ready status.
+- All accepted and rejected results report `mutation_authorized = false`, `execution_endpoint_available = false`, and `prepare_starts_render = false`.
+
+No API route was registered.
+No UI file was changed.
+No database write helper is called by the contract module.
+
+Closeout correction:
+- Request objects that are not mappings now fail closed with `REJECTED_INVALID_REQUEST`.
+- Empty fingerprints are rejected without provider recompute.
+- Missing, false, or string truthy confirmation is rejected before provider recompute.
+- Focused tests now verify the contract module has no database, lifecycle, provider, or TTS imports.
+
+## PREPARE Lifecycle Evidence
+
+- Single-chapter prepare uses `prepare_job(...)`, which delegates to `create_job(..., start_immediately=False)`.
+- PREPARE creates one `jobs` row for the selected scope and one `job_chapters` row per selected chapter inside one `db.transaction()` block.
+- Manual casting prepare pins `job_chapters.text_revision_id`, `job_chapters.casting_plan_id`, `job_chapters.casting_plan_sha256`, and `job_chapters.voice_snapshot_json`.
+- Prepared jobs use `jobs.status = prepared`; worker pickup statuses are only `scheduled`, `queued`, and `interrupted`, so the worker ignores prepared jobs.
+- `POST /api/jobs/prepare` does not call `worker.wake()`.
+- `POST /api/jobs/{job_id}/start` uses `start_prepared_job(...)`, atomically transitions `prepared` to `scheduled`, then the API route calls `worker.wake()`.
+- Duplicate single-chapter prepare with the same approved plan/text snapshot raises `JobPreparationConflict` and does not create a second job.
+- Existing prepared or active jobs are detected before insert by `_find_conflicting_job(...)`.
+- Stale approved Casting Plan versus active Text Revision is rejected before job creation.
+- Worker execution records per-JobChapter success/failure after start; a job may end `completed_with_errors`.
+- Retry is existing job-chapter or segment scoped, not batch scoped.
+
+## Safety Semantics
+
+Idempotency:
+`PARTIALLY_SUPPORTED`
+
+Basis:
+- deterministic plan fingerprint;
+- deterministic request validation;
+- existing single-chapter conflict guard for prepared/active jobs.
+
+Actual batch mutation idempotency is not persisted in Phase 1.
+
+Duplicate request:
+`PARTIALLY_SUPPORTED`
+
+Same request and same facts return the same contract result. After prepared work exists, the current plan excludes the chapter as already prepared. After state change, old fingerprints are stale. No client request ID convention is implemented in Phase 1.
+
+Partial failure:
+`NOT_YET_DEFINED`
+
+Existing worker failure accounting is per JobChapter after start. This Phase 1 contract performs no mutation and does not define batch rollback or partial durable commit policy.
+
+Retry:
+`PARTIALLY_SUPPORTED`
+
+Retry before mutation is safe by re-evaluating the contract. Retry after state changes requires recomputing the plan; stale fingerprints are rejected. Existing retry helpers are job-chapter or segment scoped, not batch scoped.
+
+## Validation
 
 Syntax:
-- `node --check ui\app.js`: PASS
-- `node --check ui\production_state.js`: PASS
+- `python -m py_compile story_audio\batch_prepare_contract.py`: PASS
 
-Focused and affected tests:
-- `python -m unittest tests.test_batch_plan_ui tests.test_range_readiness_ui tests.test_daily_prod_shell_ui tests.test_runtime_identity_ui -v`: PASS, 49 tests
+Focused tests:
+- `python -m unittest tests.test_batch_prepare_contract tests.test_batch_plan_api tests.test_prepared_jobs -v`: PASS, 57 tests
 
 Full offline validation:
-- `python -m unittest discover -s tests -v`: PASS, 1127 tests, 1 skipped
+- `python -m unittest discover -s tests -v`: PASS, 1158 tests, 1 skipped
 
-Canonical runtime smoke:
+Canonical read-only contract smoke:
 - Runtime: `http://127.0.0.1:8772`
 - Schema: `12`
-- `GET /api/production/batch-plan?book_id=1&from_chapter=364&to_chapter=369&target_phase=PREPARE`: PASS
-- Authorization: `MUTATION_NOT_AUTHORIZED`
-- Execution endpoint available: false
-- Included: 0
-- Excluded: 6
-- Fingerprint: `3ecbe9c69353157f2e0f6e4af48ec21616891469ef2c7c704bfe0f69dcc211b1`
+- Scope: Book `1`, chapters `364-369`, target `PREPARE`
+- Current fingerprint: `3ecbe9c69353157f2e0f6e4af48ec21616891469ef2c7c704bfe0f69dcc211b1`
+- Included: `0`
+- Excluded: `6`
+- Valid confirmed request result: `REJECTED_NO_ELIGIBLE_CHAPTERS`
+- Stale fingerprint result: `REJECTED_STALE_PLAN`
+- Missing confirmation result: `REJECTED_CONFIRMATION_REQUIRED`
+- Repeated result deterministic: yes
+- `mutation_authorized = false`
+- `execution_endpoint_available = false`
+- `prepare_starts_render = false`
 
-Browser smoke:
-- Batch Plan panel reused Book `1`, chapters `364-369`.
-- Target phase `PREPARE`.
-- Authorization warning and unavailable execution endpoint were visible.
-- Summary, excluded reasons, safety contract, truncated fingerprint, refresh/dedupe, phase invalidation, and route isolation were verified.
-- Row action opened Chapter `369` in the existing single-chapter Production flow at `CASTING_REVIEW`.
-- Direct browser network-method capture was unavailable; source review and focused tests prove GET-only behavior.
-
-Sensitive table counts before and after browser smoke:
+Sensitive table counts before and after smoke:
 - `speaker_assignment_drafts`: 15 -> 15
 - `casting_plans`: 23 -> 23
 - `jobs`: 21 -> 21
@@ -92,20 +125,27 @@ Chapter 369 after smoke:
 - Casting Plan `24` revision `1` remains draft/unapproved.
 - Jobs: 0
 - Artifacts: 0
-- Active audio: none
-- No production mutation observed.
+- Active audio: none.
+- Audio status: `not_created`.
 
-## Runtime Facts For Batch Plan
+Doctor:
+- `python scripts\doctor.py`: PASS, `critical_errors=0`
+- Existing speaker-assignment draft warning remains: drafts `15`, invalid `9`.
 
-- Chapters `364-367`: excluded from PREPARE because runtime Human QA is not accepted.
-- Chapter `368`: excluded from PREPARE because active output is complete.
-- Chapter `369`: excluded from PREPARE because Casting Plan `24` revision `1` is draft/unapproved.
+## Remaining
+
+Phase 1 implementation, full validation, and read-only canonical smoke are complete.
+
+Remaining:
+1. Create the pure contract checkpoint commit.
+2. Keep PREPARE execution unauthorized.
+3. Do not begin documentation closeout or execution endpoint implementation in this task.
 
 ## Next Exact Action
 
-1. Inspect existing single-job PREPARE lifecycle.
-2. Define PREPARE-only batch mutation contract.
-3. Define plan fingerprint and stale-plan rejection.
-4. Define duplicate-request, partial-failure and retry semantics.
-5. Add contract-focused tests.
-6. Stop before implementation of any mutation endpoint.
+1. Review the committed pure PREPARE safety contract.
+2. Reconcile DAILY-PROD-5B Phase 1 documentation.
+3. Decide whether a bounded PREPARE execution implementation is authorized.
+4. If authorized later, require stale-plan guard and explicit confirmation.
+5. Keep START_RENDER separate.
+6. Do not implement execution automatically after this checkpoint.
