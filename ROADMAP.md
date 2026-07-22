@@ -2,6 +2,19 @@
 
 Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve du lieu -> kha nang phuc hoi -> chat luong audio -> tinh nang moi.
 
+## Current Boundary - 2026-07-23
+
+`DAILY-PROD-5A` and `DAILY-PROD-5B` Phases 1 through 11 are complete;
+`DAILY-PROD-5B` remains active. Phase 11 design commit `bca068e` proves only pure
+rollout contracts and model tests. The next authorized task is `DAILY-PROD-5B
+Phase 12 - Canonical Clone Migration Rehearsal And Disabled Runtime Wiring
+Skeleton`.
+
+Phase 12 may use a verified external clone and add an unreachable hard-default-off
+wiring skeleton. It may not migrate canonical production, register or enable a
+PREPARE mutation route, create a production Job, modify UI, wake the worker, call
+providers/TTS, start render, advance to `DAILY-PROD-6`, or claim production rollout.
+
 ## Completed
 
 - Audio MVP: EPUB, immutable TextRevision, Gemini punctuation repair, VieNeu segment checkpoint va chapter audio.

@@ -1,6 +1,23 @@
 # Continuity Decisions
 
-Updated: 2026-07-22
+Updated: 2026-07-23
+
+## CONT-020 - Canonical PREPARE rollout requires clone rehearsal and disabled wiring proof
+
+Isolated PREPARE acceptance and the Phase 11 rollout design are necessary but are
+not sufficient to authorize canonical activation or production PREPARE.
+
+Before any later activation decision, a verified external clone must prove exact
+schema 12 -> 13 -> 14 -> 15 migration, preserved legacy/protected state, complete
+postflight, and full restoration of the original clone hash/schema. Runtime wiring
+must be hard-default-off, unreachable, and construct no mutation service when
+disabled.
+
+Phase 12 authorizes only that clone rehearsal and disabled skeleton proof. It does
+not authorize canonical activation, an enabled PREPARE route, production Job
+creation, UI mutation, worker wake, provider/TTS, or START_RENDER. START_RENDER
+remains a separate service and permission, and the legacy start route is not safe
+for future batch-linked Jobs without a dedicated linkage/authorization guard.
 
 ## CONT-001 - Real state outranks checkpoint
 

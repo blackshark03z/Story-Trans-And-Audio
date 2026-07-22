@@ -4,6 +4,23 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ## Unreleased
 
+### DAILY-PROD-5B Phase 11
+
+- Added pure runtime dependency, feature-flag, kill-switch, canonical activation,
+  backup/restore, maintenance, API/status, operator, audit/redaction, rollout, and
+  START_RENDER-separation contracts in design commit `bca068e`.
+- Kept runtime integration, API/UI mutation, canonical migration, production
+  PREPARE, Job creation, worker wake, provider/TTS, and START_RENDER unauthorized.
+- Classified current authentication as `AUTH_MISSING_BLOCKS_PRODUCTION`; canary,
+  limited, general, and render-start transitions require separate future authority.
+- Defined schema-window full restore versus post-activation kill-switch/reconcile,
+  exact 12 -> 13 -> 14 -> 15 evidence, partial-stage failure handling, Chapter 369
+  protection, and the canonical activation runbook design.
+- Validation: focused `160` PASS; contract `35` PASS twice; full offline `1559`
+  PASS with `1` established skip; syntax/UI checks PASS; Doctor `critical_errors=0`.
+- Canonical runtime remained schema `12 / 12`; DB hash, size, mtime, counts,
+  dormant-table absence, WAL/SHM absence, and Chapter 369 baseline were unchanged.
+
 ### Fixed
 
 - **DAILY-PROD-2B2-D1 - Contextual voice detour activation stability**: fixed a real-browser hang when activating the Voice Library detour from Production.

@@ -1,6 +1,6 @@
 # Project
 
-Updated: 2026-07-22
+Updated: 2026-07-23
 
 ## Product Goal
 
@@ -29,22 +29,23 @@ DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout
 
 ## Current Authorized Task
 
-DAILY-PROD-5B Phase 11 — Runtime PREPARE Wiring, Canonical Activation, And Operator Rollout Design Contract
+DAILY-PROD-5B Phase 12 - Canonical Clone Migration Rehearsal And Disabled Runtime Wiring Skeleton
 
 ## MVP / Milestone Success Criteria
 
-DAILY-PROD-5B Phases 1-10 are complete in isolated scope. Phase 11 is design-only and is complete when the runtime dependency graph, canonical rollout, operator controls, and rollback boundary are reviewed without implementation:
+DAILY-PROD-5B Phases 1-11 are complete. Phase 12 is bounded to clone rehearsal and a disabled wiring skeleton:
 
-- Runtime dependency wiring and feature-flag default-off behavior are explicit.
-- Canonical schema 12 -> 15 activation, backup, maintenance, hash, rollback, recovery, and kill-switch procedures are explicit.
-- API/status, operator confirmation, audit/redaction, Chapter 369 protection, and production acceptance contracts are explicit.
-- No runtime migration, API/UI execution path, production Job/JobChapter creation, worker wake, provider/Gemini/TTS call, or START_RENDER integration is implemented.
+- A verified external clone preserves canonical source provenance and is the only migration target.
+- Clone migration proves exact schema 12 -> 15, legacy/protected state, and postflight.
+- Clone rollback restores the original clone hash and schema.
+- Runtime wiring remains hard-default-off, unreachable, and constructs no mutation service.
+- No canonical migration, enabled API/UI mutation, production Job, worker wake, provider/Gemini/TTS, or START_RENDER is authorized.
 
 ## In Scope
 
-- Inspect runtime/startup/service conventions and design the Phase 11 rollout boundary.
-- Keep the accepted Phase 10 adapter and dormant schema 12 -> 15 evidence isolated to temporary databases.
-- Define API/status, operator confirmation, audit/redaction, maintenance, backup/rollback, feature-flag, recovery, and kill-switch contracts.
+- Copy canonical DB read-only to a verified external temporary location.
+- Rehearse explicit schema 12 -> 15 and rollback on the clone only.
+- Add only an unreachable default-off runtime dependency wiring skeleton and tests.
 
 ## Out Of Scope / Later
 
@@ -110,7 +111,9 @@ node --check ui\app.js
 - Canonical production migration remains unauthorized.
 - PREPARE execution endpoint remains unauthorized.
 - Phase 10 end-to-end adapter assembly is complete only through dependency injection on isolated/temporary databases.
-- Phase 11 runtime PREPARE wiring and rollout design is authorized; runtime implementation remains unauthorized.
+- Phase 11 rollout design is complete in commit `bca068e`.
+- Phase 12 clone rehearsal and disabled skeleton are authorized only within the exact task boundary.
+- Production runtime PREPARE implementation remains unauthorized.
 - Canonical schema 13/14 or later activation remains unauthorized.
 - START_RENDER remains separate.
 - Approval, prepare, and render start remain separate actions.

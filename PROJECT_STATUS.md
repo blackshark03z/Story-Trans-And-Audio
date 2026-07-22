@@ -1,13 +1,13 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-22 (Asia/Bangkok)
+**Cập nhật:** 2026-07-23 (Asia/Saigon)
 **Milestone:** DAILY-PROD-5 Active - Batch Approval, Prepare, Render And QA Closeout
 **Strategic state:** `PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP`
-**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1` through `DAILY-PROD-4`, `DAILY-PROD-5A`, and `DAILY-PROD-5B` Phases 1 through 10 are complete in isolated scope. Phase 10 proves the end-to-end PREPARE adapter only on disposable schema-15 databases; runtime wiring, canonical activation, and production PREPARE remain unauthorized. The next boundary is Phase 11 runtime-readiness and rollout design.
+**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1` through `DAILY-PROD-4`, `DAILY-PROD-5A`, and `DAILY-PROD-5B` Phases 1 through 11 are complete. Phase 11 defines and tests pure rollout, canonical activation/rollback, API/status, operator, audit, kill-switch, and START_RENDER separation contracts without runtime implementation. Phase 12 is limited to a verified canonical clone rehearsal and an unreachable default-off wiring skeleton.
 
-**Last verified implementation commit:** `c47d829cddd3e16914d5bf60b4beb20063299820`
+**Last verified implementation commit:** `bca068e` (`feat: define runtime PREPARE rollout contract`)
 **Last verified branch:** `main`
-**Last verified date:** 2026-07-22
+**Last verified date:** 2026-07-23
 **Canonical runtime:** `http://127.0.0.1:8772`
 **Runtime schema:** `12`
 **Default/latest schema:** `12`
@@ -26,8 +26,9 @@
 **DAILY-PROD-5B Phase 8:** complete
 **DAILY-PROD-5B Phase 9:** complete
 **DAILY-PROD-5B Phase 10:** complete - isolated end-to-end adapter only
+**DAILY-PROD-5B Phase 11:** complete - design/model contract only
 **DAILY-PROD-5:** active
-**Mutation authorization:** `RUNTIME_PREPARE_WIRING_DESIGN_AUTHORIZED`
+**Mutation authorization:** `CANONICAL_CLONE_MIGRATION_REHEARSAL_AUTHORIZED / DISABLED_RUNTIME_WIRING_SKELETON_AUTHORIZED`
 **Isolated schema-13 integration validation:** `COMPLETE`
 **Isolated PREPARE orchestration contract:** `COMPLETE`
 **Job transaction adapter design:** `COMPLETE`
@@ -36,6 +37,9 @@
 **Isolated end-to-end PREPARE adapter:** `COMPLETE / TEMPORARY_DATABASE_ONLY`
 **Phase 10 implementation commit:** `c47d829cddd3e16914d5bf60b4beb20063299820`
 **Phase 10 validation:** `1524` tests PASS, `1` skipped; focused affected `404` PASS; Doctor `critical_errors=0`
+**Phase 11 validation:** focused affected `160` PASS; rollout contract `35` PASS twice; full offline `1559` PASS, `1` skipped; syntax/UI checks PASS; Doctor `critical_errors=0`
+**Phase 11 authentication classification:** `AUTH_MISSING_BLOCKS_PRODUCTION`
+**Phase 11 canonical safety:** runtime/schema `12 / 12`; DB SHA-256 `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984`, mtime `2026-07-20T05:31:47.4292255Z`; dormant tables and WAL/SHM absent; Chapter 369 unchanged
 **Runtime adapter/orchestrator integration:** `NOT_AUTHORIZED`
 **Linkage pipeline integration:** `NOT_AUTHORIZED`
 **Job transaction adapter implementation:** `NOT_AUTHORIZED`
@@ -43,7 +47,9 @@
 **PREPARE execution:** `NOT_AUTHORIZED`
 **API integration:** `NOT_AUTHORIZED`
 **START_RENDER:** `NOT_AUTHORIZED`
-**Phase 11 runtime-readiness design:** `AUTHORIZED / IMPLEMENTATION_NOT_AUTHORIZED`
+**Phase 11 runtime-readiness design:** `COMPLETE / DESIGN_READY`
+**Phase 12 clone rehearsal:** `AUTHORIZED / EXTERNAL CLONE ONLY`
+**Phase 12 disabled wiring skeleton:** `AUTHORIZED / UNREACHABLE DEFAULT-OFF ONLY`
 **Dormant migrations:** `story_audio/migrations/dormant/0013_batch_prepare_requests.sql`, `story_audio/migrations/dormant/0014_batch_prepare_job_links.sql`, `story_audio/migrations/dormant/0015_batch_prepare_execution_attempts.sql`
 **Durable request store:** `story_audio/batch_prepare_store.py`
 **PREPARE orchestration:** `story_audio/batch_prepare_orchestrator.py`

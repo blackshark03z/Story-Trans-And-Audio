@@ -1,5 +1,14 @@
 # Kiến trúc ứng dụng EPUB → VieNeu-TTS
 
+## Current PREPARE Rollout State - 2026-07-23
+
+Phase 11 is complete at design-only stage `DESIGN_READY`. The pure contract in
+`story_audio/batch_prepare_runtime_rollout_contract.py` is not imported by runtime.
+Canonical production remains schema 12; dormant schemas 13-15 are not active.
+PREPARE wiring, mutation routes, production Jobs, worker wake, provider/TTS, and
+START_RENDER remain unauthorized. Phase 12 may only rehearse migration/restore on
+a verified external clone and add an unreachable hard-default-off wiring skeleton.
+
 > **Trạng thái tài liệu:** File này bắt đầu như bản thiết kế trước implementation và còn giữ các edge case lịch sử. Nguồn sự thật hiện tại là `PROJECT_STATUS.md`, `docs/DECISIONS.md`, `docs/DATA_MODEL.md` và migrations checksum-locked. Khi nội dung bên dưới dùng từ “đề xuất”, không được hiểu là feature/schema đã tồn tại.
 
 Ranh giới Personal Edition hiện tại:
@@ -9,7 +18,7 @@ Story Audio: EPUB → approved text → resolved casting → audio → speech ti
 YouTube Auto: Handoff V1 → visual timeline/bible → image → subtitle render → video → metadata/thumbnail
 ```
 
-Current roadmap state: Story Audio is production-ready and operates under the Daily Production UX roadmap. `DAILY-PROD-1` through `DAILY-PROD-4`, `DAILY-PROD-5A`, and `DAILY-PROD-5B Phases 1-10` are complete in isolated scope. `DAILY-PROD-5` remains active. Dormant schemas 13-15 now provide isolated request, linkage, owner-fenced transaction, and end-to-end PREPARE evidence, while canonical/default schema remains 12 and no runtime module imports the adapter. `NEXT_TASK.md` authorizes only Phase 11 runtime PREPARE wiring, canonical activation, and operator rollout design; runtime implementation, canonical activation, production PREPARE, API/UI mutation, provider/TTS, worker wake, and START_RENDER remain unauthorized. Chapter 369 remains paused production/editorial work, not a roadmap driver.
+Current roadmap state: Story Audio is production-ready and operates under the Daily Production UX roadmap. `DAILY-PROD-1` through `DAILY-PROD-4`, `DAILY-PROD-5A`, and `DAILY-PROD-5B Phases 1-11` are complete. `DAILY-PROD-5` remains active. Dormant schemas 13-15 provide isolated PREPARE evidence, while canonical/default schema remains 12 and no runtime module imports the Phase 11 contract. `NEXT_TASK.md` authorizes only clone migration/rollback rehearsal and an unreachable default-off wiring skeleton; canonical activation, production PREPARE, API/UI mutation, provider/TTS, worker wake, and START_RENDER remain unauthorized. Chapter 369 remains paused production/editorial work, not a roadmap driver.
 
 ADR-013 được triển khai ở schema v3: Book Voice Profile ba nhóm (narrator/male/female), unknown fallback, optional character override và UI Manual Casting hiển thị effective resolution.
 
