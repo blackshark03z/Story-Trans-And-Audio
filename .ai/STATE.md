@@ -281,10 +281,11 @@ Remaining validation:
 
 ## Next Exact Action
 
-1. Review dormant linkage persistence implementation.
-2. Run full offline closeout validation.
-3. Commit only the migration/store/test checkpoint.
-4. Keep pipeline integration, canonical activation, API integration, PREPARE execution, and START_RENDER unauthorized.
+1. Reconcile DAILY-PROD-5B Phase 7 canonical documentation.
+2. Assess isolated same-transaction adapter integration design authorization.
+3. Keep pipeline modification and real Job creation unauthorized.
+4. Keep canonical activation, API integration, and PREPARE execution unauthorized.
+5. Keep START_RENDER separate.
 
 ## Phase 7 Implementation Checkpoint
 
@@ -348,3 +349,12 @@ Remaining:
 
 - Phase 7 closeout/full-suite/commit is separate.
 - Pipeline integration and real execution require separate authorization.
+
+## Phase 7 Closeout
+
+- Status: `DAILY-PROD-5B_PHASE_7_COMPLETE`.
+- Checkpoint commit: `bab2ee0757e0324656cf07245b97fb58f4bc1f43`.
+- Validation: syntax PASS, focused migration/store suite PASS (`20`), affected suite PASS (`142`), full offline suite PASS (`1357`, `1` skipped), canonical byte-level safety recheck PASS, Doctor PASS.
+- Canonical safety: runtime schema/latest `12 / 12`, hash/size/mtime unchanged, `batch_prepare_requests` absent, `batch_prepare_job_links` absent, Chapter 369 unchanged.
+- Open authorization boundary: same-transaction adapter integration design assessment only; pipeline integration, real Job creation, canonical activation, API integration, PREPARE execution, and START_RENDER remain unauthorized.
+- Next exact action: documentation reconciliation and authorization assessment for the isolated same-transaction adapter integration boundary.
