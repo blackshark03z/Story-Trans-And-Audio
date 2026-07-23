@@ -32,6 +32,14 @@ from .character_bible import (
 )
 from .active_output import annotate_chapter_rows, annotate_job_rows, get_active_output_bindings
 from .batch_plan import build_batch_plan
+from .batch_prepare_runtime_integration import (
+    CLONE_DISABLED,
+    CloneReadOnlyDatabase,
+    build_runtime_integration,
+    public_runtime_readiness,
+    read_runtime_integration_config,
+    require_clone_runtime,
+)
 from .custom_voice import CustomVoiceRepository
 from .custom_voice_api import (
     build_voice_catalog_handler,
@@ -106,7 +114,18 @@ from .voice_ref import CustomVoiceContext, is_custom_ref, resolve_custom_ref
 
 
 settings.ensure_dirs()
-db = Database(settings.db_path)
+prepare_runtime_integration = build_runtime_integration(
+    read_runtime_integration_config(),
+    db_path=settings.db_path,
+    repository_root=settings.root,
+    canonical_db_path=canonical_production_db_path(),
+)
+require_clone_runtime(prepare_runtime_integration)
+db = (
+    CloneReadOnlyDatabase(settings.db_path)
+    if prepare_runtime_integration.runtime_mode == CLONE_DISABLED
+    else Database(settings.db_path)
+)
 store = ContentStore(settings)
 custom_voice_repo = CustomVoiceRepository(db, store)
 worker = PipelineWorker(db, store, tts_service, settings)
@@ -269,10 +288,13 @@ class TargetedTextCorrectionRequest(BaseModel):
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    db.initialize()
-    worker.start()
+    clone_disabled = prepare_runtime_integration.runtime_mode == CLONE_DISABLED
+    if not clone_disabled:
+        db.initialize()
+        worker.start()
     yield
-    worker.stop()
+    if not clone_disabled:
+        worker.stop()
 
 
 app = FastAPI(title="Story Audio", version="0.1.0", lifespan=lifespan)
@@ -410,6 +432,11 @@ def get_runtime_identity() -> dict[str, Any]:
         "is_canonical_live_data_root": data_root == live_root,
         "is_canonical_live_db": db_path == live_db,
     }
+
+
+@app.get("/api/production/prepare-readiness")
+def production_prepare_readiness() -> dict[str, Any]:
+    return public_runtime_readiness(prepare_runtime_integration)
 
 
 @app.post("/api/books/import")
