@@ -2,6 +2,21 @@
 
 Updated: 2026-07-23
 
+## CONT-022 - PREPARE mutation API requires clone-only authenticated acceptance first
+
+The Phase 13 disabled clone runtime and operator-authentication boundary are
+necessary but insufficient for production activation. The first mutation API
+acceptance must run only in an authenticated external-clone test process, remain
+disabled by default, and prove that kill switch, feature flags, operator window,
+schema readiness, literal confirmation, idempotency, and plan fingerprint all
+override authentication success when any gate is closed.
+
+That clone-only acceptance may exercise the isolated adapter and dormant
+request/linkage/attempt state, including response-loss, restart, concurrency,
+and redaction. Production credential provisioning and canonical activation are
+separate future decisions. UI, worker wake, provider/Gemini/TTS, and
+`START_RENDER` remain separate and unauthorized.
+
 ## CONT-021 - Production PREPARE requires clone-runtime proof and operator authentication
 
 Phase 12 clone migration and full-file rollback are required but insufficient for

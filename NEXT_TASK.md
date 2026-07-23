@@ -1,39 +1,38 @@
 # Next Task
 
 Task classification:
-`SYSTEM_ROADMAP / CLONE_ONLY_DISABLED_RUNTIME_INTEGRATION_AUTHORIZED / OPERATOR_AUTHENTICATION_CONTRACT_IMPLEMENTATION_AUTHORIZED / CANONICAL_ACTIVATION_NOT_AUTHORIZED / ENABLED_PREPARE_ROUTE_NOT_AUTHORIZED / PRODUCTION_PREPARE_NOT_AUTHORIZED / START_RENDER_NOT_AUTHORIZED`
+`SYSTEM_ROADMAP / CLONE_ONLY_AUTHENTICATED_PREPARE_API_AUTHORIZED / CLONE_ONLY_PREPARE_MUTATION_TESTING_AUTHORIZED / CANONICAL_ACTIVATION_NOT_AUTHORIZED / PRODUCTION_PREPARE_NOT_AUTHORIZED / UI_PREPARE_NOT_AUTHORIZED / START_RENDER_NOT_AUTHORIZED`
 
 Active milestone:
 `DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout`
 
 Exact next task:
-`DAILY-PROD-5B Phase 13 - Clone-Only Disabled Runtime Integration And Operator Authentication Boundary Acceptance`
+`DAILY-PROD-5B Phase 14 - Clone-Only Authenticated PREPARE API And Kill-Switch Acceptance`
 
-## Phase 12 Closeout
+## Phase 13 Closeout
 
-Phase 12 implementation commit `843f688` added the external clone rehearsal,
-explicit dormant migration runner, full-file clone rollback, bounded evidence,
-and unreachable default-off runtime wiring skeleton. The real rehearsal kept
-the canonical database at schema `12`, created no production Job or Artifact,
-and preserved Chapter 369 unchanged. Focused Phase 12 validation passed `91`
-tests; the full offline suite passed `1575` tests with `1` established skip;
-Doctor reported `critical_errors=0`.
+Implementation commit `a60b94c` added clone-only disabled runtime integration,
+an immutable read-only schema-15 DB facade, GET-only readiness, and a redacted
+single-operator Bearer/SHA-256 authentication boundary. Startup and restart
+preserved exact clone bytes and read-only planning; the full offline suite passed
+`1608` tests with `1` skip and Doctor reported `critical_errors=0`. Canonical
+schema remained 12 and Chapter 369 remained unchanged.
 
 ## Authorized Scope
 
-- Run the application process against a migrated external clone only.
-- Wire PREPARE dependencies behind hard-disabled flags without enabling mutation.
-- Prove disabled startup and restart do not construct mutation services.
-- Define and test an explicit operator-authentication contract and safe status.
-- Preserve read-only planning, range readiness, Audio Library, and existing
-  single-chapter boundaries.
+- Use only an external schema-15 clone and a separate authenticated test process.
+- Add a batch PREPARE mutation API behind all flags, kill switch, operator window,
+  schema readiness, synthetic authentication, literal confirmation, idempotency
+  key, and plan fingerprint.
+- Reuse the isolated adapter against the clone only.
+- Test request/status/recovery, response loss, restart, concurrency, and redaction.
+- Keep the route disabled by default and create no worker wake or render start.
 
 ## Excluded
 
-- Canonical schema activation or any canonical writable database access.
-- Enabled PREPARE API/UI mutation route or production PREPARE execution.
-- Production Job/JobChapter creation, worker wake, START_RENDER, or providers.
-- Gemini, TTS, real credentials, auth bypass, Chapter 369 production, or push.
-- `DAILY-PROD-6` advancement.
+- Canonical migration or production runtime activation.
+- Real production credentials, PREPARE, Job/JobChapter creation, or Chapter 369 mutation.
+- UI PREPARE controls, worker wake, START_RENDER, provider, Gemini, or TTS.
+- Push and `DAILY-PROD-6` advancement.
 
-Do not begin Phase 13 in the same task as this documentation closeout.
+Do not begin Phase 14 in the same task as this documentation closeout.

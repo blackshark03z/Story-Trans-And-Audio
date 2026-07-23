@@ -4,6 +4,17 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ## Unreleased
 
+### DAILY-PROD-5B Phase 13
+
+- Added implementation checkpoint `a60b94c` with clone-only disabled runtime integration, immutable read-only schema-15 DB access, and GET `/api/production/prepare-readiness`.
+- Added a single configured operator-authentication boundary using Bearer transport, lowercase SHA-256 configuration, bounded token parsing, `hmac.compare_digest`, configured identity, and redacted public results.
+- Proved loopback is not authentication, missing auth blocks future production authority, valid auth cannot override the kill switch, and Phase 13 never constructs request/linkage/attempt/transaction/adapter mutation services.
+- Preserved existing routes, read-only runtime identity, range readiness, batch plan, Audio Library, legacy single-job prepare/start behavior, and unchanged UI.
+- External clone startup/restart acceptance preserved exact SHA-256 `7d84df59e297eed38307205446f18da491917a4e32a9971c800aba0772aee3c7`, schema 15, zero dormant rows, and no WAL/SHM.
+- Validation: focused `31`, repeated auth `26`, repeated process/route `6`, affected `109`, full offline `1608` with `1` skip, syntax/JS checks pass, and Doctor `critical_errors=0`.
+- Canonical runtime remained schema/latest `12/12`; DB hash/size/mtime, dormant-table absence, counts, and Chapter 369 remained unchanged.
+- Authorized next assessment: clone-only authenticated PREPARE API and kill-switch acceptance. Canonical activation, production credentials/PREPARE, UI, worker wake, provider/TTS, and START_RENDER remain unauthorized.
+
 ### DAILY-PROD-5B Phase 12
 
 - Added implementation checkpoint `843f688` with a clone-only SQLite online-backup rehearsal and an unreachable default-off PREPARE runtime wiring skeleton.

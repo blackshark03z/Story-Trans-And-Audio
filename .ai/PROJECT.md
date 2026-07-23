@@ -29,7 +29,7 @@ DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout
 
 ## Current Authorized Task
 
-DAILY-PROD-5B Phase 13 - Clone-Only Disabled Runtime Integration And Operator Authentication Boundary Acceptance
+DAILY-PROD-5B Phase 14 - Clone-Only Authenticated PREPARE API And Kill-Switch Acceptance
 
 ## MVP / Milestone Success Criteria
 
@@ -114,7 +114,9 @@ node --check ui\app.js
 - Phase 10 end-to-end adapter assembly is complete only through dependency injection on isolated/temporary databases.
 - Phase 11 rollout design is complete in commit `bca068e`.
 - Phase 12 clone rehearsal and disabled skeleton are complete in implementation commit `843f688`.
-- Phase 13 clone-only disabled runtime integration and operator-authentication contract are authorized only within the exact task boundary.
+- Phase 13 clone-only disabled runtime and authentication boundary are complete in implementation commit `a60b94c`.
+- Phase 14 may enable batch PREPARE only inside an authenticated external-clone test process, disabled by default and subordinate to the kill switch.
+- Production credentials, canonical activation, production PREPARE, and UI controls remain unauthorized.
 - Production runtime PREPARE implementation remains unauthorized.
 - Canonical schema 13/14 or later activation remains unauthorized.
 - START_RENDER remains separate.

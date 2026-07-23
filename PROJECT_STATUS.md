@@ -3,9 +3,9 @@
 **Cập nhật:** 2026-07-23 (Asia/Saigon)
 **Milestone:** DAILY-PROD-5 Active - Batch Approval, Prepare, Render And QA Closeout
 **Strategic state:** `PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP`
-**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1` through `DAILY-PROD-4`, `DAILY-PROD-5A`, and `DAILY-PROD-5B` Phases 1 through 12 are complete. Phase 12 verified an external read-only clone, explicit schema `12 -> 13 -> 14 -> 15` migration, full-file clone rollback, and an unreachable default-off runtime wiring skeleton. Canonical activation, enabled PREPARE, production Job creation, worker wake, providers, and START_RENDER remain unauthorized.
+**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1` through `DAILY-PROD-4`, `DAILY-PROD-5A`, and `DAILY-PROD-5B` Phases 1 through 13 are complete. Phase 13 verified a clone-backed disabled runtime across startup/restart, a read-only schema-15 facade, GET-only readiness, and a redacted single-operator authentication boundary. Canonical activation, enabled production PREPARE, production credentials, production Job creation, UI mutation, worker wake, providers, and START_RENDER remain unauthorized.
 
-**Last verified implementation commit:** `843f688` (`feat: add PREPARE clone rehearsal and disabled runtime wiring`)
+**Last verified implementation commit:** `a60b94c` (`feat: add clone-only disabled PREPARE runtime authentication boundary`)
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-23
 **Canonical runtime:** `http://127.0.0.1:8772`
@@ -28,8 +28,9 @@
 **DAILY-PROD-5B Phase 10:** complete - isolated end-to-end adapter only
 **DAILY-PROD-5B Phase 11:** complete - design/model contract only
 **DAILY-PROD-5B Phase 12:** complete - clone rehearsal and disabled wiring only
+**DAILY-PROD-5B Phase 13:** complete - clone-only disabled runtime and authentication boundary only
 **DAILY-PROD-5:** active
-**Mutation authorization:** `CANONICAL_ACTIVATION_NOT_AUTHORIZED / PRODUCTION_PREPARE_NOT_AUTHORIZED / ENABLED_PREPARE_ROUTE_NOT_AUTHORIZED`
+**Mutation authorization:** `CLONE_ONLY_PHASE14_TESTING_AUTHORIZED / CANONICAL_ACTIVATION_NOT_AUTHORIZED / PRODUCTION_PREPARE_NOT_AUTHORIZED / PRODUCTION_ENABLED_PREPARE_ROUTE_NOT_AUTHORIZED`
 **Isolated schema-13 integration validation:** `COMPLETE`
 **Isolated PREPARE orchestration contract:** `COMPLETE`
 **Job transaction adapter design:** `COMPLETE`

@@ -4,18 +4,17 @@ Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve
 
 ## Current Boundary - 2026-07-23
 
-`DAILY-PROD-5A` and `DAILY-PROD-5B` Phases 1 through 12 are complete;
-`DAILY-PROD-5B` remains active. Phase 12 implementation commit `843f688`
-verified an external clone migration/rollback rehearsal and an unreachable
-hard-default-off wiring skeleton. The next authorized task is `DAILY-PROD-5B
-Phase 13 - Clone-Only Disabled Runtime Integration And Operator Authentication
-Boundary Acceptance`.
+`DAILY-PROD-5A` and `DAILY-PROD-5B` Phases 1 through 13 are complete;
+`DAILY-PROD-5B` remains active. Phase 13 implementation commit `a60b94c`
+verified a clone-backed schema-15 runtime, hard-disabled mutation construction,
+GET-only readiness, restart safety, exact clone immutability, and a redacted
+single-operator authentication boundary.
 
-Phase 12 is complete. Phase 13 may use a migrated external clone and add only
-disabled runtime integration plus an explicit operator-authentication contract.
-It may not migrate canonical production, register or enable a PREPARE mutation
-route, create a production Job, modify UI, wake the worker, call providers/TTS,
-start render, advance to `DAILY-PROD-6`, or claim production rollout.
+The next authorized task is `DAILY-PROD-5B Phase 14 - Clone-Only Authenticated
+PREPARE API And Kill-Switch Acceptance`. It may enable batch PREPARE mutation
+only inside an authenticated external-clone test process and must remain off by
+default. Canonical activation, production runtime/credentials/PREPARE, UI,
+worker wake, provider/TTS, START_RENDER, and `DAILY-PROD-6` remain unauthorized.
 
 ## Completed
 
@@ -58,6 +57,7 @@ start render, advance to `DAILY-PROD-6`, or claim production rollout.
 - DAILY-PROD-5B Phase 10 - Isolated End-to-End PREPARE Adapter Assembly: complete. Assembled request replay, ownership/fencing, second-plan validation, authoritative transaction revalidation, one Job/N JobChapter/linkage/COMMITTED attempt, durable evidence-gated APPLIED persistence, replay, concurrency, bounded busy, response-loss, process-restart, rollback, ambiguous-commit, redaction, render-compatible pin, and temporary-root acceptance. Implementation commit `c47d829cddd3e16914d5bf60b4beb20063299820`; runtime wiring and canonical activation remain unauthorized.
 - DAILY-PROD-5B Phase 11 - Runtime PREPARE Rollout Design: complete. Pure rollout, backup/restore, operator, audit, kill-switch, authentication, and START_RENDER separation contracts are documented and remain design-only.
 - DAILY-PROD-5B Phase 12 - Clone Rehearsal And Disabled Runtime Wiring: complete. Implementation commit `843f688` added read-only-source external clone creation, explicit dormant migration `12 -> 15`, stage failure rollback, exact backup-hash full-file restore, bounded evidence, disabled wiring, and isolation tests. Canonical schema remains `12`; production mutation remains unauthorized.
+- DAILY-PROD-5B Phase 13 - Clone-Only Disabled Runtime And Authentication Boundary: complete. Implementation commit `a60b94c` added fail-closed clone runtime selection, immutable read-only DB access, GET-only readiness, startup/restart acceptance, SHA-256/constant-time single-operator authentication, and redaction. Full offline suite passed `1608` tests with `1` skip; canonical schema remained `12` and Chapter 369 remained unchanged.
 
 ## Current Strategic Phase
 
@@ -89,8 +89,8 @@ The milestone must:
 Current boundary:
 
 1. Keep dormant schema artifacts dormant with canonical/default schema at version 12.
-2. Begin only clone-backed disabled runtime integration and the operator-authentication contract.
-3. Keep runtime mutation, PREPARE API/UI, production Job creation, provider/Gemini/TTS, worker wake, and START_RENDER unauthorized.
+2. Begin only authenticated batch PREPARE API acceptance in an external-clone test process, disabled by default and subordinate to the kill switch.
+3. Keep canonical runtime mutation, production PREPARE/credentials/Jobs, UI, provider/Gemini/TTS, worker wake, and START_RENDER unauthorized.
 4. Keep START_RENDER as a separate explicit lifecycle action and do not advance to DAILY-PROD-6.
 
 ## Ordered Daily Production UX Roadmap
@@ -104,7 +104,7 @@ Current boundary:
 
 ## Next
 
-`DAILY-PROD-5B Phase 13 - Clone-Only Disabled Runtime Integration And Operator Authentication Boundary Acceptance`
+`DAILY-PROD-5B Phase 14 - Clone-Only Authenticated PREPARE API And Kill-Switch Acceptance`
 
 ## Historical Next (superseded)
 
