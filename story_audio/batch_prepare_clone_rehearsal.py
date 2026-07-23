@@ -185,7 +185,7 @@ def _sha256(path: Path) -> str:
 
 
 def _readonly_uri(path: Path) -> str:
-    return path.resolve().as_uri() + "?mode=ro"
+    return path.resolve().as_uri() + "?mode=ro&immutable=1"
 
 
 def _connect_readonly(path: Path) -> sqlite3.Connection:
@@ -321,7 +321,15 @@ def collect_database_facts(path: Path, *, read_only: bool = True) -> DatabaseFac
         facts = _collect_facts_open(path, connection)
     finally:
         connection.close()
-    return DatabaseFacts(**{**asdict(facts), "sha256": _sha256(path), "size": path.stat().st_size})
+    return DatabaseFacts(
+        **{
+            **asdict(facts),
+            "sha256": _sha256(path),
+            "size": path.stat().st_size,
+            "wal_present": path.with_name(path.name + "-wal").exists(),
+            "shm_present": path.with_name(path.name + "-shm").exists(),
+        }
+    )
 
 
 def _assert_source_unchanged(before: DatabaseFacts, after: DatabaseFacts) -> None:

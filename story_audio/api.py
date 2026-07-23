@@ -35,10 +35,11 @@ from .batch_plan import build_batch_plan
 from .batch_prepare_clone_api import (
     MAX_REQUEST_BYTES,
     ClonePrepareApiError,
-    build_clone_prepare_api_service,
+    build_prepare_api_service,
 )
 from .batch_prepare_runtime_integration import (
     CLONE_DISABLED,
+    PRODUCTION,
     CloneReadOnlyDatabase,
     build_runtime_integration,
     public_runtime_readiness,
@@ -129,11 +130,11 @@ prepare_runtime_integration = build_runtime_integration(
 require_clone_runtime(prepare_runtime_integration)
 db = (
     CloneReadOnlyDatabase(settings.db_path)
-    if prepare_runtime_integration.runtime_mode == CLONE_DISABLED
+    if prepare_runtime_integration.runtime_mode in {CLONE_DISABLED, PRODUCTION}
     else Database(settings.db_path)
 )
 store = ContentStore(settings)
-batch_prepare_api_service = build_clone_prepare_api_service(
+batch_prepare_api_service = build_prepare_api_service(
     settings=settings,
     config=prepare_runtime_config,
     descriptor=prepare_runtime_integration,
@@ -311,12 +312,12 @@ class BatchPrepareApiRequest(BaseModel):
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    clone_disabled = prepare_runtime_integration.runtime_mode == CLONE_DISABLED
-    if not clone_disabled:
+    prepare_only_runtime = prepare_runtime_integration.runtime_mode in {CLONE_DISABLED, PRODUCTION}
+    if not prepare_only_runtime:
         db.initialize()
         worker.start()
     yield
-    if not clone_disabled:
+    if not prepare_only_runtime:
         worker.stop()
 
 
@@ -466,14 +467,15 @@ def production_prepare_readiness() -> dict[str, Any]:
     return payload
 
 
-def _clone_prepare_service():
+def _prepare_service():
     if batch_prepare_api_service is None:
-        if (
-            prepare_runtime_integration.runtime_mode == CLONE_DISABLED
-            and prepare_runtime_integration.kill_switch_active
-        ):
+        if prepare_runtime_integration.schema_version != 15:
+            raise HTTPException(503, {"code": "SCHEMA_NOT_READY"})
+        if prepare_runtime_integration.kill_switch_active:
             raise HTTPException(503, {"code": "KILL_SWITCH_ACTIVE"})
-        raise HTTPException(404, {"code": "CLONE_PREPARE_UNAVAILABLE"})
+        if prepare_runtime_integration.authentication_state != "AUTH_CONFIGURED":
+            raise HTTPException(503, {"code": "AUTH_NOT_READY"})
+        raise HTTPException(503, {"code": "PREPARE_DISABLED"})
     return batch_prepare_api_service
 
 
@@ -501,7 +503,7 @@ async def production_batch_prepare(request: Request) -> dict[str, Any]:
     except (json.JSONDecodeError, ValidationError, TypeError) as exc:
         raise HTTPException(400, {"code": "INVALID_REQUEST_BODY"}) from exc
     try:
-        result = _clone_prepare_service().prepare(
+        result = _prepare_service().prepare(
             payload.model_dump(),
             authorization_header=request.headers.get("authorization"),
         )
@@ -520,7 +522,7 @@ def production_batch_prepare_status(
     if request.query_params:
         raise HTTPException(400, {"code": "URL_AUTHORITY_REJECTED"})
     try:
-        result = _clone_prepare_service().status(
+        result = _prepare_service().status(
             client_request_id,
             authorization_header=request.headers.get("authorization"),
         )
@@ -1388,6 +1390,8 @@ def _validated_job_payload(request: JobRequest) -> dict[str, Any]:
 
 @app.post("/api/jobs/prepare")
 def prepare_job_route(request: JobRequest) -> dict[str, Any]:
+    if prepare_runtime_integration.runtime_mode == PRODUCTION:
+        raise HTTPException(409, {"code": "BATCH_PREPARE_API_REQUIRED"})
     if request.repair_mode != "off" and not settings.gemini_key():
         raise HTTPException(400, "ChÆ°a cÃ³ GEMINI_API_KEY hoáº·c gemini_api_key.txt.")
     try:
@@ -1399,6 +1403,8 @@ def prepare_job_route(request: JobRequest) -> dict[str, Any]:
 
 @app.post("/api/jobs")
 def submit_job(request: JobRequest) -> dict[str, Any]:
+    if prepare_runtime_integration.runtime_mode == PRODUCTION:
+        raise HTTPException(409, {"code": "START_RENDER_UNAVAILABLE"})
     if request.repair_mode != "off" and not settings.gemini_key():
         raise HTTPException(400, "Chưa có GEMINI_API_KEY hoặc gemini_api_key.txt.")
     try:
@@ -1488,6 +1494,8 @@ def job_detail(job_id: int) -> dict[str, Any]:
 
 @app.post("/api/jobs/{job_id}/start")
 def start_job(job_id: int) -> dict[str, Any]:
+    if prepare_runtime_integration.runtime_mode == PRODUCTION:
+        raise HTTPException(409, {"code": "START_RENDER_UNAVAILABLE"})
     try:
         result = start_prepared_job(db, settings, job_id=job_id)
     except Exception as exc:

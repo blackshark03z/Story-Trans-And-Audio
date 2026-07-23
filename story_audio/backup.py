@@ -14,6 +14,7 @@ from .config import Settings
 from .db import Database
 from .files import atomic_write_json, sha256_file
 from .migrations import LATEST_SCHEMA_VERSION
+from .batch_prepare_schema import PREPARE_SCHEMA_VERSION, prepare_migration_runner
 
 
 MANIFEST_SCHEMA_VERSION = 1
@@ -102,12 +103,13 @@ def create_backup(
     if not config.db_path.exists():
         raise BackupError(f"Database does not exist: {config.db_path}")
 
-    database = Database(config.db_path)
+    database = Database(config.db_path, migration_runner=prepare_migration_runner())
     schema_version = database.schema_version()
-    if schema_version < 1 or schema_version > LATEST_SCHEMA_VERSION:
+    supported = schema_version <= LATEST_SCHEMA_VERSION or schema_version == PREPARE_SCHEMA_VERSION
+    if schema_version < 1 or not supported:
         raise BackupError(
             f"Database schema {schema_version} is not supported by this backup version "
-            f"(supported: 1–{LATEST_SCHEMA_VERSION})."
+            f"(supported: 1-{LATEST_SCHEMA_VERSION} or {PREPARE_SCHEMA_VERSION})."
         )
     placeholders = ",".join("?" for _ in ACTIVE_JOB_STATUSES)
     active_count = int(
@@ -299,7 +301,8 @@ def restore_backup(
         )
         if _sqlite_quick_check(database_path) != "ok":
             raise BackupError("Restored database failed PRAGMA quick_check.")
-        if _sqlite_schema_version(database_path) > LATEST_SCHEMA_VERSION:
+        restored_schema = _sqlite_schema_version(database_path)
+        if restored_schema > LATEST_SCHEMA_VERSION and restored_schema != PREPARE_SCHEMA_VERSION:
             raise BackupError("Restored database is newer than this application.")
 
         if destination_data_dir.exists():

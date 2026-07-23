@@ -4,6 +4,33 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ## Unreleased
 
+### Production PREPARE Activation Readiness
+
+- Added hard-default-off production PREPARE runtime wiring with canonical
+  schema-15 identity, non-test operator authentication, positive feature gates,
+  operator window, and overriding kill-switch enforcement.
+- Production PREPARE mode performs no startup migration, starts no worker, and
+  blocks legacy job preparation/start. The mutation service is not constructed
+  until every gate passes.
+- Reused the accepted same-transaction PREPARE adapter for schema-15 clone and
+  production wiring. Initial production requests are limited to one through
+  three fully eligible chapters and remain idempotent/recoverable.
+- Added a PREPARE-only UI for current plan review, exact range confirmation,
+  transient operator token entry, submit, and status recovery. The client sends
+  no owner/generation/Job/render authority and exposes no START_RENDER action.
+- Added explicit migration support that keeps dormant migrations 13-15 out of
+  normal startup, verifies committed migration hashes, and supports schema-15
+  backup/Doctor inspection without changing the schema-12 default runner.
+- Added `scripts/prepare_activation.py` for canonical preflight, verified
+  external backup, explicit migration, and pre-PREPARE full-file rollback.
+- Verified preflight package:
+  `D:\Youtube_AI_HANDOFFS\Story Audio\prepare_activation\run_20260723_readiness_v3`.
+  Canonical remained schema 12, byte-identical SHA-256
+  `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`,
+  size `4009984`, with no WAL/SHM and Chapter 369 unchanged.
+- Canonical activation, enabled production PREPARE, production Jobs,
+  START_RENDER, worker wake, provider/TTS calls, and push were not performed.
+
 ### DAILY-PROD-5B Phase 13
 
 - Added implementation checkpoint `a60b94c` with clone-only disabled runtime integration, immutable read-only schema-15 DB access, and GET `/api/production/prepare-readiness`.

@@ -1,4 +1,4 @@
-"""Authenticated clone-only API service for Phase 14 PREPARE acceptance."""
+"""Authenticated API service for clone acceptance and production PREPARE."""
 
 from __future__ import annotations
 
@@ -110,8 +110,8 @@ def _public_api_payload(value: Mapping[str, Any]) -> dict[str, Any]:
     return payload
 
 
-class BatchPrepareCloneApiService:
-    """Small API boundary around the already accepted isolated orchestrator."""
+class BatchPrepareApiService:
+    """Small authenticated boundary around the accepted PREPARE orchestrator."""
 
     def __init__(
         self,
@@ -121,10 +121,10 @@ class BatchPrepareCloneApiService:
         orchestrator: BatchPrepareOrchestrator,
         request_store: BatchPrepareRequestStore,
     ) -> None:
-        if not descriptor.clone_mutation_test_enabled:
+        if not descriptor.prepare_mutation_enabled:
             raise ClonePrepareApiError(
-                "CLONE_PREPARE_DISABLED",
-                "Clone PREPARE mutation testing is not authorized.",
+                "PREPARE_DISABLED",
+                "PREPARE mutation is not authorized.",
                 http_status=503,
             )
         self.config = config
@@ -151,10 +151,10 @@ class BatchPrepareCloneApiService:
                 "Operator authentication failed.",
                 http_status=401,
             )
-        if not self.descriptor.clone_mutation_test_enabled:
+        if not self.descriptor.prepare_mutation_enabled:
             raise ClonePrepareApiError(
-                "CLONE_PREPARE_DISABLED",
-                "Clone PREPARE mutation testing is disabled.",
+                "PREPARE_DISABLED",
+                "PREPARE mutation is disabled.",
                 http_status=503,
             )
         return decision
@@ -168,6 +168,27 @@ class BatchPrepareCloneApiService:
     ) -> ClonePrepareApiResult:
         self.authenticate(authorization_header, credential_in_url=credential_in_url)
         payload = dict(request)
+        if self.descriptor.production_mutation_enabled:
+            chapter_count = int(payload["to_chapter"]) - int(payload["from_chapter"]) + 1
+            if chapter_count < 1 or chapter_count > 3:
+                raise ClonePrepareApiError(
+                    "CANARY_SCOPE_REJECTED",
+                    "Production PREPARE is limited to one through three chapters.",
+                    http_status=400,
+                )
+            current_plan = self.orchestrator.current_plan_provider(
+                book_id=int(payload["book_id"]),
+                from_chapter=int(payload["from_chapter"]),
+                to_chapter=int(payload["to_chapter"]),
+                target_phase=str(payload["target_phase"]),
+            )
+            included = current_plan.get("included")
+            if not isinstance(included, list) or len(included) != chapter_count:
+                raise ClonePrepareApiError(
+                    "CANARY_SCOPE_NOT_FULLY_ELIGIBLE",
+                    "Every chapter in the production PREPARE canary must be eligible.",
+                    http_status=409,
+                )
         payload["explicit_confirmation"] = payload.pop("confirmation", None)
         result = _public_api_payload(self.orchestrator.prepare(payload))
         return ClonePrepareApiResult(_http_status(result), result)
@@ -211,14 +232,14 @@ class BatchPrepareCloneApiService:
         return ClonePrepareApiResult(_http_status(result), result)
 
 
-def build_clone_prepare_api_service(
+def build_prepare_api_service(
     *,
     settings: Settings,
     config: RuntimeIntegrationConfig,
     descriptor: RuntimeIntegrationDescriptor,
-) -> BatchPrepareCloneApiService | None:
+) -> BatchPrepareApiService | None:
     if (
-        not descriptor.clone_mutation_test_enabled
+        not descriptor.prepare_mutation_enabled
         or descriptor.inspected_db_path != settings.db_path.resolve(strict=False)
     ):
         return None
@@ -266,7 +287,7 @@ def build_clone_prepare_api_service(
         request_store=request_store,
         future_prepare_transaction=adapter,
     )
-    return BatchPrepareCloneApiService(
+    return BatchPrepareApiService(
         config=config,
         descriptor=descriptor,
         orchestrator=orchestrator,
@@ -274,10 +295,27 @@ def build_clone_prepare_api_service(
     )
 
 
+# Compatibility names keep the already accepted clone-only test contract stable.
+BatchPrepareCloneApiService = BatchPrepareApiService
+
+
+def build_clone_prepare_api_service(
+    *,
+    settings: Settings,
+    config: RuntimeIntegrationConfig,
+    descriptor: RuntimeIntegrationDescriptor,
+) -> BatchPrepareApiService | None:
+    return build_prepare_api_service(
+        settings=settings,
+        config=config,
+        descriptor=descriptor,
+    )
+
+
 __all__ = [
-    "BatchPrepareCloneApiService",
+    "BatchPrepareApiService", "BatchPrepareCloneApiService",
     "ClonePrepareApiError",
     "ClonePrepareApiResult",
     "MAX_REQUEST_BYTES",
-    "build_clone_prepare_api_service",
+    "build_clone_prepare_api_service", "build_prepare_api_service",
 ]

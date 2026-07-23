@@ -1,8 +1,4 @@
-"""Fail-closed clone runtime integration for PREPARE acceptance.
-
-The shared database facade remains immutable. Phase 14 can separately authorize
-the isolated adapter only for an external schema-15 clone with every gate open.
-"""
+"""Fail-closed runtime integration for clone and production PREPARE."""
 
 from __future__ import annotations
 
@@ -23,6 +19,7 @@ from .db import ClosingConnection, Database
 
 DISABLED = "DISABLED"
 CLONE_DISABLED = "CLONE_DISABLED"
+PRODUCTION = "PRODUCTION"
 REQUIRED_SCHEMA_VERSION = 15
 _RUNTIME_KEYS = frozenset({
     "PREPARE_RUNTIME_MODE",
@@ -59,6 +56,7 @@ class RuntimeIntegrationDescriptor:
     status: str
     runtime_mode: str
     clone_backed: bool
+    canonical_backed: bool
     inspected_db_path: Path | None
     schema_version: int | None
     required_schema_version: int
@@ -112,6 +110,25 @@ class RuntimeIntegrationDescriptor:
             and self.authentication_state == "AUTH_CONFIGURED"
         )
 
+    @property
+    def production_mutation_enabled(self) -> bool:
+        return (
+            self.runtime_mode == PRODUCTION
+            and self.canonical_backed
+            and self.status == "PRODUCTION_AUTHENTICATED_READY"
+            and self.schema_version == REQUIRED_SCHEMA_VERSION
+            and self.quick_check == "ok"
+            and self.feature_available
+            and self.mutation_enabled
+            and self.operator_window_open
+            and not self.kill_switch_active
+            and self.authentication_state == "AUTH_CONFIGURED"
+        )
+
+    @property
+    def prepare_mutation_enabled(self) -> bool:
+        return self.clone_mutation_test_enabled or self.production_mutation_enabled
+
 
 def _within(path: Path, root: Path) -> bool:
     try:
@@ -125,7 +142,7 @@ def parse_runtime_integration_config(values: Mapping[str, Any] | None = None) ->
     source = dict(values or {})
     mode = source.get("PREPARE_RUNTIME_MODE", DISABLED)
     errors: list[str] = []
-    if not isinstance(mode, str) or mode not in {DISABLED, CLONE_DISABLED}:
+    if not isinstance(mode, str) or mode not in {DISABLED, CLONE_DISABLED, PRODUCTION}:
         errors.append("INVALID_RUNTIME_MODE")
         mode = DISABLED
     flags = parse_runtime_prepare_config({key: source[key] for key in _FLAG_KEYS if key in source})
@@ -190,32 +207,44 @@ def build_runtime_integration(
     schema_version: int | None = None
     quick_check: str | None = None
     clone_backed = False
+    canonical_backed = False
     inspected_db_path: Path | None = None
 
     if not parsed.config_valid:
         status = "CONFIG_INVALID"
-    elif parsed.mode == DISABLED:
-        status = "KILL_SWITCHED" if parsed.flags.kill_switch_active else "DISABLED_DEFAULT"
-        reasons.append("DEFAULT_DISABLED_RUNTIME")
     else:
         resolved = db_path.resolve(strict=False)
         inspected_db_path = resolved
         repo = repository_root.resolve(strict=False)
         canonical = canonical_db_path.resolve(strict=False)
-        if resolved == canonical or _within(resolved, repo) or _within(resolved, canonical.parent):
+        canonical_backed = resolved == canonical
+        if parsed.mode == DISABLED:
+            if resolved.is_file():
+                try:
+                    schema_version, quick_check = _inspect_clone(resolved)
+                except (OSError, sqlite3.Error):
+                    reasons.append("DATABASE_INSPECTION_FAILED")
+            status = "KILL_SWITCHED" if parsed.flags.kill_switch_active else "DISABLED_DEFAULT"
+            reasons.append("DEFAULT_DISABLED_RUNTIME")
+        elif parsed.mode == CLONE_DISABLED and (
+            resolved == canonical or _within(resolved, repo) or _within(resolved, canonical.parent)
+        ):
             status = "UNSAFE_CLONE_PATH"
             reasons.append("CLONE_PATH_REJECTED")
         elif not resolved.is_file():
-            status = "CLONE_MISSING"
-            reasons.append("CLONE_PATH_MISSING")
+            status = "DATABASE_MISSING" if parsed.mode == PRODUCTION else "CLONE_MISSING"
+            reasons.append("DATABASE_PATH_MISSING")
+        elif parsed.mode == PRODUCTION and not canonical_backed:
+            status = "CANONICAL_PATH_REQUIRED"
+            reasons.append("CANONICAL_PATH_REQUIRED")
         else:
             try:
                 schema_version, quick_check = _inspect_clone(resolved)
             except (OSError, sqlite3.Error):
-                status = "CLONE_UNREADABLE"
-                reasons.append("CLONE_INSPECTION_FAILED")
+                status = "DATABASE_UNREADABLE"
+                reasons.append("DATABASE_INSPECTION_FAILED")
             else:
-                clone_backed = True
+                clone_backed = parsed.mode == CLONE_DISABLED
                 if parsed.flags.kill_switch_active:
                     status = "KILL_SWITCHED"
                     reasons.append("KILL_SWITCH_ACTIVE")
@@ -240,12 +269,18 @@ def build_runtime_integration(
                 elif auth_status != "AUTH_CONFIGURED":
                     status = "AUTH_NOT_READY"
                     reasons.append("AUTH_MISSING_BLOCKS_PRODUCTION")
-                elif not parsed.clone_mutation_test_authorized:
+                elif parsed.mode == PRODUCTION and parsed.auth.local_test_mode:
+                    status = "AUTH_NOT_READY"
+                    reasons.append("PRODUCTION_REJECTS_LOCAL_TEST_AUTH")
+                elif parsed.mode == CLONE_DISABLED and not parsed.clone_mutation_test_authorized:
                     status = "PHASE14_TEST_AUTHORIZATION_REQUIRED"
                     reasons.append("CLONE_MUTATION_TEST_NOT_AUTHORIZED")
-                elif not parsed.auth.local_test_mode:
+                elif parsed.mode == CLONE_DISABLED and not parsed.auth.local_test_mode:
                     status = "PHASE14_LOCAL_TEST_AUTH_REQUIRED"
                     reasons.append("LOCAL_TEST_AUTH_MODE_REQUIRED")
+                elif parsed.mode == PRODUCTION:
+                    status = "PRODUCTION_AUTHENTICATED_READY"
+                    reasons.append("PRODUCTION_PREPARE_ONLY")
                 else:
                     status = "CLONE_AUTHENTICATED_TEST_READY"
                     reasons.append("PHASE14_CLONE_TEST_ONLY")
@@ -254,6 +289,7 @@ def build_runtime_integration(
         status=status,
         runtime_mode=parsed.mode,
         clone_backed=clone_backed,
+        canonical_backed=canonical_backed,
         inspected_db_path=inspected_db_path,
         schema_version=schema_version,
         required_schema_version=REQUIRED_SCHEMA_VERSION,
@@ -261,8 +297,10 @@ def build_runtime_integration(
         feature_available=parsed.flags.feature_available,
         mutation_enabled=(
             parsed.flags.mutation_enabled
-            and parsed.clone_mutation_test_authorized
-            and status == "CLONE_AUTHENTICATED_TEST_READY"
+            and (
+                (parsed.clone_mutation_test_authorized and status == "CLONE_AUTHENTICATED_TEST_READY")
+                or status == "PRODUCTION_AUTHENTICATED_READY"
+            )
         ),
         operator_window_open=parsed.flags.operator_window_open,
         kill_switch_active=True if not parsed.config_valid else parsed.flags.kill_switch_active,
@@ -281,20 +319,24 @@ def public_runtime_readiness(descriptor: RuntimeIntegrationDescriptor) -> dict[s
     return {
         "status": descriptor.status,
         "runtime_mode": descriptor.runtime_mode,
+        "canonical_backed": descriptor.canonical_backed,
         "schema_version": descriptor.schema_version,
         "required_schema_version": descriptor.required_schema_version,
         "feature_available": descriptor.feature_available,
-        "mutation_enabled": descriptor.clone_mutation_test_enabled,
+        "mutation_enabled": descriptor.prepare_mutation_enabled,
         "operator_window_open": descriptor.operator_window_open,
         "kill_switch_active": descriptor.kill_switch_active,
         "authentication_state": descriptor.authentication_state,
         "mutation_service_constructed": False,
         "mutation_route_registered": False,
         "read_only_planning_available": descriptor.read_only_planning_available,
-        "mutation_authorized": descriptor.clone_mutation_test_enabled,
-        "execution_endpoint_available": descriptor.clone_mutation_test_enabled,
+        "mutation_authorized": descriptor.prepare_mutation_enabled,
+        "execution_endpoint_available": descriptor.prepare_mutation_enabled,
         "real_job_execution": False,
         "prepare_starts_render": False,
+        "start_render_available": False,
+        "startup_migration_enabled": False,
+        "reasons": list(descriptor.reasons),
     }
 
 
@@ -331,7 +373,7 @@ class CloneReadOnlyDatabase(Database):
 
 
 __all__ = [
-    "CLONE_DISABLED", "DISABLED", "CloneReadOnlyDatabase", "CloneRuntimeRejected",
+    "CLONE_DISABLED", "DISABLED", "PRODUCTION", "CloneReadOnlyDatabase", "CloneRuntimeRejected",
     "REQUIRED_SCHEMA_VERSION", "RuntimeIntegrationConfig", "RuntimeIntegrationDescriptor",
     "build_runtime_integration", "parse_runtime_integration_config", "public_runtime_readiness",
     "read_runtime_integration_config", "require_clone_runtime",

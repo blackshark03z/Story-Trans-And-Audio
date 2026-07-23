@@ -28,6 +28,12 @@ Notes:
 - Canonical production root is `D:\Youtube\Story Trans And Audio\data`.
 - Any isolated runtime must use a different `STORY_AUDIO_DATA_DIR`; isolated data is not merged back into canonical production automatically.
 - The acceptance-to-production switch has been verified: stop only the acceptance app, then relaunch canonical Story Audio on `8772` and re-check `/api/runtime`.
+- Production batch PREPARE activation is governed by
+  `docs/PREPARE_ACTIVATION_RUNBOOK.md`. Do not set `PREPARE_RUNTIME_MODE=PRODUCTION`
+  or apply schema 13-15 without the explicit activation approval described there.
+- In `PRODUCTION` PREPARE-only mode, the app verifies schema without automatic
+  migration, does not start the worker, and blocks legacy prepare/start routes.
+  Use `PREPARE_KILL_SWITCH_ACTIVE=true` and restart to fail closed.
 
 ## Health check
 

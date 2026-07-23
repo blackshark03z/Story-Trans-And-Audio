@@ -4,7 +4,42 @@ Updated: 2026-07-23
 
 ## Current Phase
 
-`DAILY-PROD-5B Phase 14 complete` - the authenticated batch PREPARE API is implemented and accepted only for explicitly authorized external schema-15 clone runtimes.
+`Production PREPARE activation readiness complete; canonical activation awaits explicit operator approval.`
+
+## Production PREPARE Activation Readiness
+
+- Starting HEAD: `13fe6d81fddabba5b32728c8ed425d5a64ac080c`.
+- Production runtime wiring now exists behind hard-default-off flags and an
+  overriding kill switch. Missing/invalid auth, non-canonical identity,
+  schema other than 15, local-test auth, or any closed positive gate prevents
+  construction of the mutation service.
+- `PRODUCTION` startup verifies schema without running migrations and does not
+  start or wake the worker. Schema 12 continues serving read-only planning,
+  readiness, status, and Audio Library surfaces.
+- Authenticated PREPARE reuses the accepted same-transaction adapter and is
+  limited to one fully eligible contiguous range of one to three chapters.
+  Its UI and API expose no START_RENDER action; legacy job prepare/start is
+  blocked while the PREPARE-only production runtime is active.
+- The UI now shows runtime/schema/auth/kill-switch gates, exact range
+  confirmation, operator token entry, PREPARE submit, and request
+  status/recovery. The token is not persisted and the client sends no chapter
+  authority, owner token, generation, Job ID, or render fields.
+- `scripts/prepare_activation.py` validates canonical identity, schema 12,
+  quick/foreign-key checks, active-job absence, disabled flags, migration
+  hashes, Chapter 369, and source byte identity. It creates a verified external
+  backup by default; migration and rollback require distinct explicit
+  confirmation arguments plus live-DB opt-in.
+- Accepted preflight package:
+  `D:\Youtube_AI_HANDOFFS\Story Audio\prepare_activation\run_20260723_readiness_v3`.
+  Canonical SHA-256 remains
+  `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`,
+  size `4009984`, schema 12, no WAL/SHM, and all protected counts unchanged.
+- Chapter 369 remains Text Revision 738, Casting Plan 24 revision 1
+  draft/unapproved, zero chapter Jobs/Artifacts, and audio `not_created`.
+- Canonical migration, production PREPARE enablement, production Job creation,
+  START_RENDER, worker wake, provider/Gemini/TTS, and push were not performed.
+- Exact next action: operator reviews the go/no-go package and explicitly
+  authorizes schema 12 -> 15 activation plus one bounded PREPARE canary.
 
 ## Phase 12 Implementation Checkpoint
 

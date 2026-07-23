@@ -20,10 +20,17 @@ class Phase13RouteAbsenceTests(unittest.TestCase):
         self.assertIn("/api/jobs/prepare", route_methods)
         self.assertIn("/api/jobs/{job_id}/start", route_methods)
 
-    def test_ui_has_no_batch_prepare_mutation_control(self):
+    def test_ui_prepare_control_is_runtime_gated_and_has_no_start_render_request(self):
         source = (Path.cwd() / "ui" / "app.js").read_text(encoding="utf-8")
-        self.assertNotIn("/api/production/batch-prepare", source)
-        self.assertNotIn("/api/production/prepare-readiness", source)
+        self.assertIn("/api/production/batch-prepare", source)
+        self.assertIn("/api/production/prepare-readiness", source)
+        self.assertIn("readiness?.mutation_authorized", source)
+        prepare_block = source[
+            source.index("async function submitProductionPrepare") :
+            source.index("async function refreshProductionPrepareStatus")
+        ]
+        self.assertNotIn("/start", prepare_block)
+        self.assertNotIn("start_render", prepare_block.lower())
 
 
 if __name__ == "__main__":

@@ -166,6 +166,39 @@
             </div>
             <div id="batchPlanResult" class="plan-review-result empty" aria-live="polite">Chưa có kế hoạch batch.</div>
           </section>
+          <section id="productionPreparePanel" class="production-prepare-panel" aria-labelledby="productionPrepareHeading">
+            <div class="section-head">
+              <div>
+                <p class="eyebrow">PREPARE only</p>
+                <h2 id="productionPrepareHeading">Chuẩn bị batch production</h2>
+              </div>
+              <span id="productionPrepareBadge" class="pill">Đang kiểm tra</span>
+            </div>
+            <p class="section-guide">PREPARE chỉ tạo job ở trạng thái chờ. Khu vực này không cung cấp START_RENDER, không đánh thức worker và không gọi TTS.</p>
+            <div id="productionPrepareGates" class="prepare-gate-grid" aria-live="polite"></div>
+            <p id="productionPrepareReason" class="issue warning" role="status">Đang đọc trạng thái kích hoạt an toàn.</p>
+            <div class="form-grid">
+              <label for="productionPrepareExactRange">Xác nhận đúng phạm vi
+                <input id="productionPrepareExactRange" autocomplete="off" placeholder="book_id:from-to">
+              </label>
+              <label for="productionPrepareToken">Mã xác thực operator
+                <input id="productionPrepareToken" type="password" autocomplete="off" spellcheck="false">
+              </label>
+              <label class="check wide" for="productionPrepareConfirmation">
+                <input id="productionPrepareConfirmation" type="checkbox">
+                Tôi xác nhận chỉ PREPARE đúng phạm vi đang hiển thị, không START_RENDER.
+              </label>
+            </div>
+            <button id="submitProductionPrepare" class="primary full" type="button" disabled>Chuẩn bị batch</button>
+            <div class="prepare-request-status">
+              <div>
+                <strong>Request hiện tại</strong>
+                <span id="productionPrepareRequestId" class="muted">Chưa gửi request.</span>
+              </div>
+              <button id="refreshProductionPrepareStatus" class="ghost" type="button" disabled>Kiểm tra trạng thái</button>
+            </div>
+            <div id="productionPrepareResult" class="prepare-result empty" aria-live="polite">Chưa có kết quả PREPARE.</div>
+          </section>
         </section>
       </section>
 

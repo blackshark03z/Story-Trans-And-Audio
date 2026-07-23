@@ -9,6 +9,7 @@ from .db import Database
 from .files import sha256_file, sha256_text
 from .gemini_cache import GeminiRepairCache
 from .migrations import LATEST_SCHEMA_VERSION, SchemaMigrationError
+from .batch_prepare_schema import PREPARE_SCHEMA_VERSION, prepare_migration_runner
 from .storage import ContentStore
 from .youtube_handoff import HandoffError, verify_handoff
 
@@ -24,7 +25,7 @@ def check_data_integrity(config: Settings, *, deep: bool = False) -> list[Findin
     findings: list[Finding] = []
     if not config.db_path.exists():
         return [Finding("ERROR", "database", f"missing: {config.db_path}")]
-    database = Database(config.db_path)
+    database = Database(config.db_path, migration_runner=prepare_migration_runner())
     quick = database.fetch_one("PRAGMA quick_check")
     quick_value = next(iter(dict(quick).values())) if quick else "no result"
     findings.append(
@@ -36,12 +37,16 @@ def check_data_integrity(config: Settings, *, deep: bool = False) -> list[Findin
     )
     try:
         schema_version = database.schema_version()
-        schema_level = "OK" if schema_version == LATEST_SCHEMA_VERSION else "ERROR"
+        schema_level = (
+            "OK"
+            if schema_version in {LATEST_SCHEMA_VERSION, PREPARE_SCHEMA_VERSION}
+            else "ERROR"
+        )
         findings.append(
             Finding(
                 schema_level,
                 "schema_version",
-                f"current={schema_version} supported={LATEST_SCHEMA_VERSION}",
+                f"current={schema_version} supported={LATEST_SCHEMA_VERSION},{PREPARE_SCHEMA_VERSION}",
             )
         )
     except SchemaMigrationError as exc:

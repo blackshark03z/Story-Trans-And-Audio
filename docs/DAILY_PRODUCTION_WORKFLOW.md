@@ -23,6 +23,24 @@ An operator can:
 
 The UI must always make the next valid action clear.
 
+## Production PREPARE Runtime
+
+Batch PREPARE is a separate PREPARE-only operating mode. It consumes the current
+read-only batch plan, requires exact range confirmation and operator
+authentication, and creates only durable prepared jobs. It never offers
+START_RENDER, starts the worker, wakes the worker, creates Segments/Artifacts,
+or calls providers.
+
+Production PREPARE defaults disabled. Schema 15, canonical runtime identity,
+every positive feature gate, configured non-test authentication, an open
+operator window, and an inactive kill switch are all required before the
+mutation service is constructed. Schema 12 continues to support read-only
+planning/readiness and Audio Library use while PREPARE remains unavailable.
+
+The initial canary is one fully eligible contiguous range of one to three
+chapters. Activation and rollback are operational procedures defined in
+`docs/PREPARE_ACTIVATION_RUNBOOK.md`.
+
 ## Operator Roles And Assumptions
 
 - Primary operator: a local user producing chapters for one or more books.

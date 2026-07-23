@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from .config import canonical_production_db_path
-from .migrations import LATEST_SCHEMA_VERSION, MigrationRunner
+from .migrations import MigrationRunner
 
 class ClosingConnection(sqlite3.Connection):
     """Commit/rollback and close when used as a context manager."""
@@ -97,7 +97,7 @@ class Database:
 
     @property
     def latest_schema_version(self) -> int:
-        return LATEST_SCHEMA_VERSION
+        return self.migration_runner.latest_version
 
     @contextmanager
     def transaction(self) -> Iterator[sqlite3.Connection]:
