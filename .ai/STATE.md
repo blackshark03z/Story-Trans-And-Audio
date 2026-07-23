@@ -4,7 +4,53 @@ Updated: 2026-07-23
 
 ## Current Phase
 
-`Voice eligibility guard is active and Book 8 Chapter 1 is remediated into prepared Job 24. START_RENDER is not authorized.`
+`Production Render Canary Job 24 completed successfully. Active Artifact 87 is ready for Human QA; no further render is authorized.`
+
+## Production Render Canary - Job 24
+
+- Starting Git HEAD and `origin/main`:
+  `0a8217804b833d50d5e192540d4994d610b1ce80`.
+- Preflight verified canonical schema `15 / 15`, SQLite quick check `ok`,
+  exactly one prepared Job `24` and JobChapter `24` for Book `8`, Chapter `1`
+  (internal Chapter ID `1986`), active Text Revision `3971`, and approved
+  Casting Plan `25` revision `2`. All eight immutable utterance assignments
+  resolved to the usable VieNeu preset `Đức Trí`.
+- Exactly one `POST /api/jobs/24/start` returned `200` and durably transitioned
+  the same Job from `prepared` to `scheduled`. The worker claimed only Job
+  `24`; no other Job became executable or active.
+- Job `24` and JobChapter `24` completed successfully. All `8 / 8` Segments are
+  `verified`, each has `attempt_count=1`, and provider/TTS work was limited to
+  eight synthesis calls for those eight Job 24 Segments. Retry count is zero;
+  Gemini was not used.
+- Render artifacts are verified master WAV `85`, verified segment timeline
+  `86`, and the single active chapter M4A Artifact `87`. The active output is
+  `data/output/8-smoke-multi-voice-632dee5df5/chapter_0001/job_24/render_0001/chapter.m4a`,
+  SHA-256
+  `cf5d9e15f4fcbda2cb02d65f6e61b75cbc8ac1eb5e0d04ae31407cd4b83246b2`,
+  size `1,057,703` bytes, and authoritative/container duration `60,810 ms`.
+- Independent decode measured `60,821 ms`; FFmpeg decoded the complete AAC
+  mono 48 kHz file without error. Objective checks found zero clipped samples,
+  mean level about `-17.14 dBFS`, peak about `-0.11 dBFS`, `94 ms` leading
+  silence, `180 ms` trailing silence, and longest detected internal silence
+  `579 ms`. This is technical validation only, not subjective Human QA.
+- Audio Library exposes exactly the active Job 24 binding. Range playback
+  returned `206`; full download returned `1,057,703` bytes with the same
+  SHA-256. A clean runtime restart preserved Job/JobChapter completion,
+  Artifact `87`, Audio Library visibility, playback, and download.
+- Human QA remains `pending` / `Chưa chốt`; no approval was written.
+- Job `23` remains byte-for-byte/digest unchanged in
+  `completed_with_errors`. Every non-24 Job and JobChapter digest is unchanged.
+  Chapter `369` remains Text Revision `738`, Casting Plan `24` draft and
+  unapproved, with no active audio. No duplicate Job or active audio Artifact
+  was created.
+- Canonical totals after the authorized render are Jobs `23`, JobChapters
+  `23`, Segments `704`, SegmentAttempt rows `19`, and Artifacts `87`.
+  SQLite quick check and Doctor pass with `critical_errors=0`.
+- Validation: focused prepared/start worker, immutable synthesis snapshot,
+  voice eligibility, and Audio Library API/UI suites pass (`47 / 47`).
+- Exact next action: perform Human Audio QA on Job `24`, Artifact `87`, and
+  record either acceptance or one specific remediation target. Do not render
+  another Job or chapter.
 
 ## Voice Eligibility Guard And Canary Remediation
 
