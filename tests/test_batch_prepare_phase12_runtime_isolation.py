@@ -25,12 +25,14 @@ class Phase12RuntimeIsolationTests(unittest.TestCase):
         forbidden = ("api", "db", "pipeline", "worker", "tts", "provider", "sqlite", "migrations")
         self.assertFalse(any(any(token in name.lower() for token in forbidden) for name in imports))
 
-    def test_no_batch_prepare_route_or_ui_control_is_wired(self) -> None:
+    def test_phase14_route_is_fail_closed_by_default_and_has_no_ui_control(self) -> None:
         api = (ROOT / "story_audio" / "api.py").read_text(encoding="utf-8")
         ui = (ROOT / "ui" / "app.js").read_text(encoding="utf-8")
-        self.assertNotIn("/api/production/batch-prepare", api)
+        self.assertIn('/api/production/batch-prepare"', api)
+        self.assertIn("batch_prepare_api_service is None", api)
         self.assertNotIn("batch_prepare_runtime_wiring", api)
         self.assertNotIn("/api/production/prepare", ui)
+        self.assertNotIn("/api/production/batch-prepare", ui)
 
     def test_schema_and_auth_states_remain_non_mutating(self) -> None:
         for schema in (None, 12, 13, 16):

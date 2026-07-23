@@ -5,8 +5,8 @@ from pathlib import Path
 
 
 class Phase13RouteAbsenceTests(unittest.TestCase):
-    def test_readiness_is_get_only_and_batch_mutation_route_is_absent(self):
-        from story_audio.api import app
+    def test_readiness_is_get_only_and_batch_mutation_route_is_disabled_by_default(self):
+        from story_audio.api import app, batch_prepare_api_service
 
         route_methods = {
             route.path: set(getattr(route, "methods", None) or ())
@@ -14,13 +14,9 @@ class Phase13RouteAbsenceTests(unittest.TestCase):
             if hasattr(route, "path")
         }
         self.assertEqual(route_methods["/api/production/prepare-readiness"], {"GET"})
-        for path, methods in route_methods.items():
-            if path == "/api/production/prepare-readiness":
-                continue
-            self.assertFalse(
-                path.startswith("/api/production/batch-prepare")
-                and bool(methods & {"POST", "PUT", "PATCH", "DELETE"})
-            )
+        self.assertEqual(route_methods["/api/production/batch-prepare"], {"POST"})
+        self.assertEqual(route_methods["/api/production/batch-prepare/{client_request_id}"], {"GET"})
+        self.assertIsNone(batch_prepare_api_service)
         self.assertIn("/api/jobs/prepare", route_methods)
         self.assertIn("/api/jobs/{job_id}/start", route_methods)
 

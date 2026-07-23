@@ -4,12 +4,12 @@ import json
 import unicodedata
 from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
-from fastapi import Body, FastAPI, File, Form, HTTPException, Query, UploadFile
+from fastapi import Body, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from .config import canonical_production_db_path, settings
 from .casting import (
@@ -32,6 +32,11 @@ from .character_bible import (
 )
 from .active_output import annotate_chapter_rows, annotate_job_rows, get_active_output_bindings
 from .batch_plan import build_batch_plan
+from .batch_prepare_clone_api import (
+    MAX_REQUEST_BYTES,
+    ClonePrepareApiError,
+    build_clone_prepare_api_service,
+)
 from .batch_prepare_runtime_integration import (
     CLONE_DISABLED,
     CloneReadOnlyDatabase,
@@ -114,8 +119,9 @@ from .voice_ref import CustomVoiceContext, is_custom_ref, resolve_custom_ref
 
 
 settings.ensure_dirs()
+prepare_runtime_config = read_runtime_integration_config()
 prepare_runtime_integration = build_runtime_integration(
-    read_runtime_integration_config(),
+    prepare_runtime_config,
     db_path=settings.db_path,
     repository_root=settings.root,
     canonical_db_path=canonical_production_db_path(),
@@ -127,6 +133,11 @@ db = (
     else Database(settings.db_path)
 )
 store = ContentStore(settings)
+batch_prepare_api_service = build_clone_prepare_api_service(
+    settings=settings,
+    config=prepare_runtime_config,
+    descriptor=prepare_runtime_integration,
+)
 custom_voice_repo = CustomVoiceRepository(db, store)
 worker = PipelineWorker(db, store, tts_service, settings)
 voice_previews = VoicePreviewService(
@@ -286,6 +297,18 @@ class TargetedTextCorrectionRequest(BaseModel):
     reason: str = Field(max_length=4000)
 
 
+class BatchPrepareApiRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    client_request_id: str = Field(min_length=8, max_length=200)
+    book_id: int = Field(gt=0)
+    from_chapter: int = Field(ge=0)
+    to_chapter: int = Field(ge=0)
+    target_phase: Literal["PREPARE"]
+    plan_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+    confirmation: Literal[True]
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     clone_disabled = prepare_runtime_integration.runtime_mode == CLONE_DISABLED
@@ -436,7 +459,76 @@ def get_runtime_identity() -> dict[str, Any]:
 
 @app.get("/api/production/prepare-readiness")
 def production_prepare_readiness() -> dict[str, Any]:
-    return public_runtime_readiness(prepare_runtime_integration)
+    payload = public_runtime_readiness(prepare_runtime_integration)
+    enabled = batch_prepare_api_service is not None
+    payload["mutation_service_constructed"] = enabled
+    payload["mutation_route_registered"] = enabled
+    return payload
+
+
+def _clone_prepare_service():
+    if batch_prepare_api_service is None:
+        if (
+            prepare_runtime_integration.runtime_mode == CLONE_DISABLED
+            and prepare_runtime_integration.kill_switch_active
+        ):
+            raise HTTPException(503, {"code": "KILL_SWITCH_ACTIVE"})
+        raise HTTPException(404, {"code": "CLONE_PREPARE_UNAVAILABLE"})
+    return batch_prepare_api_service
+
+
+def _clone_prepare_error(exc: ClonePrepareApiError) -> HTTPException:
+    return HTTPException(exc.http_status, {"code": exc.code, "message": str(exc)})
+
+
+@app.post("/api/production/batch-prepare")
+async def production_batch_prepare(request: Request) -> dict[str, Any]:
+    if request.query_params:
+        raise HTTPException(400, {"code": "URL_AUTHORITY_REJECTED"})
+    content_length = request.headers.get("content-length")
+    if content_length:
+        try:
+            if int(content_length) > MAX_REQUEST_BYTES:
+                raise HTTPException(413, {"code": "REQUEST_TOO_LARGE"})
+        except ValueError as exc:
+            raise HTTPException(400, {"code": "INVALID_CONTENT_LENGTH"}) from exc
+    body = await request.body()
+    if len(body) > MAX_REQUEST_BYTES:
+        raise HTTPException(413, {"code": "REQUEST_TOO_LARGE"})
+    try:
+        decoded = json.loads(body)
+        payload = BatchPrepareApiRequest.model_validate(decoded)
+    except (json.JSONDecodeError, ValidationError, TypeError) as exc:
+        raise HTTPException(400, {"code": "INVALID_REQUEST_BODY"}) from exc
+    try:
+        result = _clone_prepare_service().prepare(
+            payload.model_dump(),
+            authorization_header=request.headers.get("authorization"),
+        )
+    except ClonePrepareApiError as exc:
+        raise _clone_prepare_error(exc) from exc
+    if result.http_status != 200:
+        raise HTTPException(result.http_status, dict(result.payload))
+    return dict(result.payload)
+
+
+@app.get("/api/production/batch-prepare/{client_request_id}")
+def production_batch_prepare_status(
+    client_request_id: str,
+    request: Request,
+) -> dict[str, Any]:
+    if request.query_params:
+        raise HTTPException(400, {"code": "URL_AUTHORITY_REJECTED"})
+    try:
+        result = _clone_prepare_service().status(
+            client_request_id,
+            authorization_header=request.headers.get("authorization"),
+        )
+    except ClonePrepareApiError as exc:
+        raise _clone_prepare_error(exc) from exc
+    if result.http_status != 200:
+        raise HTTPException(result.http_status, dict(result.payload))
+    return dict(result.payload)
 
 
 @app.post("/api/books/import")

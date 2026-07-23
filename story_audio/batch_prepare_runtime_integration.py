@@ -1,7 +1,7 @@
-"""Clone-only, read-only Phase 13 PREPARE runtime integration.
+"""Fail-closed clone runtime integration for PREPARE acceptance.
 
-This module cannot build or execute a PREPARE mutation service.  Its only live
-runtime capability is an immutable SQLite facade and a bounded readiness view.
+The shared database facade remains immutable. Phase 14 can separately authorize
+the isolated adapter only for an external schema-15 clone with every gate open.
 """
 
 from __future__ import annotations
@@ -24,7 +24,10 @@ from .db import ClosingConnection, Database
 DISABLED = "DISABLED"
 CLONE_DISABLED = "CLONE_DISABLED"
 REQUIRED_SCHEMA_VERSION = 15
-_RUNTIME_KEYS = frozenset({"PREPARE_RUNTIME_MODE"})
+_RUNTIME_KEYS = frozenset({
+    "PREPARE_RUNTIME_MODE",
+    "PREPARE_CLONE_MUTATION_TEST_AUTHORIZED",
+})
 _FLAG_KEYS = frozenset({
     "PREPARE_FEATURE_AVAILABLE", "PREPARE_MUTATION_ENABLED",
     "PREPARE_OPERATOR_WINDOW_OPEN", "PREPARE_CANONICAL_SCHEMA_READY",
@@ -46,6 +49,7 @@ class RuntimeIntegrationConfig:
     mode: str
     flags: RuntimePrepareConfig
     auth: OperatorAuthConfig
+    clone_mutation_test_authorized: bool = False
     config_valid: bool = True
     errors: tuple[str, ...] = ()
 
@@ -55,6 +59,7 @@ class RuntimeIntegrationDescriptor:
     status: str
     runtime_mode: str
     clone_backed: bool
+    inspected_db_path: Path | None
     schema_version: int | None
     required_schema_version: int
     quick_check: str | None
@@ -90,7 +95,21 @@ class RuntimeIntegrationDescriptor:
             and self.status in {
                 "KILL_SWITCHED", "SCHEMA_FLAG_NOT_READY", "DISABLED_DEFAULT",
                 "OPERATOR_WINDOW_CLOSED", "AUTH_NOT_READY", "CLONE_DISABLED_READY",
+                "PHASE14_TEST_AUTHORIZATION_REQUIRED", "PHASE14_LOCAL_TEST_AUTH_REQUIRED",
+                "CLONE_AUTHENTICATED_TEST_READY",
             }
+        )
+
+    @property
+    def clone_mutation_test_enabled(self) -> bool:
+        return (
+            self.clone_runtime_active
+            and self.status == "CLONE_AUTHENTICATED_TEST_READY"
+            and self.feature_available
+            and self.mutation_enabled
+            and self.operator_window_open
+            and not self.kill_switch_active
+            and self.authentication_state == "AUTH_CONFIGURED"
         )
 
 
@@ -111,9 +130,31 @@ def parse_runtime_integration_config(values: Mapping[str, Any] | None = None) ->
         mode = DISABLED
     flags = parse_runtime_prepare_config({key: source[key] for key in _FLAG_KEYS if key in source})
     auth = parse_operator_auth_config({key: source[key] for key in _AUTH_KEYS if key in source})
+    test_authorized, test_error = _parse_test_authorization(
+        source.get("PREPARE_CLONE_MUTATION_TEST_AUTHORIZED")
+    )
     errors.extend(flags.errors)
     errors.extend(auth.errors)
-    return RuntimeIntegrationConfig(mode, flags, auth, not errors, tuple(errors))
+    if test_error:
+        errors.append(test_error)
+    return RuntimeIntegrationConfig(
+        mode,
+        flags,
+        auth,
+        clone_mutation_test_authorized=test_authorized,
+        config_valid=not errors,
+        errors=tuple(errors),
+    )
+
+
+def _parse_test_authorization(value: Any) -> tuple[bool, str | None]:
+    if value is None:
+        return False, None
+    if isinstance(value, bool):
+        return value, None
+    if isinstance(value, str) and value in {"true", "false"}:
+        return value == "true", None
+    return False, "INVALID_PREPARE_CLONE_MUTATION_TEST_AUTHORIZED"
 
 
 def read_runtime_integration_config(environment: Mapping[str, Any] | None = None) -> RuntimeIntegrationConfig:
@@ -149,6 +190,7 @@ def build_runtime_integration(
     schema_version: int | None = None
     quick_check: str | None = None
     clone_backed = False
+    inspected_db_path: Path | None = None
 
     if not parsed.config_valid:
         status = "CONFIG_INVALID"
@@ -157,6 +199,7 @@ def build_runtime_integration(
         reasons.append("DEFAULT_DISABLED_RUNTIME")
     else:
         resolved = db_path.resolve(strict=False)
+        inspected_db_path = resolved
         repo = repository_root.resolve(strict=False)
         canonical = canonical_db_path.resolve(strict=False)
         if resolved == canonical or _within(resolved, repo) or _within(resolved, canonical.parent):
@@ -197,19 +240,30 @@ def build_runtime_integration(
                 elif auth_status != "AUTH_CONFIGURED":
                     status = "AUTH_NOT_READY"
                     reasons.append("AUTH_MISSING_BLOCKS_PRODUCTION")
+                elif not parsed.clone_mutation_test_authorized:
+                    status = "PHASE14_TEST_AUTHORIZATION_REQUIRED"
+                    reasons.append("CLONE_MUTATION_TEST_NOT_AUTHORIZED")
+                elif not parsed.auth.local_test_mode:
+                    status = "PHASE14_LOCAL_TEST_AUTH_REQUIRED"
+                    reasons.append("LOCAL_TEST_AUTH_MODE_REQUIRED")
                 else:
-                    status = "CLONE_DISABLED_READY"
-                    reasons.append("PHASE13_MUTATION_CEILING")
+                    status = "CLONE_AUTHENTICATED_TEST_READY"
+                    reasons.append("PHASE14_CLONE_TEST_ONLY")
 
     return RuntimeIntegrationDescriptor(
         status=status,
         runtime_mode=parsed.mode,
         clone_backed=clone_backed,
+        inspected_db_path=inspected_db_path,
         schema_version=schema_version,
         required_schema_version=REQUIRED_SCHEMA_VERSION,
         quick_check=quick_check,
         feature_available=parsed.flags.feature_available,
-        mutation_enabled=False,
+        mutation_enabled=(
+            parsed.flags.mutation_enabled
+            and parsed.clone_mutation_test_authorized
+            and status == "CLONE_AUTHENTICATED_TEST_READY"
+        ),
         operator_window_open=parsed.flags.operator_window_open,
         kill_switch_active=True if not parsed.config_valid else parsed.flags.kill_switch_active,
         authentication_state=auth_status,
@@ -230,15 +284,15 @@ def public_runtime_readiness(descriptor: RuntimeIntegrationDescriptor) -> dict[s
         "schema_version": descriptor.schema_version,
         "required_schema_version": descriptor.required_schema_version,
         "feature_available": descriptor.feature_available,
-        "mutation_enabled": False,
+        "mutation_enabled": descriptor.clone_mutation_test_enabled,
         "operator_window_open": descriptor.operator_window_open,
         "kill_switch_active": descriptor.kill_switch_active,
         "authentication_state": descriptor.authentication_state,
         "mutation_service_constructed": False,
         "mutation_route_registered": False,
         "read_only_planning_available": descriptor.read_only_planning_available,
-        "mutation_authorized": False,
-        "execution_endpoint_available": False,
+        "mutation_authorized": descriptor.clone_mutation_test_enabled,
+        "execution_endpoint_available": descriptor.clone_mutation_test_enabled,
         "real_job_execution": False,
         "prepare_starts_render": False,
     }

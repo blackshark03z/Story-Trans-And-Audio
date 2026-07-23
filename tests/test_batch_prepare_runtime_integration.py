@@ -60,7 +60,7 @@ class RuntimeIntegrationTests(IsolatedTestCase):
         self.assertFalse(descriptor.mutation_service_constructed)
         self.assertFalse(descriptor.mutation_enabled)
 
-    def test_all_flags_and_auth_still_cannot_enable_mutation(self):
+    def test_all_flags_and_auth_require_separate_phase14_test_authorization(self):
         token_hash = hashlib.sha256(b"synthetic").hexdigest()
         values = {
             "PREPARE_RUNTIME_MODE": CLONE_DISABLED,
@@ -74,10 +74,42 @@ class RuntimeIntegrationTests(IsolatedTestCase):
             "PREPARE_OPERATOR_TOKEN_SHA256": token_hash,
         }
         descriptor = self.descriptor(values)
-        self.assertEqual(descriptor.status, "CLONE_DISABLED_READY")
+        self.assertEqual(descriptor.status, "PHASE14_TEST_AUTHORIZATION_REQUIRED")
         self.assertFalse(descriptor.mutation_enabled)
         self.assertFalse(descriptor.mutation_authorized)
         self.assertFalse(descriptor.execution_endpoint_available)
+
+    def test_explicit_phase14_authorization_enables_only_valid_external_clone(self):
+        values = {
+            "PREPARE_RUNTIME_MODE": CLONE_DISABLED,
+            "PREPARE_FEATURE_AVAILABLE": "true",
+            "PREPARE_MUTATION_ENABLED": "true",
+            "PREPARE_OPERATOR_WINDOW_OPEN": "true",
+            "PREPARE_CANONICAL_SCHEMA_READY": "true",
+            "PREPARE_KILL_SWITCH_ACTIVE": "false",
+            "PREPARE_CLONE_MUTATION_TEST_AUTHORIZED": "true",
+            "PREPARE_OPERATOR_AUTH_ENABLED": "true",
+            "PREPARE_OPERATOR_ID": "operator.test",
+            "PREPARE_OPERATOR_TOKEN_SHA256": hashlib.sha256(b"synthetic").hexdigest(),
+            "PREPARE_OPERATOR_AUTH_LOCAL_TEST_MODE": "true",
+        }
+        descriptor = self.descriptor(values)
+        self.assertEqual(descriptor.status, "CLONE_AUTHENTICATED_TEST_READY")
+        self.assertTrue(descriptor.clone_mutation_test_enabled)
+        self.assertTrue(public_runtime_readiness(descriptor)["mutation_authorized"])
+
+        malformed = self.descriptor(
+            {**values, "PREPARE_CLONE_MUTATION_TEST_AUTHORIZED": "TRUE"}
+        )
+        self.assertEqual(malformed.status, "CONFIG_INVALID")
+        self.assertTrue(malformed.kill_switch_active)
+        self.assertFalse(malformed.clone_mutation_test_enabled)
+
+        non_test_auth = self.descriptor(
+            {**values, "PREPARE_OPERATOR_AUTH_LOCAL_TEST_MODE": "false"}
+        )
+        self.assertEqual(non_test_auth.status, "PHASE14_LOCAL_TEST_AUTH_REQUIRED")
+        self.assertFalse(non_test_auth.clone_mutation_test_enabled)
 
     def test_missing_auth_blocks_production_when_other_flags_are_open(self):
         values = {

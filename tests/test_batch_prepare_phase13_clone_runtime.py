@@ -86,7 +86,7 @@ class Phase13CloneRuntimeTests(IsolatedTestCase):
             if process.stderr:
                 process.stderr.close()
 
-    def test_inspect_has_get_readiness_and_no_batch_mutation_route(self):
+    def test_inspect_has_get_readiness_and_disabled_batch_mutation_route(self):
         completed = subprocess.run(
             [str(PYTHON), "tests/batch_prepare_phase13_runtime_worker.py", "--inspect"],
             cwd=Path.cwd(), env=self.environment, capture_output=True, text=True, timeout=20,
@@ -99,7 +99,8 @@ class Phase13CloneRuntimeTests(IsolatedTestCase):
         self.assertFalse(readiness["mutation_authorized"])
         route_map = {item["path"]: set(item["methods"]) for item in payload["routes"]}
         self.assertEqual(route_map["/api/production/prepare-readiness"], {"GET"})
-        self.assertNotIn("/api/production/batch-prepare", route_map)
+        self.assertEqual(route_map["/api/production/batch-prepare"], {"POST"})
+        self.assertFalse(readiness["mutation_route_registered"])
 
     def test_start_read_restart_preserves_exact_clone_bytes(self):
         before_hash = hashlib.sha256(self.clone.read_bytes()).hexdigest()

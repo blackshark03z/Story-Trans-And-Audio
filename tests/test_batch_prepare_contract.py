@@ -259,16 +259,22 @@ class BatchPrepareContractTests(IsolatedTestCase):
         self.assertFalse(result["prepare_starts_render"])
         self.assertFalse(result["safety"]["worker_wake"])
 
-    def test_no_batch_prepare_route_is_registered(self) -> None:
-        from story_audio.api import app
+    def test_batch_prepare_route_is_disabled_by_default(self) -> None:
+        from story_audio.api import (
+            app,
+            batch_prepare_api_service,
+            prepare_runtime_integration,
+        )
 
         routes = [
             route
             for route in app.routes
-            if getattr(route, "path", "").startswith("/api/production/")
+            if getattr(route, "path", "") == "/api/production/batch-prepare"
             and any(method in {"POST", "PUT", "PATCH", "DELETE"} for method in getattr(route, "methods", set()))
         ]
-        self.assertEqual(routes, [])
+        self.assertEqual(len(routes), 1)
+        self.assertIsNone(batch_prepare_api_service)
+        self.assertFalse(prepare_runtime_integration.clone_mutation_test_enabled)
 
     def test_contract_does_not_call_mutation_helpers_or_provider_clients(self) -> None:
         plan = self._plan(self._row(10, "READY_TO_PREPARE"))
