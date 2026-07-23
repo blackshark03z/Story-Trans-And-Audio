@@ -3,15 +3,15 @@
 **Cập nhật:** 2026-07-23 (Asia/Saigon)
 **Milestone:** DAILY-PROD-5 Active - Batch Approval, Prepare, Render And QA Closeout
 **Strategic state:** `PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP`
-**Trạng thái hiện tại:** Story Audio has completed production acceptance and is in routine production operations. `DAILY-PROD-1` through `DAILY-PROD-4`, `DAILY-PROD-5A`, and `DAILY-PROD-5B` Phases 1 through 13 are complete. Phase 13 verified a clone-backed disabled runtime across startup/restart, a read-only schema-15 facade, GET-only readiness, and a redacted single-operator authentication boundary. Canonical activation, enabled production PREPARE, production credentials, production Job creation, UI mutation, worker wake, providers, and START_RENDER remain unauthorized.
+**Trạng thái hiện tại:** Book 8 Chapter 1 source mojibake has been remediated through the immutable canonical workflow. Active Text Revision `3985` and approved Casting Plan `26` revision `3` preserve the eight `Đức Trí` assignments; replacement Job `25` is durably `prepared` and must not render without separate explicit authorization.
 
 **Last verified implementation commit:** `a60b94c` (`feat: add clone-only disabled PREPARE runtime authentication boundary`)
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-23
 **Canonical runtime:** `http://127.0.0.1:8772`
-**Runtime schema:** `12`
+**Runtime schema:** canonical `15`
 **Default/latest schema:** `12`
-**Runtime:** canonical, schema `12`
+**Runtime:** canonical schema `15`; currently stopped after PREPARE persistence verification
 **Dormant request persistence schema:** `13`
 **Dormant linkage schema artifact:** `14` (not active)
 **Dormant ownership/fencing schema artifact:** `15` (not active)
@@ -66,6 +66,22 @@
 **DAILY-PROD-3:** complete
 
 **Current production state:**
+- Book `8`, Chapter `1` now uses active approved Text Revision `3985`, a
+  byte-verifiable `378`-character Vietnamese source with SHA-256
+  `ff9053993e437319dfd7b8b9159dbee4a2ac86be824fe9418765cc3664306f22`.
+  Revision `3971` remains immutable rejected-render evidence.
+- Approved Casting Plan `26` revision `3` is bound to Revision `3985`; all eight
+  utterances retain usable voice `Đức Trí`. PREPARE request `3` created exactly
+  one replacement Job `25` and JobChapter `25`, both pinned to these corrected
+  inputs. Job `25` is `prepared`, has no Segments/attempts/Artifacts/audio, and
+  remained prepared across runtime restart.
+- Active Artifact `87` remains unchanged with Human QA `needs_fixes` and reason
+  `unintelligible_audio_no_recognizable_words`; Jobs `23` and `24` remain
+  historical and unchanged. No provider/TTS/Gemini call, worker render wake, or
+  START_RENDER occurred during remediation.
+- Canonical text is now rejected fail-closed before activation, casting
+  approval, readiness, PREPARE, and START_RENDER when immutable hash/count,
+  UTF-8, control-character, or mojibake validation fails.
 - Chapters `364-368` are completed Human QA PASS production evidence with active artifacts `69`, `72`, `78`, `75`, and `84`.
 - Runtime QA currently reports chapters `364-367` as `pending` and chapter `368` as `accepted`; this runtime state is displayed as-is and was not rewritten from historical Human QA documentation.
 - Chapter `369` is paused as a production operation, not a roadmap milestone: active Text Revision `738`, Speaker Draft `15` approved, Casting Plan `24` revision `1` draft/unapproved, Jobs `0`, JobChapters `0`, artifacts `0`, active audio `none`, and audio status `not_created`.

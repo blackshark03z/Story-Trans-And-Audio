@@ -52,7 +52,8 @@ def seed_recovery(config):
     database = Database(config.db_path)
     database.initialize()
     store = ContentStore(config)
-    full_path, full_sha = store.put_text("Đoạn thứ nhất. Đoạn thứ hai.")
+    full_text = "Đoạn thứ nhất. Đoạn thứ hai."
+    full_path, full_sha = store.put_text(full_text)
     first_path, first_sha = store.put_text("Đoạn thứ nhất.")
     second_path, second_sha = store.put_text("Đoạn thứ hai.")
     now = utcnow()
@@ -69,7 +70,7 @@ def seed_recovery(config):
         chapter_id = int(
             connection.execute(
                 "INSERT INTO chapters(book_id,chapter_number,title,char_count,created_at,updated_at) VALUES(?,?,?,?,?,?)",
-                (book_id, 1, "Chương 1", 30, now, now),
+                (book_id, 1, "Chương 1", len(full_text), now, now),
             ).lastrowid
         )
         revision_id = int(
@@ -78,7 +79,17 @@ def seed_recovery(config):
                     chapter_id,kind,content_path,content_sha256,lexical_sha256,char_count,
                     processor_version,status,created_at
                 ) VALUES(?,?,?,?,?,?,?,?,?)""",
-                (chapter_id, "reflowed", full_path, full_sha, "lexical", 30, "test", "approved", now),
+                (
+                    chapter_id,
+                    "reflowed",
+                    full_path,
+                    full_sha,
+                    "lexical",
+                    len(full_text),
+                    "test",
+                    "approved",
+                    now,
+                ),
             ).lastrowid
         )
         settings_json = json.dumps(

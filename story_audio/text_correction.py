@@ -6,6 +6,7 @@ from .db import Database, utcnow
 from .files import sha256_text
 from .storage import ContentStore
 from .text import lexical_sha256
+from .text_encoding import CanonicalTextValidationError, validate_canonical_text
 
 
 TARGETED_CORRECTION_KIND = "repaired"
@@ -124,6 +125,10 @@ def apply_targeted_text_correction(
             raise TextCorrectionError("Correction did not change the chapter text")
         if not corrected_text.strip():
             raise TextCorrectionError("Correction produced empty chapter content")
+        try:
+            validate_canonical_text(corrected_text, field="corrected Text Revision")
+        except CanonicalTextValidationError as exc:
+            raise TextCorrectionError(str(exc)) from exc
 
         new_revision_id, content_path, content_sha256, char_count = _insert_corrected_revision(
             connection,

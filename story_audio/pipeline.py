@@ -30,6 +30,7 @@ from .text import (
     validate_lexical_identity,
     validate_repair_candidate,
 )
+from .text_encoding import load_validated_text_revision, validate_canonical_text
 from .voice_ref import CustomVoiceContext, is_custom_ref, parse_custom_ref, resolve_custom_ref
 from .voice_eligibility import (
     EffectiveVoiceCatalog,
@@ -77,6 +78,63 @@ class JobPreparationConflict(RuntimeError):
 
 class JobStartConflict(RuntimeError):
     pass
+
+
+def _validate_chapter_text_inputs(
+    db: Database,
+    store: ContentStore | None,
+    chapters: list[Any],
+) -> None:
+    if store is None:
+        return
+    for chapter in chapters:
+        revision_id = int(chapter["active_text_revision_id"] or 0)
+        revision = db.fetch_one(
+            "SELECT * FROM text_revisions WHERE id=? AND chapter_id=? AND status='approved'",
+            (revision_id, int(chapter["id"])),
+        )
+        if not revision:
+            raise ValueError(
+                f"Chapter {int(chapter['chapter_number'])} has no active approved Text Revision"
+            )
+        load_validated_text_revision(
+            store,
+            revision,
+            field=f"Text Revision #{revision_id}",
+        )
+
+
+def _validate_prepared_job_text_inputs(
+    db: Database,
+    store: ContentStore,
+    *,
+    job_id: int,
+) -> None:
+    rows = db.fetch_all(
+        """SELECT jc.chapter_id,jc.text_revision_id,c.active_text_revision_id,tr.*
+           FROM job_chapters jc
+           JOIN chapters c ON c.id=jc.chapter_id
+           LEFT JOIN text_revisions tr
+             ON tr.id=COALESCE(jc.text_revision_id,c.active_text_revision_id)
+            AND tr.chapter_id=jc.chapter_id
+           WHERE jc.job_id=?
+           ORDER BY jc.sequence,jc.id""",
+        (job_id,),
+    )
+    if not rows:
+        raise JobStartConflict(f"Prepared job #{job_id} has no pinned chapters")
+    for row in rows:
+        revision_id = int(row["text_revision_id"] or row["active_text_revision_id"] or 0)
+        if not row["content_path"] or str(row["status"] or "") != "approved":
+            raise JobStartConflict(
+                f"Prepared job #{job_id} has no approved Text Revision pin for chapter "
+                f"#{int(row['chapter_id'])}"
+            )
+        load_validated_text_revision(
+            store,
+            row,
+            field=f"Text Revision #{revision_id}",
+        )
 
 
 JOB_PREPARED_STATUS = "prepared"
@@ -162,6 +220,7 @@ def create_job(
     if missing:
         raise ValueError(f"Khoáº£ng chÆ°Æ¡ng bá»‹ thiáº¿u: {missing[:20]}")
     selected = [row for row in chapters if not (skip_completed and row["active_audio_artifact_id"])]
+    _validate_chapter_text_inputs(db, store, selected)
     now = datetime.now(timezone.utc)
     scheduled = now + timedelta(seconds=config.undo_seconds)
     settings_snapshot = {
@@ -353,7 +412,9 @@ def start_prepared_job(
     *,
     job_id: int,
     voice_catalog: EffectiveVoiceCatalog,
+    store: ContentStore,
 ) -> dict[str, Any]:
+    _validate_prepared_job_text_inputs(db, store, job_id=job_id)
     require_prepared_job_eligible(db, job_id=job_id, catalog=voice_catalog)
     now = datetime.now(timezone.utc)
     scheduled = now + timedelta(seconds=config.undo_seconds)
@@ -691,14 +752,23 @@ class PipelineWorker:
                 (chapter["text_revision_id"], chapter_id),
             )
             if pinned:
-                return int(pinned["id"]), self.store.read_text(pinned["content_path"])
+                text = load_validated_text_revision(
+                    self.store,
+                    pinned,
+                    field=f"Text Revision #{int(pinned['id'])}",
+                )
+                return int(pinned["id"]), text
         source_revision = self.db.fetch_one(
             "SELECT * FROM text_revisions WHERE chapter_id=? AND kind='reflowed' ORDER BY id DESC LIMIT 1",
             (chapter_id,),
         )
         if not source_revision:
             raise RuntimeError("ChÆ°Æ¡ng chÆ°a cÃ³ reflowed TextRevision.")
-        source_text = self.store.read_text(source_revision["content_path"])
+        source_text = load_validated_text_revision(
+            self.store,
+            source_revision,
+            field=f"Text Revision #{int(source_revision['id'])}",
+        )
         mode = str(job["repair_mode"])
         if mode == "off":
             return int(source_revision["id"]), source_text
@@ -730,9 +800,13 @@ class PipelineWorker:
         )
         for revision in reusable:
             try:
-                repaired = self.store.read_text(revision["content_path"])
+                repaired = load_validated_text_revision(
+                    self.store,
+                    revision,
+                    field=f"Text Revision #{int(revision['id'])}",
+                )
                 valid, _reason = validate_lexical_identity(source_text, repaired)
-                if sha256_text(repaired) != revision["content_sha256"] or not valid:
+                if not valid:
                     continue
                 with self.db.connect() as connection:
                     connection.execute(
@@ -930,6 +1004,7 @@ class PipelineWorker:
                     )
                 raise ChapterNeedsReview(f"Gemini block {row['block_index']} lá»—i: {exc}") from exc
         repaired_text = self._assemble_repaired_blocks(repaired_blocks, expected_blocks)
+        validate_canonical_text(repaired_text, field="Gemini repaired Text Revision")
         content_path, content_sha = self.store.put_text(repaired_text)
         duplicate = self.db.fetch_one(
             """SELECT * FROM text_revisions

@@ -4,7 +4,35 @@ Updated: 2026-07-23
 
 ## Current Phase
 
-`Artifact 87 is Human-QA rejected because its pinned source text is mojibake. A fail-closed TTS text-encoding guard is implemented; no rerender is authorized.`
+`Book 8 Chapter 1 has a proven corrected immutable source, approved replacement casting, and prepared replacement Job 25. START_RENDER remains unauthorized.`
+
+## Book 8 Chapter 1 Mojibake Replacement
+
+- Text Revision `3971` remains immutable historical evidence. Its exact,
+  deterministic legacy-code-page inverse reproduces the stored corrupted bytes
+  and recovers the repository-tracked `SMOKE_TEXT` byte-for-byte.
+- The recovered source is valid Vietnamese UTF-8 with `378` characters and
+  SHA-256
+  `ff9053993e437319dfd7b8b9159dbee4a2ac86be824fe9418765cc3664306f22`.
+  It is now immutable approved active Text Revision `3985`, parent `3971`.
+- Shared fail-closed revision validation now checks immutable blob hash,
+  character count, UTF-8 round trip, disallowed C0/C1 controls, and strong
+  UTF-8-through-legacy-code-page mojibake evidence before revision
+  creation/activation, casting approval, readiness, PREPARE, and START_RENDER.
+- Casting Plan `26` revision `3` is approved against Revision `3985`. Its eight
+  deterministic utterances preserve the intended assignments and usable preset
+  voice `Đức Trí`.
+- PREPARE request `3` created exactly one replacement Job `25` and JobChapter
+  `25`. Job `25` remains durably `prepared` after runtime restart, pins Revision
+  `3985` and Plan `26`, and has no Segment, attempt, Artifact, output, or audio.
+- Jobs `23` and `24`, active rejected Artifact `87`, Revision `3971`, and Chapter
+  `369` remain unchanged. No provider, Gemini, TTS, worker render wake, or
+  START_RENDER occurred.
+- Validation passed: focused affected tests `69 / 69`, full offline suite
+  `1664` with one established skip, frontend syntax, Doctor
+  `critical_errors=0`, SQLite quick check `ok`, and foreign-key check `0`.
+- Exact next action: request explicit operator authorization to START_RENDER
+  only prepared replacement Job `25`.
 
 ## Artifact 87 Rejection And Root Cause
 

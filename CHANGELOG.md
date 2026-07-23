@@ -4,6 +4,33 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ## Unreleased
 
+### Book 8 Chapter 1 Mojibake Replacement
+
+- Proved a deterministic reversible repair of defective Text Revision `3971`:
+  the recovered bytes exactly match repository-tracked `SMOKE_TEXT`, and the
+  reverse transform exactly reproduces the stored corrupted bytes.
+- Created immutable active approved Text Revision `3985` with `378` valid
+  Vietnamese characters and SHA-256
+  `ff9053993e437319dfd7b8b9159dbee4a2ac86be824fe9418765cc3664306f22`.
+- Added shared fail-closed text validation for immutable hash/count integrity,
+  UTF-8 round trip, disallowed C0/C1 controls, and strong mojibake evidence.
+  Revision creation/activation, casting, readiness, PREPARE, START_RENDER, and
+  worker checkpoint reads now reject invalid canonical text before synthesis.
+- Readiness now exposes corrupt text as `TEXT_BLOCKED` and permits a precise
+  replacement PREPARE only when rejected active audio, a newer valid active
+  revision, and its matching approved plan all agree.
+- Approved Casting Plan `26` revision `3` against Revision `3985`, preserving
+  all eight utterance assignments with voice `Đức Trí`.
+- PREPARE request `3` created exactly one durable replacement Job `25` and
+  JobChapter `25`; restart returned `APPLIED_REPLAYED`. The job remains
+  `prepared` with zero Segments, attempts, Artifacts, output, or audio.
+- Preserved Revision `3971`, Jobs `23`/`24`, rejected active Artifact `87`, and
+  Chapter `369`. No START_RENDER, worker render wake, provider, Gemini, or TTS
+  call occurred.
+- Validation passed: focused affected tests `69 / 69`, full offline suite
+  `1664` with one established skip, `node --check ui/app.js`, Doctor
+  `critical_errors=0`, SQLite quick check `ok`, and zero foreign-key errors.
+
 ### Artifact 87 Unintelligible-Audio Guard
 
 - Recorded active Artifact `87` as Human QA `needs_fixes` with reason

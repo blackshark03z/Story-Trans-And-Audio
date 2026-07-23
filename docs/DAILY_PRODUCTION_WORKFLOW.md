@@ -63,6 +63,21 @@ Catalog lookup failure is also blocking and retryable. PREPARE must create no
 partial rows, and START_RENDER must not schedule or wake the worker, until a
 fresh authoritative catalog confirms every effective pinned voice.
 
+### Canonical Text Encoding Boundary
+
+Every immutable Text Revision must pass the same validation before activation,
+Casting Plan creation/approval, range readiness, PREPARE, START_RENDER, and
+worker checkpoint reuse. Validation verifies the stored blob hash and character
+count, UTF-8 round trip, permitted control characters, and strong
+UTF-8-through-legacy-code-page mojibake evidence.
+
+An invalid revision is `TEXT_BLOCKED`; it must not become eligible merely
+because an older render or plan exists. Replacing rejected audio requires a new
+immutable valid active revision and an approved Casting Plan bound to that exact
+revision. PREPARE creates a new durable prepared Job pinned to those inputs,
+while the rejected artifact and historical jobs remain unchanged. Rendering
+still requires a separate explicit START_RENDER action.
+
 ## Operator Roles And Assumptions
 
 - Primary operator: a local user producing chapters for one or more books.

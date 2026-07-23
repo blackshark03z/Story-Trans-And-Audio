@@ -8,11 +8,15 @@ from unittest.mock import patch
 from fastapi.testclient import TestClient
 
 from story_audio.db import Database, utcnow
+from story_audio.batch_prepare_transaction_revalidator import (
+    BatchPrepareTransactionRevalidator,
+)
 from story_audio.files import sha256_file, sha256_text
 from story_audio.range_readiness import get_range_readiness
 from story_audio.storage import ContentStore
 from story_audio.voice_eligibility import EffectiveVoiceCatalog
 from tests.base import IsolatedTestCase
+from tests.test_text_encoding import legacy_decode_utf8
 
 
 class RangeReadinessApiTests(IsolatedTestCase):
@@ -364,6 +368,67 @@ class RangeReadinessApiTests(IsolatedTestCase):
         self.assertEqual(item["state"], "RENDERED_NOT_QA")
         self.assertEqual(item["next_action"], "QA")
         self.assertTrue(item["requires_operator_action"])
+
+    def test_rejected_artifact_requires_new_valid_revision_and_matching_plan(self) -> None:
+        chapter_id = self.chapters[1]
+        artifact_id = self.db.fetch_one(
+            "SELECT active_audio_artifact_id FROM chapters WHERE id=?",
+            (chapter_id,),
+        )["active_audio_artifact_id"]
+        approval = {"status": "needs_fixes", "artifact_id": artifact_id}
+        self._execute(
+            "UPDATE chapters SET human_approval_json=? WHERE id=?",
+            (json.dumps(approval), chapter_id),
+        )
+        same_revision = self._readiness(1, 1)["chapters"][0]
+        self.assertEqual(same_revision["state"], "RENDERED_NOT_QA")
+
+        new_revision_id = self._approve_text(
+            chapter_id,
+            "Corrected replacement source text.",
+        )
+        stale_plan = self._readiness(1, 1)["chapters"][0]
+        self.assertEqual(stale_plan["state"], "CASTING_REVIEW")
+        self.assertEqual(stale_plan["replacement_for_artifact_id"], artifact_id)
+        self.assertNotEqual(
+            stale_plan["active_output_text_revision_id"],
+            new_revision_id,
+        )
+
+        self._approved_plan(1)
+        ready = self._readiness(1, 1)["chapters"][0]
+        self.assertEqual(ready["state"], "READY_TO_PREPARE")
+        self.assertEqual(ready["replacement_for_artifact_id"], artifact_id)
+        with self.db.connect() as connection:
+            chapter = connection.execute(
+                "SELECT * FROM chapters WHERE id=?",
+                (chapter_id,),
+            ).fetchone()
+            self.assertTrue(
+                BatchPrepareTransactionRevalidator._chapter_allows_prepare(
+                    connection,
+                    chapter,
+                )
+            )
+
+    def test_rejected_artifact_exposes_invalid_active_text_as_text_blocker(self) -> None:
+        chapter_id = self.chapters[1]
+        artifact_id = self.db.fetch_one(
+            "SELECT active_audio_artifact_id FROM chapters WHERE id=?",
+            (chapter_id,),
+        )["active_audio_artifact_id"]
+        malformed = legacy_decode_utf8("Trời vừa sáng.")
+        self._approve_text(chapter_id, malformed)
+        self._execute(
+            "UPDATE chapters SET human_approval_json=? WHERE id=?",
+            (
+                json.dumps({"status": "needs_fixes", "artifact_id": artifact_id}),
+                chapter_id,
+            ),
+        )
+        item = self._readiness(1, 1)["chapters"][0]
+        self.assertEqual(item["state"], "TEXT_BLOCKED")
+        self.assertIn("TEXT_ENCODING_INVALID", item["blockers"][0])
 
     def test_active_audio_accepted_is_complete(self) -> None:
         item = self._readiness(2, 2)["chapters"][0]

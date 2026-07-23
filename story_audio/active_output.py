@@ -21,6 +21,7 @@ def get_active_output_bindings(
         SELECT c.id AS chapter_id,
                c.active_audio_artifact_id,
                a.id AS artifact_id,
+               a.text_revision_id AS artifact_text_revision_id,
                a.job_chapter_id,
                a.artifact_type,
                jc.job_id AS active_job_id,
@@ -45,6 +46,11 @@ def get_active_output_bindings(
             "chapter_id": int(row["chapter_id"]),
             "active_audio_artifact_id": int(row["active_audio_artifact_id"]) if row["active_audio_artifact_id"] else None,
             "active_output_artifact_id": int(artifact_id) if artifact_id else None,
+            "active_output_text_revision_id": (
+                int(row["artifact_text_revision_id"])
+                if row["artifact_text_revision_id"]
+                else None
+            ),
             "active_output_job_id": int(job_id) if job_id else None,
             "active_output_job_chapter_id": int(job_chapter_id) if job_chapter_id else None,
             "active_output_job_chapter_status": row["active_job_chapter_status"],
@@ -103,6 +109,7 @@ def annotate_chapter_rows(
         row.update(bindings.get(int(row["id"]), {
             "chapter_id": int(row["id"]),
             "active_output_artifact_id": None,
+            "active_output_text_revision_id": None,
             "active_output_job_id": None,
             "active_output_job_chapter_id": None,
             "active_output_job_chapter_status": None,

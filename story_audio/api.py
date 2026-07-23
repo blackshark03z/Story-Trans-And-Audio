@@ -696,6 +696,7 @@ def production_range_readiness(
             from_chapter=from_chapter,
             to_chapter=to_chapter,
             voice_catalog=voice_catalog,
+            store=store,
         )
     except VoiceCatalogUnavailable as exc:
         raise _job_http_error(exc) from exc
@@ -720,6 +721,7 @@ def production_batch_plan(
             from_chapter=from_chapter,
             to_chapter=to_chapter,
             voice_catalog=voice_catalog,
+            store=store,
         )
         return build_batch_plan(readiness, target_phase=target_phase)
     except VoiceCatalogUnavailable as exc:
@@ -1588,6 +1590,7 @@ def start_job(job_id: int) -> dict[str, Any]:
             settings,
             job_id=job_id,
             voice_catalog=_load_voice_catalog(),
+            store=store,
         )
     except Exception as exc:
         raise _job_http_error(exc) from exc

@@ -11,6 +11,7 @@ from .db import Database, utcnow
 from .files import sha256_file
 from .storage import ContentStore
 from .text import lexical_sha256, qa_text, reflow_paragraphs
+from .text_encoding import validate_canonical_text
 
 
 CONTAINER_NS = {"c": "urn:oasis:names:tc:opendocument:xmlns:container"}
@@ -116,8 +117,10 @@ def import_epub(path: Path, db: Database, store: ContentStore) -> dict:
         book_id = int(cursor.lastrowid)
         for chapter in chapters:
             raw_text = "\n".join(chapter.paragraphs)
+            validate_canonical_text(raw_text, field=f"Chapter {chapter.number} raw text")
             raw_path, raw_sha = store.put_text(raw_text)
             reflowed, import_issues = reflow_paragraphs(chapter.paragraphs, chapter.title)
+            validate_canonical_text(reflowed, field=f"Chapter {chapter.number} reflowed text")
             reflow_path, reflow_sha = store.put_text(reflowed)
             chapter_cursor = connection.execute(
                 "INSERT INTO chapters(book_id,chapter_number,title,source_href,char_count,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",

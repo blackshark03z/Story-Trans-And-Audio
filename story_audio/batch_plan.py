@@ -176,6 +176,8 @@ def _plan_identity_item(item: dict[str, Any]) -> dict[str, Any]:
         "active_output_job_id": item.get("active_output_job_id"),
         "active_output_job_chapter_id": item.get("active_output_job_chapter_id"),
         "human_qa_status": item.get("human_qa_status"),
+        "active_output_text_revision_id": item.get("active_output_text_revision_id"),
+        "replacement_for_artifact_id": item.get("replacement_for_artifact_id"),
         "active_text_revision_id": item.get("active_text_revision_id"),
         "latest_speaker_draft_id": item.get("latest_speaker_draft_id"),
         "latest_speaker_draft_status": item.get("latest_speaker_draft_status"),
@@ -186,6 +188,7 @@ def _plan_identity_item(item: dict[str, Any]) -> dict[str, Any]:
         "live_job_status": item.get("live_job_status"),
         "blockers": item.get("blockers") or [],
         "voice_issues": item.get("voice_issues") or [],
+        "text_validation_error": item.get("text_validation_error"),
     }
 
 
@@ -272,6 +275,9 @@ def build_batch_plan(readiness: dict[str, Any], *, target_phase: str) -> dict[st
             "live_job_id": item.get("live_job_id"),
             "live_job_status": item.get("live_job_status"),
             "human_qa_status": item.get("human_qa_status"),
+            "active_output_text_revision_id": item.get("active_output_text_revision_id"),
+            "replacement_for_artifact_id": item.get("replacement_for_artifact_id"),
+            "text_validation_error": item.get("text_validation_error"),
             "voice_issues": item.get("voice_issues") or [],
         }
         if eligibility == ELIGIBLE:

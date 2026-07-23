@@ -21,6 +21,7 @@ from story_audio.text_correction import (
     apply_targeted_text_correction,
 )
 from tests.base import IsolatedTestCase
+from tests.test_text_encoding import legacy_decode_utf8
 
 
 BASE_TEXT = 'Mở đầu. "Xin chào.... ." Kết thúc.'
@@ -172,6 +173,54 @@ def seed_correction_fixture(
 class TargetedTextCorrectionServiceTests(IsolatedTestCase):
     def _config_for(self, name: str):
         return make_config(self.temp_root / name)
+
+    def test_mojibake_base_can_be_replaced_only_with_valid_canonical_text(self) -> None:
+        correct = 'Trời vừa sáng. "Chào anh, tôi đã đợi từ sớm."'
+        malformed = legacy_decode_utf8(correct)
+        seeded = seed_correction_fixture(
+            self._config_for("encoding-remediation"),
+            base_text=malformed,
+        )
+        before = seeded["db"].fetch_one(
+            "SELECT COUNT(*) AS n FROM text_revisions"
+        )["n"]
+        result = apply_targeted_text_correction(
+            seeded["db"],
+            seeded["store"],
+            chapter_id=seeded["chapter_id"],
+            base_revision_id=seeded["base_revision_id"],
+            expected_text=malformed,
+            replacement_text=correct,
+            reason="Exact deterministic encoding remediation",
+        )
+        self.assertEqual(result["char_count"], len(correct))
+        self.assertEqual(
+            seeded["store"].read_text(result["content_path"]),
+            correct,
+        )
+        self.assertEqual(
+            seeded["db"].fetch_one("SELECT COUNT(*) AS n FROM text_revisions")["n"],
+            before + 1,
+        )
+
+        second = seed_correction_fixture(
+            self._config_for("encoding-rejected"),
+            base_text="Valid base text.",
+        )
+        with self.assertRaises(TextCorrectionError):
+            apply_targeted_text_correction(
+                second["db"],
+                second["store"],
+                chapter_id=second["chapter_id"],
+                base_revision_id=second["base_revision_id"],
+                expected_text="Valid",
+                replacement_text=legacy_decode_utf8("Trời"),
+                reason="Invalid replacement must fail",
+            )
+        self.assertEqual(
+            second["db"].fetch_one("SELECT COUNT(*) AS n FROM text_revisions")["n"],
+            2,
+        )
 
     def test_exact_one_match_creates_new_active_revision_and_preserves_old_revision(self) -> None:
         seeded = seed_correction_fixture(self._config_for("success"))

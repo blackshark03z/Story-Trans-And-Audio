@@ -9,6 +9,12 @@ from .active_output import get_active_output_bindings, get_latest_casting_plan_b
 from .db import Database
 from .files import sha256_text
 from .pipeline import JOB_ACTIVE_STATUSES, JOB_PREPARED_STATUS
+from .storage import ContentStore
+from .text_encoding import (
+    CanonicalTextValidationError,
+    load_validated_text_revision,
+    load_validated_text_revision_from_root,
+)
 from .voice_eligibility import EffectiveVoiceCatalog, inspect_casting_plan
 
 
@@ -79,12 +85,17 @@ def _latest_drafts(db: Database, chapter_ids: list[int]) -> dict[int, dict[str, 
     return {int(row["chapter_id"]): dict(row) for row in rows}
 
 
-def _approved_text_ids(db: Database, chapter_ids: list[int]) -> set[int]:
+def _approved_text_state(
+    db: Database,
+    chapter_ids: list[int],
+    *,
+    store: ContentStore | None,
+) -> tuple[set[int], dict[int, str]]:
     if not chapter_ids:
-        return set()
+        return set(), {}
     rows = db.fetch_all(
         f"""
-        SELECT c.id
+        SELECT c.id AS chapter_id,tr.*
         FROM chapters c
         JOIN text_revisions tr ON tr.id = c.active_text_revision_id
         WHERE c.id IN ({_placeholders(len(chapter_ids))})
@@ -92,7 +103,33 @@ def _approved_text_ids(db: Database, chapter_ids: list[int]) -> set[int]:
         """,
         tuple(chapter_ids),
     )
-    return {int(row["id"]) for row in rows}
+    valid: set[int] = set()
+    errors: dict[int, str] = {}
+    for row in rows:
+        chapter_id = int(row["chapter_id"])
+        try:
+            matching_store = bool(
+                store is not None
+                and store.config.db_path.resolve(strict=False)
+                == db.path.resolve(strict=False)
+            )
+            if matching_store:
+                load_validated_text_revision(
+                    store,
+                    row,
+                    field=f"Text Revision #{int(row['id'])}",
+                )
+            else:
+                load_validated_text_revision_from_root(
+                    db.path.parent / "blobs",
+                    row,
+                    field=f"Text Revision #{int(row['id'])}",
+                )
+        except CanonicalTextValidationError as exc:
+            errors[chapter_id] = str(exc)
+        else:
+            valid.add(chapter_id)
+    return valid, errors
 
 
 def _live_jobs(db: Database, chapter_ids: list[int]) -> dict[int, list[dict[str, Any]]]:
@@ -228,6 +265,7 @@ def _state_item(
     latest_draft: dict[str, Any] | None,
     live_jobs: list[dict[str, Any]],
     voice_catalog: EffectiveVoiceCatalog | None,
+    text_validation_error: str | None,
 ) -> dict[str, Any]:
     chapter_id = int(chapter["id"])
     active_artifact_id = active_binding.get("active_output_artifact_id")
@@ -235,12 +273,33 @@ def _state_item(
     blockers: list[str] = []
     voice_issues: list[dict[str, Any]] = []
     state = "STATE_UNRESOLVED"
+    active_text_revision_id = (
+        int(chapter["active_text_revision_id"])
+        if chapter["active_text_revision_id"]
+        else None
+    )
+    rendered_text_revision_id = active_binding.get("active_output_text_revision_id")
+    replacement_revision_ready = bool(
+        active_artifact_id
+        and human_qa_status == "needs_fixes"
+        and active_text_revision_id
+        and rendered_text_revision_id
+        and active_text_revision_id != rendered_text_revision_id
+    )
 
     if active_binding.get("active_audio_artifact_id") and not active_binding.get("active_output_artifact_id"):
         blockers.append("Active audio artifact binding is invalid.")
-    elif active_artifact_id:
-        state = "COMPLETE" if human_qa_status == "accepted" else "RENDERED_NOT_QA"
-        if state == "RENDERED_NOT_QA":
+    elif active_artifact_id and not replacement_revision_ready:
+        if human_qa_status == "accepted":
+            state = "COMPLETE"
+        elif human_qa_status == "needs_fixes" and chapter_id not in approved_text_ids:
+            state = "TEXT_BLOCKED"
+            blockers.append(
+                text_validation_error
+                or "Rejected output still points to an invalid active Text Revision."
+            )
+        else:
+            state = "RENDERED_NOT_QA"
             blockers.append("Active audio exists but Human QA is not accepted.")
     elif len(live_jobs) > 1:
         blockers.append("Multiple live jobs exist for this chapter.")
@@ -251,11 +310,14 @@ def _state_item(
             blockers.append("Prepared job is waiting for explicit start.")
         else:
             blockers.append("Existing job needs monitoring or resume.")
-    elif str(chapter.get("audio_status") or "").lower() in TERMINAL_JOB_STATUSES:
+    elif (
+        not active_artifact_id
+        and str(chapter.get("audio_status") or "").lower() in TERMINAL_JOB_STATUSES
+    ):
         blockers.append("Chapter has terminal audio status but no active output.")
     elif chapter_id not in approved_text_ids:
         state = "TEXT_BLOCKED"
-        blockers.append("Active approved Text Revision is missing.")
+        blockers.append(text_validation_error or "Active approved Text Revision is missing.")
     elif latest_draft and str(latest_draft.get("status") or "").lower() not in {"approved"}:
         state = "SPEAKER_EXCEPTIONS"
         blockers.append("Latest Speaker Draft is not approved.")
@@ -265,6 +327,9 @@ def _state_item(
     elif not latest_plan:
         state = "CASTING_REVIEW"
         blockers.append("Final Voice Map is missing.")
+    elif int(latest_plan.get("text_revision_id") or 0) != int(active_text_revision_id or 0):
+        state = "CASTING_REVIEW"
+        blockers.append("Final Voice Map is stale for the active Text Revision.")
     else:
         voice_blocker, voice_issues = _voice_blocker(
             latest_plan,
@@ -298,7 +363,7 @@ def _state_item(
         "active_output_job_id": active_binding.get("active_output_job_id"),
         "active_output_job_chapter_id": active_binding.get("active_output_job_chapter_id"),
         "human_qa_status": human_qa_status,
-        "active_text_revision_id": int(chapter["active_text_revision_id"]) if chapter["active_text_revision_id"] else None,
+        "active_text_revision_id": active_text_revision_id,
         "latest_speaker_draft_id": int(latest_draft["id"]) if latest_draft else None,
         "latest_speaker_draft_status": latest_draft.get("status") if latest_draft else None,
         "latest_casting_plan_id": int(latest_plan["id"]) if latest_plan else None,
@@ -308,6 +373,11 @@ def _state_item(
         "live_job_status": live_jobs[0].get("job_status") if len(live_jobs) == 1 else None,
         "blockers": blockers,
         "voice_issues": voice_issues,
+        "text_validation_error": text_validation_error,
+        "active_output_text_revision_id": rendered_text_revision_id,
+        "replacement_for_artifact_id": (
+            int(active_artifact_id) if replacement_revision_ready else None
+        ),
     }
     if exception_kind and state not in {"READY_TO_PREPARE", "COMPLETE"}:
         item["exception_kind"] = exception_kind
@@ -321,6 +391,7 @@ def get_range_readiness(
     from_chapter: int,
     to_chapter: int,
     voice_catalog: EffectiveVoiceCatalog | None = None,
+    store: ContentStore | None = None,
 ) -> dict[str, Any]:
     if from_chapter > to_chapter:
         raise ValueError("from_chapter must be less than or equal to to_chapter.")
@@ -353,7 +424,11 @@ def get_range_readiness(
     latest_plan_bindings = get_latest_casting_plan_bindings(db, chapter_ids)
     latest_plan_payloads = _latest_casting_payloads(db, chapter_ids)
     latest_drafts = _latest_drafts(db, chapter_ids)
-    approved_text_ids = _approved_text_ids(db, chapter_ids)
+    approved_text_ids, text_validation_errors = _approved_text_state(
+        db,
+        chapter_ids,
+        store=store,
+    )
     live_jobs = _live_jobs(db, chapter_ids)
 
     items: list[dict[str, Any]] = []
@@ -371,6 +446,7 @@ def get_range_readiness(
                 latest_draft=latest_drafts.get(chapter_id),
                 live_jobs=live_jobs.get(chapter_id, []),
                 voice_catalog=voice_catalog,
+                text_validation_error=text_validation_errors.get(chapter_id),
             )
         )
 

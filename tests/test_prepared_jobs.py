@@ -17,6 +17,8 @@ from story_audio.pipeline import (
     start_prepared_job,
 )
 from story_audio.storage import ContentStore
+from story_audio.text_encoding import CanonicalTextValidationError
+from tests.test_text_encoding import legacy_decode_utf8
 from story_audio.voice_eligibility import EffectiveVoiceCatalog
 from story_audio.voice_profile import set_book_voice_profile
 from tests.base import IsolatedTestCase
@@ -119,6 +121,67 @@ class PreparedJobLifecycleTests(IsolatedTestCase):
         )
         self.assertIsNone(worker._next_job())
 
+    def test_prepare_and_start_fail_closed_for_invalid_text_without_partial_execution(self) -> None:
+        malformed = legacy_decode_utf8("Trời vừa sáng.")
+        path, digest = self.store.put_text(malformed)
+        with self.db.transaction() as conn:
+            invalid_revision_id = int(
+                conn.execute(
+                    """INSERT INTO text_revisions(
+                        chapter_id,parent_revision_id,kind,content_path,content_sha256,
+                        lexical_sha256,char_count,processor_version,status,created_at
+                    ) VALUES(?,?,?,?,?,?,?,?,?,datetime('now'))""",
+                    (
+                        self.chapter_id,
+                        self.text_revision_id,
+                        "repaired",
+                        path,
+                        digest,
+                        sha256_text(malformed),
+                        len(malformed),
+                        "invalid-test",
+                        "approved",
+                    ),
+                ).lastrowid
+            )
+            conn.execute(
+                "UPDATE chapters SET active_text_revision_id=? WHERE id=?",
+                (invalid_revision_id, self.chapter_id),
+            )
+        before_jobs = self.db.fetch_one("SELECT COUNT(*) AS n FROM jobs")["n"]
+        with self.assertRaises(CanonicalTextValidationError):
+            prepare_job(self.db, self.config, store=self.store, **self._payload())
+        self.assertEqual(
+            self.db.fetch_one("SELECT COUNT(*) AS n FROM jobs")["n"],
+            before_jobs,
+        )
+
+        with self.db.transaction() as conn:
+            conn.execute(
+                "UPDATE chapters SET active_text_revision_id=? WHERE id=?",
+                (self.text_revision_id, self.chapter_id),
+            )
+        prepared = prepare_job(self.db, self.config, store=self.store, **self._payload())
+        with self.db.transaction() as conn:
+            conn.execute(
+                "UPDATE job_chapters SET text_revision_id=? WHERE job_id=?",
+                (invalid_revision_id, prepared["job_id"]),
+            )
+        with self.assertRaises(CanonicalTextValidationError):
+            start_prepared_job(
+                self.db,
+                self.config,
+                job_id=int(prepared["job_id"]),
+                voice_catalog=self.voice_catalog,
+                store=self.store,
+            )
+        self.assertEqual(
+            self.db.fetch_one(
+                "SELECT status FROM jobs WHERE id=?",
+                (prepared["job_id"],),
+            )["status"],
+            JOB_PREPARED_STATUS,
+        )
     def test_start_transitions_same_job_exactly_once(self) -> None:
         prepared = prepare_job(self.db, self.config, store=self.store, **self._payload())
         started = start_prepared_job(
@@ -126,6 +189,7 @@ class PreparedJobLifecycleTests(IsolatedTestCase):
             self.config,
             job_id=int(prepared["job_id"]),
             voice_catalog=self.voice_catalog,
+            store=self.store,
         )
         self.assertEqual(started["job_id"], prepared["job_id"])
         self.assertEqual(started["status"], "scheduled")
@@ -139,6 +203,7 @@ class PreparedJobLifecycleTests(IsolatedTestCase):
                 self.config,
                 job_id=int(prepared["job_id"]),
                 voice_catalog=self.voice_catalog,
+                store=self.store,
             )
 
     def test_duplicate_prepare_fails_without_creating_second_job(self) -> None:

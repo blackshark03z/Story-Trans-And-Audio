@@ -8,6 +8,7 @@ from typing import Any, Iterable
 from .db import Database, utcnow
 from .files import sha256_text
 from .storage import ContentStore
+from .text_encoding import CanonicalTextValidationError, load_validated_text_revision
 from .voice_profile import get_book_voice_profile, preset_ref, profile_validation, resolve_voice
 from .voice_ref import CustomVoiceContext, is_custom_ref
 
@@ -19,6 +20,20 @@ CLOSE_QUOTES = {'"', "”"}
 
 class CastingError(ValueError):
     pass
+
+
+def _load_casting_text_revision(
+    store: ContentStore,
+    revision: Any,
+) -> str:
+    try:
+        return load_validated_text_revision(
+            store,
+            revision,
+            field=f"Text Revision #{int(revision['id'])}",
+        )
+    except CanonicalTextValidationError as exc:
+        raise CastingError(str(exc)) from exc
 
 def _trim(text: str, start: int, end: int) -> tuple[int, int] | None:
     while start < end and text[start].isspace():
@@ -595,7 +610,7 @@ def create_casting_draft(
         narrator_result = None
     if not _is_allowed_voice(narrator_voice_id, allowed_voice_ids, custom_voice_context):
         raise CastingError("Narrator voice is not available")
-    text = store.read_text(revision["content_path"])
+    text = _load_casting_text_revision(store, revision)
 
     # Validate and categorize assignments
     assignments_list = list(assignments)
@@ -838,6 +853,8 @@ def approve_plan(db: Database, store: ContentStore, plan_id: int) -> dict[str, A
     if row["status"] != "draft":
         raise CastingError("Only a draft casting plan can be approved")
     get_plan(db, store, plan_id)
+    revision = _revision(db, int(row["chapter_id"]), int(row["text_revision_id"]))
+    _load_casting_text_revision(store, revision)
     now = utcnow()
     with db.transaction() as connection:
         connection.execute(
@@ -866,6 +883,8 @@ def validate_approved_plan(
         raise CastingError("Casting plan must be approved")
     result = get_plan(db, store, plan_id)
     plan = result["plan"]
+    revision = _revision(db, int(row["chapter_id"]), int(row["text_revision_id"]))
+    _load_casting_text_revision(store, revision)
     voices = {plan["narrator_voice_id"]}
     for utterance in plan["utterances"]:
         voices.add(utterance["resolved_voice_id"])

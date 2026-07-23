@@ -100,6 +100,37 @@ class BatchPrepareTransactionRevalidator:
     def __init__(self, attempt_store: BatchPrepareExecutionAttemptStore):
         self.attempt_store = attempt_store
 
+    @staticmethod
+    def _chapter_allows_prepare(
+        connection: sqlite3.Connection,
+        chapter: sqlite3.Row,
+    ) -> bool:
+        active_artifact_id = int(chapter["active_audio_artifact_id"] or 0)
+        if not active_artifact_id:
+            return str(chapter["audio_status"] or "") == "not_created"
+        try:
+            approval = json.loads(chapter["human_approval_json"] or "{}")
+        except (TypeError, json.JSONDecodeError):
+            return False
+        if (
+            not isinstance(approval, dict)
+            or str(approval.get("status") or "").lower() != "needs_fixes"
+            or int(approval.get("artifact_id") or 0) != active_artifact_id
+        ):
+            return False
+        artifact = connection.execute(
+            """SELECT id,text_revision_id,status,deleted_at
+               FROM artifacts WHERE id=? AND chapter_id=?""",
+            (active_artifact_id, int(chapter["id"])),
+        ).fetchone()
+        return bool(
+            artifact
+            and artifact["deleted_at"] is None
+            and str(artifact["status"] or "") == "active"
+            and int(artifact["text_revision_id"] or 0)
+            != int(chapter["active_text_revision_id"] or 0)
+        )
+
     def validate(
         self,
         connection: sqlite3.Connection,
@@ -168,8 +199,7 @@ class BatchPrepareTransactionRevalidator:
             ).fetchone()
             conflict = self.find_conflict(connection, (int(chapter["id"]),))
             if (
-                chapter["active_audio_artifact_id"] is None
-                and chapter["audio_status"] == "not_created"
+                self._chapter_allows_prepare(connection, chapter)
                 and chapter["active_text_revision_id"] is not None
                 and latest_plan is not None
                 and latest_plan["status"] == "approved"
@@ -190,7 +220,7 @@ class BatchPrepareTransactionRevalidator:
             if int(row["active_text_revision_id"] or 0) != int(item.text_revision_id):
                 _reject("STALE_TEXT_REVISION", "active Text Revision changed")
             text = connection.execute(
-                "SELECT 1 FROM text_revisions WHERE id=? AND chapter_id=?",
+                "SELECT 1 FROM text_revisions WHERE id=? AND chapter_id=? AND status='approved'",
                 (int(item.text_revision_id), int(item.chapter_id)),
             ).fetchone()
             if text is None:

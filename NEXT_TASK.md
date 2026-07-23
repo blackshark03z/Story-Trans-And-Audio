@@ -1,38 +1,34 @@
 # Next Task
 
 Task classification:
-`SYSTEM_ROADMAP / CLONE_ONLY_AUTHENTICATED_PREPARE_API_AUTHORIZED / CLONE_ONLY_PREPARE_MUTATION_TESTING_AUTHORIZED / CANONICAL_ACTIVATION_NOT_AUTHORIZED / PRODUCTION_PREPARE_NOT_AUTHORIZED / UI_PREPARE_NOT_AUTHORIZED / START_RENDER_NOT_AUTHORIZED`
+`PRODUCTION_OPERATION / EXPLICIT_START_RENDER_AUTHORIZATION_REQUIRED`
 
 Active milestone:
 `DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout`
 
 Exact next task:
-`DAILY-PROD-5B Phase 14 - Clone-Only Authenticated PREPARE API And Kill-Switch Acceptance`
+`Request explicit authorization to START_RENDER only prepared replacement Job 25 for Book 8 Chapter 1.`
 
-## Phase 13 Closeout
+## Verified Input
 
-Implementation commit `a60b94c` added clone-only disabled runtime integration,
-an immutable read-only schema-15 DB facade, GET-only readiness, and a redacted
-single-operator Bearer/SHA-256 authentication boundary. Startup and restart
-preserved exact clone bytes and read-only planning; the full offline suite passed
-`1608` tests with `1` skip and Doctor reported `critical_errors=0`. Canonical
-schema remained 12 and Chapter 369 remained unchanged.
+- Active approved Text Revision: `3985`, parent `3971`, `378` characters,
+  SHA-256
+  `ff9053993e437319dfd7b8b9159dbee4a2ac86be824fe9418765cc3664306f22`.
+- Approved Casting Plan: `26`, revision `3`, eight utterances using `Đức Trí`.
+- Prepared Job/JobChapter: `25 / 25`, pinned to Revision `3985` and Plan `26`.
+- PREPARE request: `3`, durable `APPLIED`; restart status `APPLIED_REPLAYED`.
+- Job `25` has zero Segments, attempts, Artifacts, output files, and audio.
 
-## Authorized Scope
+## Required Authorization
 
-- Use only an external schema-15 clone and a separate authenticated test process.
-- Add a batch PREPARE mutation API behind all flags, kill switch, operator window,
-  schema readiness, synthetic authentication, literal confirmation, idempotency
-  key, and plan fingerprint.
-- Reuse the isolated adapter against the clone only.
-- Test request/status/recovery, response loss, restart, concurrency, and redaction.
-- Keep the route disabled by default and create no worker wake or render start.
+- Confirm the operator intends to start only Job `25`.
+- Revalidate Job `25` remains `prepared`, its immutable pins still resolve, and
+  no conflicting live job exists.
+- Use the supported explicit START_RENDER route once, then monitor the same Job.
 
 ## Excluded
 
-- Canonical migration or production runtime activation.
-- Real production credentials, PREPARE, Job/JobChapter creation, or Chapter 369 mutation.
-- UI PREPARE controls, worker wake, START_RENDER, provider, Gemini, or TTS.
-- Push and `DAILY-PROD-6` advancement.
-
-Do not begin Phase 14 in the same task as this documentation closeout.
+- Do not start Job `25` without fresh explicit authorization.
+- Do not retry Jobs `23` or `24`, replace Artifact `87`, create another
+  replacement Job, or mutate Chapter `369`.
+- Do not alter Revision `3971`, Revision `3985`, Plan `26`, or pinned voices.
