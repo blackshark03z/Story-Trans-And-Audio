@@ -27,7 +27,7 @@ def _resolved_key(path: Path) -> str:
     return os.path.normcase(os.path.normpath(str(path.expanduser().resolve(strict=False))))
 
 
-def assert_isolated_database_path(path: Path) -> Path:
+def assert_isolated_database_path(path: Path, *, allow_canonical: bool = False) -> Path:
     requested = path.expanduser().resolve(strict=False)
     canonical = canonical_production_db_path().resolve(strict=False)
     same = _resolved_key(requested) == _resolved_key(canonical)
@@ -36,7 +36,7 @@ def assert_isolated_database_path(path: Path) -> Path:
             same = os.path.samefile(requested, canonical)
         except OSError:
             same = False
-    if same:
+    if same and not allow_canonical:
         raise CanonicalDatabaseRejected("Phase 9 isolated transaction infrastructure rejects the canonical database")
     return requested
 
@@ -85,8 +85,17 @@ class IsolatedWriteTransaction:
 class BatchPrepareTransactionManager:
     """One-shot BEGIN IMMEDIATE manager for disposable Phase 9 databases."""
 
-    def __init__(self, db_path: Path, *, busy_timeout_ms: int = 5000):
-        self.db_path = assert_isolated_database_path(Path(db_path))
+    def __init__(
+        self,
+        db_path: Path,
+        *,
+        busy_timeout_ms: int = 5000,
+        allow_canonical: bool = False,
+    ):
+        self.db_path = assert_isolated_database_path(
+            Path(db_path),
+            allow_canonical=allow_canonical,
+        )
         if not 1 <= int(busy_timeout_ms) <= 30000:
             raise ValueError("busy_timeout_ms must be between 1 and 30000")
         self.busy_timeout_ms = int(busy_timeout_ms)

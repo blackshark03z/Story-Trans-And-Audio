@@ -64,10 +64,25 @@ class IsolatedAdapterEvidenceError(IsolatedAdapterError):
     pass
 
 
-def assert_phase10_temporary_database(db_path: Path, temporary_root: Path) -> tuple[Path, Path]:
-    database = assert_isolated_database_path(Path(db_path))
+def assert_phase10_temporary_database(
+    db_path: Path,
+    temporary_root: Path,
+    *,
+    allow_canonical: bool = False,
+) -> tuple[Path, Path]:
+    database = assert_isolated_database_path(
+        Path(db_path),
+        allow_canonical=allow_canonical,
+    )
     root = Path(temporary_root).expanduser().resolve(strict=False)
+    canonical_db = canonical_production_db_path().resolve(strict=False)
     canonical_data = canonical_production_db_path().parent.resolve(strict=False)
+    if allow_canonical:
+        if database != canonical_db or root != canonical_data:
+            raise IsolatedAdapterError(
+                "Canonical PREPARE authority requires the exact canonical DB and data root"
+            )
+        return database, root
     if database != root and root not in database.parents:
         raise IsolatedAdapterError("Phase 10 database must be inside its explicit temporary root")
     if root == canonical_data or canonical_data in root.parents:
@@ -156,11 +171,23 @@ def _parse_time(value: str) -> datetime:
 class DatabaseAuthoritativeSnapshotProvider:
     """Build immutable pins from an isolated database before the write transaction."""
 
-    def __init__(self, db: Database, store: ContentStore, settings: Settings, *, temporary_root: Path):
+    def __init__(
+        self,
+        db: Database,
+        store: ContentStore,
+        settings: Settings,
+        *,
+        temporary_root: Path,
+        allow_canonical: bool = False,
+    ):
         self.db = db
         self.store = store
         self.settings_snapshot = render_settings_snapshot(settings)
-        _, root = assert_phase10_temporary_database(Path(db.path), temporary_root)
+        _, root = assert_phase10_temporary_database(
+            Path(db.path),
+            temporary_root,
+            allow_canonical=allow_canonical,
+        )
         if settings.blobs_dir.resolve(strict=False) != store.config.blobs_dir.resolve(strict=False):
             raise IsolatedAdapterError("Phase 10 content store and settings do not share one blob root")
         blobs = settings.blobs_dir.resolve(strict=False)
@@ -243,9 +270,19 @@ class DatabaseAuthoritativeSnapshotProvider:
 class BatchPrepareCommittedEvidenceReader:
     """Reload committed evidence without requiring the process-local raw owner token."""
 
-    def __init__(self, db: Database, *, temporary_root: Path):
+    def __init__(
+        self,
+        db: Database,
+        *,
+        temporary_root: Path,
+        allow_canonical: bool = False,
+    ):
         self.db = db
-        assert_phase10_temporary_database(Path(db.path), temporary_root)
+        assert_phase10_temporary_database(
+            Path(db.path),
+            temporary_root,
+            allow_canonical=allow_canonical,
+        )
 
     def read(self, *, request_id: int, request_identity: str) -> DurablePrepareEvidence:
         with self.db.connect() as connection:
@@ -364,8 +401,13 @@ class BatchPrepareIsolatedAdapter:
         clock: Callable[[], str] = utcnow,
         temporary_root: Path,
         recovery_busy_timeout_ms: int = 250,
+        allow_canonical: bool = False,
     ) -> None:
-        database_path, self.temporary_root = assert_phase10_temporary_database(Path(db.path), temporary_root)
+        database_path, self.temporary_root = assert_phase10_temporary_database(
+            Path(db.path),
+            temporary_root,
+            allow_canonical=allow_canonical,
+        )
         self.db = db
         self.attempt_store = attempt_store
         self.transaction_service = transaction_service
@@ -378,6 +420,7 @@ class BatchPrepareIsolatedAdapter:
         self.recovery_manager = BatchPrepareTransactionManager(
             database_path,
             busy_timeout_ms=int(recovery_busy_timeout_ms),
+            allow_canonical=allow_canonical,
         )
         for dependency in (attempt_store, transaction_service, snapshot_provider, evidence_reader):
             dependency_db = getattr(dependency, "db", None)

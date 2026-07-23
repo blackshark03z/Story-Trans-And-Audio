@@ -85,14 +85,33 @@ def authorization_flags() -> dict[str, bool]:
 class BatchPrepareIsolatedTransactionService:
     """Dormant same-transaction PREPARE proof for disposable databases only."""
 
-    def __init__(self, db: Database, *, busy_timeout_ms: int = 5000):
-        self.db_path = assert_isolated_database_path(Path(db.path))
+    def __init__(
+        self,
+        db: Database,
+        *,
+        busy_timeout_ms: int = 5000,
+        allow_canonical: bool = False,
+    ):
+        self.db_path = assert_isolated_database_path(
+            Path(db.path),
+            allow_canonical=allow_canonical,
+        )
         self.db = db
-        self.manager = BatchPrepareTransactionManager(self.db_path, busy_timeout_ms=busy_timeout_ms)
-        self.attempts = BatchPrepareExecutionAttemptStore(db)
+        self.manager = BatchPrepareTransactionManager(
+            self.db_path,
+            busy_timeout_ms=busy_timeout_ms,
+            allow_canonical=allow_canonical,
+        )
+        self.attempts = BatchPrepareExecutionAttemptStore(
+            db,
+            allow_canonical=allow_canonical,
+        )
         self.revalidator = BatchPrepareTransactionRevalidator(self.attempts)
         self.jobs = PreparedJobTransactionRepository()
-        self.links = BatchPrepareJobLinkStore(db)
+        self.links = BatchPrepareJobLinkStore(
+            db,
+            allow_canonical=allow_canonical,
+        )
 
     def prepare(
         self,

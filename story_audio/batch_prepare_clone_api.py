@@ -169,6 +169,9 @@ class BatchPrepareApiService:
         self.authenticate(authorization_header, credential_in_url=credential_in_url)
         payload = dict(request)
         if self.descriptor.production_mutation_enabled:
+            existing = self.request_store.get_request_by_client_request_id(
+                str(payload.get("client_request_id") or "")
+            )
             chapter_count = int(payload["to_chapter"]) - int(payload["from_chapter"]) + 1
             if chapter_count < 1 or chapter_count > 3:
                 raise ClonePrepareApiError(
@@ -176,19 +179,20 @@ class BatchPrepareApiService:
                     "Production PREPARE is limited to one through three chapters.",
                     http_status=400,
                 )
-            current_plan = self.orchestrator.current_plan_provider(
-                book_id=int(payload["book_id"]),
-                from_chapter=int(payload["from_chapter"]),
-                to_chapter=int(payload["to_chapter"]),
-                target_phase=str(payload["target_phase"]),
-            )
-            included = current_plan.get("included")
-            if not isinstance(included, list) or len(included) != chapter_count:
-                raise ClonePrepareApiError(
-                    "CANARY_SCOPE_NOT_FULLY_ELIGIBLE",
-                    "Every chapter in the production PREPARE canary must be eligible.",
-                    http_status=409,
+            if existing is None or existing.state != "APPLIED":
+                current_plan = self.orchestrator.current_plan_provider(
+                    book_id=int(payload["book_id"]),
+                    from_chapter=int(payload["from_chapter"]),
+                    to_chapter=int(payload["to_chapter"]),
+                    target_phase=str(payload["target_phase"]),
                 )
+                included = current_plan.get("included")
+                if not isinstance(included, list) or len(included) != chapter_count:
+                    raise ClonePrepareApiError(
+                        "CANARY_SCOPE_NOT_FULLY_ELIGIBLE",
+                        "Every chapter in the production PREPARE canary must be eligible.",
+                        http_status=409,
+                    )
         payload["explicit_confirmation"] = payload.pop("confirmation", None)
         result = _public_api_payload(self.orchestrator.prepare(payload))
         return ClonePrepareApiResult(_http_status(result), result)
@@ -262,17 +266,26 @@ def build_prepare_api_service(
         )
         return build_batch_plan(readiness, target_phase=target_phase)
 
-    attempt_store = BatchPrepareExecutionAttemptStore(writable_db)
-    transaction_service = BatchPrepareIsolatedTransactionService(writable_db)
+    allow_canonical = descriptor.production_mutation_enabled
+    attempt_store = BatchPrepareExecutionAttemptStore(
+        writable_db,
+        allow_canonical=allow_canonical,
+    )
+    transaction_service = BatchPrepareIsolatedTransactionService(
+        writable_db,
+        allow_canonical=allow_canonical,
+    )
     snapshot_provider = DatabaseAuthoritativeSnapshotProvider(
         writable_db,
         store,
         settings,
         temporary_root=settings.data_dir,
+        allow_canonical=allow_canonical,
     )
     evidence_reader = BatchPrepareCommittedEvidenceReader(
         writable_db,
         temporary_root=settings.data_dir,
+        allow_canonical=allow_canonical,
     )
     adapter = BatchPrepareIsolatedAdapter(
         db=writable_db,
@@ -281,6 +294,7 @@ def build_prepare_api_service(
         snapshot_provider=snapshot_provider,
         evidence_reader=evidence_reader,
         temporary_root=settings.data_dir,
+        allow_canonical=allow_canonical,
     )
     orchestrator = BatchPrepareOrchestrator(
         current_plan_provider=current_plan_provider,

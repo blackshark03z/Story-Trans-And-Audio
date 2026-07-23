@@ -145,6 +145,14 @@ console.log(JSON.stringify({
         self.assertNotIn("method:'PATCH'", restore_section)
         self.assertNotIn("method:'DELETE'", restore_section)
 
+    def test_chapter_restore_waits_for_casting_before_resolving_shell(self) -> None:
+        open_chapter = self.js[
+            self.js.index("async function openChapter"):
+            self.js.index("function showRevision")
+        ]
+        self.assertIn("await openCasting()", open_chapter)
+        self.assertIn("if(state.casting)renderProductionShell()", open_chapter)
+
     def test_chapter_369_shape_resolves_to_casting_review_without_hardcoding(self) -> None:
         script = """
 const resolver = require('./ui/production_state.js');

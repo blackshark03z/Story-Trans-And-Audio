@@ -121,8 +121,11 @@ def _require_tables(connection: sqlite3.Connection) -> None:
 
 
 class BatchPrepareExecutionAttemptStore:
-    def __init__(self, db: Database):
-        assert_isolated_database_path(Path(db.path))
+    def __init__(self, db: Database, *, allow_canonical: bool = False):
+        assert_isolated_database_path(
+            Path(db.path),
+            allow_canonical=allow_canonical,
+        )
         self.db = db
 
     def acquire(

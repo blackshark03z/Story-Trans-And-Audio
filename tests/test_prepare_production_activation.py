@@ -71,16 +71,25 @@ class ProductionRuntimeGateTests(Phase10FixtureMixin):
         descriptor = self.descriptor(config)
         self.assertEqual(descriptor.status, "PRODUCTION_AUTHENTICATED_READY")
         self.assertTrue(descriptor.production_mutation_enabled)
-        service = build_prepare_api_service(
-            settings=self.config,
-            config=config,
-            descriptor=descriptor,
-        )
-        self.assertIsNotNone(service)
-        plan = self.plan()
-        scope = plan["scope"]
-        result = service.prepare(
-            {
+        with (
+            patch(
+                "story_audio.batch_prepare_transaction_manager.canonical_production_db_path",
+                return_value=self.db_path,
+            ),
+            patch(
+                "story_audio.batch_prepare_isolated_adapter.canonical_production_db_path",
+                return_value=self.db_path,
+            ),
+        ):
+            service = build_prepare_api_service(
+                settings=self.config,
+                config=config,
+                descriptor=descriptor,
+            )
+            self.assertIsNotNone(service)
+            plan = self.plan()
+            scope = plan["scope"]
+            payload = {
                 "client_request_id": "production-smoke-request",
                 "book_id": scope["book_id"],
                 "from_chapter": scope["from_chapter"],
@@ -88,10 +97,23 @@ class ProductionRuntimeGateTests(Phase10FixtureMixin):
                 "target_phase": "PREPARE",
                 "plan_fingerprint": plan["plan_fingerprint"],
                 "confirmation": True,
-            },
-            authorization_header=f"Bearer {TOKEN}",
-        )
+            }
+            result = service.prepare(
+                payload,
+                authorization_header=f"Bearer {TOKEN}",
+            )
+            replay = service.prepare(
+                payload,
+                authorization_header=f"Bearer {TOKEN}",
+            )
         self.assertEqual(result.http_status, 200)
+        self.assertEqual(replay.http_status, 200)
+        self.assertEqual(replay.payload["status"], "APPLIED_REPLAYED")
+        self.assertTrue(replay.payload["replay"])
+        self.assertEqual(replay.payload["job_id"], result.payload["job_id"])
+        self.assertEqual(self.counts()["batch_prepare_requests"], 1)
+        self.assertEqual(self.counts()["batch_prepare_execution_attempts"], 1)
+        self.assertEqual(self.counts()["batch_prepare_job_links"], 1)
         self.assertEqual(self.counts()["jobs"], 1)
         self.assertEqual(self.counts()["job_chapters"], 2)
         self.assertEqual(self.counts()["segments"], 0)
@@ -100,26 +122,36 @@ class ProductionRuntimeGateTests(Phase10FixtureMixin):
     def test_production_canary_rejects_more_than_three_chapters_without_rows(self):
         config = parse_runtime_integration_config(production_values())
         descriptor = self.descriptor(config)
-        service = build_prepare_api_service(
-            settings=self.config,
-            config=config,
-            descriptor=descriptor,
-        )
-        plan = self.plan(from_chapter=10, to_chapter=13)
-        scope = plan["scope"]
-        with self.assertRaisesRegex(Exception, "one through three"):
-            service.prepare(
-                {
-                    "client_request_id": "production-oversized-canary",
-                    "book_id": scope["book_id"],
-                    "from_chapter": scope["from_chapter"],
-                    "to_chapter": scope["to_chapter"],
-                    "target_phase": "PREPARE",
-                    "plan_fingerprint": plan["plan_fingerprint"],
-                    "confirmation": True,
-                },
-                authorization_header=f"Bearer {TOKEN}",
+        with (
+            patch(
+                "story_audio.batch_prepare_transaction_manager.canonical_production_db_path",
+                return_value=self.db_path,
+            ),
+            patch(
+                "story_audio.batch_prepare_isolated_adapter.canonical_production_db_path",
+                return_value=self.db_path,
+            ),
+        ):
+            service = build_prepare_api_service(
+                settings=self.config,
+                config=config,
+                descriptor=descriptor,
             )
+            plan = self.plan(from_chapter=10, to_chapter=13)
+            scope = plan["scope"]
+            with self.assertRaisesRegex(Exception, "one through three"):
+                service.prepare(
+                    {
+                        "client_request_id": "production-oversized-canary",
+                        "book_id": scope["book_id"],
+                        "from_chapter": scope["from_chapter"],
+                        "to_chapter": scope["to_chapter"],
+                        "target_phase": "PREPARE",
+                        "plan_fingerprint": plan["plan_fingerprint"],
+                        "confirmation": True,
+                    },
+                    authorization_header=f"Bearer {TOKEN}",
+                )
         self.assertEqual(self.counts()["batch_prepare_requests"], 0)
         self.assertEqual(self.counts()["jobs"], 0)
 

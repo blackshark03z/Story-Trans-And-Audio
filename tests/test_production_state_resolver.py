@@ -108,6 +108,13 @@ class ProductionStateResolverTests(unittest.TestCase):
         payload["casting"]["casting"]["status"] = "approved"
         self.assert_state(payload, "READY_TO_PREPARE", "prepare")
 
+    def test_approved_plan_supersedes_missing_historical_speaker_draft(self) -> None:
+        payload = base_state()
+        payload["speakerDraft"] = None
+        payload["speakerDrafts"] = []
+        payload["casting"]["casting"]["status"] = "approved"
+        self.assert_state(payload, "READY_TO_PREPARE", "prepare")
+
     def test_prepared_job_takes_render_stage(self) -> None:
         payload = base_state()
         payload["casting"]["casting"]["status"] = "approved"

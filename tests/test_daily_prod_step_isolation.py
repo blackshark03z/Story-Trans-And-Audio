@@ -131,6 +131,8 @@ console.log(JSON.stringify(resolver.STAGE_PANEL_OWNERSHIP.map(item => item.id)))
         ready = panel_state_for(payload)
         self.assertEqual(ready["stage"], "prepare")
         self.assertIn("renderPlanPanel", ready["active"])
+        self.assertIn("workspace", ready["active"])
+        self.assertIn("productionLegacyJobPanel", ready["active"])
         payload["jobs"] = [{"id": 20, "status": "prepared", "book_id": 1, "from_chapter": 999, "to_chapter": 999, "casting_plan_id": 24}]
         prepared = panel_state_for(payload)
         self.assertEqual(prepared["stage"], "render")

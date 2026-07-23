@@ -16,9 +16,9 @@
   const MUTATION_STATES=new Set(['CASTING_REVIEW','READY_TO_PREPARE','PREPARED','RENDERING_OR_PAUSED','RENDERED_NOT_QA']);
   const STAGE_PANEL_OWNERSHIP=[
     {id:'productionStageIsolation',stages:['scope','text','speakers','voices','voice_map','prepare','render','qa'],kind:'shell'},
-    {id:'workspace',stages:['scope'],kind:'work'},
+    {id:'workspace',stages:['scope','prepare'],kind:'work'},
     {id:'productionQueuePanel',stages:['render'],kind:'work'},
-    {id:'productionLegacyJobPanel',stages:['scope'],kind:'work'},
+    {id:'productionLegacyJobPanel',stages:['scope','prepare'],kind:'work'},
     {id:'flowStepSelectChapter',stages:['scope'],kind:'work'},
     {id:'flowStepReviewText',stages:['text'],kind:'work'},
     {id:'flowStepAssignVoices',stages:['speakers','voices'],kind:'work'},
@@ -198,13 +198,18 @@
       return buildViewModel('STATE_UNRESOLVED',{blockerReason:'Trạng thái chương báo completed/terminal nhưng không có active output.',readOnlyOnly:true,diagnosticDetails:['terminal_without_output']});
     }
     if(!hasApprovedActiveText(input))return buildViewModel('TEXT_BLOCKED');
+    const casting=input?.casting?.casting||input?.casting||{};
+    const planStatus=lower(casting.status);
+    if(casting.id&&planStatus==='approved'){
+      const approvedVoiceReason=voiceBlocked(input);
+      if(approvedVoiceReason)return buildViewModel('VOICE_BLOCKED',{blockerReason:approvedVoiceReason,explanation:approvedVoiceReason});
+      return buildViewModel('READY_TO_PREPARE');
+    }
     const speakerReason=speakerBlocked(input);
     if(speakerReason)return buildViewModel('SPEAKER_EXCEPTIONS',{blockerReason:speakerReason,explanation:speakerReason});
     const voiceReason=voiceBlocked(input);
     if(voiceReason)return buildViewModel('VOICE_BLOCKED',{blockerReason:voiceReason,explanation:voiceReason});
-    const casting=input?.casting?.casting||input?.casting||{};
     if(!casting.id)return buildViewModel('CASTING_REVIEW',{title:'Chưa có bản đồ giọng cuối',explanation:'Cần tạo/kiểm tra Final Voice Map draft trước khi approve.'});
-    const planStatus=lower(casting.status);
     if(planStatus==='draft')return buildViewModel('CASTING_REVIEW');
     if(planStatus!=='approved')return buildViewModel('STATE_UNRESOLVED',{blockerReason:`Casting Plan có trạng thái không hỗ trợ: ${casting.status}`,readOnlyOnly:true,diagnosticDetails:['unsupported_casting_status']});
     return buildViewModel('READY_TO_PREPARE');

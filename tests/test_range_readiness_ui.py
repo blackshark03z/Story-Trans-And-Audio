@@ -155,8 +155,8 @@ class RangeReadinessUiTests(unittest.TestCase):
         for value in ("369", "/approve", "prepare selected", "regenerate", "human QA mutation", "method:'POST'", "method:'PUT'", "method:'PATCH'", "method:'DELETE'"):
             self.assertNotIn(value, related)
 
-    def test_range_panel_belongs_to_scope_stage_and_is_route_isolated(self) -> None:
-        self.assertIn("{id:'productionLegacyJobPanel',stages:['scope'],kind:'work'}", self.resolver)
+    def test_range_panel_belongs_to_scope_and_prepare_stages_and_is_route_isolated(self) -> None:
+        self.assertIn("{id:'productionLegacyJobPanel',stages:['scope','prepare'],kind:'work'}", self.resolver)
         self.assertIn(".app-view[hidden]{display:none!important}", self.css)
         self.assertIn("view.hidden=!active", self.js)
         select_book = self._function_block("selectBook")

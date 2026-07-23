@@ -4,7 +4,60 @@ Updated: 2026-07-23
 
 ## Current Phase
 
-`Production PREPARE activation readiness complete; canonical activation awaits explicit operator approval.`
+`Production PREPARE is active on canonical schema 15; one bounded canary is durably prepared and START_RENDER remains unauthorized.`
+
+## Production PREPARE Activation And Canary
+
+- Authorization executed: canonical schema migration `12 -> 15`, production
+  PREPARE enablement, and exactly one bounded PREPARE canary. START_RENDER,
+  worker wake, provider/Gemini/TTS, a second canary, and push were not executed.
+- Starting Git HEAD: `f2e011c99a7f65db10eec0e154f4fb067835fa21`.
+- Verified backup:
+  `D:\Youtube_AI_HANDOFFS\Story Audio\prepare_activation\run_20260723_readiness_v3\canonical-schema12-backup.db`,
+  SHA-256
+  `36da72a4faf46253e0c41f397c8e7fe4519964702e1b23279791319ab47404f7`.
+- Canonical migration completed with schema 15, required request/link/attempt
+  tables and indexes, preserved legacy counts, and zero dormant rows before the
+  canary. Normal runtime startup performed no automatic migration.
+- Runtime is canonical on `127.0.0.1:8772` with status
+  `PRODUCTION_AUTHENTICATED_READY`; schema `15 / 15`, kill switch inactive,
+  fail-closed Bearer authentication configured in process memory, and
+  production PREPARE authorized. Legacy prepare/start paths remain blocked.
+- Canary scope: Book `8` (`Smoke Multi-Voice 632dee5df5`), chapter `1` only,
+  internal Chapter ID `1986`, Text Revision `3971`, approved Casting Plan `9`
+  revision `1`, plan fingerprint
+  `267f772337fcb40faceef7104b904296f18e060fd0f84e25d52fa51b9a43ba45`.
+- Durable request: `prepare-1c5e2f26-dbf5-4d46-b0fa-f9bae9b49679`,
+  request row `1`, state `APPLIED`, attempt count `1`.
+- Durable result: Job `23` status `prepared`; one JobChapter (`23`) pinned to
+  Chapter `1986`, Text Revision `3971`, and Casting Plan `9`; one linkage row
+  and one `COMMITTED` execution attempt. `worker_woken=0`,
+  `render_started=0`, and Job start/current-stage timestamps remain null.
+- Same-payload replay returns `200 APPLIED_REPLAYED` with the same request and
+  Job `23`. Runtime restart plus authenticated status recovery returns the same
+  APPLIED request and Job without duplicate rows.
+- Canary created zero Segments, zero Artifacts, and zero audio/output files.
+  Canonical totals are Jobs `22`, JobChapters `22`, Segments `688`, Artifacts
+  `84`, PREPARE requests/links/attempts `1 / 1 / 1`.
+- Chapter 369 remains Text Revision `738`, Casting Plan `24` revision `1`
+  draft/unapproved, zero chapter Jobs, no active artifact, and audio
+  `not_created`.
+- Final canonical SHA-256:
+  `3e8825349d9dc60feddf631576f5637ceab541def057ddd1aba6debf86b05a18`;
+  size `4100096`; quick check and foreign-key check pass; no WAL/SHM.
+- Narrow activation hotfixes permit the accepted transaction adapter only for
+  fully gated canonical production, make applied request replay precede current
+  eligibility checks, correctly restore approved Casting state before UI
+  resolution, expose the PREPARE panels at the READY stage, and refresh static
+  asset cache identities. Clone/default-off behavior remains unchanged.
+- Validation: production PREPARE suite `491` PASS; full offline suite `1640`
+  PASS with `1` established skip; `node --check ui/app.js` PASS; Doctor
+  `critical_errors=0`; live UI shows `PREPARED`, Job `23`, `0/0` segments, and
+  the queue START control disabled.
+- Daily-use state: production PREPARE is usable from the UI while this
+  authenticated runtime remains active. The exact remaining blocker before a
+  Render Canary is separate explicit START_RENDER/worker/provider authorization
+  and its bounded execution plan; do not begin it from this checkpoint.
 
 ## Production PREPARE Activation Readiness
 

@@ -104,9 +104,9 @@ class BatchPrepareJobLinkResult:
     replay: bool
 
 
-def _assert_not_canonical(path: Path) -> None:
+def _assert_not_canonical(path: Path, *, allow_canonical: bool = False) -> None:
     try:
-        assert_isolated_database_path(path)
+        assert_isolated_database_path(path, allow_canonical=allow_canonical)
     except RuntimeError:
         raise BatchPrepareJobLinkValidationError(
             PARENT_JOB_INVALID,
@@ -241,14 +241,18 @@ def _same_evidence(record: BatchPrepareJobLinkRecord, item: BatchPrepareJobLinkI
 class BatchPrepareJobLinkStore:
     """Immutable request-to-Job linkage store for isolated schema-14 validation."""
 
-    def __init__(self, db: Database):
+    def __init__(self, db: Database, *, allow_canonical: bool = False):
         self.db = db
+        self.allow_canonical = bool(allow_canonical)
 
     def create_or_replay(
         self,
         linkage: BatchPrepareJobLinkInput | Mapping[str, Any],
     ) -> BatchPrepareJobLinkResult:
-        _assert_not_canonical(self.db.path)
+        _assert_not_canonical(
+            self.db.path,
+            allow_canonical=self.allow_canonical,
+        )
         item = _normalize_input(linkage)
         with self.db.transaction() as connection:
             return self.create_or_replay_in_connection(connection, item)
@@ -259,7 +263,10 @@ class BatchPrepareJobLinkStore:
         linkage: BatchPrepareJobLinkInput | Mapping[str, Any],
     ) -> BatchPrepareJobLinkResult:
         """Write linkage using the caller's active transaction without committing it."""
-        _assert_not_canonical(self.db.path)
+        _assert_not_canonical(
+            self.db.path,
+            allow_canonical=self.allow_canonical,
+        )
         if not connection.in_transaction:
             raise BatchPrepareJobLinkValidationError(
                 PARENT_JOB_INVALID,

@@ -350,7 +350,11 @@ async function openChapter(id,options={}){
       box.classList.add('hidden');$('#chapterAudio').removeAttribute('src');meta.textContent='';meta.classList.add('hidden');
     }
     renderProductionShell();
-    showRevision(state.dialogInitialTab);
+    if(state.dialogInitialTab==='casting'){
+      await openCasting();
+      if(state.casting)renderProductionShell();
+    }
+    else showRevision(state.dialogInitialTab);
     if(options.keepDialogClosed){if($('#textDialog').open)$('#textDialog').close()}
     else $('#textDialog').showModal();
   }catch(e){
