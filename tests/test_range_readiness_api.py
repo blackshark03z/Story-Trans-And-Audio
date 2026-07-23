@@ -483,6 +483,25 @@ class RangeReadinessApiTests(IsolatedTestCase):
         self.assertEqual(item["human_qa_status"], "pending")
         self.assertEqual(item["state"], "RENDERED_NOT_QA")
 
+    def test_rejection_for_historical_artifact_is_pending_for_active_output(self) -> None:
+        artifact_id = int(
+            self.db.fetch_one(
+                "SELECT active_audio_artifact_id FROM chapters WHERE id=?",
+                (self.chapters[2],),
+            )["active_audio_artifact_id"]
+        )
+        approval = {
+            "status": "needs_fixes",
+            "artifact_id": artifact_id + 1000,
+        }
+        self._execute(
+            "UPDATE chapters SET human_approval_json=? WHERE id=?",
+            (json.dumps(approval), self.chapters[2]),
+        )
+        item = self._readiness(2, 2)["chapters"][0]
+        self.assertEqual(item["human_qa_status"], "pending")
+        self.assertEqual(item["state"], "RENDERED_NOT_QA")
+
     def test_repeated_response_is_deterministic(self) -> None:
         self.assertEqual(self._readiness(), self._readiness())
 

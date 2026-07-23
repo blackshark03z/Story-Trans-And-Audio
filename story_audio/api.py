@@ -443,7 +443,9 @@ def _decorate_human_approval(
         elif raw_status == "approved":
             status = "approved_stale"
             label = "Đã chốt"
-        elif raw_status == "needs_fixes":
+        elif raw_status == "needs_fixes" and normalized.get(
+            "matches_active_artifact", matches_active
+        ):
             status = "needs_fixes"
             label = "Cần sửa"
     chapter_data["human_qa_status"] = status

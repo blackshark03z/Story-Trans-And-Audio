@@ -4,6 +4,26 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ## Unreleased
 
+### Book 8 Chapter 1 Corrected Production Render
+
+- Started exactly existing prepared Job `25`; Job/JobChapter completed with
+  `8 / 8` verified VieNeu Segments, no retries, and active Artifact `90`.
+- Artifact `90` is a `24250 ms`, `419846`-byte M4A with SHA-256
+  `82f04cccb08d7f0d718038cabfe0516d2aa65f29093f8ae634630d8b64597e5d`.
+  FFmpeg decode passed with zero clipped samples.
+- Cached offline Whisper screening found coherent source-related Vietnamese in
+  every Segment and the final output. Operational conclusion is
+  `TECHNICALLY_VALID_AND_INTELLIGIBILITY_SCREEN_PASS`; Human QA remains pending.
+- Fixed stale Human QA semantics: `needs_fixes` applies only when its persisted
+  artifact ID matches the active artifact. A historical rejection is preserved
+  for audit but the replacement output now resolves to `pending`.
+- Audio Library, range playback, full download/hash, runtime restart
+  persistence, canonical quick check, and foreign keys passed. Jobs `23`/`24`
+  and Chapter `369` remained unchanged; Artifact `87` was preserved as stale
+  historical evidence.
+- Validation passed: focused QA/readiness tests `32 / 32` and full offline suite
+  `1665` with one established skip.
+
 ### Book 8 Chapter 1 Mojibake Replacement
 
 - Proved a deterministic reversible repair of defective Text Revision `3971`:

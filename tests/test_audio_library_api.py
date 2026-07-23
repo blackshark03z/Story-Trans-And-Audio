@@ -76,6 +76,23 @@ class AudioLibraryApiTests(IsolatedTestCase):
         self.assertIsNone(item["human_approval_matches_active_artifact"])
 
         now = utcnow()
+        stale_rejection = {
+            "status": "needs_fixes",
+            "recorded_at": now,
+            "artifact_id": self.new_artifact_id,
+            "job_id": 2,
+        }
+        with self.db.transaction() as connection:
+            connection.execute(
+                "UPDATE chapters SET human_approval_json=?, updated_at=? WHERE id=?",
+                (json.dumps(stale_rejection), now, self.chapter_id),
+            )
+        item = self._items()[0]
+        self.assertEqual(item["human_qa_status"], "pending")
+        self.assertEqual(item["human_approval_status"], "needs_fixes")
+        self.assertEqual(item["human_approval_label"], "Chưa chốt")
+        self.assertFalse(item["human_approval_matches_active_artifact"])
+
         approval = {
             "status": "approved",
             "recorded_at": now,

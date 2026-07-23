@@ -2,6 +2,15 @@
 
 Updated: 2026-07-23
 
+## CONT-023 - Bounded production tasks have standing Gemini and TTS cost approval
+
+The operator grants standing approval for Gemini and TTS costs required by
+bounded Story Audio production tasks. Do not request per-call or per-Job cost
+approval again. Every START_RENDER task must still name an explicit Job or
+chapter range, must never expand beyond that scope automatically, and remains
+subject to existing validation, idempotency, retry, authentication, and kill
+switch boundaries.
+
 ## CONT-022 - PREPARE mutation API requires clone-only authenticated acceptance first
 
 The Phase 13 disabled clone runtime and operator-authentication boundary are

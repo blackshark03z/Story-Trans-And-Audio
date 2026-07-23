@@ -4,7 +4,43 @@ Updated: 2026-07-23
 
 ## Current Phase
 
-`Book 8 Chapter 1 has a proven corrected immutable source, approved replacement casting, and prepared replacement Job 25. START_RENDER remains unauthorized.`
+`Book 8 Chapter 1 corrected Job 25 is complete. Artifact 90 passed technical and offline intelligibility screening; Human QA is pending.`
+
+## Book 8 Chapter 1 Corrected Render
+
+- Exactly one explicit START_RENDER request transitioned existing prepared Job
+  `25`; the worker claimed only Job `25`.
+- Job `25` and JobChapter `25` completed with `8 / 8` verified Segments using
+  Text Revision `3985`, Casting Plan `26` revision `3`, and preset voice
+  `Đức Trí`. Each Segment has `attempt_count=1`; retries were `0`, VieNeu/TTS
+  synthesis calls were `8`, and Gemini calls were `0`.
+- Active Artifact `90` is
+  `data/output/8-smoke-multi-voice-632dee5df5/chapter_0001/job_25/render_0001/chapter.m4a`,
+  SHA-256
+  `82f04cccb08d7f0d718038cabfe0516d2aa65f29093f8ae634630d8b64597e5d`,
+  size `419846` bytes, and authoritative duration `24250 ms`.
+- Full FFmpeg decode passed. Independent PCM duration was `24256 ms`, RMS about
+  `-18.20 dBFS`, peak about `-0.30 dBFS`, and clipped samples `0`. All eight
+  Segment WAVs also had zero clipped samples.
+- Cached local faster-whisper-tiny screened every Segment and the final output
+  without network access. All eight results contained coherent Vietnamese
+  related to their source; final source-token recall was `0.812` and preserved
+  the opening-to-ending order.
+- Operational conclusion:
+  `TECHNICALLY_VALID_AND_INTELLIGIBILITY_SCREEN_PASS`. Human QA remains
+  `pending`; no acceptance was written.
+- Audio Library exposes Artifact `90`; range playback returned `206`, full
+  download returned `200`, and the downloaded SHA-256 matched. Runtime restart
+  preserved Job/Artifact linkage and exposed `RENDERED_NOT_QA`.
+- Fixed stale QA decoration so a `needs_fixes` decision for historical Artifact
+  `87` no longer labels active Artifact `90` as rejected. The historical
+  rejection remains immutable, while Artifact `90` correctly displays
+  `pending`.
+- Jobs `23` and `24` rows, JobChapters, and Segments remain unchanged. Artifact
+  `87` remains unmodified on disk with its rejection evidence and is now
+  lifecycle status `stale`; Chapter `369` is unchanged.
+- Runtime is stopped and idle with no WAL/SHM. Exact next task: human-listen to
+  Artifact `90` and record acceptance or one precise remediation target.
 
 ## Book 8 Chapter 1 Mojibake Replacement
 

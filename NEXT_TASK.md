@@ -1,34 +1,38 @@
 # Next Task
 
 Task classification:
-`PRODUCTION_OPERATION / EXPLICIT_START_RENDER_AUTHORIZATION_REQUIRED`
+`PRODUCTION_OPERATION / HUMAN_AUDIO_QA_REQUIRED`
 
 Active milestone:
 `DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout`
 
 Exact next task:
-`Request explicit authorization to START_RENDER only prepared replacement Job 25 for Book 8 Chapter 1.`
+`Listen to active Artifact 90 for Book 8 Chapter 1 and record Human QA acceptance or one precise remediation target.`
 
-## Verified Input
+## Verified Output
 
-- Active approved Text Revision: `3985`, parent `3971`, `378` characters,
-  SHA-256
-  `ff9053993e437319dfd7b8b9159dbee4a2ac86be824fe9418765cc3664306f22`.
-- Approved Casting Plan: `26`, revision `3`, eight utterances using `Đức Trí`.
-- Prepared Job/JobChapter: `25 / 25`, pinned to Revision `3985` and Plan `26`.
-- PREPARE request: `3`, durable `APPLIED`; restart status `APPLIED_REPLAYED`.
-- Job `25` has zero Segments, attempts, Artifacts, output files, and audio.
+- Job/JobChapter `25 / 25`: `completed`.
+- Revision/Plan/voice: `3985`, Plan `26` revision `3`, `Đức Trí`.
+- Active Artifact: `90`, SHA-256
+  `82f04cccb08d7f0d718038cabfe0516d2aa65f29093f8ae634630d8b64597e5d`,
+  `24250 ms`, `419846` bytes.
+- Segments: `8 / 8` verified, retries `0`.
+- Technical/offline ASR conclusion:
+  `TECHNICALLY_VALID_AND_INTELLIGIBILITY_SCREEN_PASS`.
+- Audio Library, playback, download/hash, and restart persistence passed.
+- Human QA for Artifact `90`: `pending`.
 
-## Required Authorization
+## Operator Step
 
-- Confirm the operator intends to start only Job `25`.
-- Revalidate Job `25` remains `prepared`, its immutable pins still resolve, and
-  no conflicting live job exists.
-- Use the supported explicit START_RENDER route once, then monitor the same Job.
+- Open Artifact `90` from Audio Library and listen through the full 24.25-second
+  output.
+- Record `approved` only if the human listening result is acceptable.
+- Otherwise record `needs_fixes` with one precise audible defect and location.
 
 ## Excluded
 
-- Do not start Job `25` without fresh explicit authorization.
-- Do not retry Jobs `23` or `24`, replace Artifact `87`, create another
-  replacement Job, or mutate Chapter `369`.
-- Do not alter Revision `3971`, Revision `3985`, Plan `26`, or pinned voices.
+- Do not create another Job or rerender automatically.
+- Do not change Revision `3985`, Plan `26`, Artifact `87`, Jobs `23`/`24`, or
+  Chapter `369`.
+- Do not advance to a multi-chapter render until Artifact `90` Human QA is
+  recorded.
