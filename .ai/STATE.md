@@ -4,7 +4,57 @@ Updated: 2026-07-23
 
 ## Current Phase
 
-`Production PREPARE is active on canonical schema 15; one bounded canary is durably prepared and START_RENDER remains unauthorized.`
+`Production Render Canary Job 23 ended fail-safe before audio synthesis because its pinned fixture voice IDs are not present in the real TTS preset catalog.`
+
+## Production Render Canary - Job 23
+
+- Authorization executed: exactly one `START_RENDER` request and one worker wake
+  for Job `23`, Book `8`, Chapter `1`, internal Chapter ID `1986`. No other Job,
+  chapter, provider scope, or push was authorized or executed.
+- Starting Git HEAD: `5f76509e8dd63deec666beaf14b36e5719635c79`.
+- A narrow runtime compatibility fix allows the normal render runtime to open an
+  already activated schema-15 canonical database with the verified prepare
+  migration runner. Schema 12 still uses the legacy runner and normal startup
+  still performs no automatic schema-12-to-15 migration.
+- Job `23` transitioned once from `prepared` to `scheduled`; the worker claimed
+  only Job `23`. It finished `completed_with_errors`, and JobChapter `23`
+  finished `failed`.
+- The deterministic blocker is Segment `701`: pinned voice `voice1` is absent
+  from the real VieNeu preset catalog. The same canary also pins `voice2` and
+  `voice3`; no supported production mapping for these fixture identifiers
+  exists.
+- Eight deterministic Segment rows were created. Segment `701` is `failed`
+  after three internal synthesis attempts; Segments `702-708` remain `pending`
+  with zero attempts. No controlled Job retry was performed because this is not
+  a transient failure.
+- TTS synthesis was invoked three times for Segment `701`; each invocation
+  failed at voice catalog lookup before any audio was accepted. Gemini calls,
+  successful provider outputs, SegmentAttempt rows, Artifacts, active audio,
+  and output/work files for Job `23` are all zero.
+- Audio Library contains no Job `23` or Chapter `1986` entry. Playback,
+  download, technical audio QA, and Human QA are therefore unavailable rather
+  than falsely reported as successful.
+- Clean shutdown and normal-runtime restart preserved the terminal Job,
+  JobChapter, Segment, and audit state. The worker remained idle, no retry
+  occurred, and no other Job became executable. The runtime was then stopped
+  cleanly with no WAL/SHM sidecars.
+- PREPARE request `prepare-1c5e2f26-dbf5-4d46-b0fa-f9bae9b49679`,
+  request/link/attempt rows `1 / 1 / 1`, and their APPLIED/COMMITTED evidence
+  remain unchanged. No duplicate Job, artifact, output, or accepted provider
+  work exists.
+- Canonical totals are Jobs `22`, JobChapters `22`, Segments `696`, Artifacts
+  `84`, and PREPARE requests/links/attempts `1 / 1 / 1`. SQLite quick check and
+  foreign-key check pass.
+- Chapter 369 remains Text Revision `738`, Casting Plan `24` revision `1`
+  draft/unapproved, no active artifact, and audio `not_created`.
+- Validation: focused runtime/prepared-job tests `21` PASS; full offline suite
+  `1641` PASS with `1` established skip; Doctor PASS with
+  `critical_errors=0`.
+- Exact next action: implement a bounded production voice-eligibility guard
+  that validates every effective pinned voice against the real resolvable TTS
+  catalog before PREPARE/START, exposes the blocker in readiness/UI, and
+  defines an operator-approved replacement workflow for failed Job `23`. Do
+  not retry Job `23` or select replacement voices without separate approval.
 
 ## Production PREPARE Activation And Canary
 

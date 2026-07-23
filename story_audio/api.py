@@ -46,6 +46,7 @@ from .batch_prepare_runtime_integration import (
     read_runtime_integration_config,
     require_clone_runtime,
 )
+from .batch_prepare_schema import PREPARE_SCHEMA_VERSION, prepare_migration_runner
 from .custom_voice import CustomVoiceRepository
 from .custom_voice_api import (
     build_voice_catalog_handler,
@@ -119,6 +120,17 @@ from .voice_profile import (
 from .voice_ref import CustomVoiceContext, is_custom_ref, resolve_custom_ref
 
 
+def _build_runtime_database(path: Path, integration):
+    if integration.runtime_mode in {CLONE_DISABLED, PRODUCTION}:
+        return CloneReadOnlyDatabase(path)
+    migration_runner = (
+        prepare_migration_runner()
+        if integration.schema_version == PREPARE_SCHEMA_VERSION
+        else None
+    )
+    return Database(path, migration_runner=migration_runner)
+
+
 settings.ensure_dirs()
 prepare_runtime_config = read_runtime_integration_config()
 prepare_runtime_integration = build_runtime_integration(
@@ -128,11 +140,7 @@ prepare_runtime_integration = build_runtime_integration(
     canonical_db_path=canonical_production_db_path(),
 )
 require_clone_runtime(prepare_runtime_integration)
-db = (
-    CloneReadOnlyDatabase(settings.db_path)
-    if prepare_runtime_integration.runtime_mode in {CLONE_DISABLED, PRODUCTION}
-    else Database(settings.db_path)
-)
+db = _build_runtime_database(settings.db_path, prepare_runtime_integration)
 store = ContentStore(settings)
 batch_prepare_api_service = build_prepare_api_service(
     settings=settings,

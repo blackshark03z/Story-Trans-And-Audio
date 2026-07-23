@@ -66,6 +66,18 @@ class ProductionRuntimeGateTests(Phase10FixtureMixin):
             canonical_db_path=target,
         )
 
+    def test_normal_runtime_uses_activated_schema15_without_auto_migration(self):
+        from story_audio.api import _build_runtime_database
+
+        before = self.counts()
+        database = _build_runtime_database(
+            self.db_path,
+            SimpleNamespace(runtime_mode="DISABLED", schema_version=15),
+        )
+        self.assertEqual(database.latest_schema_version, 15)
+        self.assertEqual(database.initialize(), 15)
+        self.assertEqual(self.counts(), before)
+
     def test_schema15_production_constructs_same_authenticated_prepare_service(self):
         config = parse_runtime_integration_config(production_values())
         descriptor = self.descriptor(config)
