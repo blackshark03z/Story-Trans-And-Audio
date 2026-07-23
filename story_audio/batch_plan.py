@@ -185,6 +185,7 @@ def _plan_identity_item(item: dict[str, Any]) -> dict[str, Any]:
         "live_job_id": item.get("live_job_id"),
         "live_job_status": item.get("live_job_status"),
         "blockers": item.get("blockers") or [],
+        "voice_issues": item.get("voice_issues") or [],
     }
 
 
@@ -271,6 +272,7 @@ def build_batch_plan(readiness: dict[str, Any], *, target_phase: str) -> dict[st
             "live_job_id": item.get("live_job_id"),
             "live_job_status": item.get("live_job_status"),
             "human_qa_status": item.get("human_qa_status"),
+            "voice_issues": item.get("voice_issues") or [],
         }
         if eligibility == ELIGIBLE:
             included.append(row)

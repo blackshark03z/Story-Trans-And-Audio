@@ -17,6 +17,7 @@ from story_audio.pipeline import (
     start_prepared_job,
 )
 from story_audio.storage import ContentStore
+from story_audio.voice_eligibility import EffectiveVoiceCatalog
 from story_audio.voice_profile import set_book_voice_profile
 from tests.base import IsolatedTestCase
 
@@ -27,6 +28,9 @@ class PreparedJobLifecycleTests(IsolatedTestCase):
         self.db = Database(self.config.db_path)
         self.db.initialize()
         self.store = ContentStore(self.config)
+        self.voice_catalog = EffectiveVoiceCatalog.from_ids(
+            "ngoc_lan", "duc_tri", "my_duyen"
+        )
 
         with self.db.transaction() as conn:
             self.book_id = int(conn.execute(
@@ -86,6 +90,7 @@ class PreparedJobLifecycleTests(IsolatedTestCase):
             "output_format": "m4a",
             "skip_completed": False,
             "casting_plan_id": self.plan_id,
+            "voice_catalog": self.voice_catalog,
         }
 
     def test_prepare_creates_one_non_executable_job_and_one_job_chapter(self) -> None:
@@ -116,7 +121,12 @@ class PreparedJobLifecycleTests(IsolatedTestCase):
 
     def test_start_transitions_same_job_exactly_once(self) -> None:
         prepared = prepare_job(self.db, self.config, store=self.store, **self._payload())
-        started = start_prepared_job(self.db, self.config, job_id=int(prepared["job_id"]))
+        started = start_prepared_job(
+            self.db,
+            self.config,
+            job_id=int(prepared["job_id"]),
+            voice_catalog=self.voice_catalog,
+        )
         self.assertEqual(started["job_id"], prepared["job_id"])
         self.assertEqual(started["status"], "scheduled")
         self.assertEqual(
@@ -124,7 +134,12 @@ class PreparedJobLifecycleTests(IsolatedTestCase):
             "scheduled",
         )
         with self.assertRaises(JobStartConflict):
-            start_prepared_job(self.db, self.config, job_id=int(prepared["job_id"]))
+            start_prepared_job(
+                self.db,
+                self.config,
+                job_id=int(prepared["job_id"]),
+                voice_catalog=self.voice_catalog,
+            )
 
     def test_duplicate_prepare_fails_without_creating_second_job(self) -> None:
         prepare_job(self.db, self.config, store=self.store, **self._payload())
@@ -235,6 +250,7 @@ class PreparedJobApiTests(IsolatedTestCase):
         self._original_store = api_module.store
         self._original_settings = api_module.settings
         self._original_tts = api_module.tts_service
+        self._original_custom_voice_repo = api_module.custom_voice_repo
         self._original_worker = api_module.worker
         api_module.db = self.db
         api_module.store = self.store
@@ -245,6 +261,9 @@ class PreparedJobApiTests(IsolatedTestCase):
             {"id": "duc_tri", "label": "Duc Tri"},
             {"id": "my_duyen", "label": "My Duyen"},
         ]
+        api_module.custom_voice_repo = self.api_module.custom_voice_repo.__class__(
+            self.db, self.store
+        )
         api_module.worker = MagicMock()
         from story_audio.api import app
         self.client = TestClient(app)
@@ -254,6 +273,7 @@ class PreparedJobApiTests(IsolatedTestCase):
         self.api_module.store = self._original_store
         self.api_module.settings = self._original_settings
         self.api_module.tts_service = self._original_tts
+        self.api_module.custom_voice_repo = self._original_custom_voice_repo
         self.api_module.worker = self._original_worker
         self._multipart_patcher.stop()
         super().tearDown()
@@ -287,3 +307,42 @@ class PreparedJobApiTests(IsolatedTestCase):
             "scheduled",
         )
         self.api_module.worker.wake.assert_called_once()
+
+    def test_prepare_rejects_unavailable_voice_without_partial_job(self) -> None:
+        payload = dict(self.payload)
+        payload["voice_name"] = "voice_missing"
+        response = self.client.post("/api/jobs/prepare", json=payload)
+        self.assertEqual(response.status_code, 409)
+        detail = response.json()["detail"]
+        self.assertEqual(detail["code"], "VOICE_ELIGIBILITY_BLOCKED")
+        self.assertTrue(detail["issues"][0]["replacement_required"])
+        self.assertEqual(self.db.fetch_one("SELECT COUNT(*) AS n FROM jobs")["n"], 0)
+        self.api_module.worker.wake.assert_not_called()
+
+    def test_start_rechecks_pinned_voice_and_does_not_schedule_on_failure(self) -> None:
+        prepared = self.client.post("/api/jobs/prepare", json=self.payload)
+        self.assertEqual(prepared.status_code, 200)
+        job_id = int(prepared.json()["job_id"])
+        self.api_module.worker.wake.reset_mock()
+        self.api_module.tts_service.voices.return_value = [
+            {"id": "my_duyen", "label": "My Duyen"},
+        ]
+
+        response = self.client.post(f"/api/jobs/{job_id}/start", json={})
+
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(
+            self.db.fetch_one("SELECT status FROM jobs WHERE id=?", (job_id,))["status"],
+            JOB_PREPARED_STATUS,
+        )
+        self.api_module.worker.wake.assert_not_called()
+
+    def test_catalog_failure_fails_closed_before_prepare(self) -> None:
+        self.api_module.tts_service.voices.side_effect = RuntimeError("catalog offline")
+
+        response = self.client.post("/api/jobs/prepare", json=self.payload)
+
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["detail"]["code"], "VOICE_CATALOG_UNAVAILABLE")
+        self.assertEqual(self.db.fetch_one("SELECT COUNT(*) AS n FROM jobs")["n"], 0)
+        self.api_module.worker.wake.assert_not_called()

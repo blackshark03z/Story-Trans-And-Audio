@@ -31,6 +31,13 @@ from .text import (
     validate_repair_candidate,
 )
 from .voice_ref import CustomVoiceContext, is_custom_ref, parse_custom_ref, resolve_custom_ref
+from .voice_eligibility import (
+    EffectiveVoiceCatalog,
+    VoiceEligibilityBlocked,
+    inspect_voice_ref,
+    require_casting_plan_eligible,
+    require_prepared_job_eligible,
+)
 from .tts import TtsService
 
 
@@ -132,6 +139,7 @@ def create_job(
     casting_plan_id: int | None = None,
     store: ContentStore | None = None,
     start_immediately: bool = True,
+    voice_catalog: EffectiveVoiceCatalog | None = None,
 ) -> dict[str, Any]:
     if from_chapter > to_chapter:
         raise ValueError("ChÆ°Æ¡ng báº¯t Ä‘áº§u pháº£i nhá» hÆ¡n hoáº·c báº±ng chÆ°Æ¡ng káº¿t thÃºc.")
@@ -175,6 +183,8 @@ def create_job(
         if store is None:
             raise ValueError("ContentStore is required for a multi-voice job")
         casting_row, casting_plan = validate_approved_plan(db, store, casting_plan_id)
+        if voice_catalog is None:
+            raise ValueError("Authoritative voice catalog is required for a multi-voice job")
         matching = [row for row in chapters if int(row["id"]) == int(casting_row["chapter_id"])]
         if len(chapters) != 1 or len(matching) != 1:
             raise ValueError("A manual casting job must target exactly its casting-plan chapter")
@@ -182,6 +192,12 @@ def create_job(
             raise ValueError("A manual casting job must use its pinned approved TextRevision")
         if int(matching[0]["active_text_revision_id"] or 0) != int(casting_row["text_revision_id"]):
             raise ValueError("Approved Casting Plan is stale because the chapter active Text Revision changed")
+        require_casting_plan_eligible(
+            casting_plan,
+            voice_catalog,
+            chapter_id=int(matching[0]["id"]),
+            chapter_number=int(matching[0]["chapter_number"]),
+        )
         selected = chapters
         voice_name = str(casting_plan["narrator_voice_id"])
         casting_snapshot = {
@@ -200,6 +216,16 @@ def create_job(
             "tts_settings": settings_snapshot,
             "chunker_version": CHUNKER_VERSION,
         }
+    elif voice_catalog is not None:
+        issue = inspect_voice_ref(
+            voice_name,
+            voice_catalog,
+            chapter_id=int(selected[0]["id"]) if len(selected) == 1 else None,
+            chapter_number=int(selected[0]["chapter_number"]) if len(selected) == 1 else None,
+            role="narrator",
+        )
+        if issue:
+            raise VoiceEligibilityBlocked((issue,))
     conflict = _find_conflicting_job(db, chapter_ids=[int(row["id"]) for row in selected])
     if conflict:
         if (
@@ -302,6 +328,7 @@ def prepare_job(
     skip_completed: bool,
     casting_plan_id: int | None = None,
     store: ContentStore | None = None,
+    voice_catalog: EffectiveVoiceCatalog | None = None,
 ) -> dict[str, Any]:
     return create_job(
         db,
@@ -316,6 +343,7 @@ def prepare_job(
         casting_plan_id=casting_plan_id,
         store=store,
         start_immediately=False,
+        voice_catalog=voice_catalog,
     )
 
 
@@ -324,7 +352,9 @@ def start_prepared_job(
     config: Settings,
     *,
     job_id: int,
+    voice_catalog: EffectiveVoiceCatalog,
 ) -> dict[str, Any]:
+    require_prepared_job_eligible(db, job_id=job_id, catalog=voice_catalog)
     now = datetime.now(timezone.utc)
     scheduled = now + timedelta(seconds=config.undo_seconds)
     with db.transaction() as connection:

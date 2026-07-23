@@ -11,6 +11,7 @@ from story_audio.batch_plan import build_batch_plan
 from story_audio.db import Database, utcnow
 from story_audio.files import sha256_file, sha256_text
 from story_audio.storage import ContentStore
+from story_audio.voice_eligibility import EffectiveVoiceCatalog
 from tests.base import IsolatedTestCase
 
 
@@ -110,6 +111,26 @@ class BatchPlanHelperTests(unittest.TestCase):
         self.assertEqual(first["plan_fingerprint"], second["plan_fingerprint"])
         self.assertNotEqual(first["plan_fingerprint"], changed["plan_fingerprint"])
 
+    def test_voice_issues_are_preserved_in_excluded_rows_and_fingerprint(self) -> None:
+        issue = {
+            "voice_id": "voice_missing",
+            "speaker": "narrator",
+            "chapter_number": 10,
+            "replacement_required": True,
+        }
+        readiness = self._readiness(
+            "VOICE_BLOCKED",
+            blockers=["Voice replacement required; no fallback was applied."],
+            voice_issues=[issue],
+        )
+        plan = build_batch_plan(readiness, target_phase="PREPARE")
+        self.assertEqual(plan["excluded"][0]["voice_issues"], [issue])
+        without_issue = build_batch_plan(
+            self._readiness("VOICE_BLOCKED", blockers=["Voice blocked."]),
+            target_phase="PREPARE",
+        )
+        self.assertNotEqual(plan["plan_fingerprint"], without_issue["plan_fingerprint"])
+
     def test_safety_semantics_do_not_overpromise_batch_execution(self) -> None:
         plan = build_batch_plan(self._readiness("READY_TO_PREPARE"), target_phase="PREPARE")
         self.assertEqual(plan["execution_contract"]["idempotency"]["status"], "PARTIALLY_SUPPORTED")
@@ -138,10 +159,14 @@ class BatchPlanApiTests(IsolatedTestCase):
         self._original_store = api_module.store
         self._original_worker = api_module.worker
         self._original_tts = api_module.tts_service
+        self._original_voice_catalog_loader = api_module._load_voice_catalog
         api_module.db = self.db
         api_module.store = self.store
         api_module.worker = MagicMock()
         api_module.tts_service = MagicMock()
+        api_module._load_voice_catalog = lambda: EffectiveVoiceCatalog.from_ids(
+            "ngoc_lan"
+        )
         from story_audio.api import app
 
         self.client = TestClient(app)
@@ -152,6 +177,7 @@ class BatchPlanApiTests(IsolatedTestCase):
         self.api_module.store = self._original_store
         self.api_module.worker = self._original_worker
         self.api_module.tts_service = self._original_tts
+        self.api_module._load_voice_catalog = self._original_voice_catalog_loader
         self._multipart_patcher.stop()
         super().tearDown()
 

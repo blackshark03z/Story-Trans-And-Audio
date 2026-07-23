@@ -20,6 +20,7 @@ from story_audio.db import Database, utcnow
 from story_audio.files import sha256_file
 from story_audio.pipeline import PipelineWorker, create_job
 from story_audio.storage import ContentStore
+from story_audio.voice_eligibility import EffectiveVoiceCatalog
 from tests.test_recovery import make_config
 
 
@@ -318,6 +319,7 @@ class CastingTests(unittest.TestCase):
                 db, config, book_id=book, from_chapter=1, to_chapter=1,
                 voice_name="narrator", repair_mode="off", output_format="m4a",
                 skip_completed=False, casting_plan_id=approved["id"], store=store,
+                voice_catalog=EffectiveVoiceCatalog.from_ids(*VOICES),
             )
             snapshot_before = db.fetch_one("SELECT casting_snapshot_json FROM jobs WHERE id=?", (result["job_id"],))["casting_snapshot_json"]
             update_character(db, character["id"], voice_id="voice-b")
@@ -332,6 +334,7 @@ class CastingTests(unittest.TestCase):
                 db, config, book_id=book, from_chapter=1, to_chapter=1,
                 voice_name="narrator", repair_mode="off", output_format="m4a",
                 skip_completed=False, casting_plan_id=approved["id"], store=store,
+                voice_catalog=EffectiveVoiceCatalog.from_ids(*VOICES),
             )
             job = dict(db.fetch_one("SELECT * FROM jobs WHERE id=?", (result["job_id"],)))
             chapter = dict(db.fetch_one(
@@ -357,6 +360,7 @@ class CastingTests(unittest.TestCase):
                 db, config, book_id=book, from_chapter=1, to_chapter=1,
                 voice_name="narrator", repair_mode="off", output_format="m4a",
                 skip_completed=False, casting_plan_id=approved["id"], store=store,
+                voice_catalog=EffectiveVoiceCatalog.from_ids(*VOICES),
             )
             job = dict(db.fetch_one("SELECT * FROM jobs WHERE id=?", (result["job_id"],)))
             chapter = dict(db.fetch_one("SELECT * FROM job_chapters WHERE job_id=?", (job["id"],)))
@@ -373,6 +377,7 @@ class CastingTests(unittest.TestCase):
                 db, config, book_id=book, from_chapter=1, to_chapter=1,
                 voice_name="narrator", repair_mode="off", output_format="m4a",
                 skip_completed=False, casting_plan_id=approved["id"], store=store,
+                voice_catalog=EffectiveVoiceCatalog.from_ids(*VOICES),
             )
             job = dict(db.fetch_one("SELECT * FROM jobs WHERE id=?", (result["job_id"],)))
             chapter = dict(db.fetch_one(
@@ -410,6 +415,7 @@ class CastingTests(unittest.TestCase):
                 db, config, book_id=book, from_chapter=1, to_chapter=1,
                 voice_name="narrator", repair_mode="off", output_format="m4a",
                 skip_completed=False, casting_plan_id=approved["id"], store=store,
+                voice_catalog=EffectiveVoiceCatalog.from_ids(*VOICES),
             )
             job = dict(db.fetch_one("SELECT * FROM jobs WHERE id=?", (result["job_id"],)))
             chapter = dict(db.fetch_one(

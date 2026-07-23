@@ -4,7 +4,57 @@ Updated: 2026-07-23
 
 ## Current Phase
 
-`Production Render Canary Job 23 ended fail-safe before audio synthesis because its pinned fixture voice IDs are not present in the real TTS preset catalog.`
+`Voice eligibility guard is active and Book 8 Chapter 1 is remediated into prepared Job 24. START_RENDER is not authorized.`
+
+## Voice Eligibility Guard And Canary Remediation
+
+- Starting Git HEAD: `b38cac45fd31cd9ada8c74f8aa6e5ef6cd63fd4f`.
+- The effective voice catalog is now one fail-closed authority over normalized
+  preset and usable custom assignment IDs. Missing, malformed, unavailable, or
+  unknown voices produce structured replacement-required issues and never
+  silently fall back.
+- Casting approval, range readiness, batch planning, legacy/explicit PREPARE,
+  production PREPARE transaction snapshots, and START_RENDER pinned-snapshot
+  preflight all enforce voice eligibility. Catalog failure blocks mutation with
+  a retryable service error.
+- The UI lists only selectable catalog voices for new assignments, preserves
+  stale values for audit, disables mutation while catalog loading fails, and
+  shows affected voice ID, speaker/role, chapter, and no-fallback requirement
+  in readiness and batch-plan exceptions.
+- Book `8`, Chapter `1` initially had eight blocked assignments: `voice1` on
+  narrator sequences `1,3,5,8`, `voice2` on character `23` sequences `2,6`,
+  and `voice3` on character `24` sequences `4,7`.
+- The authorized neutral/general-purpose replacement is preset `Đức Trí`
+  (`nam, giọng rõ ràng`). No Book 8 metadata distinguished narrator or
+  character gender/style, so all eight canary assignments use this one valid
+  existing voice rather than guessing separate roles.
+- Normal Casting workflow created and approved Casting Plan `25` revision `2`,
+  pinned to Text Revision `3971`; Plan `9` revision `1` is archived. Range
+  readiness changed from `VOICE_BLOCKED` to `READY_TO_PREPARE`.
+- Exactly one production PREPARE POST created request `2`
+  (`voice-eligibility-book8-ch1-20260723`), attempt `2`, linkage `2`, Job `24`,
+  and JobChapter `24`. Job `24` is `prepared`, JobChapter `24` is `pending`,
+  and its immutable snapshot pins Casting Plan `25` plus `Đức Trí` for all
+  eight utterances.
+- Restart recovery returned `APPLIED_REPLAYED` for the same request and Job
+  without running the transaction again. `worker_woken=0`,
+  `render_started=0`, Job start/finish timestamps are null, and Job `24` has
+  zero Segments and zero Artifacts.
+- Job `23` remains `completed_with_errors` on historical Casting Plan `9`;
+  it was not retried or modified. Chapter `369` remains Text Revision `738`,
+  Casting Plan `24` draft/unapproved, audio `not_created`, with no active
+  artifact.
+- Canonical totals: PREPARE requests/attempts/links `2 / 2 / 2`, Jobs `23`,
+  JobChapters `23`, Segments `696`, Artifacts `84`. SQLite quick check passes.
+- Provider use was limited to reading the VieNeu catalog. No Gemini, TTS
+  synthesis, START_RENDER, worker wake, Segment, Artifact, audio, or output
+  creation occurred.
+- Validation: focused lifecycle/readiness/UI suites PASS; batch PREPARE affected
+  suite PASS after its clone-runtime catalog fixture was isolated; full offline
+  suite `1654` PASS with `1` established skip; Doctor and final Git validation
+  PASS.
+- Exact next action: request explicit authorization to START_RENDER only
+  corrected prepared Job `24`.
 
 ## Production Render Canary - Job 23
 

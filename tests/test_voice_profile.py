@@ -8,6 +8,7 @@ from pathlib import Path
 
 from story_audio.casting import approve_plan, create_casting_draft, split_utterances
 from story_audio.pipeline import create_job
+from story_audio.voice_eligibility import EffectiveVoiceCatalog
 from story_audio.voice_profile import (
     VoiceProfileError,
     get_book_voice_profile,
@@ -144,6 +145,7 @@ class VoiceProfileTests(unittest.TestCase):
                 db, config, book_id=book, from_chapter=1, to_chapter=1,
                 voice_name="narrator", repair_mode="off", output_format="m4a",
                 skip_completed=False, casting_plan_id=plan["id"], store=store,
+                voice_catalog=EffectiveVoiceCatalog.from_ids(*ALL_VOICES),
             )
             before = db.fetch_one(
                 "SELECT casting_snapshot_json FROM jobs WHERE id=?", (created["job_id"],)
@@ -178,6 +180,7 @@ class VoiceProfileTests(unittest.TestCase):
                 db, config, book_id=book, from_chapter=1, to_chapter=1,
                 voice_name="narrator", repair_mode="off", output_format="m4a",
                 skip_completed=False, casting_plan_id=new_plan["id"], store=store,
+                voice_catalog=EffectiveVoiceCatalog.from_ids(*ALL_VOICES),
             )
             new_snapshot = json.loads(db.fetch_one(
                 "SELECT casting_snapshot_json FROM jobs WHERE id=?", (new_job["job_id"],)

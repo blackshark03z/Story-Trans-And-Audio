@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from .batch_plan import build_batch_plan
 from .batch_prepare_execution_attempt_store import BatchPrepareExecutionAttemptStore
@@ -27,6 +27,7 @@ from .config import Settings
 from .db import Database
 from .range_readiness import get_range_readiness
 from .storage import ContentStore
+from .voice_eligibility import EffectiveVoiceCatalog, VoiceCatalogUnavailable
 
 
 MAX_REQUEST_BYTES = 16 * 1024
@@ -180,12 +181,19 @@ class BatchPrepareApiService:
                     http_status=400,
                 )
             if existing is None or existing.state != "APPLIED":
-                current_plan = self.orchestrator.current_plan_provider(
-                    book_id=int(payload["book_id"]),
-                    from_chapter=int(payload["from_chapter"]),
-                    to_chapter=int(payload["to_chapter"]),
-                    target_phase=str(payload["target_phase"]),
-                )
+                try:
+                    current_plan = self.orchestrator.current_plan_provider(
+                        book_id=int(payload["book_id"]),
+                        from_chapter=int(payload["from_chapter"]),
+                        to_chapter=int(payload["to_chapter"]),
+                        target_phase=str(payload["target_phase"]),
+                    )
+                except VoiceCatalogUnavailable as exc:
+                    raise ClonePrepareApiError(
+                        "VOICE_CATALOG_UNAVAILABLE",
+                        str(exc),
+                        http_status=503,
+                    ) from exc
                 included = current_plan.get("included")
                 if not isinstance(included, list) or len(included) != chapter_count:
                     raise ClonePrepareApiError(
@@ -241,12 +249,19 @@ def build_prepare_api_service(
     settings: Settings,
     config: RuntimeIntegrationConfig,
     descriptor: RuntimeIntegrationDescriptor,
+    voice_catalog_loader: Callable[[], EffectiveVoiceCatalog] | None = None,
 ) -> BatchPrepareApiService | None:
     if (
         not descriptor.prepare_mutation_enabled
         or descriptor.inspected_db_path != settings.db_path.resolve(strict=False)
     ):
         return None
+    if descriptor.production_mutation_enabled and voice_catalog_loader is None:
+        raise ClonePrepareApiError(
+            "VOICE_CATALOG_GUARD_REQUIRED",
+            "Production PREPARE requires the authoritative voice catalog guard.",
+            http_status=503,
+        )
     writable_db = Database(settings.db_path)
     store = ContentStore(settings)
     request_store = BatchPrepareRequestStore(writable_db)
@@ -263,6 +278,7 @@ def build_prepare_api_service(
             book_id=book_id,
             from_chapter=from_chapter,
             to_chapter=to_chapter,
+            voice_catalog=voice_catalog_loader() if voice_catalog_loader else None,
         )
         return build_batch_plan(readiness, target_phase=target_phase)
 
@@ -281,6 +297,7 @@ def build_prepare_api_service(
         settings,
         temporary_root=settings.data_dir,
         allow_canonical=allow_canonical,
+        voice_catalog_loader=voice_catalog_loader,
     )
     evidence_reader = BatchPrepareCommittedEvidenceReader(
         writable_db,

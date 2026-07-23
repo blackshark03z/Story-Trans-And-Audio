@@ -11,6 +11,7 @@ from story_audio.db import Database, utcnow
 from story_audio.files import sha256_file, sha256_text
 from story_audio.range_readiness import get_range_readiness
 from story_audio.storage import ContentStore
+from story_audio.voice_eligibility import EffectiveVoiceCatalog
 from tests.base import IsolatedTestCase
 
 
@@ -25,7 +26,11 @@ class RangeReadinessApiTests(IsolatedTestCase):
         import story_audio.api as api_module
 
         self._original_db = api_module.db
+        self._original_voice_catalog_loader = api_module._load_voice_catalog
         api_module.db = self.db
+        api_module._load_voice_catalog = lambda: EffectiveVoiceCatalog.from_ids(
+            "ngoc_lan"
+        )
         from story_audio.api import app
 
         self.client = TestClient(app)
@@ -35,6 +40,7 @@ class RangeReadinessApiTests(IsolatedTestCase):
         import story_audio.api as api_module
 
         api_module.db = self._original_db
+        api_module._load_voice_catalog = self._original_voice_catalog_loader
         self._multipart_patcher.stop()
         super().tearDown()
 
@@ -347,6 +353,11 @@ class RangeReadinessApiTests(IsolatedTestCase):
         item = self._readiness(3, 3)["chapters"][0]
         self.assertEqual(item["state"], "VOICE_BLOCKED")
         self.assertEqual(item["next_action"], "CONFIGURE_VOICES")
+        self.assertEqual(item["voice_issues"][0]["voice_id"], "")
+        self.assertEqual(item["voice_issues"][0]["speaker"], "narrator")
+        self.assertEqual(item["voice_issues"][0]["chapter_number"], 3)
+        self.assertTrue(item["voice_issues"][0]["replacement_required"])
+        self.assertIn("no fallback", item["voice_issues"][0]["message"])
 
     def test_active_audio_pending_qa_is_not_complete(self) -> None:
         item = self._readiness(1, 1)["chapters"][0]

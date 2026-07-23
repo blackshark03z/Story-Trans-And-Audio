@@ -45,6 +45,7 @@ from .batch_prepare_transaction_revalidator import (
 from .config import Settings, canonical_production_db_path
 from .db import Database, utcnow
 from .storage import ContentStore
+from .voice_eligibility import EffectiveVoiceCatalog, require_casting_plan_eligible
 
 
 ADAPTER_SCHEMA = "story-audio-batch-prepare-isolated-adapter/v1"
@@ -179,6 +180,7 @@ class DatabaseAuthoritativeSnapshotProvider:
         *,
         temporary_root: Path,
         allow_canonical: bool = False,
+        voice_catalog_loader: Callable[[], EffectiveVoiceCatalog] | None = None,
     ):
         self.db = db
         self.store = store
@@ -193,6 +195,11 @@ class DatabaseAuthoritativeSnapshotProvider:
         blobs = settings.blobs_dir.resolve(strict=False)
         if blobs != root and root not in blobs.parents:
             raise IsolatedAdapterError("Phase 10 blob storage must be inside the explicit temporary root")
+        if allow_canonical and voice_catalog_loader is None:
+            raise IsolatedAdapterError(
+                "Canonical PREPARE requires an authoritative voice catalog loader"
+            )
+        self.voice_catalog_loader = voice_catalog_loader
 
     def __call__(
         self,
@@ -207,6 +214,7 @@ class DatabaseAuthoritativeSnapshotProvider:
             raise IsolatedAdapterError("PREPARE scope exceeds the bounded historical result capacity")
         ordered = sorted(rows, key=lambda row: (int(row.get("chapter_number") or 0), int(row.get("chapter_id") or 0)))
         snapshots: list[AuthoritativeChapterSnapshot] = []
+        voice_catalog = self.voice_catalog_loader() if self.voice_catalog_loader else None
         with self.db.connect() as connection:
             for order, item in enumerate(ordered, start=1):
                 chapter_id = int(item.get("chapter_id") or 0)
@@ -232,6 +240,13 @@ class DatabaseAuthoritativeSnapshotProvider:
                 approved_row, approved_plan = validate_approved_plan(self.db, self.store, int(plan_row["id"]))
                 if int(approved_row["id"]) != int(plan_row["id"]):
                     raise IsolatedAdapterError("approved Casting Plan identity changed")
+                if voice_catalog is not None:
+                    require_casting_plan_eligible(
+                        approved_plan,
+                        voice_catalog,
+                        chapter_id=chapter_id,
+                        chapter_number=int(chapter["chapter_number"]),
+                    )
                 pin = {
                     "casting_plan_id": int(plan_row["id"]),
                     "casting_plan_sha256": str(plan_row["plan_sha256"]),

@@ -64,6 +64,15 @@ class CastingVoiceMapUiContractTests(unittest.TestCase):
         ):
             self.assertIn(value, self.app_js + self.voice_map_js)
 
+    def test_catalog_failure_has_no_legacy_voice_fallback(self) -> None:
+        marker = "async function loadVoiceCatalog()"
+        start = self.app_js.index(marker)
+        end = self.app_js.index("async function loadCustomVoices", start)
+        loader = self.app_js[start:end]
+        self.assertIn("/api/voice-catalog", loader)
+        self.assertNotIn("/api/voices", loader)
+        self.assertIn("PREPARE và START_RENDER vẫn bị chặn", loader)
+
     def test_overlay_adds_no_mutating_or_provider_endpoints(self) -> None:
         forbidden = (
             "method:'POST'",

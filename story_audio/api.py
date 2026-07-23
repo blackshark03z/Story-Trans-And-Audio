@@ -118,6 +118,13 @@ from .voice_profile import (
     set_character_voice_override,
 )
 from .voice_ref import CustomVoiceContext, is_custom_ref, resolve_custom_ref
+from .voice_eligibility import (
+    VoiceCatalogAuthority,
+    VoiceCatalogUnavailable,
+    VoiceEligibilityBlocked,
+    inspect_voice_ref,
+    require_casting_plan_eligible,
+)
 
 
 def _build_runtime_database(path: Path, integration):
@@ -142,12 +149,23 @@ prepare_runtime_integration = build_runtime_integration(
 require_clone_runtime(prepare_runtime_integration)
 db = _build_runtime_database(settings.db_path, prepare_runtime_integration)
 store = ContentStore(settings)
+custom_voice_repo = CustomVoiceRepository(db, store)
+
+
+def _voice_catalog_payload() -> dict[str, Any]:
+    return build_voice_catalog_handler(custom_voice_repo, tts_service.voices())
+
+
+def _load_voice_catalog():
+    return VoiceCatalogAuthority(_voice_catalog_payload).load()
+
+
 batch_prepare_api_service = build_prepare_api_service(
     settings=settings,
     config=prepare_runtime_config,
     descriptor=prepare_runtime_integration,
+    voice_catalog_loader=_load_voice_catalog,
 )
-custom_voice_repo = CustomVoiceRepository(db, store)
 worker = PipelineWorker(db, store, tts_service, settings)
 voice_previews = VoicePreviewService(
     tts_service, settings, custom_voice_repo=custom_voice_repo, store=store
@@ -183,6 +201,24 @@ class JobRequest(BaseModel):
 
 
 def _job_http_error(exc: Exception) -> HTTPException:
+    if isinstance(exc, VoiceCatalogUnavailable):
+        return HTTPException(
+            503,
+            {
+                "code": "VOICE_CATALOG_UNAVAILABLE",
+                "message": str(exc),
+                "retryable": True,
+            },
+        )
+    if isinstance(exc, VoiceEligibilityBlocked):
+        return HTTPException(
+            409,
+            {
+                "code": "VOICE_ELIGIBILITY_BLOCKED",
+                "message": str(exc),
+                "issues": list(exc.issues),
+            },
+        )
     if isinstance(exc, LookupError):
         return HTTPException(404, str(exc))
     if isinstance(exc, (JobPreparationConflict, JobStartConflict)):
@@ -653,12 +689,16 @@ def production_range_readiness(
     to_chapter: int = Query(..., ge=0),
 ) -> dict[str, Any]:
     try:
+        voice_catalog = _load_voice_catalog()
         return get_range_readiness(
             db,
             book_id=book_id,
             from_chapter=from_chapter,
             to_chapter=to_chapter,
+            voice_catalog=voice_catalog,
         )
+    except VoiceCatalogUnavailable as exc:
+        raise _job_http_error(exc) from exc
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from exc
     except ValueError as exc:
@@ -673,13 +713,17 @@ def production_batch_plan(
     target_phase: str = Query(..., min_length=1),
 ) -> dict[str, Any]:
     try:
+        voice_catalog = _load_voice_catalog()
         readiness = get_range_readiness(
             db,
             book_id=book_id,
             from_chapter=from_chapter,
             to_chapter=to_chapter,
+            voice_catalog=voice_catalog,
         )
         return build_batch_plan(readiness, target_phase=target_phase)
+    except VoiceCatalogUnavailable as exc:
+        raise _job_http_error(exc) from exc
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from exc
     except ValueError as exc:
@@ -850,13 +894,13 @@ def list_voices() -> dict[str, Any]:
 @app.get("/api/voice-catalog")
 def voice_catalog() -> dict[str, Any]:
     try:
-        return build_voice_catalog_handler(custom_voice_repo, tts_service.voices())
-    except Exception as exc:
-        raise HTTPException(503, f"Could not load voice catalog: {exc}") from exc
+        return _load_voice_catalog().public_payload()
+    except VoiceCatalogUnavailable as exc:
+        raise _job_http_error(exc) from exc
 
 
 def _preset_voice_ids() -> set[str]:
-    return {item["id"] for item in tts_service.voices()}
+    return set(_load_voice_catalog().preset_ids)
 
 
 @app.get("/api/books/{book_id}/characters")
@@ -1236,11 +1280,24 @@ def create_speaker_review_casting_plan_draft(
 @app.post("/api/casting/{casting_plan_id}/approve")
 def approve_casting(casting_plan_id: int) -> dict[str, Any]:
     try:
+        candidate = get_plan(db, store, casting_plan_id, include_text=True)
+        voice_catalog = _load_voice_catalog()
+        require_casting_plan_eligible(
+            candidate["plan"],
+            voice_catalog,
+            chapter_id=int(candidate["chapter_id"]),
+        )
         result = approve_plan(db, store, casting_plan_id)
         validate_approved_plan(
-            db, store, casting_plan_id, _preset_voice_ids(), custom_voice_context=_build_custom_voice_context()
+            db,
+            store,
+            casting_plan_id,
+            set(voice_catalog.preset_ids),
+            custom_voice_context=_build_custom_voice_context(),
         )
         return result
+    except (VoiceCatalogUnavailable, VoiceEligibilityBlocked) as exc:
+        raise _job_http_error(exc) from exc
     except CastingError as exc:
         raise HTTPException(400, str(exc)) from exc
 
@@ -1369,7 +1426,7 @@ def preview_job(book_id: int, from_chapter: int, to_chapter: int) -> dict[str, A
     }
 
 
-def _validated_job_payload(request: JobRequest) -> dict[str, Any]:
+def _legacy_validated_job_payload(request: JobRequest) -> dict[str, Any]:
     payload = request.model_dump()
     payload["voice_name"] = unicodedata.normalize("NFC", payload["voice_name"]).strip()
 
@@ -1393,6 +1450,27 @@ def _validated_job_payload(request: JobRequest) -> dict[str, Any]:
             _preset_voice_ids(),
             custom_voice_context=_build_custom_voice_context(),
         )
+    return payload
+
+
+def _validated_job_payload(request: JobRequest) -> dict[str, Any]:
+    payload = request.model_dump()
+    payload["voice_name"] = unicodedata.normalize("NFC", payload["voice_name"]).strip()
+    voice_catalog = _load_voice_catalog()
+    issue = inspect_voice_ref(
+        payload["voice_name"],
+        voice_catalog,
+        chapter_id=None,
+        chapter_number=(
+            payload["from_chapter"]
+            if payload["from_chapter"] == payload["to_chapter"]
+            else None
+        ),
+        role="narrator",
+    )
+    if issue:
+        raise VoiceEligibilityBlocked((issue,))
+    payload["voice_catalog"] = voice_catalog
     return payload
 
 
@@ -1505,7 +1583,12 @@ def start_job(job_id: int) -> dict[str, Any]:
     if prepare_runtime_integration.runtime_mode == PRODUCTION:
         raise HTTPException(409, {"code": "START_RENDER_UNAVAILABLE"})
     try:
-        result = start_prepared_job(db, settings, job_id=job_id)
+        result = start_prepared_job(
+            db,
+            settings,
+            job_id=job_id,
+            voice_catalog=_load_voice_catalog(),
+        )
     except Exception as exc:
         raise _job_http_error(exc) from exc
     worker.wake()

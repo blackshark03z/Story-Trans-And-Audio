@@ -19,6 +19,7 @@ from story_audio.files import atomic_write_json, sha256_file, sha256_text  # noq
 from story_audio.pipeline import PipelineWorker, create_job  # noqa: E402
 from story_audio.storage import ContentStore  # noqa: E402
 from story_audio.tts import tts_service  # noqa: E402
+from story_audio.voice_eligibility import EffectiveVoiceCatalog  # noqa: E402
 
 
 SMOKE_TEXT = (
@@ -185,6 +186,9 @@ def main() -> int:
         skip_completed=False,
         casting_plan_id=plan["id"],
         store=store,
+        voice_catalog=EffectiveVoiceCatalog.from_ids(
+            *(item["id"] for item in voices)
+        ),
     )
     job_id = job_result["job_id"]
     job = dict(db.fetch_one("SELECT * FROM jobs WHERE id=?", (job_id,)))

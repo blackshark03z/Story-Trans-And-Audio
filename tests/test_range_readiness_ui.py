@@ -176,5 +176,20 @@ class RangeReadinessUiTests(unittest.TestCase):
             self.assertIn(value, self.css)
 
 
+    def test_voice_replacement_details_render_without_fallback(self) -> None:
+        helper = self._function_block("appendVoiceEligibilityIssues")
+        exception = self._function_block("renderRangeExceptionCard")
+        for value in (
+            "voice_id",
+            "speaker",
+            "chapter_number",
+            "replacement required",
+            "không có fallback",
+        ):
+            self.assertIn(value, helper)
+        self.assertIn("voice_issues", exception)
+        self.assertIn(".voice-eligibility-list", self.css)
+
+
 if __name__ == "__main__":
     unittest.main()

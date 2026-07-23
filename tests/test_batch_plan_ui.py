@@ -233,5 +233,14 @@ class BatchPlanUiTests(unittest.TestCase):
             self.assertIn(value, self.css)
 
 
+    def test_batch_rows_render_structured_voice_eligibility_issues(self) -> None:
+        helper = self._function_block("appendVoiceEligibilityIssues")
+        row = self._function_block("renderBatchPlanRow")
+        self.assertIn("voice_issues", row)
+        self.assertIn("replacement required", helper)
+        self.assertIn("không có fallback", helper)
+        self.assertIn(".voice-eligibility-item", self.css)
+
+
 if __name__ == "__main__":
     unittest.main()

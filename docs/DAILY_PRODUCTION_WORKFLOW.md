@@ -41,6 +41,28 @@ The initial canary is one fully eligible contiguous range of one to three
 chapters. Activation and rollback are operational procedures defined in
 `docs/PREPARE_ACTIVATION_RUNBOOK.md`.
 
+### Voice Eligibility Boundary
+
+The effective voice catalog is the authoritative synthesis eligibility source
+for preset voices and usable custom voice revisions. Voice identifiers are
+normalized once and validated at every durable boundary:
+
+- Voice assignment and Casting Plan approval.
+- Range readiness and batch-plan fingerprinting.
+- PREPARE before any Job or JobChapter transaction.
+- Production PREPARE while authoritative snapshots are assembled.
+- START_RENDER against the immutable prepared JobChapter voice snapshot.
+
+A missing, malformed, unknown, inactive, or otherwise unavailable voice is a
+blocking exception. The UI must preserve stale assignments for audit, identify
+the affected voice, speaker/role, and chapter, require explicit replacement,
+and offer only currently selectable catalog entries. It must never silently
+substitute narrator or another fallback voice.
+
+Catalog lookup failure is also blocking and retryable. PREPARE must create no
+partial rows, and START_RENDER must not schedule or wake the worker, until a
+fresh authoritative catalog confirms every effective pinned voice.
+
 ## Operator Roles And Assumptions
 
 - Primary operator: a local user producing chapters for one or more books.

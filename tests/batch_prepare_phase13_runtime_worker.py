@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 
 
 def main() -> None:
@@ -10,8 +11,21 @@ def main() -> None:
     parser.add_argument("--inspect", action="store_true")
     args = parser.parse_args()
 
-    from story_audio.api import app, prepare_runtime_integration
+    import story_audio.api as api_module
     from story_audio.batch_prepare_runtime_integration import public_runtime_readiness
+
+    if os.environ.get("STORY_AUDIO_TESTING") == "1":
+        class _CatalogOnlyTts:
+            def voices(self):
+                return [
+                    {"id": "custom:26", "label": "Fixture Narrator"},
+                    {"id": "ngoc_lan", "label": "Fixture Preset"},
+                ]
+
+        api_module.tts_service = _CatalogOnlyTts()
+
+    app = api_module.app
+    prepare_runtime_integration = api_module.prepare_runtime_integration
 
     if args.inspect:
         routes = sorted((

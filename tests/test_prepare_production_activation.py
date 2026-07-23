@@ -31,11 +31,16 @@ from story_audio.prepare_activation import (
     execute_migration,
     run_preflight,
 )
+from story_audio.voice_eligibility import EffectiveVoiceCatalog
 from tests.base import IsolatedTestCase
 from tests.batch_prepare_phase10_fixture import Phase10FixtureMixin
 
 
 TOKEN = "production-prepare-synthetic-token"
+
+
+def production_voice_catalog() -> EffectiveVoiceCatalog:
+    return EffectiveVoiceCatalog.from_ids("custom:26")
 
 
 def production_values(**overrides):
@@ -97,6 +102,7 @@ class ProductionRuntimeGateTests(Phase10FixtureMixin):
                 settings=self.config,
                 config=config,
                 descriptor=descriptor,
+                voice_catalog_loader=production_voice_catalog,
             )
             self.assertIsNotNone(service)
             plan = self.plan()
@@ -148,6 +154,7 @@ class ProductionRuntimeGateTests(Phase10FixtureMixin):
                 settings=self.config,
                 config=config,
                 descriptor=descriptor,
+                voice_catalog_loader=production_voice_catalog,
             )
             plan = self.plan(from_chapter=10, to_chapter=13)
             scope = plan["scope"]

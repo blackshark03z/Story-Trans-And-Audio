@@ -9,6 +9,7 @@ from .active_output import get_active_output_bindings, get_latest_casting_plan_b
 from .db import Database
 from .files import sha256_text
 from .pipeline import JOB_ACTIVE_STATUSES, JOB_PREPARED_STATUS
+from .voice_eligibility import EffectiveVoiceCatalog, inspect_casting_plan
 
 
 PREPARED_STATUSES = {JOB_PREPARED_STATUS}
@@ -125,21 +126,38 @@ def _live_jobs(db: Database, chapter_ids: list[int]) -> dict[int, list[dict[str,
     return result
 
 
-def _voice_blocker(plan: dict[str, Any] | None) -> str | None:
+def _voice_blocker(
+    plan: dict[str, Any] | None,
+    *,
+    voice_catalog: EffectiveVoiceCatalog | None,
+    chapter_id: int,
+    chapter_number: int,
+) -> tuple[str | None, list[dict[str, Any]]]:
     if not plan:
-        return None
-    if plan.get("narrator_voice_id") in (None, ""):
-        return "Casting Plan is missing narrator voice."
+        return None, []
     if plan.get("_payload_error"):
-        return str(plan["_payload_error"])
+        return str(plan["_payload_error"]), []
     payload = plan.get("_payload")
     utterances = payload.get("utterances") if isinstance(payload, dict) else None
+    if voice_catalog is not None and isinstance(payload, dict):
+        issues = list(
+            inspect_casting_plan(
+                payload,
+                voice_catalog,
+                chapter_id=chapter_id,
+                chapter_number=chapter_number,
+            )
+        )
+        if issues:
+            return str(issues[0]["message"]), issues
+    if plan.get("narrator_voice_id") in (None, ""):
+        return "Casting Plan is missing narrator voice.", []
     if not isinstance(utterances, list):
-        return None
+        return None, []
     for item in utterances:
         if isinstance(item, dict) and item.get("resolved_voice_id") in (None, ""):
-            return "Casting Plan has an utterance without a resolved voice."
-    return None
+            return "Casting Plan has an utterance without a resolved voice.", []
+    return None, []
 
 
 def _read_casting_payload(db: Database, plan: dict[str, Any]) -> dict[str, Any] | None:
@@ -209,11 +227,13 @@ def _state_item(
     latest_plan: dict[str, Any] | None,
     latest_draft: dict[str, Any] | None,
     live_jobs: list[dict[str, Any]],
+    voice_catalog: EffectiveVoiceCatalog | None,
 ) -> dict[str, Any]:
     chapter_id = int(chapter["id"])
     active_artifact_id = active_binding.get("active_output_artifact_id")
     human_qa_status = _human_qa_status(chapter.get("human_approval_json"), active_artifact_id)
     blockers: list[str] = []
+    voice_issues: list[dict[str, Any]] = []
     state = "STATE_UNRESOLVED"
 
     if active_binding.get("active_audio_artifact_id") and not active_binding.get("active_output_artifact_id"):
@@ -246,7 +266,12 @@ def _state_item(
         state = "CASTING_REVIEW"
         blockers.append("Final Voice Map is missing.")
     else:
-        voice_blocker = _voice_blocker(latest_plan)
+        voice_blocker, voice_issues = _voice_blocker(
+            latest_plan,
+            voice_catalog=voice_catalog,
+            chapter_id=chapter_id,
+            chapter_number=int(chapter["chapter_number"]),
+        )
         if voice_blocker:
             state = "VOICE_BLOCKED"
             blockers.append(voice_blocker)
@@ -282,6 +307,7 @@ def _state_item(
         "live_job_id": int(live_jobs[0]["job_id"]) if len(live_jobs) == 1 else None,
         "live_job_status": live_jobs[0].get("job_status") if len(live_jobs) == 1 else None,
         "blockers": blockers,
+        "voice_issues": voice_issues,
     }
     if exception_kind and state not in {"READY_TO_PREPARE", "COMPLETE"}:
         item["exception_kind"] = exception_kind
@@ -294,6 +320,7 @@ def get_range_readiness(
     book_id: int,
     from_chapter: int,
     to_chapter: int,
+    voice_catalog: EffectiveVoiceCatalog | None = None,
 ) -> dict[str, Any]:
     if from_chapter > to_chapter:
         raise ValueError("from_chapter must be less than or equal to to_chapter.")
@@ -343,6 +370,7 @@ def get_range_readiness(
                 latest_plan=latest_plan,
                 latest_draft=latest_drafts.get(chapter_id),
                 live_jobs=live_jobs.get(chapter_id, []),
+                voice_catalog=voice_catalog,
             )
         )
 
@@ -354,6 +382,7 @@ def get_range_readiness(
             "next_action": item["next_action"],
             "exception_kind": item.get("exception_kind"),
             "message": item["blockers"][0] if item["blockers"] else item["next_action"],
+            "voice_issues": item.get("voice_issues") or [],
         }
         for item in items
         if item["requires_operator_action"] and item["state"] not in {"COMPLETE", "READY_TO_PREPARE"}

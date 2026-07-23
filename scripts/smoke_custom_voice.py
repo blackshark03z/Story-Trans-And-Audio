@@ -23,6 +23,7 @@ from story_audio.pipeline import PipelineWorker, create_job
 from story_audio.storage import ContentStore
 from story_audio.tts import tts_service
 from story_audio.voice_ref import CustomVoiceContext
+from story_audio.voice_eligibility import EffectiveVoiceCatalog
 
 
 SMOKE_TEXT = (
@@ -155,6 +156,9 @@ def main() -> int:
         skip_completed=False,
         casting_plan_id=plan["id"],
         store=store,
+        voice_catalog=EffectiveVoiceCatalog.from_ids(
+            *allowed_voice_ids, narrator_ref, dialogue_ref
+        ),
     )
     job_id = job_result["job_id"]
     print(f"\nCreated job {job_id}")
