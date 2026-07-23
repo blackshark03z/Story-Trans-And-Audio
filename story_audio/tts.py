@@ -8,6 +8,59 @@ from typing import Any
 from .synthesis_snapshot import SegmentSynthesisInput
 
 
+class TtsInputValidationError(ValueError):
+    """Non-retryable failure detected before TTS inference."""
+
+
+def _legacy_byte(char: str) -> int | None:
+    codepoint = ord(char)
+    if codepoint <= 0xFF:
+        return codepoint
+    try:
+        encoded = char.encode("cp1252")
+    except UnicodeEncodeError:
+        return None
+    return encoded[0] if len(encoded) == 1 else None
+
+
+def _contains_legacy_decoded_utf8(text: str) -> bool:
+    """Detect characters whose legacy-code-page bytes form a valid UTF-8 sequence."""
+    for start, char in enumerate(text):
+        lead = _legacy_byte(char)
+        if lead is None:
+            continue
+        if 0xC2 <= lead <= 0xDF:
+            width = 2
+        elif 0xE0 <= lead <= 0xEF:
+            width = 3
+        elif 0xF0 <= lead <= 0xF4:
+            width = 4
+        else:
+            continue
+        if start + width > len(text):
+            continue
+        values = [_legacy_byte(item) for item in text[start : start + width]]
+        if any(value is None for value in values):
+            continue
+        raw = bytes(value for value in values if value is not None)
+        if all(0x80 <= value <= 0xBF for value in raw[1:]):
+            try:
+                raw.decode("utf-8")
+            except UnicodeDecodeError:
+                continue
+            return True
+    return False
+
+
+def validate_synthesis_text(text: str, *, field: str = "synthesis text") -> None:
+    """Reject strong evidence that UTF-8 text was decoded through a legacy code page."""
+    has_c1_control = any("\u0080" <= char <= "\u009f" for char in text)
+    if has_c1_control or _contains_legacy_decoded_utf8(text):
+        raise TtsInputValidationError(
+            f"TTS_TEXT_ENCODING_INVALID: {field} contains probable UTF-8 mojibake"
+        )
+
+
 class TtsService:
     def __init__(self) -> None:
         self._engine: Any = None
@@ -258,6 +311,13 @@ class TtsService:
         else:
             raise ValueError(f"Invalid voice_source_type: {synth_input.voice_source_type}")
 
+        validate_synthesis_text(synth_input.text)
+        if synth_input.reference_transcript is not None:
+            validate_synthesis_text(
+                synth_input.reference_transcript,
+                field="reference transcript",
+            )
+
         engine = self.ensure_loaded()
 
         # Engine inference under lock
@@ -333,6 +393,7 @@ class TtsService:
         import numpy as np
         import soundfile as sf
 
+        validate_synthesis_text(text)
         engine = self.ensure_loaded()
         with self._lock:
             audio = engine.infer(
@@ -387,6 +448,8 @@ class TtsService:
         import numpy as np
         import soundfile as sf
 
+        validate_synthesis_text(text)
+        validate_synthesis_text(reference_transcript, field="reference transcript")
         engine = self.ensure_loaded()
         with self._lock:
             audio = engine.infer(

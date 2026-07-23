@@ -4,6 +4,25 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ## Unreleased
 
+### Artifact 87 Unintelligible-Audio Guard
+
+- Recorded active Artifact `87` as Human QA `needs_fixes` with reason
+  `unintelligible_audio_no_recognizable_words`; the rejected artifact remains
+  immutable and active for historical evidence.
+- Proved all eight Job `24` Segment WAVs were already defective because the
+  pinned Text Revision `3971` contains UTF-8 mojibake. Ordered Segment samples
+  exactly equal the master WAV, and decoded M4A correlates `0.99962075` with
+  the master, ruling out routing, sample-rate, concat, and transcode corruption.
+- Added fail-closed synthesis text validation for C1 controls and strong
+  UTF-8-through-legacy-code-page patterns. Invalid text raises
+  `TTS_TEXT_ENCODING_INVALID` before engine loading or inference and is
+  non-retryable in the production pipeline.
+- Added offline regression coverage proving malformed Vietnamese is blocked
+  without a provider call while valid Vietnamese passes.
+- Validation passed: focused affected tests `50 / 50`, full offline suite
+  `1656` with one established skip, Doctor `critical_errors=0`, and canonical
+  quick check `ok`; Job 23 and Chapter 369 remained unchanged.
+
 ### Production PREPARE Activation Readiness
 
 - Added hard-default-off production PREPARE runtime wiring with canonical

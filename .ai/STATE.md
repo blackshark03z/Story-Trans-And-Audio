@@ -4,7 +4,52 @@ Updated: 2026-07-23
 
 ## Current Phase
 
-`Production Render Canary Job 24 completed successfully. Active Artifact 87 is ready for Human QA; no further render is authorized.`
+`Artifact 87 is Human-QA rejected because its pinned source text is mojibake. A fail-closed TTS text-encoding guard is implemented; no rerender is authorized.`
+
+## Artifact 87 Rejection And Root Cause
+
+- Starting Git HEAD and `origin/main`:
+  `6b93ae5d3d5016803b94acb37d37b845523c4ab4`.
+- The supported Human Approval API recorded Artifact `87` as
+  `needs_fixes`, matched to active Job `24`, with exact reason
+  `unintelligible_audio_no_recognizable_words`. It was not accepted, replaced,
+  deleted, or overwritten.
+- Text Revision `3971` is internally hash-consistent but already corrupted:
+  its stored text is `504` characters and contains ten C1 control characters,
+  while the canonical `SMOKE_TEXT` source is `378` valid Vietnamese characters.
+  Examples passed to TTS include `Trá»i vá»«a...` and `ChÃ o anh...`.
+- All eight Segment text blobs and immutable synthesis snapshots contain the
+  same UTF-8 mojibake class. Every Segment used preset `Đức Trí`, provider
+  `vieneu`, model/mode `v3turbo`, temperature `0.8`, top-k `25`, max chars
+  `256`, and 48 kHz mono PCM16 WAV output. File hashes, durations, sizes, and
+  pinned request metadata remain intact.
+- Existing local faster-whisper-tiny ran strictly offline from its cached model.
+  Every individual Segment produced nonsensical or fragmented recognition with
+  effectively no source-word agreement; the final M4A produced the same defect
+  sequence. This corroborates the operator's Human QA rejection without any
+  provider call.
+- The concat manifest points to exactly the eight Job 24 Segment WAVs. Master
+  WAV samples are byte/sample-equivalent to their ordered concatenation
+  (`max_abs_delta=0`). Decoded M4A has `0.99962075` correlation with the master,
+  proving assembly, routing, sample-rate interpretation, and AAC transcode
+  preserved rather than introduced the defect.
+- Exact failing stage: malformed canonical Text Revision input reached TTS
+  without an encoding-integrity preflight. The Segment WAVs were already
+  unintelligible, so local reassembly cannot repair Artifact `87`.
+- TTS now rejects C1 controls and strong UTF-8-through-legacy-code-page patterns
+  before loading the engine or invoking inference, using
+  `TTS_TEXT_ENCODING_INVALID`. Pipeline handling treats this as non-retryable.
+  The guard blocks all eight persisted Job 24 texts and allows valid Vietnamese.
+- No START_RENDER, worker render wake, retry, new Job, provider/TTS/Gemini call,
+  audio rebuild, artifact replacement, voice change, or Chapter 369 mutation
+  occurred during rejection and diagnosis.
+- Validation: focused affected tests `50 / 50` pass; full offline suite `1656`
+  passes with one established skip; Doctor reports `critical_errors=0`; schema
+  is `15`, SQLite quick check is `ok`, and Job 23/non-24 Job/Chapter 369
+  baseline digests are unchanged.
+- Exact next action: option `B`, first create and approve a corrected immutable
+  Text Revision and matching Casting Plan for Book 8 Chapter 1, then authorize
+  one corrected TTS rerender in a new production Job. Do not retry Job `24`.
 
 ## Production Render Canary - Job 24
 

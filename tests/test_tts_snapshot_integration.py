@@ -8,6 +8,7 @@ No real model loading, no real synthesis, no network access.
 import json
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -16,7 +17,7 @@ import numpy as np
 from story_audio.config import Settings
 from story_audio.storage import ContentStore
 from story_audio.synthesis_snapshot import SegmentSynthesisInput, SynthesisSettings
-from story_audio.tts import TtsService
+from story_audio.tts import TtsInputValidationError, TtsService, validate_synthesis_text
 
 
 class MockVieneu:
@@ -237,6 +238,33 @@ class TestTtsSnapshotIntegration(unittest.TestCase):
         with self.assertRaises(ValueError) as ctx:
             self.service.synthesize(synth_input=synth_input, output_path=output)
         self.assertIn("Unsupported model", str(ctx.exception))
+
+    def test_mojibake_text_is_rejected_before_engine_or_provider_call(self):
+        malformed_values = (
+            "Tr\u00e1\u00bb\u009di v\u00e1\u00bb\u00aba s\u00c3\u00a1ng.",
+            "Ch\u00c3 o anh, t\u00c3\u00b4i \u00c4\u2018\u00e1\u00bb\u00a3i.",
+        )
+        output = Path(self.temp_dir.name) / "output.wav"
+
+        for malformed in malformed_values:
+            with self.subTest(malformed=malformed):
+                synth_input = replace(self._make_preset_input(), text=malformed)
+
+                with self.assertRaisesRegex(
+                    TtsInputValidationError,
+                    "TTS_TEXT_ENCODING_INVALID",
+                ):
+                    self.service.synthesize(synth_input=synth_input, output_path=output)
+
+                self.assertEqual(self.service.status, "not_loaded")
+                self.assertIsNone(self.mock_engine.last_call_args)
+                self.assertFalse(output.exists())
+
+    def test_valid_vietnamese_text_passes_encoding_preflight(self):
+        validate_synthesis_text(
+            "Tr\u1eddi v\u1eeba s\u00e1ng, ng\u01b0\u1eddi d\u1eabn chuy\u1ec7n "
+            "b\u01b0\u1edbc v\u00e0o ph\u00f2ng."
+        )
 
     def test_inconsistent_preset_dataclass_rejected(self):
         """Preset with missing preset_voice_id rejected."""

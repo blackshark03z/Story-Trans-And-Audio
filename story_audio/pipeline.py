@@ -38,7 +38,7 @@ from .voice_eligibility import (
     require_casting_plan_eligible,
     require_prepared_job_eligible,
 )
-from .tts import TtsService
+from .tts import TtsInputValidationError, TtsService
 
 
 
@@ -649,6 +649,15 @@ class PipelineWorker:
                             (str(segment_path), audio_hash, duration_ms, utcnow(), segment["id"]),
                         )
                     break
+                except TtsInputValidationError as exc:
+                    with self.db.connect() as connection:
+                        connection.execute(
+                            "UPDATE segments SET status='failed',error_message=? WHERE id=?",
+                            (str(exc)[:2000], segment["id"]),
+                        )
+                    raise ChapterNeedsReview(
+                        f"Segment {segment['segment_index']} TTS input validation error: {exc}"
+                    ) from exc
                 except Exception as exc:
                     with self.db.connect() as connection:
                         connection.execute(
