@@ -11,6 +11,9 @@ Exact next task:
 
 ## Verified Outputs
 
+- Safe storage cleanup is complete: `103` proven-orphaned paths deleted,
+  `8,068,537,580` bytes reclaimed, canonical output unchanged, two verified
+  rollback backups retained, and runtime stopped with no WAL/SHM.
 - Job `26`: `completed`; JobChapters `26/27`: `completed`.
 - Chapter `372`: Text Revision `744`, Casting Plan `28` revision `2`,
   `53 / 53` verified Segments, retries `0`.

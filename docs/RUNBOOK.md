@@ -379,8 +379,32 @@ Approve từng phần phải tiếp tục từ current approved base plan. Draft
 
 - Pause queue.
 - Chạy doctor để xem dung lượng.
-- Cleanup chỉ segment của chapter đã hoàn tất và hết retention.
-- Không xóa active master/audio/timeline.
+- Dừng runtime/worker rồi chạy report và dry-run:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\storage_cleanup.py --report
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\storage_cleanup.py --dry-run
+```
+
+- Chỉ execute sau khi đã kiểm tra candidate list:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\storage_cleanup.py `
+  --execute `
+  --confirm DELETE_PROVEN_ORPHANED_STORAGE
+```
+
+- Utility luôn giữ canonical DB, mọi Artifact path, active/historical output,
+  work được DB tham chiếu, nonterminal work, Git-tracked files,
+  `experiment_b_transcript/`, `runs/`, `secrets/`, unknown items, một backup
+  pre-current-schema và một backup current-schema đã verify.
+- Chỉ xóa khi chứng minh được: smoke/test output orphaned, temp/partial không
+  còn DB reference, clone/rehearsal dư thừa, cache local có thể build lại, log
+  runtime đã dừng, hoặc export audio có hash trùng Artifact canonical còn giữ.
+- JSON deletion manifest mặc định nằm dưới ignored
+  `data/cleanup_reports/` và chỉ ghi path tương đối repository.
+- Không có scheduled deleter. Không xóa active master/audio/timeline hoặc
+  rejected/stale Artifact lịch sử.
 
 ### Active artifact thiếu file
 

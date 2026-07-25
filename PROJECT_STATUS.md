@@ -1,6 +1,6 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-25 (Asia/Saigon)
+**Cập nhật:** 2026-07-26 (Asia/Saigon)
 **Milestone:** DAILY-PROD-6 Technical Pilot Complete - Human Audio QA Pending
 **Strategic state:** `DAILY_USE_TWO_CHAPTER_PILOT_TECHNICALLY_PASSED`
 **Trạng thái hiện tại:** Job `26` completed the first normal-UI contiguous two-chapter production pilot for Book `1`, Chapters `372-373`. Active Artifacts `93/96` passed decode, download/hash, restart, voice-provenance, and offline intelligibility screening; both remain Human QA `pending`.
@@ -11,7 +11,7 @@
 **Canonical runtime:** `http://127.0.0.1:8772`
 **Runtime schema:** canonical `15`
 **Default/latest schema:** `15`
-**Runtime:** canonical schema `15`; running locally and idle after restart verification
+**Runtime:** canonical schema `15`; stopped and idle after cleanup verification
 **DAILY-PROD-5A:** complete
 **DAILY-PROD-5B:** complete and production-proven
 **DAILY-PROD-5:** complete
@@ -25,6 +25,28 @@
 **DAILY-PROD-3:** complete
 
 **Current production state:**
+- Safe storage cleanup completed from starting Git baseline
+  `a285350ce9b3116644d78529f4e4b43c8c0609ed`. The controlled execution
+  deleted `103` proven-orphaned paths and reclaimed `8,068,537,580` bytes,
+  reducing repository storage from about `12.521 GB` to about `4.452 GB`
+  while leaving `data/output` unchanged at `1,305,616,326` bytes.
+- Retention now keeps
+  `backups/task18bd_pre_ch369_final_voice_map_20260719_142255` as the latest
+  verified pre-schema-15 rollback backup and
+  `backups/storage-cleanup-pre-execute-schema15-20260725` as the verified
+  current backup. The successful activation package under
+  `D:\Youtube_AI_HANDOFFS\Story Audio\prepare_activation\run_20260723_readiness_v3`
+  remains outside cleanup roots and unchanged.
+- `scripts/storage_cleanup.py` provides report/dry-run/execute modes, requires
+  exact destructive confirmation, reads canonical SQLite immutable/read-only,
+  excludes Git-tracked/protected/referenced/reparse paths, retains unknown
+  items, and refuses execution while runtime/nonterminal work or integrity
+  blockers exist. No scheduled cleanup was added.
+- Post-cleanup digests for Jobs `23-26`, their JobChapters, Artifacts
+  `87/90/93/96`, and Chapter `369` match the pre-cleanup baseline. Artifact
+  files `87/90/93/96` retain exact hashes and sizes; Audio Library, HTTP `206`
+  playback ranges, full downloads, Doctor, quick check, and foreign keys pass.
+  Runtime is stopped and no WAL/SHM remains.
 - Book `1`, Chapters `372-373` completed through exactly one authenticated
   PREPARE request and one explicit START on Job `26`. JobChapters `26/27` are
   completed with `53/53` and `58/58` verified Segments; retries are `0`.

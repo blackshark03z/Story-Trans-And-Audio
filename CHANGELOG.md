@@ -4,6 +4,31 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ## Unreleased
 
+### Safe Storage Cleanup
+
+- Added `scripts/storage_cleanup.py` with explicit `--report`, `--dry-run`, and
+  `--execute` modes. Execution requires
+  `--confirm DELETE_PROVEN_ORPHANED_STORAGE` and fails closed for a running
+  localhost runtime, nonterminal Jobs, canonical integrity errors, non-empty
+  WAL, Git-tracked content, protected paths, canonical file references, or
+  reparse points.
+- The cleanup reads canonical SQLite with `mode=ro&immutable=1`, resolves all
+  Artifact/Segment/attempt/repair paths, retains unknown items, and writes an
+  ignored JSON deletion manifest containing only repository-relative paths.
+- Created and hash-verified one full schema-15 backup, retained the latest
+  verified schema-12 backup, and preserved the external successful activation
+  package. One controlled execution deleted `103` proven-orphaned paths and
+  reclaimed `8,068,537,580` bytes.
+- Deleted only redundant backup/clone rehearsals, unreferenced smoke and
+  terminal-work output, generated Python caches, stopped-runtime logs, stale
+  zero-byte WAL/SHM sidecars, and three exports whose audio hashes matched
+  preserved canonical Artifacts.
+- Preserved all canonical output and Artifact paths, preview cache, Jobs
+  `23-26`, Artifacts `87/90/93/96`, Chapter `369`,
+  `experiment_b_transcript/`, `runs/`, and
+  `secrets/production-runtime.env`. Post-cleanup Audio Library, HTTP range,
+  full download/hash, Doctor, quick check, and foreign keys passed.
+
 ### Daily-Use Two-Chapter Production Pilot
 
 - Added durable local production startup through ignored

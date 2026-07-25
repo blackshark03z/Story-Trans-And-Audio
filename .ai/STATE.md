@@ -1,10 +1,30 @@
 # DAILY-PROD Checkpoint State
 
-Updated: 2026-07-25
+Updated: 2026-07-26
 
 ## Current Phase
 
 `The two-chapter daily-production pilot completed on Job 26. Artifacts 93 and 96 passed technical/offline intelligibility screening and remain Human QA pending.`
+
+## Safe Storage Cleanup
+
+- Starting Git HEAD and `origin/main`:
+  `a285350ce9b3116644d78529f4e4b43c8c0609ed`; canonical schema `15`.
+- `scripts/storage_cleanup.py` now provides fail-closed report, dry-run, and
+  confirmed execute modes. It uses immutable read-only SQLite, canonical
+  path/reference resolution, Git/protected/reparse guards, runtime/nonterminal
+  checks, and repository-relative JSON manifests.
+- A full schema-15 backup was created and hash-verified. Cleanup retains it,
+  the latest verified schema-12 backup, and the successful external activation
+  package.
+- One execution deleted `103` proven-orphaned paths and reclaimed
+  `8,068,537,580` bytes. Repository storage fell from about `12.521 GB` to
+  about `4.452 GB`; canonical `data/output` stayed `1,305,616,326` bytes.
+- Jobs `23-26`, Artifacts `87/90/93/96`, Chapter `369`, preview cache,
+  `experiment_b_transcript/`, `runs/`, and production secrets remain intact.
+  Audio Library, range/full download hashes, Doctor, quick check, and foreign
+  keys pass. Runtime is stopped and no WAL/SHM remains.
+- Exact next action remains full Human Audio QA for Artifacts `93` and `96`.
 
 ## Two-Chapter Daily Production Pilot
 
