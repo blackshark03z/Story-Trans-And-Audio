@@ -79,6 +79,57 @@ class HumanApprovalApiTests(IsolatedTestCase):
         self.assertEqual(data["chapter"]["human_qa_status"], "needs_fixes")
         self.assertEqual(data["chapter"]["human_approval_label"], "Cần sửa")
 
+    def test_needs_fixes_requires_note_and_creates_no_partial_record(self) -> None:
+        response = self.client.put(
+            f"/api/chapters/{self.chapter_id}/human-approval",
+            json={"status": "needs_fixes", "notes": "   "},
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["detail"]["code"],
+            "QA_REJECTION_NOTE_REQUIRED",
+        )
+        chapter = self.db.fetch_one(
+            "SELECT human_approval_json FROM chapters WHERE id=?",
+            (self.chapter_id,),
+        )
+        self.assertIsNone(chapter["human_approval_json"])
+        self.assertEqual(
+            self.db.fetch_one(
+                "SELECT COUNT(*) AS count FROM audit_events WHERE chapter_id=?",
+                (self.chapter_id,),
+            )["count"],
+            0,
+        )
+
+    def test_history_is_timestamped_and_bound_to_each_active_artifact(self) -> None:
+        first = self.client.put(
+            f"/api/chapters/{self.chapter_id}/human-approval",
+            json={"status": "needs_fixes", "notes": "Pronunciation issue."},
+        )
+        self.assertEqual(first.status_code, 200)
+        second = self.client.put(
+            f"/api/chapters/{self.chapter_id}/human-approval",
+            json={"status": "approved", "notes": "Reviewed again."},
+        )
+        self.assertEqual(second.status_code, 200)
+
+        history = self.client.get(
+            f"/api/chapters/{self.chapter_id}/human-approval-history"
+        )
+        self.assertEqual(history.status_code, 200)
+        payload = history.json()
+        self.assertEqual(payload["total"], 2)
+        self.assertEqual(
+            [item["status"] for item in payload["items"]],
+            ["approved", "needs_fixes"],
+        )
+        self.assertTrue(all(item["recorded_at"] for item in payload["items"]))
+        self.assertTrue(
+            all(item["artifact_id"] == self.old_artifact_id for item in payload["items"])
+        )
+        self.assertNotIn("output_path", str(payload))
+
     def test_detail_warns_when_approved_artifact_no_longer_matches_active_output(self) -> None:
         response = self.client.put(
             f"/api/chapters/{self.chapter_id}/human-approval",

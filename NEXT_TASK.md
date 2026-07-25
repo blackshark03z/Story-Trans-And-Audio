@@ -11,6 +11,13 @@ Exact next task:
 
 ## Verified Outputs
 
+- Daily-Use V1 UI is complete: the operator can navigate Production, Voice
+  Assignment, Jobs, Audio Library, and Storage; see global runtime gates;
+  play/download outputs; submit explicit Human QA; download a contiguous range
+  ZIP; run storage report/dry-run; and restart the durable runtime without
+  terminal or database access.
+- No Human QA choice was made for Artifacts `93/96` during UI acceptance.
+  Their next decision remains intentionally human-only.
 - Safe storage cleanup is complete: `103` proven-orphaned paths deleted,
   `8,068,537,580` bytes reclaimed, canonical output unchanged, two verified
   rollback backups retained, and runtime stopped with no WAL/SHM.
@@ -32,6 +39,8 @@ Exact next task:
 
 ## Operator Step
 
+- Open `Audio đã tạo` in the running application; Artifact `93` is Chapter
+  `372` and Artifact `96` is Chapter `373`.
 - Listen through Artifact `93`, including each `custom:25` dialogue transition.
 - Listen through Artifact `96`, including preset `Ngọc Lan`, Hứa Thanh
   `custom:25`, unknown `custom:25`, and narrator `custom:26` transitions.

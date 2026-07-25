@@ -23,6 +23,27 @@ An operator can:
 
 The UI must always make the next valid action clear.
 
+## Daily-Use V1 Operator Surface
+
+Daily-Use V1 is implemented through five primary views:
+
+- Production owns range readiness, blocker resolution, immutable approvals,
+  PREPARE, and the separate START_RENDER boundary.
+- Voice Assignment summarizes current role, voice, availability, affected
+  chapter, and approval state, then returns to the contextual Production
+  workspace for explicit draft/save/approve actions.
+- Jobs shows pinned range/voice state, chapter and Segment progress, timestamps,
+  recoverable versus permanent errors, and only backend-authorized actions.
+- Audio Library provides playback, individual download, explicit Human QA with
+  required rejection notes/history, and deterministic contiguous range ZIP.
+- Storage provides report and dry-run by default. Confirmed cleanup is
+  fail-closed and never treats canonical Artifact files as candidates.
+
+The global status rail exposes runtime identity, schema readiness, PREPARE,
+worker/render, authentication, kill-switch, and supervised restart state.
+Durable restart preserves persisted production state and does not implicitly
+prepare, start, retry, or render work.
+
 ## Production PREPARE Runtime
 
 Batch PREPARE is a separate PREPARE-only operating mode. It consumes the current

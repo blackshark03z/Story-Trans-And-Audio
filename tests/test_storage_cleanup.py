@@ -189,6 +189,25 @@ class StorageCleanupTests(unittest.TestCase):
         self.assertTrue(orphan.exists())
         self.assertTrue(self.artifact.exists())
 
+    def test_in_process_mode_allows_owned_runtime_but_keeps_safety_checks(self) -> None:
+        orphan = self.root / "data" / "work" / "job_1"
+        orphan.mkdir()
+        (orphan / "concat.txt").write_text("temporary", encoding="utf-8")
+
+        with mock.patch(
+            "story_audio.storage_cleanup._runtime_listening",
+            return_value=True,
+        ):
+            result = execute_cleanup(
+                self.root,
+                confirmation=CONFIRMATION,
+                allow_running_runtime=True,
+            )
+
+        self.assertFalse(orphan.exists())
+        self.assertTrue(self.artifact.exists())
+        self.assertGreater(result["reclaimed_bytes"], 0)
+
     def test_nonempty_wal_blocks_but_zero_byte_sidecars_are_reclaimable(self) -> None:
         wal = Path(str(self.db_path) + "-wal")
         shm = Path(str(self.db_path) + "-shm")

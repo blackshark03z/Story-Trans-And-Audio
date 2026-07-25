@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import json
+import os
+import signal
+import threading
 import unicodedata
+import uuid
 from contextlib import asynccontextmanager
+from functools import wraps
 from pathlib import Path
 from typing import Any, Literal
 
@@ -10,7 +15,9 @@ from fastapi import Body, FastAPI, File, Form, HTTPException, Query, Request, Up
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from starlette.background import BackgroundTask
 
+from .audio_archive import AudioArchiveError, build_archive_plan, create_archive
 from .config import canonical_production_db_path, settings
 from .casting import (
     CastingError,
@@ -83,6 +90,12 @@ from .pipeline import (
 )
 from .range_readiness import get_range_readiness
 from .storage import ContentStore
+from .storage_cleanup import (
+    CONFIRMATION as STORAGE_CLEANUP_CONFIRMATION,
+    StorageCleanupError,
+    build_report as build_storage_report,
+    execute_cleanup,
+)
 from .speaker_assignment import (
     SpeakerAssignmentError,
     generate_speaker_assignment_draft,
@@ -173,6 +186,16 @@ worker = PipelineWorker(db, store, tts_service, settings)
 voice_previews = VoicePreviewService(
     tts_service, settings, custom_voice_repo=custom_voice_repo, store=store
 )
+production_operation_lock = threading.RLock()
+
+
+def _serialized_production_mutation(function):
+    @wraps(function)
+    def wrapped(*args, **kwargs):
+        with production_operation_lock:
+            return function(*args, **kwargs)
+
+    return wrapped
 
 
 def _build_custom_voice_context() -> CustomVoiceContext | None:
@@ -338,6 +361,14 @@ class SpeakerReviewCastingPlanDraftRequest(BaseModel):
 class HumanApprovalRequest(BaseModel):
     status: str = Field(pattern="^(approved|needs_fixes)$")
     notes: str | None = Field(default=None, max_length=4000)
+
+
+class StorageCleanupRequest(BaseModel):
+    confirmation: str = Field(min_length=1, max_length=100)
+
+
+class RuntimeRestartRequest(BaseModel):
+    confirmation: Literal["RESTART_STORY_AUDIO"]
 
 
 class TargetedTextCorrectionRequest(BaseModel):
@@ -506,6 +537,7 @@ def get_runtime_identity() -> dict[str, Any]:
     db_path = settings.db_path.resolve()
     live_db = canonical_production_db_path().resolve()
     live_root = live_db.parent
+    worker_thread = getattr(worker, "_thread", None)
     return {
         "root": str(settings.root.resolve()),
         "data_root": str(data_root),
@@ -516,6 +548,8 @@ def get_runtime_identity() -> dict[str, Any]:
         "canonical_live_db_path": str(live_db),
         "is_canonical_live_data_root": data_root == live_root,
         "is_canonical_live_db": db_path == live_db,
+        "worker_available": bool(worker_thread and worker_thread.is_alive()),
+        "supervised_restart_available": os.environ.get("STORY_AUDIO_SUPERVISED") == "1",
     }
 
 
@@ -564,10 +598,11 @@ async def production_batch_prepare(request: Request) -> dict[str, Any]:
     except (json.JSONDecodeError, ValidationError, TypeError) as exc:
         raise HTTPException(400, {"code": "INVALID_REQUEST_BODY"}) from exc
     try:
-        result = _prepare_service().prepare(
-            payload.model_dump(),
-            authorization_header=request.headers.get("authorization"),
-        )
+        with production_operation_lock:
+            result = _prepare_service().prepare(
+                payload.model_dump(),
+                authorization_header=request.headers.get("authorization"),
+            )
     except ClonePrepareApiError as exc:
         raise _clone_prepare_error(exc) from exc
     if result.http_status != 200:
@@ -687,6 +722,8 @@ def audio_library() -> dict[str, Any]:
                 "job_chapter_status": binding.get("active_output_job_chapter_status"),
                 "casting_plan_id": binding.get("active_output_casting_plan_id"),
                 "casting_plan_revision": binding.get("active_output_casting_plan_revision"),
+                "requested_voice": binding.get("active_output_job_voice_name"),
+                "applied_narrator_voice": binding.get("active_output_narrator_voice_id"),
                 "human_qa_status": chapter_data["human_qa_status"],
                 "human_approval_status": chapter_data["human_approval_status"],
                 "human_approval_label": chapter_data["human_approval_label"],
@@ -697,6 +734,75 @@ def audio_library() -> dict[str, Any]:
             }
         )
     return {"items": items, "total": len(items)}
+
+
+def _archive_plan_payload(plan: dict[str, Any]) -> dict[str, Any]:
+    return {key: value for key, value in plan.items() if key != "entries"}
+
+
+def _audio_archive_error(exc: AudioArchiveError) -> HTTPException:
+    status = 404 if exc.code == "BOOK_NOT_FOUND" else 409 if exc.issues else 400
+    return HTTPException(
+        status,
+        {"code": exc.code, "message": str(exc), "issues": exc.issues},
+    )
+
+
+@app.get("/api/audio-library/range-archive-readiness")
+def audio_library_range_archive_readiness(
+    book_id: int = Query(..., gt=0),
+    from_chapter: int = Query(..., ge=0),
+    to_chapter: int = Query(..., ge=0),
+) -> dict[str, Any]:
+    try:
+        plan = build_archive_plan(
+            db,
+            output_root=settings.output_dir,
+            book_id=book_id,
+            from_chapter=from_chapter,
+            to_chapter=to_chapter,
+        )
+    except AudioArchiveError as exc:
+        raise _audio_archive_error(exc) from exc
+    return _archive_plan_payload(plan)
+
+
+def _remove_temporary_archive(path: Path) -> None:
+    path.unlink(missing_ok=True)
+
+
+@app.get("/api/audio-library/range-archive")
+def audio_library_range_archive(
+    book_id: int = Query(..., gt=0),
+    from_chapter: int = Query(..., ge=0),
+    to_chapter: int = Query(..., ge=0),
+):
+    try:
+        plan = build_archive_plan(
+            db,
+            output_root=settings.output_dir,
+            book_id=book_id,
+            from_chapter=from_chapter,
+            to_chapter=to_chapter,
+        )
+        if not plan["ready"]:
+            raise AudioArchiveError(
+                "ARCHIVE_RANGE_INCOMPLETE",
+                "The selected range has missing or invalid active outputs.",
+                issues=list(plan["issues"]),
+            )
+        archive_path = (
+            settings.work_dir / "archive_downloads" / f"{uuid.uuid4().hex}.zip"
+        )
+        archive = create_archive(plan, archive_path)
+    except AudioArchiveError as exc:
+        raise _audio_archive_error(exc) from exc
+    return FileResponse(
+        archive["path"],
+        media_type="application/zip",
+        filename=archive["archive_name"],
+        background=BackgroundTask(_remove_temporary_archive, archive["path"]),
+    )
 
 
 @app.get("/api/production/range-readiness")
@@ -829,12 +935,21 @@ def set_human_approval(chapter_id: int, request: HumanApprovalRequest) -> dict[s
     snapshot = _active_artifact_snapshot(chapter_data)
     if not snapshot:
         raise HTTPException(400, "Chưa có active audio để chốt hoặc đánh dấu cần sửa.")
+    notes = (request.notes or "").strip()
+    if request.status == "needs_fixes" and not notes:
+        raise HTTPException(
+            400,
+            {
+                "code": "QA_REJECTION_NOTE_REQUIRED",
+                "message": "Please describe the issue before marking this audio as needing fixes.",
+            },
+        )
     recorded_at = utcnow()
     approval = {
         "status": request.status,
         "recorded_at": recorded_at,
         "approved_at": recorded_at if request.status == "approved" else None,
-        "notes": (request.notes or "").strip(),
+        "notes": notes,
         "artifact_id": snapshot["artifact_id"],
         "job_id": snapshot["job_id"],
         "output_path": snapshot["output_path"],
@@ -845,6 +960,29 @@ def set_human_approval(chapter_id: int, request: HumanApprovalRequest) -> dict[s
         connection.execute(
             "UPDATE chapters SET human_approval_json=?, updated_at=? WHERE id=?",
             (json.dumps(approval, ensure_ascii=False), recorded_at, chapter_id),
+        )
+        connection.execute(
+            """
+            INSERT INTO audit_events(event_code,job_id,chapter_id,details_json,created_at)
+            VALUES(?,?,?,?,?)
+            """,
+            (
+                "human_qa_recorded",
+                snapshot["job_id"],
+                chapter_id,
+                json.dumps(
+                    {
+                        "status": request.status,
+                        "notes": notes,
+                        "artifact_id": snapshot["artifact_id"],
+                        "job_id": snapshot["job_id"],
+                        "sha256": snapshot["sha256"],
+                        "duration_ms": snapshot["duration_ms"],
+                    },
+                    ensure_ascii=False,
+                ),
+                recorded_at,
+            ),
         )
     refreshed = db.fetch_one(
         "SELECT c.*,b.title AS book_title FROM chapters c JOIN books b ON b.id=c.book_id WHERE c.id=?",
@@ -857,6 +995,65 @@ def set_human_approval(chapter_id: int, request: HumanApprovalRequest) -> dict[s
         "human_approval": human_approval,
         "active_output": active_output,
     }
+
+
+@app.get("/api/chapters/{chapter_id}/human-approval-history")
+def human_approval_history(chapter_id: int) -> dict[str, Any]:
+    chapter = db.fetch_one(
+        "SELECT id,human_approval_json FROM chapters WHERE id=?",
+        (chapter_id,),
+    )
+    if not chapter:
+        raise HTTPException(404, "Chapter not found.")
+    rows = db.fetch_all(
+        """
+        SELECT id,job_id,details_json,created_at
+        FROM audit_events
+        WHERE chapter_id=? AND event_code='human_qa_recorded'
+        ORDER BY id DESC
+        """,
+        (chapter_id,),
+    )
+    items: list[dict[str, Any]] = []
+    for row in rows:
+        try:
+            details = json.loads(row["details_json"] or "{}")
+        except (TypeError, ValueError):
+            details = {}
+        items.append(
+            {
+                "id": int(row["id"]),
+                "status": details.get("status"),
+                "notes": details.get("notes") or "",
+                "artifact_id": details.get("artifact_id"),
+                "job_id": details.get("job_id") or row["job_id"],
+                "sha256": details.get("sha256"),
+                "duration_ms": details.get("duration_ms"),
+                "recorded_at": row["created_at"],
+                "source": "audit",
+            }
+        )
+    current = _parse_human_approval(chapter["human_approval_json"])
+    if current and not any(
+        item["artifact_id"] == current.get("artifact_id")
+        and item["recorded_at"] == current.get("recorded_at")
+        for item in items
+    ):
+        items.append(
+            {
+                "id": None,
+                "status": current.get("status"),
+                "notes": current.get("notes") or "",
+                "artifact_id": current.get("artifact_id"),
+                "job_id": current.get("job_id"),
+                "sha256": current.get("sha256"),
+                "duration_ms": current.get("duration_ms"),
+                "recorded_at": current.get("recorded_at"),
+                "source": "legacy_snapshot",
+            }
+        )
+    items.sort(key=lambda item: str(item.get("recorded_at") or ""), reverse=True)
+    return {"chapter_id": chapter_id, "items": items, "total": len(items)}
 
 
 @app.get("/api/chapters/{chapter_id}/revisions")
@@ -1498,6 +1695,7 @@ def _validated_job_payload(request: JobRequest) -> dict[str, Any]:
 
 
 @app.post("/api/jobs/prepare")
+@_serialized_production_mutation
 def prepare_job_route(request: JobRequest) -> dict[str, Any]:
     if prepare_runtime_integration.runtime_mode == PRODUCTION:
         raise HTTPException(409, {"code": "BATCH_PREPARE_API_REQUIRED"})
@@ -1511,6 +1709,7 @@ def prepare_job_route(request: JobRequest) -> dict[str, Any]:
 
 
 @app.post("/api/jobs")
+@_serialized_production_mutation
 def submit_job(request: JobRequest) -> dict[str, Any]:
     if prepare_runtime_integration.runtime_mode == PRODUCTION:
         raise HTTPException(409, {"code": "START_RENDER_UNAVAILABLE"})
@@ -1562,7 +1761,9 @@ def list_jobs(limit: int = Query(50, ge=1, le=200)) -> list[dict[str, Any]]:
             (SELECT COUNT(*) FROM job_chapters jc WHERE jc.job_id=j.id AND jc.status='completed') AS actual_completed,
             (SELECT COUNT(*) FROM job_chapters jc WHERE jc.job_id=j.id AND jc.status IN ('failed','needs_review')) AS actual_failed,
             (SELECT COUNT(*) FROM segments s JOIN job_chapters jc ON jc.id=s.job_chapter_id WHERE jc.job_id=j.id) AS total_segments,
-            (SELECT COUNT(*) FROM segments s JOIN job_chapters jc ON jc.id=s.job_chapter_id WHERE jc.job_id=j.id AND s.status='verified') AS completed_segments
+            (SELECT COUNT(*) FROM segments s JOIN job_chapters jc ON jc.id=s.job_chapter_id WHERE jc.job_id=j.id AND s.status='verified') AS completed_segments,
+            (SELECT COUNT(*) FROM segments s JOIN job_chapters jc ON jc.id=s.job_chapter_id WHERE jc.job_id=j.id AND s.status IN ('failed','interrupted')) AS failed_segments,
+            (SELECT COUNT(*) FROM segments s JOIN job_chapters jc ON jc.id=s.job_chapter_id WHERE jc.job_id=j.id AND s.status='pending') AS pending_segments
             FROM jobs j JOIN books b ON b.id=j.book_id ORDER BY j.id DESC LIMIT ?""",
         (limit,),
     )
@@ -1577,7 +1778,9 @@ def job_detail(job_id: int) -> dict[str, Any]:
     chapters = db.fetch_all(
         """SELECT jc.*,c.chapter_number,c.title,
             (SELECT COUNT(*) FROM segments s WHERE s.job_chapter_id=jc.id) AS total_segments,
-            (SELECT COUNT(*) FROM segments s WHERE s.job_chapter_id=jc.id AND s.status='verified') AS completed_segments
+            (SELECT COUNT(*) FROM segments s WHERE s.job_chapter_id=jc.id AND s.status='verified') AS completed_segments,
+            (SELECT COUNT(*) FROM segments s WHERE s.job_chapter_id=jc.id AND s.status IN ('failed','interrupted')) AS failed_segments,
+            (SELECT COUNT(*) FROM segments s WHERE s.job_chapter_id=jc.id AND s.status='pending') AS pending_segments
             FROM job_chapters jc JOIN chapters c ON c.id=jc.chapter_id
             WHERE jc.job_id=? ORDER BY jc.sequence""",
         (job_id,),
@@ -1602,6 +1805,7 @@ def job_detail(job_id: int) -> dict[str, Any]:
 
 
 @app.post("/api/jobs/{job_id}/start")
+@_serialized_production_mutation
 def start_job(job_id: int) -> dict[str, Any]:
     if (
         prepare_runtime_integration.runtime_mode == PRODUCTION
@@ -1659,6 +1863,7 @@ def segment_diagnostics(segment_id: int) -> dict[str, Any]:
 
 
 @app.post("/api/job-chapters/{job_chapter_id}/retry")
+@_serialized_production_mutation
 def retry_chapter(job_chapter_id: int) -> dict[str, Any]:
     try:
         result = retry_job_chapter(db, job_chapter_id)
@@ -1669,6 +1874,7 @@ def retry_chapter(job_chapter_id: int) -> dict[str, Any]:
 
 
 @app.post("/api/segments/{segment_id}/retry")
+@_serialized_production_mutation
 def retry_failed_segment(segment_id: int) -> dict[str, Any]:
     try:
         result = retry_segment(db, segment_id)
@@ -1679,6 +1885,7 @@ def retry_failed_segment(segment_id: int) -> dict[str, Any]:
 
 
 @app.post("/api/segments/{segment_id}/regenerate")
+@_serialized_production_mutation
 def regenerate_segment(segment_id: int) -> dict[str, Any]:
     """Generate candidate synthesis for verified segment."""
     from .segment_regeneration import RegenerationError, regenerate_verified_segment
@@ -1690,6 +1897,7 @@ def regenerate_segment(segment_id: int) -> dict[str, Any]:
 
 
 @app.post("/api/jobs/{job_id}/repair-blocks")
+@_serialized_production_mutation
 def create_repair_block(job_id: int, body: dict[str, Any] = Body(...)) -> dict[str, Any]:
     """Generate a candidate audio repair block for adjacent verified segments."""
     from .audio_repair_blocks import AudioRepairBlockError, create_audio_repair_block_candidate
@@ -1722,6 +1930,7 @@ def get_repair_blocks(job_chapter_id: int) -> dict[str, Any]:
 
 
 @app.post("/api/audio-repair-blocks/{repair_block_id}/reject")
+@_serialized_production_mutation
 def reject_repair_block(repair_block_id: int) -> dict[str, Any]:
     """Reject a candidate audio repair block without modifying active audio."""
     from .audio_repair_blocks import AudioRepairBlockError, reject_audio_repair_block_candidate
@@ -1732,6 +1941,7 @@ def reject_repair_block(repair_block_id: int) -> dict[str, Any]:
 
 
 @app.post("/api/audio-repair-blocks/{repair_block_id}/accept")
+@_serialized_production_mutation
 def accept_repair_block(repair_block_id: int) -> dict[str, Any]:
     """Accept a repair block and reassemble the same job with the candidate overlay."""
     from .audio_repair_blocks import AudioRepairBlockError, accept_audio_repair_block_candidate
@@ -1768,6 +1978,7 @@ def get_repair_block_active_audio(repair_block_id: int) -> FileResponse:
 
 
 @app.post("/api/segments/{segment_id}/accept-candidate")
+@_serialized_production_mutation
 def accept_candidate(segment_id: int, body: dict[str, int] = Body(...)) -> dict[str, Any]:
     """Accept candidate and rebuild chapter artifacts."""
     from .segment_regeneration import RegenerationError, accept_segment_candidate
@@ -1782,6 +1993,7 @@ def accept_candidate(segment_id: int, body: dict[str, int] = Body(...)) -> dict[
 
 
 @app.post("/api/segments/{segment_id}/reject-candidate")
+@_serialized_production_mutation
 def reject_candidate(segment_id: int, body: dict[str, int] = Body(...)) -> dict[str, Any]:
     """Reject candidate and keep active segment unchanged."""
     from .segment_regeneration import RegenerationError, reject_segment_candidate
@@ -1837,10 +2049,28 @@ def get_attempt_audio(attempt_id: int) -> FileResponse:
 
 
 @app.post("/api/jobs/{job_id}/{action}")
+@_serialized_production_mutation
 def job_action(job_id: int, action: str) -> dict[str, Any]:
     job = db.fetch_one("SELECT * FROM jobs WHERE id=?", (job_id,))
     if not job:
         raise HTTPException(404, "Không tìm thấy job.")
+    action_key = {
+        "pause": "can_pause",
+        "resume": "can_resume",
+        "cancel": "can_cancel",
+        "retry": "can_retry",
+    }.get(action)
+    if not action_key:
+        raise HTTPException(400, "Invalid job action.")
+    job_view = annotate_job_rows(db, [dict(job)])[0]
+    if not job_view["actions"][action_key]:
+        raise HTTPException(
+            409,
+            {
+                "code": "JOB_ACTION_NOT_AVAILABLE",
+                "message": f"Action {action} is not available for Job {job_id}.",
+            },
+        )
     now = utcnow()
     with db.connect() as connection:
         if action == "pause":
@@ -1852,7 +2082,7 @@ def job_action(job_id: int, action: str) -> dict[str, Any]:
             )
         elif action == "cancel":
             connection.execute("UPDATE jobs SET cancel_requested=1,updated_at=? WHERE id=?", (now, job_id))
-            if job["status"] == "scheduled":
+            if job["status"] in {"prepared", "scheduled"}:
                 connection.execute("UPDATE jobs SET status='cancelled',finished_at=? WHERE id=?", (now, job_id))
                 connection.execute(
                     "UPDATE job_chapters SET status='cancelled',finished_at=? WHERE job_id=?",
@@ -1891,6 +2121,111 @@ def artifact_file(artifact_id: int):
     if not path.exists():
         raise HTTPException(404, "File artifact không còn tồn tại.")
     return FileResponse(path, filename=path.name)
+
+
+def _last_cleanup_result() -> dict[str, Any] | None:
+    report_root = settings.data_dir / "cleanup_reports"
+    reports = sorted(report_root.glob("storage-cleanup-*.json"), reverse=True)
+    for path in reports:
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        if payload.get("mode") != "execute":
+            continue
+        return {
+            "executed_at": payload.get("executed_at"),
+            "reclaimed_bytes": int(payload.get("reclaimed_bytes") or 0),
+            "deleted_count": len(payload.get("deleted") or []),
+        }
+    return None
+
+
+def _storage_report_payload(*, mode: str) -> dict[str, Any]:
+    try:
+        report = build_storage_report(
+            settings.root,
+            include_largest=False,
+            live_runtime=True,
+        )
+    except (StorageCleanupError, OSError, ValueError) as exc:
+        raise HTTPException(
+            409,
+            {"code": "STORAGE_REPORT_BLOCKED", "message": str(exc)},
+        ) from exc
+    report["mode"] = mode
+    report["last_cleanup_result"] = _last_cleanup_result()
+    report["cleanup_confirmation"] = STORAGE_CLEANUP_CONFIRMATION
+    return report
+
+
+@app.get("/api/storage/report")
+def storage_report() -> dict[str, Any]:
+    return _storage_report_payload(mode="report")
+
+
+@app.post("/api/storage/dry-run")
+def storage_dry_run() -> dict[str, Any]:
+    return _storage_report_payload(mode="dry_run")
+
+
+@app.post("/api/storage/cleanup")
+@_serialized_production_mutation
+def storage_cleanup(request: StorageCleanupRequest) -> dict[str, Any]:
+    try:
+        result = execute_cleanup(
+            settings.root,
+            confirmation=request.confirmation,
+            allow_running_runtime=True,
+        )
+    except StorageCleanupError as exc:
+        raise HTTPException(
+            409,
+            {"code": "STORAGE_CLEANUP_BLOCKED", "message": str(exc)},
+        ) from exc
+    return {
+        "mode": result["mode"],
+        "executed_at": result["executed_at"],
+        "reclaimed_bytes": result["reclaimed_bytes"],
+        "deleted": result["deleted"],
+        "storage_after_bytes": result["storage_after_bytes"],
+    }
+
+
+def _signal_supervised_restart() -> None:
+    try:
+        os.kill(os.getpid(), signal.SIGINT)
+    except (OSError, ValueError):
+        os._exit(75)
+
+
+@app.post("/api/runtime/restart")
+def restart_runtime(request: RuntimeRestartRequest) -> dict[str, Any]:
+    signal_value = os.environ.get("STORY_AUDIO_RESTART_SIGNAL", "").strip()
+    if os.environ.get("STORY_AUDIO_SUPERVISED") != "1" or not signal_value:
+        raise HTTPException(
+            409,
+            {
+                "code": "SUPERVISED_RESTART_UNAVAILABLE",
+                "message": "Restart is available only from the durable launcher.",
+            },
+        )
+    signal_path = Path(signal_value).resolve(strict=False)
+    runtime_root = (settings.data_dir / "runtime").resolve(strict=False)
+    try:
+        signal_path.relative_to(runtime_root)
+    except ValueError as exc:
+        raise HTTPException(
+            409,
+            {
+                "code": "RESTART_SIGNAL_PATH_UNSAFE",
+                "message": "The restart signal path is outside managed runtime storage.",
+            },
+        ) from exc
+    signal_path.parent.mkdir(parents=True, exist_ok=True)
+    signal_path.write_text("restart\n", encoding="ascii")
+    threading.Timer(0.75, _signal_supervised_restart).start()
+    return {"ok": True, "state": "restarting"}
 
 
 @app.post("/api/maintenance/cleanup")

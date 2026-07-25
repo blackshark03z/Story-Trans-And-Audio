@@ -27,12 +27,15 @@ def get_active_output_bindings(
                jc.job_id AS active_job_id,
                jc.status AS active_job_chapter_status,
                jc.casting_plan_id AS active_casting_plan_id,
-               cp.plan_revision AS active_casting_plan_revision
+               cp.plan_revision AS active_casting_plan_revision,
+               cp.narrator_voice_id AS active_narrator_voice_id,
+               j.voice_name AS active_job_voice_name
         FROM chapters c
         LEFT JOIN artifacts a
                ON a.id = c.active_audio_artifact_id AND a.deleted_at IS NULL
         LEFT JOIN job_chapters jc ON jc.id = a.job_chapter_id
         LEFT JOIN casting_plans cp ON cp.id = jc.casting_plan_id
+        LEFT JOIN jobs j ON j.id = jc.job_id
         WHERE c.id IN ({_placeholders(len(chapter_id_list))})
         """,
         tuple(chapter_id_list),
@@ -56,6 +59,8 @@ def get_active_output_bindings(
             "active_output_job_chapter_status": row["active_job_chapter_status"],
             "active_output_casting_plan_id": int(row["active_casting_plan_id"]) if row["active_casting_plan_id"] else None,
             "active_output_casting_plan_revision": int(row["active_casting_plan_revision"]) if row["active_casting_plan_revision"] else None,
+            "active_output_narrator_voice_id": row["active_narrator_voice_id"],
+            "active_output_job_voice_name": row["active_job_voice_name"],
             "active_output_artifact_type": row["artifact_type"],
             "has_active_audio": bool(artifact_id),
             "active_output_has_trustworthy_binding": bool(artifact_id and job_id and job_chapter_id),
@@ -115,6 +120,8 @@ def annotate_chapter_rows(
             "active_output_job_chapter_status": None,
             "active_output_casting_plan_id": None,
             "active_output_casting_plan_revision": None,
+            "active_output_narrator_voice_id": None,
+            "active_output_job_voice_name": None,
             "active_output_artifact_type": None,
             "has_active_audio": False,
             "active_output_has_trustworthy_binding": False,
@@ -173,5 +180,63 @@ def annotate_job_rows(
         row["active_output_chapters"] = active_chapters
         row["active_output_chapter_count"] = len(active_chapters)
         row["is_active_output"] = bool(active_chapters)
-        row["is_historical_output"] = row.get("status") in {"completed", "completed_with_errors"} and not active_chapters
+        status = str(row.get("status") or "")
+        superseded_error = False
+        if (
+            status in {"completed_with_errors", "failed", "cancelled"}
+            and row.get("book_id") is not None
+            and row.get("from_chapter") is not None
+            and row.get("to_chapter") is not None
+        ):
+            superseded_error = bool(
+                db.fetch_one(
+                    """
+                    SELECT id FROM jobs
+                    WHERE id>? AND book_id=?
+                      AND from_chapter<=? AND to_chapter>=?
+                    ORDER BY id LIMIT 1
+                    """,
+                    (
+                        int(row["id"]),
+                        int(row["book_id"]),
+                        int(row["to_chapter"]),
+                        int(row["from_chapter"]),
+                    ),
+                )
+            )
+        row["is_historical_output"] = bool(
+            not active_chapters
+            and (
+                status == "completed"
+                or superseded_error
+            )
+        )
+        historical = bool(row["is_historical_output"])
+        row["actions"] = {
+            "can_start": status == "prepared",
+            "can_pause": status
+            in {"scheduled", "queued", "running", "repairing", "synthesizing", "assembling"},
+            "can_resume": status in {"paused", "interrupted"},
+            "can_cancel": status
+            in {
+                "prepared",
+                "scheduled",
+                "queued",
+                "running",
+                "repairing",
+                "synthesizing",
+                "assembling",
+                "paused",
+                "interrupted",
+            },
+            "can_retry": status in {"failed", "completed_with_errors"} and not historical,
+            "can_open_audio": bool(active_chapters),
+        }
+        row["error_classification"] = (
+            "recoverable"
+            if row["actions"]["can_resume"] or row["actions"]["can_retry"]
+            else "permanent"
+            if status in {"completed_with_errors", "failed", "cancelled"}
+            else None
+        )
     return job_rows

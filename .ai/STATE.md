@@ -4,7 +4,38 @@ Updated: 2026-07-26
 
 ## Current Phase
 
-`The two-chapter daily-production pilot completed on Job 26. Artifacts 93 and 96 passed technical/offline intelligibility screening and remain Human QA pending.`
+`Daily-Use V1 UI closure is complete. The two-chapter pilot remains on Job 26; Artifacts 93 and 96 are available for operator playback, explicit Human QA, individual download, and deterministic range ZIP, and both remain Human QA pending.`
+
+## Daily-Use V1 UI Closure
+
+- Starting Git HEAD and `origin/main`:
+  `190a4069139091ccfac6e836d406f1b9dfd1c30b`; canonical schema `15`.
+- Top-level daily navigation now exposes Production, Voice Assignment, Jobs,
+  Audio Library, and Storage. A global rail shows canonical runtime, schema,
+  PREPARE, worker/render, authentication, kill-switch, and supervised-restart
+  state without exposing secret configuration.
+- Production retains exact range/readiness/fingerprint/PREPARE and separate
+  START_RENDER boundaries. Voice Assignment summarizes the current chapter
+  context and returns to the existing bulk/per-role draft and approval flow.
+- Jobs uses backend action capabilities. Prepared/recoverable actions are shown
+  only when valid; superseded error Jobs are historical, while the latest
+  unsuperseded `completed_with_errors` Job remains retryable.
+- Audio Library now shows requested/applied voice provenance, explicit
+  Accept/Needs-fixes controls, required rejection notes, timestamped QA
+  history, chapter downloads, and same-book contiguous range ZIP download.
+- ZIP `372-373` contained exactly `chapter_0372.m4a` and
+  `chapter_0373.m4a`; each entry matched active Artifact `93/96` hashes. The
+  temporary archive was removed after delivery.
+- Storage report/dry-run reuses the fail-closed cleanup utility. Execute remains
+  disabled while scanning, with blockers, without exact confirmation, or
+  without proven candidates; canonical Artifacts are never cleanup candidates.
+- Durable `run_app.ps1` supervision supports UI restart. The acceptance restart
+  changed the application listener PID, preserved schema `15`, restored
+  Chapter `373` at `RENDERED_NOT_QA`, and retained Jobs and Artifacts.
+- No Human QA decision, PREPARE, START_RENDER, retry, provider/TTS/Gemini call,
+  cleanup execution, Job, Segment, Artifact, or audio was created by this
+  closure task. Chapter `369` remains unchanged.
+- Exact next action remains full Human Audio QA for Artifacts `93` and `96`.
 
 ## Safe Storage Cleanup
 

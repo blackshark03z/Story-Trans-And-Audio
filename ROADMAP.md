@@ -2,7 +2,7 @@
 
 Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve du lieu -> kha nang phuc hoi -> chat luong audio -> tinh nang moi.
 
-## Current Boundary - 2026-07-25
+## Current Boundary - 2026-07-26
 
 `DAILY-PROD-5` is complete and production-proven. Canonical schema `15`,
 authenticated PREPARE, explicit separate START_RENDER, worker execution,
@@ -12,6 +12,12 @@ one-chapter canary and one contiguous two-chapter pilot.
 The two-chapter pilot completed Book `1`, Chapters `372-373`, on exactly one
 PREPARE request and Job `26`. Artifacts `93/96` passed technical and cached
 offline intelligibility screening but remain Human QA pending.
+
+Daily-Use V1 UI closure is complete. Routine operation now has primary
+Production, Voice Assignment, Jobs, Audio Library, and Storage views; global
+runtime gates; explicit QA/history; chapter and range download; safe storage
+report/dry-run/confirmed cleanup; and supervised restart. This closure created
+no production work and made no QA decision.
 
 The only authorized next task is full human listening and one QA decision for
 each Artifact `93/96`. Do not start a larger batch before those decisions.

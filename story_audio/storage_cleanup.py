@@ -117,8 +117,9 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _sqlite_uri(path: Path) -> str:
-    return f"file:{path.resolve().as_posix()}?mode=ro&immutable=1"
+def _sqlite_uri(path: Path, *, immutable: bool = True) -> str:
+    suffix = "&immutable=1" if immutable else ""
+    return f"file:{path.resolve().as_posix()}?mode=ro{suffix}"
 
 
 def _sqlite_evidence(path: Path) -> tuple[int, str]:
@@ -170,9 +171,14 @@ def _runtime_listening(host: str = "127.0.0.1", port: int = 8772) -> bool:
         return False
 
 
-def _load_canonical_state(root: Path) -> dict[str, Any]:
+def _load_canonical_state(
+    root: Path, *, live_runtime: bool = False
+) -> dict[str, Any]:
     db_path = (root / "data" / "app.db").resolve()
-    connection = sqlite3.connect(_sqlite_uri(db_path), uri=True)
+    connection = sqlite3.connect(
+        _sqlite_uri(db_path, immutable=not live_runtime),
+        uri=True,
+    )
     connection.row_factory = sqlite3.Row
     try:
         quick_check = str(connection.execute("PRAGMA quick_check").fetchone()[0])
@@ -428,9 +434,14 @@ def _deduplicate_candidates(items: Iterable[InventoryItem]) -> list[InventoryIte
     return kept
 
 
-def build_report(root: Path, *, include_largest: bool = True) -> dict[str, Any]:
+def build_report(
+    root: Path,
+    *,
+    include_largest: bool = True,
+    live_runtime: bool = False,
+) -> dict[str, Any]:
     root = root.resolve(strict=True)
-    state = _load_canonical_state(root)
+    state = _load_canonical_state(root, live_runtime=live_runtime)
     tracked = _tracked_paths(root)
     references: set[Path] = state["references"]
     candidates: list[InventoryItem] = []
@@ -756,6 +767,11 @@ def build_report(root: Path, *, include_largest: bool = True) -> dict[str, Any]:
         base = Path(str(sidecar).removesuffix("-wal").removesuffix("-shm"))
         if not base.is_file():
             continue
+        if live_runtime and base.resolve(strict=False) == state["db_path"]:
+            # The in-process API reads canonical state with normal read-only
+            # SQLite semantics. Its live WAL/SHM are neither cleanup candidates
+            # nor blockers while the runtime owns them.
+            continue
         try:
             with base.open("rb") as handle:
                 is_sqlite = handle.read(16) == b"SQLite format 3\0"
@@ -822,6 +838,7 @@ def build_report(root: Path, *, include_largest: bool = True) -> dict[str, Any]:
         "schema": "story-audio-storage-cleanup/v1",
         "generated_at": _utcnow(),
         "mode": "report",
+        "live_runtime": live_runtime,
         "canonical": {
             "schema_version": state["schema"],
             "quick_check": state["quick_check"],
@@ -862,20 +879,25 @@ def execute_cleanup(
     *,
     confirmation: str,
     json_report: Path | None = None,
+    allow_running_runtime: bool = False,
 ) -> dict[str, Any]:
     root = root.resolve(strict=True)
     if confirmation != CONFIRMATION:
         raise StorageCleanupError(f"--confirm must equal {CONFIRMATION}")
-    if _runtime_listening():
+    if not allow_running_runtime and _runtime_listening():
         raise StorageCleanupError("Refusing cleanup while runtime is listening on port 8772.")
-    report = build_report(root, include_largest=False)
+    report = build_report(
+        root,
+        include_largest=False,
+        live_runtime=allow_running_runtime,
+    )
     if report["blockers"]:
         raise StorageCleanupError(
             "Refusing cleanup because safety blockers remain: "
             + "; ".join(report["blockers"])
         )
     tracked = _tracked_paths(root)
-    state = _load_canonical_state(root)
+    state = _load_canonical_state(root, live_runtime=allow_running_runtime)
     approved_roots = {
         (root / "backups").resolve(strict=False),
         (root / "data").resolve(strict=False),
@@ -917,7 +939,7 @@ def execute_cleanup(
 
     # The worker is an in-process API thread, so recheck its owning runtime
     # immediately before the first destructive operation.
-    if _runtime_listening():
+    if not allow_running_runtime and _runtime_listening():
         raise StorageCleanupError(
             "Refusing cleanup because runtime started during verification."
         )

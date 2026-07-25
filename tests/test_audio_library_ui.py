@@ -124,7 +124,7 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertEqual(self.js.count("$('#refreshAudioLibrary').onclick=refreshAudioLibrary"), 1)
         self.assertEqual(self.js.count("$('#retryAudioLibrary').onclick=refreshAudioLibrary"), 1)
 
-    def test_audio_library_has_no_mutation_actions_or_chapter_specific_filtering(self) -> None:
+    def test_audio_library_mutation_is_bounded_to_explicit_human_qa(self) -> None:
         audio_related = "\n".join(
             line
             for line in self.js.splitlines()
@@ -135,15 +135,17 @@ class AudioLibraryUiTests(unittest.TestCase):
             "/api/jobs/prepare",
             "/start",
             "/api/voice-previews",
-            "/human-approval",
             "method:'POST'",
-            "method:'PUT'",
             "method:'PATCH'",
             "method:'DELETE'",
             "369",
         )
         for value in forbidden:
             self.assertNotIn(value, audio_related)
+        self.assertIn("/human-approval", audio_related)
+        self.assertIn("method:'PUT'", audio_related)
+        self.assertIn("window.confirm", audio_related)
+        self.assertIn("notes", audio_related)
         self.assertNotIn("Chapter 369", self.html + self.js + self.css)
         self.assertNotIn("chapter 369", self.html + self.js + self.css)
 

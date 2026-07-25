@@ -28,7 +28,29 @@
     <a href="#/books" data-app-route="books" aria-label="Sách và nhân vật">Sách và nhân vật</a>
     <a href="#/audio" data-app-route="audio" aria-label="Audio đã tạo">Audio đã tạo</a>
     <a href="#/settings" data-app-route="settings" aria-label="Cài đặt">Cài đặt</a>
+    <a href="#/assignment" data-app-route="assignment" aria-label="Voice Assignment">Voice Assignment</a>
+    <a href="#/jobs" data-app-route="jobs" aria-label="Jobs">Jobs</a>
+    <a href="#/storage" data-app-route="storage" aria-label="Storage">Storage</a>
+    <details class="app-nav-more">
+      <summary>More</summary>
+      <div>
+        <a href="#/voices" data-app-route="voices">Voice Library</a>
+        <a href="#/books" data-app-route="books">Books and Characters</a>
+        <a href="#/settings" data-app-route="settings">Settings</a>
+      </div>
+    </details>
   </nav>
+
+  <section id="globalRuntimeStatus" class="global-runtime-status" aria-label="Operational status" aria-live="polite">
+    <div><strong>Runtime</strong><span id="globalRuntimeState">Checking...</span></div>
+    <div><strong>Schema</strong><span id="globalSchemaState">Checking...</span></div>
+    <div><strong>PREPARE</strong><span id="globalPrepareState">Checking...</span></div>
+    <div><strong>Render / worker</strong><span id="globalWorkerState">Checking...</span></div>
+    <div><strong>Authentication</strong><span id="globalAuthState">Checking...</span></div>
+    <div><strong>Kill switch</strong><span id="globalKillSwitchState">Checking...</span></div>
+    <button id="restartRuntime" class="ghost" type="button" disabled>Restart app</button>
+    <span id="restartRuntimeReason" class="muted">Checking launcher...</span>
+  </section>
 
   <main id="appMain">
     <h2 id="appViewHeading" class="sr-only">Trang chủ</h2>
@@ -361,6 +383,67 @@
       </section>
     </section>
 
+    <section id="assignmentView" class="app-view" data-app-view="assignment" aria-labelledby="assignmentHeading" hidden>
+      <section class="panel assignment-page">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Voice Assignment</p>
+            <h2 id="assignmentHeading">Gan giong theo ngu canh chuong</h2>
+          </div>
+          <button id="openAssignmentWorkspace" class="primary" type="button">Mo workspace gan giong</button>
+        </div>
+        <p class="section-guide">Trang nay tom tat role, voice, tinh kha dung va trang thai duyet cua chuong dang chon. Moi thay doi van duoc thuc hien trong Production Flow de giu dung chapter context.</p>
+        <div id="assignmentScope" class="assignment-scope muted">Chua chon chuong trong Production.</div>
+        <div id="assignmentSummary" class="flow-summary-grid"></div>
+        <div id="assignmentRows" class="flow-speaker-list"></div>
+        <div id="assignmentBlockedReason" class="issue warning hidden"></div>
+      </section>
+    </section>
+
+    <section id="jobsView" class="app-view" data-app-view="jobs" aria-labelledby="jobsHeading" hidden>
+      <section class="panel jobs-page">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Production Jobs</p>
+            <h2 id="jobsHeading">Tien do va khoi phuc</h2>
+          </div>
+          <button id="refreshJobsPage" class="ghost" type="button">Lam moi</button>
+        </div>
+        <p class="section-guide">Job lich su chi de xem. Nut bat dau, tiep tuc hoac thu lai chi xuat hien khi backend xac nhan action hop le.</p>
+        <div id="jobsPageStatus" class="muted" role="status" aria-live="polite"></div>
+        <div id="jobsPageList" class="jobs-page-list"></div>
+      </section>
+    </section>
+
+    <section id="storageView" class="app-view" data-app-view="storage" aria-labelledby="storageHeading" hidden>
+      <section class="panel storage-page">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Safe Storage</p>
+            <h2 id="storageHeading">Báo cáo và dọn dẹp an toàn</h2>
+          </div>
+          <button id="refreshStorageReport" class="ghost" type="button">Làm mới báo cáo</button>
+        </div>
+        <p class="section-guide">Chỉ file orphan đã được utility chứng minh mới có thể xóa. Canonical Artifact, active output, backup bắt buộc và file Git tracked luôn được bảo vệ.</p>
+        <div id="storageSummary" class="storage-summary-grid"></div>
+        <div id="storageBlockers" class="issue warning hidden"></div>
+        <details class="storage-details">
+          <summary>Chi tiết candidate và nội dung được bảo vệ</summary>
+          <div id="storageCandidates"></div>
+        </details>
+        <div class="storage-actions">
+          <button id="storageDryRun" class="secondary" type="button">Dry run</button>
+          <button id="storageExecute" class="danger" type="button" disabled data-runtime-mutation-control data-action-guarded>Execute proven-orphan cleanup</button>
+        </div>
+        <label id="storageConfirmationWrap" class="confirmation-field">
+          Xác nhận chính xác
+          <input id="storageConfirmation" autocomplete="off" placeholder="DELETE_PROVEN_ORPHANED_STORAGE">
+        </label>
+        <p id="storageActionReason" class="muted"></p>
+        <div id="storageLastResult" class="muted"></div>
+      </section>
+    </section>
+
     <section id="audioView" class="app-view" data-app-view="audio" aria-labelledby="audioHeading" hidden>
       <section class="panel audio-library-panel">
         <div class="section-head">
@@ -391,6 +474,39 @@
           <span id="audioLibraryErrorText">Không tải được thư viện audio.</span>
           <button id="retryAudioLibrary" class="ghost" type="button">Thử lại</button>
         </div>
+        <section id="audioLibraryQaPanel" class="audio-library-qa-panel hidden" aria-labelledby="audioQaHeading">
+          <div>
+            <p class="eyebrow">Human QA</p>
+            <h3 id="audioQaHeading">Đánh giá active artifact</h3>
+            <p id="audioQaIdentity" class="muted"></p>
+            <div id="audioQaVoiceSummary" class="muted"></div>
+          </div>
+          <label>Ghi chú QA
+            <textarea id="audioQaNote" rows="3" maxlength="4000" placeholder="Bắt buộc khi chọn Needs fixes" required></textarea>
+          </label>
+          <div class="audio-qa-actions">
+            <button id="audioQaAccept" class="primary" type="button" data-runtime-mutation-control>Accept</button>
+            <button id="audioQaNeedsFixes" class="danger" type="button" data-runtime-mutation-control>Needs fixes</button>
+          </div>
+          <div>
+            <strong>Lịch sử QA</strong>
+            <div id="audioQaHistory" class="qa-history muted">Chưa tải lịch sử.</div>
+          </div>
+        </section>
+
+        <section class="audio-range-download" aria-labelledby="audioRangeHeading">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Range download</p>
+              <h3 id="audioRangeHeading">Tải range đã chọn thành ZIP</h3>
+            </div>
+            <button id="checkAudioRange" class="ghost" type="button">Kiểm tra range</button>
+          </div>
+          <p class="muted">Chọn các chapter liên tiếp của cùng một sách trong danh sách bên trên.</p>
+          <div id="audioRangeSummary" class="muted">Chưa chọn chapter.</div>
+          <div id="audioRangeIssues" class="issue warning hidden"></div>
+          <button id="downloadAudioRange" class="secondary" type="button" disabled>Tải ZIP range</button>
+        </section>
       </section>
     </section>
 
@@ -755,7 +871,7 @@
   </dialog>
   <div id="toast" class="toast hidden"></div>
   <script src="/assets/production_state.js?v=20260723-daily-production-pilot"></script>
-  <script src="/assets/app.js?v=20260725-daily-production-pilot-10"></script>
+  <script src="/assets/app.js?v=20260726-daily-use-v1"></script>
   <script src="/assets/casting_voice_map.js?v=20260720-daily-prod-2b1"></script>
   <script src="/assets/contextual_voice_detour.js?v=20260720-daily-prod-2b2"></script>
 </body>

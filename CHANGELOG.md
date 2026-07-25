@@ -4,6 +4,30 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ## Unreleased
 
+### Daily-Use V1 UI/UX Closure
+
+- Added top-level Production, Voice Assignment, Jobs, Audio Library, and
+  Storage navigation plus a global canonical/schema/PREPARE/worker/authentication/
+  kill-switch/restart status rail.
+- Added backend capability-gated Job actions, Segment progress/error counts,
+  safe diagnostic summaries, and correct retry classification for the latest
+  unsuperseded recoverable Job while superseded Jobs remain read-only.
+- Added explicit Human QA controls with required rejection notes, atomic
+  timestamped audit history, and requested/applied voice provenance.
+- Added deterministic same-book contiguous active-output ZIP readiness and
+  download. Archives use stable chapter filenames, verify file size/hash, block
+  missing/stale/non-active output, and delete temporary ZIPs after delivery.
+- Added live Storage report/dry-run/confirmed cleanup UI over the existing
+  fail-closed cleanup authority. Action-specific guards cannot be overridden by
+  global runtime polling.
+- Added durable launcher supervision and a managed restart endpoint/UI. Normal
+  startup remains schema-compatible and does not auto-create or start work.
+- Canonical walkthrough played and downloaded Artifacts `93/96`, verified the
+  Chapters `372-373` ZIP entry hashes, ran Storage report/dry-run without
+  deletion, restarted the app, and restored Production/Jobs/Audio/Storage state.
+- No QA verdict, PREPARE, START_RENDER, retry, cleanup execution, provider call,
+  Job, Segment, Artifact, audio, or Chapter `369` mutation occurred.
+
 ### Safe Storage Cleanup
 
 - Added `scripts/storage_cleanup.py` with explicit `--report`, `--dry-run`, and

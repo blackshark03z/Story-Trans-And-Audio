@@ -74,12 +74,31 @@ try {
     }
 
     $PreviousEnvironment["STORY_AUDIO_ALLOW_LIVE_DB"] = $env:STORY_AUDIO_ALLOW_LIVE_DB
+    $PreviousEnvironment["STORY_AUDIO_SUPERVISED"] = $env:STORY_AUDIO_SUPERVISED
+    $PreviousEnvironment["STORY_AUDIO_RESTART_SIGNAL"] = $env:STORY_AUDIO_RESTART_SIGNAL
     $env:STORY_AUDIO_ALLOW_LIVE_DB = "1"
+    $env:STORY_AUDIO_SUPERVISED = "1"
+    $DataRoot = if ($env:STORY_AUDIO_DATA_DIR) {
+        [IO.Path]::GetFullPath($env:STORY_AUDIO_DATA_DIR)
+    } else {
+        Join-Path $PSScriptRoot "data"
+    }
+    $env:STORY_AUDIO_RESTART_SIGNAL = Join-Path $DataRoot "runtime\restart.request"
     $LaunchArgs = @($args)
     if ($LaunchArgs.Count -eq 0) {
         $LaunchArgs = @("--host", "127.0.0.1", "--port", "8772")
     }
-    & $Python -m story_audio.main @LaunchArgs
+    if (Test-Path -LiteralPath $env:STORY_AUDIO_RESTART_SIGNAL) {
+        Remove-Item -LiteralPath $env:STORY_AUDIO_RESTART_SIGNAL -Force
+    }
+    while ($true) {
+        & $Python -m story_audio.main @LaunchArgs
+        if (-not (Test-Path -LiteralPath $env:STORY_AUDIO_RESTART_SIGNAL)) {
+            break
+        }
+        Remove-Item -LiteralPath $env:STORY_AUDIO_RESTART_SIGNAL -Force
+        Start-Sleep -Milliseconds 500
+    }
 } finally {
     foreach ($Entry in $PreviousEnvironment.GetEnumerator()) {
         [Environment]::SetEnvironmentVariable(

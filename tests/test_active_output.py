@@ -223,6 +223,10 @@ class ActiveOutputTests(IsolatedTestCase):
         self.assertTrue(active["is_active_output"])
         self.assertFalse(active["is_historical_output"])
         self.assertEqual(active["active_output_chapters"][0]["active_output_casting_plan_revision"], 4)
+        self.assertFalse(historical["actions"]["can_retry"])
+        self.assertFalse(historical["actions"]["can_start"])
+        self.assertFalse(historical["actions"]["can_cancel"])
+        self.assertTrue(active["actions"]["can_open_audio"])
 
     def test_job_diagnostics_surface_active_and_historical_state(self) -> None:
         seeded = seed_active_output(self.temp_root)
@@ -233,6 +237,78 @@ class ActiveOutputTests(IsolatedTestCase):
         self.assertTrue(active["chapters"][0]["is_active_output"])
         self.assertFalse(historical["job"]["is_active_output"])
         self.assertTrue(historical["job"]["is_historical_output"])
+
+    def test_latest_completed_with_errors_remains_recoverable_until_superseded(self) -> None:
+        seeded = seed_active_output(self.temp_root)
+        db = seeded["db"]
+        now = utcnow()
+        book_id = int(
+            db.fetch_one(
+                "SELECT book_id FROM chapters WHERE id=?",
+                (seeded["chapter_one"],),
+            )["book_id"]
+        )
+        with db.connect() as connection:
+            cursor = connection.execute(
+                """
+                INSERT INTO jobs(
+                    book_id,from_chapter,to_chapter,voice_name,repair_mode,
+                    output_format,skip_completed,status,settings_json,total_chapters,
+                    scheduled_at,created_at,updated_at
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """,
+                (
+                    book_id,
+                    30,
+                    30,
+                    "voice1",
+                    "off",
+                    "m4a",
+                    0,
+                    "completed_with_errors",
+                    "{}",
+                    1,
+                    now,
+                    now,
+                    now,
+                ),
+            )
+            recoverable_id = int(cursor.lastrowid)
+        row = db.fetch_one("SELECT * FROM jobs WHERE id=?", (recoverable_id,))
+        annotated = annotate_job_rows(db, [dict(row)])[0]
+        self.assertFalse(annotated["is_historical_output"])
+        self.assertTrue(annotated["actions"]["can_retry"])
+        self.assertEqual(annotated["error_classification"], "recoverable")
+
+        with db.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO jobs(
+                    book_id,from_chapter,to_chapter,voice_name,repair_mode,
+                    output_format,skip_completed,status,settings_json,total_chapters,
+                    scheduled_at,created_at,updated_at
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)
+                """,
+                (
+                    book_id,
+                    30,
+                    30,
+                    "voice1",
+                    "off",
+                    "m4a",
+                    0,
+                    "completed",
+                    "{}",
+                    1,
+                    now,
+                    now,
+                    now,
+                ),
+            )
+        annotated = annotate_job_rows(db, [dict(row)])[0]
+        self.assertTrue(annotated["is_historical_output"])
+        self.assertFalse(annotated["actions"]["can_retry"])
+        self.assertEqual(annotated["error_classification"], "permanent")
 
 
 if __name__ == "__main__":

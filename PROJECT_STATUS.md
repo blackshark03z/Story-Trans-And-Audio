@@ -1,17 +1,17 @@
 ﻿# Trạng thái dự án
 
 **Cập nhật:** 2026-07-26 (Asia/Saigon)
-**Milestone:** DAILY-PROD-6 Technical Pilot Complete - Human Audio QA Pending
-**Strategic state:** `DAILY_USE_TWO_CHAPTER_PILOT_TECHNICALLY_PASSED`
-**Trạng thái hiện tại:** Job `26` completed the first normal-UI contiguous two-chapter production pilot for Book `1`, Chapters `372-373`. Active Artifacts `93/96` passed decode, download/hash, restart, voice-provenance, and offline intelligibility screening; both remain Human QA `pending`.
+**Milestone:** DAILY-PROD-6 Daily-Use V1 UI Complete - Human Audio QA Pending
+**Strategic state:** `DAILY_USE_V1_UI_COMPLETE`
+**Trạng thái hiện tại:** The complete routine workflow is available through top-level Production, Voice Assignment, Jobs, Audio Library, and Storage views. Job `26` and active Artifacts `93/96` remain intact and both outputs remain Human QA `pending`.
 
-**Last verified implementation baseline:** `908df1d6f7c332223df841701ff5cf0df9d59a13`
+**Last verified implementation baseline:** `190a4069139091ccfac6e836d406f1b9dfd1c30b`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-25
 **Canonical runtime:** `http://127.0.0.1:8772`
 **Runtime schema:** canonical `15`
 **Default/latest schema:** `15`
-**Runtime:** canonical schema `15`; stopped and idle after cleanup verification
+**Runtime:** canonical schema `15`; durable UI restart validated
 **DAILY-PROD-5A:** complete
 **DAILY-PROD-5B:** complete and production-proven
 **DAILY-PROD-5:** complete
@@ -25,6 +25,24 @@
 **DAILY-PROD-3:** complete
 
 **Current production state:**
+- Daily-Use V1 UI closure adds global runtime/schema/PREPARE/worker/auth/kill
+  status, contextual Voice Assignment, capability-gated Jobs, explicit Human
+  QA with history and required rejection notes, deterministic contiguous range
+  ZIP download, live safe-storage report/dry-run/confirmed cleanup, and
+  supervised restart.
+- The Chapters `372-373` ZIP contains exactly two stable filenames in chapter
+  order. Entry hashes equal active Artifact `93/96` hashes; archive generation
+  is GET-only, creates no canonical rows, and removes temporary ZIPs after
+  delivery.
+- Storage dry-run reported `1,305,616,326` canonical output bytes and
+  `1,532,141` proven-orphan bytes across `4` candidates. No cleanup was
+  executed. The UI keeps Execute disabled during the long scan and until exact
+  confirmation passes.
+- UI restart changed the listener PID and restored canonical schema `15`,
+  Chapter `373` at `RENDERED_NOT_QA`, Job `26`, Artifacts `93/96`, and pending
+  Human QA state without creating work or calling providers.
+- No Human QA decision, PREPARE, START_RENDER, retry, Job, Segment, Artifact,
+  audio, cleanup deletion, or Chapter `369` mutation occurred.
 - Safe storage cleanup completed from starting Git baseline
   `a285350ce9b3116644d78529f4e4b43c8c0609ed`. The controlled execution
   deleted `103` proven-orphaned paths and reclaimed `8,068,537,580` bytes,
