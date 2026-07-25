@@ -112,7 +112,7 @@ console.log(JSON.stringify(resolver.STAGE_PANEL_OWNERSHIP.map(item => item.id)))
         self.assertEqual(state["state"], "NO_SCOPE")
         self.assertEqual(state["stage"], "scope")
         self.assertIn("productionStageIsolation", state["active"])
-        self.assertIn("workspace", state["active"])
+        self.assertNotIn("workspace", state["active"])
         self.assertNotIn("productionQueuePanel", state["active"])
         self.assertNotIn("productionLegacyJobPanel", state["active"])
 

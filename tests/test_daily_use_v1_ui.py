@@ -34,7 +34,8 @@ class DailyUseV1UiTests(unittest.TestCase):
 
     def test_voice_assignment_reuses_contextual_production_flow(self) -> None:
         self.assertIn('id="openAssignmentWorkspace"', self.html)
-        self.assertIn("focusProductionTarget('voices')", self.js)
+        self.assertIn("focusProductionTarget(currentProductionViewModel().targetPanel)", self.js)
+        self.assertIn("setProductionScopeRoute(", self.js)
         self.assertIn("buildSpeakerSummaryRows(context)", self.js)
         self.assertIn("state.voiceCatalog?.items?.length", self.js)
         self.assertIn("bulk narrator/unknown", self.js)

@@ -1,11 +1,11 @@
 ﻿# Trạng thái dự án
 
 **Cập nhật:** 2026-07-26 (Asia/Saigon)
-**Milestone:** DAILY-PROD-6 Daily-Use V1 UI Complete - Human Audio QA Pending
-**Strategic state:** `DAILY_USE_V1_UI_COMPLETE`
-**Trạng thái hiện tại:** The complete routine workflow is available through top-level Production, Voice Assignment, Jobs, Audio Library, and Storage views. Job `26` and active Artifacts `93/96` remain intact and both outputs remain Human QA `pending`.
+**Milestone:** DAILY-PROD-6 Daily-Use V1 Real-Browser Accepted - Human Audio QA Pending
+**Strategic state:** `DAILY_USE_V1_BROWSER_ACCEPTED`
+**Trạng thái hiện tại:** The routine workflow now passes from a clean `NO_SCOPE` session through canonical book/range selection and readiness in a real browser. Top-level Production, Voice Assignment, Jobs, Audio Library, and Storage remain available. Job `26` and active Artifacts `93/96` remain intact and both outputs remain Human QA `pending`.
 
-**Last verified implementation baseline:** `190a4069139091ccfac6e836d406f1b9dfd1c30b`
+**Last verified implementation starting baseline:** `2225d967e2941b91c877c47699ae6756c5a061dc`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-25
 **Canonical runtime:** `http://127.0.0.1:8772`
@@ -15,7 +15,7 @@
 **DAILY-PROD-5A:** complete
 **DAILY-PROD-5B:** complete and production-proven
 **DAILY-PROD-5:** complete
-**DAILY-PROD-6:** technical acceptance complete; Human Audio QA pending
+**DAILY-PROD-6:** real-browser acceptance complete; Human Audio QA pending
 **Production authorization:** `AUTHENTICATED_LOCAL_PREPARE_AND_EXPLICIT_START`
 **Kill switch:** active authority; currently disabled
 **START_RENDER:** separate explicit action only
@@ -25,6 +25,23 @@
 **DAILY-PROD-3:** complete
 
 **Current production state:**
+- The former Daily-Use V1 completion claim was reopened because `NO_SCOPE`
+  could display `Chọn phạm vi` without a usable selector. The root cause was an
+  incomplete click handler that only focused the existing work area.
+- Production now provides an explicit modal book/range selector backed by
+  canonical paginated chapter APIs and backend-authoritative range readiness.
+  It supports book/chapter search, one chapter or a contiguous range, exact
+  confirmation counts, completed/attention summaries, safe cancellation,
+  URL/local restoration, and clean scope clearing.
+- Real-browser scenarios verified clean `NO_SCOPE`, Book `1`, single Chapter
+  `372`, range `372-373`, cross-book state clearing, reversed/missing/API error
+  handling, contextual Voice Assignment return, and durable restart recovery.
+  An automated Edge smoke test performs the interaction against an isolated
+  read-only fixture and finishes back at `NO_SCOPE`.
+- Home attention/recent-output links, Audio Library book/chapter/QA filters,
+  Artifact `93` playback, range ZIP `372-373`, Jobs `23-26`, Storage report and
+  dry-run were verified in the canonical browser without QA decisions or
+  destructive actions.
 - Daily-Use V1 UI closure adds global runtime/schema/PREPARE/worker/auth/kill
   status, contextual Voice Assignment, capability-gated Jobs, explicit Human
   QA with history and required rejection notes, deterministic contiguous range

@@ -412,9 +412,18 @@ def get_range_readiness(
         raise LookupError("No chapters found for the selected range.")
     expected = list(range(from_chapter, to_chapter + 1))
     actual = [int(row["chapter_number"]) for row in chapters]
+    duplicate_numbers = sorted(
+        number for number, count in Counter(actual).items() if count > 1
+    )
+    if duplicate_numbers:
+        raise LookupError(
+            f"Selected range contains duplicate chapter numbers: {duplicate_numbers[:20]}."
+        )
     missing = sorted(set(expected) - set(actual))
     if missing:
         raise LookupError(f"Selected range is missing chapters: {missing[:20]}.")
+    if actual != expected:
+        raise LookupError("Selected range is not contiguous in canonical chapter order.")
 
     chapter_ids = [int(row["id"]) for row in chapters]
     active_bindings = get_active_output_bindings(db, chapter_ids)

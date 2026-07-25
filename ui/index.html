@@ -71,6 +71,21 @@
           <div><strong>—</strong><span>Runtime</span></div>
         </div>
       </section>
+
+      <section class="home-work-grid">
+        <section class="panel" aria-labelledby="homeAttentionHeading">
+          <div class="section-head">
+            <div><p class="eyebrow">Attention</p><h2 id="homeAttentionHeading">Next actions</h2></div>
+          </div>
+          <div id="homeAttention" class="home-action-list"><p class="muted">Loading attention items...</p></div>
+        </section>
+        <section class="panel" aria-labelledby="homeRecentHeading">
+          <div class="section-head">
+            <div><p class="eyebrow">Recent output</p><h2 id="homeRecentHeading">Open audio</h2></div>
+          </div>
+          <div id="homeRecentOutputs" class="home-action-list"><p class="muted">Loading recent audio...</p></div>
+        </section>
+      </section>
     </section>
 
     <section id="productionView" class="app-view" data-app-view="production" aria-labelledby="productionHeading" hidden>
@@ -90,7 +105,10 @@
             <p id="productionStateExplanation" class="muted">Hãy chọn sách và chương để xem bước sản xuất tiếp theo.</p>
             <p id="productionBlockerReason" class="issue warning hidden"></p>
           </div>
-          <button id="productionPrimaryAction" class="primary dominant-production-action" type="button" aria-label="Chọn phạm vi">Chọn phạm vi</button>
+          <div class="production-state-actions">
+            <button id="productionChangeScope" class="ghost hidden" type="button">Đổi phạm vi</button>
+            <button id="productionPrimaryAction" class="primary dominant-production-action" type="button" aria-label="Chọn phạm vi">Chọn phạm vi</button>
+          </div>
         </div>
         <ol id="productionStageShell" class="production-stage-shell" aria-label="Các bước sản xuất canonical">
           <li class="current"><span>1</span><strong>Phạm vi</strong><small>Chọn sách/chương</small></li>
@@ -455,6 +473,23 @@
         </div>
         <p class="section-guide">Nghe và tải các chương đang có bản audio hoạt động.</p>
         <div id="audioLibraryStatus" class="audio-library-status muted" role="status" aria-live="polite">Chưa tải thư viện audio.</div>
+        <div class="audio-library-filters" aria-label="Audio Library filters">
+          <label>Book
+            <select id="audioFilterBook"><option value="">All books</option></select>
+          </label>
+          <label>Chapter
+            <input id="audioFilterChapter" inputmode="numeric" placeholder="Number or title">
+          </label>
+          <label>Human QA
+            <select id="audioFilterQa">
+              <option value="">All QA states</option>
+              <option value="pending">Pending</option>
+              <option value="accepted">Accepted</option>
+              <option value="needs_fixes">Needs fixes</option>
+            </select>
+          </label>
+          <button id="clearAudioFilters" class="ghost" type="button">Clear filters</button>
+        </div>
         <div id="audioLibraryPlayer" class="audio-library-player hidden" aria-live="polite">
           <div>
             <p class="eyebrow">Đang chọn</p>
@@ -526,6 +561,69 @@
       </section>
     </section>
   </main>
+
+  <dialog id="productionScopeDialog" class="scope-dialog" aria-labelledby="productionScopeDialogTitle">
+    <div class="dialog-head">
+      <div>
+        <p class="eyebrow">Bước 1 / Phạm vi</p>
+        <h2 id="productionScopeDialogTitle">Chọn sách và phạm vi chương</h2>
+      </div>
+      <button id="cancelProductionScopeTop" class="ghost" type="button">Hủy</button>
+    </div>
+    <p class="section-guide">Lựa chọn này chỉ đọc readiness; không tạo draft, plan, job hoặc audio.</p>
+    <div class="scope-dialog-grid">
+      <section class="scope-picker-column" aria-labelledby="scopeBookHeading">
+        <div class="section-head">
+          <div><p class="eyebrow">1. Sách</p><h3 id="scopeBookHeading">Chọn một sách</h3></div>
+          <span id="scopeBookCount" class="pill">0 sách</span>
+        </div>
+        <label class="scope-search">Tìm sách
+          <input id="scopeBookSearch" type="search" placeholder="Tên sách hoặc tác giả">
+        </label>
+        <div id="scopeBooksStatus" class="muted" role="status" aria-live="polite">Chưa tải danh sách sách.</div>
+        <div id="scopeBooksError" class="issue error hidden" role="alert"></div>
+        <div id="scopeBookList" class="scope-book-list"></div>
+      </section>
+      <section class="scope-picker-column" aria-labelledby="scopeChapterHeading">
+        <div class="section-head">
+          <div><p class="eyebrow">2. Chương</p><h3 id="scopeChapterHeading">Chọn chương đầu và cuối</h3></div>
+          <span id="scopeChapterPageInfo" class="pill">Chọn sách</span>
+        </div>
+        <label class="scope-search">Tìm chương
+          <input id="scopeChapterSearch" type="search" placeholder="Số hoặc tên chương" disabled>
+        </label>
+        <div id="scopeChaptersStatus" class="muted" role="status" aria-live="polite">Chọn sách để tải danh sách chương.</div>
+        <div id="scopeChaptersError" class="issue error hidden" role="alert"></div>
+        <div id="scopeChapterList" class="scope-chapter-list"></div>
+        <div class="pager">
+          <button id="scopeChapterPrev" class="ghost" type="button" disabled>Trước</button>
+          <button id="scopeChapterNext" class="ghost" type="button" disabled>Sau</button>
+        </div>
+      </section>
+    </div>
+    <section class="scope-selection-review" aria-labelledby="scopeReviewHeading">
+      <div class="section-head">
+        <div><p class="eyebrow">3. Xác nhận</p><h3 id="scopeReviewHeading">Phạm vi sẽ kiểm tra</h3></div>
+      </div>
+      <div class="form-grid">
+        <label>Từ chương
+          <input id="scopeFromChapter" type="number" min="1" inputmode="numeric">
+        </label>
+        <label>Đến chương
+          <input id="scopeToChapter" type="number" min="1" inputmode="numeric">
+        </label>
+      </div>
+      <label class="check"><input id="scopeSkipCompleted" type="checkbox"> Bỏ qua chương đã hoàn tất ở bước lập kế hoạch tiếp theo</label>
+      <div id="scopeSelectionValidation" class="issue warning hidden" role="alert"></div>
+      <div id="scopeSelectionSummary" class="scope-selection-summary muted">Chọn sách và chương để xem tóm tắt xác nhận.</div>
+      <div class="scope-dialog-actions">
+        <button id="clearProductionScope" class="ghost" type="button">Xóa phạm vi hiện tại</button>
+        <button id="reviewProductionScope" class="primary" type="button">Kiểm tra phạm vi</button>
+        <button id="confirmProductionScope" class="secondary" type="button" disabled>Dùng phạm vi này</button>
+        <button id="cancelProductionScope" class="ghost" type="button">Hủy</button>
+      </div>
+    </section>
+  </dialog>
 
   <dialog id="textDialog">
     <div class="dialog-head"><h2 id="dialogTitle">Nội dung chương</h2><div class="dialog-head-actions"><button id="openCastingShortcut" class="secondary">Quy trình sản xuất</button><button id="closeDialog" class="ghost">Đóng</button></div></div>
@@ -870,8 +968,8 @@
     <div id="segmentDiagnosticBody" class="diagnostic-body"></div>
   </dialog>
   <div id="toast" class="toast hidden"></div>
-  <script src="/assets/production_state.js?v=20260723-daily-production-pilot"></script>
-  <script src="/assets/app.js?v=20260726-daily-use-v1"></script>
+  <script src="/assets/production_state.js?v=20260726-scope-selection"></script>
+  <script src="/assets/app.js?v=20260726-scope-selection"></script>
   <script src="/assets/casting_voice_map.js?v=20260720-daily-prod-2b1"></script>
   <script src="/assets/contextual_voice_detour.js?v=20260720-daily-prod-2b2"></script>
 </body>

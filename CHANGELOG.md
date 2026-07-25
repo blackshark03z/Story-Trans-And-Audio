@@ -4,6 +4,26 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ## Unreleased
 
+### Real-Browser Production Scope Completion
+
+- Replaced the inert `NO_SCOPE` action with a searchable, paginated book and
+  chapter-range selector. Single-chapter and contiguous ranges are checked by
+  canonical backend readiness before the UI accepts them.
+- Added exact scope summaries, completed/attention counts, book-change stale
+  state clearing, visible invalid/API-error states, explicit change/clear
+  controls, and URL/local restoration across Home, Voice Assignment, refresh,
+  and durable restart.
+- Added Home attention/recent-output entry points and Audio Library filters for
+  book, chapter, and Human QA state.
+- Added a dependency-free real Chromium regression smoke that clicks from
+  `NO_SCOPE` through selection, pagination/search, validation, readiness,
+  cross-book clearing, API failure, route/restart restoration, and final scope
+  clearing on an isolated read-only fixture.
+- Canonical browser validation opened Artifact `93`, observed successful
+  playback, downloaded the ready Chapters `372-373` ZIP, inspected Jobs
+  `23-26`, and ran Storage report/dry-run. No QA decision, cleanup, PREPARE,
+  START_RENDER, provider call, Job, Segment, Artifact, or audio was created.
+
 ### Daily-Use V1 UI/UX Closure
 
 - Added top-level Production, Voice Assignment, Jobs, Audio Library, and

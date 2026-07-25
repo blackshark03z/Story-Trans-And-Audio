@@ -4,10 +4,25 @@ Updated: 2026-07-26
 
 ## Current Phase
 
-`Daily-Use V1 UI closure is complete. The two-chapter pilot remains on Job 26; Artifacts 93 and 96 are available for operator playback, explicit Human QA, individual download, and deterministic range ZIP, and both remain Human QA pending.`
+`Daily-Use V1 is real-browser accepted from clean NO_SCOPE through canonical range readiness. The two-chapter pilot remains on Job 26; Artifacts 93 and 96 are available for operator playback, explicit Human QA, individual download, and deterministic range ZIP, and both remain Human QA pending.`
 
 ## Daily-Use V1 UI Closure
 
+- Starting Git HEAD and `origin/main` for the real-browser correction:
+  `2225d967e2941b91c877c47699ae6756c5a061dc`; canonical schema `15`.
+- Root cause: the `Chọn phạm vi` handler only focused the current work area and
+  never opened a book/chapter selector or issued a range request.
+- Production now has a searchable, paginated book/chapter modal, exact
+  one-chapter/contiguous-range confirmation, backend-authoritative readiness,
+  URL/local restoration, change/clear controls, and no scope-time mutation.
+- Real-browser A-F evidence covers clean `NO_SCOPE`, Chapters `372-373`,
+  changing books without stale chapter leakage, invalid/API-error states,
+  contextual Voice Assignment return, and durable restart. An automated
+  headless Edge smoke clicks through the complete interaction on an isolated
+  read-only fixture.
+- Canonical browser checks also covered Home actions, Jobs `23-26`, Artifact
+  `93` playback, range ZIP `372-373`, Storage report/dry-run, and disabled
+  cleanup without recording QA or creating production work.
 - Starting Git HEAD and `origin/main`:
   `190a4069139091ccfac6e836d406f1b9dfd1c30b`; canonical schema `15`.
 - Top-level daily navigation now exposes Production, Voice Assignment, Jobs,

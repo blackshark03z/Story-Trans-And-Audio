@@ -98,7 +98,8 @@
     const unresolved=vm?.conceptualState==='STATE_UNRESOLVED';
     return ownership.map(panel=>{
       const blockedNoScopeRange=vm?.conceptualState==='NO_SCOPE'&&panel.id==='productionLegacyJobPanel'&&!vm.rangeReadinessAvailable;
-      const active=panel.kind==='shell'||(!unresolved&&!blockedNoScopeRange&&panel.stages.includes(vm?.currentStageKey));
+      const blockedNoScopeWorkspace=vm?.conceptualState==='NO_SCOPE'&&panel.id==='workspace';
+      const active=panel.kind==='shell'||(!unresolved&&!blockedNoScopeRange&&!blockedNoScopeWorkspace&&panel.stages.includes(vm?.currentStageKey));
       return {
         id:panel.id,
         kind:panel.kind,
@@ -174,6 +175,7 @@
     const jobs=scopedJobs(input);
     const liveJobs=jobs.filter(job=>PREPARED_JOB_STATUSES.has(lower(job.status))||ACTIVE_JOB_STATUSES.has(lower(job.status)));
     if(liveJobs.length>1)return buildViewModel('STATE_UNRESOLVED',{blockerReason:'Có nhiều job active/resumable cho cùng một chương.',readOnlyOnly:true,diagnosticDetails:liveJobs.map(job=>`job:${job.id}:${job.status}`)});
+    const recoverable=jobs.find(job=>job?.actions?.can_retry===true&&!job?.is_historical_output);
     const active=activeOutput(input);
     const hasOutput=!!(active.active_output_job_id||active.active_output_artifact_id||input?.audio_artifact?.id||input?.chapter?.active_audio_artifact_id);
     if(hasOutput&&!(active.active_output_artifact_id||input?.audio_artifact?.id||input?.chapter?.active_audio_artifact_id)){
@@ -194,6 +196,7 @@
       }
       return buildViewModel('RENDERING_OR_PAUSED',{explanation:`Job #${job.id} đang ở trạng thái ${job.status}.`});
     }
+    if(recoverable)return buildViewModel('RENDERING_OR_PAUSED',{explanation:`Job #${recoverable.id} cần operator kiểm tra và retry phần recoverable.`});
     if(TERMINAL_JOB_STATUSES.has(lower(input?.chapter?.audio_status))&&!hasOutput){
       return buildViewModel('STATE_UNRESOLVED',{blockerReason:'Trạng thái chương báo completed/terminal nhưng không có active output.',readOnlyOnly:true,diagnosticDetails:['terminal_without_output']});
     }
@@ -214,6 +217,21 @@
     if(planStatus!=='approved')return buildViewModel('STATE_UNRESOLVED',{blockerReason:`Casting Plan có trạng thái không hỗ trợ: ${casting.status}`,readOnlyOnly:true,diagnosticDetails:['unsupported_casting_status']});
     return buildViewModel('READY_TO_PREPARE');
   }
+  function resolveRangeProductionState(readiness,extra={}){
+    const chapters=Array.isArray(readiness?.chapters)?readiness.chapters:[];
+    if(!readiness?.scope||!chapters.length)return buildViewModel('NO_SCOPE',{rangeReadinessAvailable:true});
+    const states=chapters.map(item=>String(item.state||'STATE_UNRESOLVED'));
+    const order=['STATE_UNRESOLVED','TEXT_BLOCKED','SPEAKER_EXCEPTIONS','VOICE_BLOCKED','CASTING_REVIEW','READY_TO_PREPARE','PREPARED','RENDERING_OR_PAUSED','RENDERED_NOT_QA','COMPLETE'];
+    const priority=state=>order.indexOf(state)<0?0:order.indexOf(state);
+    const current=states.slice().sort((a,b)=>priority(a)-priority(b))[0]||'STATE_UNRESOLVED';
+    const first=chapters.find(item=>item.state===current)||chapters[0];
+    const blocker=first?.blockers?.[0]||first?.message||'Phạm vi có chương cần xử lý.';
+    const summary=readiness.summary||{};
+    const detail=`${readiness.scope.book_title||'Sách'} · Chương ${readiness.scope.from_chapter}-${readiness.scope.to_chapter} · ${summary.needs_attention??0} cần xử lý.`;
+    const overrides={rangeReadinessAvailable:true,explanation:detail,blockerReason:current==='READY_TO_PREPARE'?'':blocker,diagnosticDetails:[`range:${readiness.scope.from_chapter}-${readiness.scope.to_chapter}`,...chapters.filter(item=>item.requires_operator_action).map(item=>`chapter:${item.chapter_id}:${item.state}`)],...extra};
+    if(current==='COMPLETE')return buildViewModel('COMPLETE',{...overrides,completedStageKeys:STAGES.map(stage=>stage.key)});
+    return buildViewModel(current,overrides);
+  }
   function productionScopeFromHash(hash){
     const raw=String(hash||'').replace(/^#/,'');
     const [path,query='']=raw.split('?');
@@ -221,15 +239,24 @@
     const params=new URLSearchParams(query);
     const bookId=n(params.get('book'));
     const chapterId=n(params.get('chapter'));
-    return {route,explicit:route==='production'&&(bookId||chapterId),bookId:bookId||null,chapterId:chapterId||null};
+    const fromChapter=n(params.get('from'));
+    const toChapter=n(params.get('to'));
+    const skipCompleted=params.get('skip_completed')==='1';
+    return {route,explicit:route==='production'&&(bookId||chapterId||fromChapter||toChapter),bookId:bookId||null,chapterId:chapterId||null,fromChapter:fromChapter||null,toChapter:toChapter||null,skipCompleted};
   }
   function productionHashForScope(scope){
     const bookId=n(scope?.bookId??scope?.book_id??scope?.book?.id);
     const chapterId=n(scope?.chapterId??scope?.chapter_id??scope?.chapter?.id);
-    if(!bookId||!chapterId)return '#/production';
-    return `#/production?book=${bookId}&chapter=${chapterId}`;
+    const fromChapter=n(scope?.fromChapter??scope?.from_chapter);
+    const toChapter=n(scope?.toChapter??scope?.to_chapter);
+    if(!bookId||(!chapterId&&!fromChapter&&!toChapter))return '#/production';
+    const params=new URLSearchParams({book:String(bookId)});
+    if(fromChapter&&toChapter){params.set('from',String(fromChapter));params.set('to',String(toChapter))}
+    if(chapterId)params.set('chapter',String(chapterId));
+    if(scope?.skipCompleted)params.set('skip_completed','1');
+    return `#/production?${params.toString()}`;
   }
-  const api={STAGES,STAGE_PANEL_OWNERSHIP,resolveProductionState,productionScopeFromHash,productionHashForScope,stagePanelStates};
+  const api={STAGES,STAGE_PANEL_OWNERSHIP,resolveProductionState,resolveRangeProductionState,productionScopeFromHash,productionHashForScope,stagePanelStates};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   root.ProductionWorkflow=api;
 })(typeof window!=='undefined'?window:globalThis);

@@ -40,6 +40,28 @@ console.log(JSON.stringify({
     return json.loads(result.stdout)
 
 
+def resolve_range(payload: dict) -> dict:
+    script = """
+const resolver = require('./ui/production_state.js');
+const vm = resolver.resolveRangeProductionState(JSON.parse(process.argv[1]));
+console.log(JSON.stringify({
+  conceptualState: vm.conceptualState,
+  currentStageKey: vm.currentStageKey,
+  blockerReason: vm.blockerReason,
+  rangeReadinessAvailable: vm.rangeReadinessAvailable,
+}));
+"""
+    result = subprocess.run(
+        ["node", "-e", script, json.dumps(payload, ensure_ascii=False)],
+        check=True,
+        capture_output=True,
+        text=True,
+        cwd=str(ROOT),
+        encoding="utf-8",
+    )
+    return json.loads(result.stdout)
+
+
 def base_state() -> dict:
     return {
         "book": {"id": 1},
@@ -131,6 +153,22 @@ class ProductionStateResolverTests(unittest.TestCase):
         payload["jobs"] = [{"id": 20, "status": "paused", "book_id": 1, "from_chapter": 369, "to_chapter": 369, "casting_plan_id": 24}]
         self.assert_state(payload, "RENDERING_OR_PAUSED", "render")
 
+    def test_failed_recoverable_job_stays_in_render_stage(self) -> None:
+        payload = base_state()
+        payload["casting"]["casting"]["status"] = "approved"
+        payload["jobs"] = [
+            {
+                "id": 20,
+                "status": "failed",
+                "book_id": 1,
+                "from_chapter": 369,
+                "to_chapter": 369,
+                "actions": {"can_retry": True},
+                "is_historical_output": False,
+            }
+        ]
+        self.assert_state(payload, "RENDERING_OR_PAUSED", "render")
+
     def test_rendered_output_without_human_qa_goes_to_qa(self) -> None:
         payload = base_state()
         payload["active_output"] = {"active_output_job_id": 20, "active_output_artifact_id": 75}
@@ -164,6 +202,56 @@ console.log(JSON.stringify({route: scope.route, explicit: scope.explicit, state:
 """
         result = subprocess.run(["node", "-e", script], check=True, capture_output=True, text=True, cwd=str(ROOT), encoding="utf-8")
         self.assertEqual(json.loads(result.stdout), {"route": "unknown", "explicit": False, "state": "NO_SCOPE", "action": "SELECT_SCOPE"})
+
+    def test_range_hash_round_trip_preserves_exact_scope(self) -> None:
+        script = """
+const resolver = require('./ui/production_state.js');
+const hash = resolver.productionHashForScope({bookId: 1, fromChapter: 372, toChapter: 373});
+console.log(JSON.stringify({hash, parsed: resolver.productionScopeFromHash(hash)}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, capture_output=True, text=True, cwd=str(ROOT), encoding="utf-8")
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["hash"], "#/production?book=1&from=372&to=373")
+        self.assertEqual(payload["parsed"]["bookId"], 1)
+        self.assertEqual(payload["parsed"]["fromChapter"], 372)
+        self.assertEqual(payload["parsed"]["toChapter"], 373)
+
+    def test_range_hash_round_trip_preserves_skip_completed(self) -> None:
+        script = """
+const resolver = require('./ui/production_state.js');
+const hash = resolver.productionHashForScope({bookId: 1, fromChapter: 372, toChapter: 373, skipCompleted: true});
+console.log(JSON.stringify({hash, parsed: resolver.productionScopeFromHash(hash)}));
+"""
+        result = subprocess.run(["node", "-e", script], check=True, capture_output=True, text=True, cwd=str(ROOT), encoding="utf-8")
+        payload = json.loads(result.stdout)
+        self.assertEqual(payload["hash"], "#/production?book=1&from=372&to=373&skip_completed=1")
+        self.assertTrue(payload["parsed"]["skipCompleted"])
+
+    def test_range_resolver_selects_first_actionable_stage(self) -> None:
+        vm = resolve_range(
+            {
+                "scope": {
+                    "book_id": 1,
+                    "book_title": "Range Book",
+                    "from_chapter": 372,
+                    "to_chapter": 373,
+                    "chapter_count": 2,
+                },
+                "summary": {"total": 2, "needs_attention": 1},
+                "chapters": [
+                    {"chapter_id": 372, "state": "COMPLETE", "requires_operator_action": False},
+                    {
+                        "chapter_id": 373,
+                        "state": "RENDERED_NOT_QA",
+                        "requires_operator_action": True,
+                        "blockers": ["Human QA is pending."],
+                    },
+                ],
+            }
+        )
+        self.assertEqual(vm["conceptualState"], "RENDERED_NOT_QA")
+        self.assertEqual(vm["currentStageKey"], "qa")
+        self.assertTrue(vm["rangeReadinessAvailable"])
 
 
 if __name__ == "__main__":

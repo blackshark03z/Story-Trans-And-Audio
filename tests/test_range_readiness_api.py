@@ -563,6 +563,70 @@ class RangeReadinessHelperTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             get_range_readiness(ExplodingDb(), book_id=1, from_chapter=9, to_chapter=1)
 
+    def test_helper_rejects_duplicate_chapter_numbers_before_state_resolution(self) -> None:
+        class DuplicateDb:
+            def fetch_one(self, *_args, **_kwargs):
+                return {"id": 1, "title": "Duplicate Book"}
+
+            def fetch_all(self, *_args, **_kwargs):
+                return [
+                    {
+                        "id": 10,
+                        "book_id": 1,
+                        "chapter_number": 1,
+                        "title": "Chapter 1a",
+                        "active_text_revision_id": None,
+                        "audio_status": "not_created",
+                        "active_audio_artifact_id": None,
+                        "human_approval_json": None,
+                    },
+                    {
+                        "id": 11,
+                        "book_id": 1,
+                        "chapter_number": 1,
+                        "title": "Chapter 1b",
+                        "active_text_revision_id": None,
+                        "audio_status": "not_created",
+                        "active_audio_artifact_id": None,
+                        "human_approval_json": None,
+                    },
+                ]
+
+        with self.assertRaisesRegex(LookupError, "duplicate chapter numbers"):
+            get_range_readiness(DuplicateDb(), book_id=1, from_chapter=1, to_chapter=1)
+
+    def test_helper_rejects_missing_chapter_in_requested_range(self) -> None:
+        class MissingDb:
+            def fetch_one(self, *_args, **_kwargs):
+                return {"id": 1, "title": "Missing Book"}
+
+            def fetch_all(self, *_args, **_kwargs):
+                return [
+                    {
+                        "id": 10,
+                        "book_id": 1,
+                        "chapter_number": 1,
+                        "title": "Chapter 1",
+                        "active_text_revision_id": None,
+                        "audio_status": "not_created",
+                        "active_audio_artifact_id": None,
+                        "human_approval_json": None,
+                    },
+                    {
+                        "id": 12,
+                        "book_id": 1,
+                        "chapter_number": 3,
+                        "title": "Chapter 3",
+                        "active_text_revision_id": None,
+                        "audio_status": "not_created",
+                        "active_audio_artifact_id": None,
+                        "human_approval_json": None,
+                    },
+                ]
+
+        with self.assertRaisesRegex(LookupError, "missing chapters"):
+            get_range_readiness(MissingDb(), book_id=1, from_chapter=1, to_chapter=3)
+
 
 if __name__ == "__main__":
     unittest.main()

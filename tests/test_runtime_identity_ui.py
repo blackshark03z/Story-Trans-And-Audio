@@ -45,7 +45,7 @@ class RuntimeIdentityUiTests(IsolatedTestCase):
             "ISOLATED / NON-PRODUCTION",
             "RUNTIME UNKNOWN",
             "setRuntimeUnknown('Resolving runtime identity…')",
-            "await loadRuntimeIdentity();await loadProductionPrepareReadiness();try{await loadBooks();await loadJobs()}",
+            "await loadRuntimeIdentity();await loadProductionPrepareReadiness();try{await loadBooks();await loadJobs();await loadHomeDashboard()}",
             "state.config=await api('/api/config')",
         ):
             self.assertIn(value, self.js)

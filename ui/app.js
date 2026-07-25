@@ -1,22 +1,38 @@
-const $=s=>document.querySelector(s);let state={config:null,books:[],book:null,page:0,pageSize:100,total:0,previewOk:false,dialog:null,jobs:[],libraryVoices:[],selectedVoiceId:null,showInactive:false,showSmokeBooks:false,libraryBusy:false,libraryRevisions:[],previewRevisionId:null,uploadBusy:false,previewBusy:false,customVoices:[],voiceCatalog:{items:[]},voiceCatalogError:null,runtimeIdentity:null,runtimeIdentityResolved:false,productionFlow:null,currentRoute:'home',audioLibrary:{items:[],status:'idle',error:null,selectedArtifactId:null,loaded:false,loading:false},rangeReadiness:{status:'idle',error:null,result:null,scopeKey:null,requestId:0,loading:false},batchPlan:{status:'idle',error:null,result:null,scopeKey:null,targetPhase:'PREPARE',requestId:0,loading:false},productionPrepare:{readiness:null,status:'idle',result:null,error:null,clientRequestId:null,submitting:false}};
+const $=s=>document.querySelector(s);let state={config:null,books:[],book:null,page:0,pageSize:100,total:0,previewOk:false,dialog:null,jobs:[],libraryVoices:[],selectedVoiceId:null,showInactive:false,showSmokeBooks:false,libraryBusy:false,libraryRevisions:[],previewRevisionId:null,uploadBusy:false,previewBusy:false,customVoices:[],voiceCatalog:{items:[]},voiceCatalogError:null,runtimeIdentity:null,runtimeIdentityResolved:false,productionFlow:null,currentRoute:'home',productionRange:null,productionScopeSelection:{bookId:null,books:[],chapters:[],total:0,page:0,pageSize:40,bookQuery:'',chapterQuery:'',fromChapter:null,toChapter:null,review:null,loadingBooks:false,loadingChapters:false,chapterRequestId:0},homeOutputs:[],audioLibrary:{items:[],status:'idle',error:null,selectedArtifactId:null,loaded:false,loading:false},rangeReadiness:{status:'idle',error:null,result:null,scopeKey:null,requestId:0,loading:false},batchPlan:{status:'idle',error:null,result:null,scopeKey:null,targetPhase:'PREPARE',requestId:0,loading:false},productionPrepare:{readiness:null,status:'idle',result:null,error:null,clientRequestId:null,submitting:false}};
 const APP_ROUTES={home:{hash:'#/home',label:'Trang chủ',heading:'Trang chủ'},production:{hash:'#/production',label:'Sản xuất',heading:'Sản xuất'},voices:{hash:'#/voices',label:'Thư viện giọng',heading:'Thư viện giọng'},books:{hash:'#/books',label:'Sách và nhân vật',heading:'Sách và nhân vật'},audio:{hash:'#/audio',label:'Audio đã tạo',heading:'Audio đã tạo'},settings:{hash:'#/settings',label:'Cài đặt',heading:'Cài đặt'}};
 Object.assign(APP_ROUTES,{assignment:{hash:'#/assignment',label:'Voice Assignment',heading:'Voice Assignment'},jobs:{hash:'#/jobs',label:'Jobs',heading:'Jobs'},storage:{hash:'#/storage',label:'Storage',heading:'Storage'}});
 Object.assign(state,{runtimeStatus:null,audioArchive:{selectedChapterIds:[],readiness:null,loading:false},audioQa:{history:[],loading:false},storage:{report:null,loading:false,error:null}});
 function routeFromHash(hash=window.location.hash){const key=String(hash||'').replace(/^#\/?/,'').split(/[/?]/)[0]||'home';return APP_ROUTES[key]?key:'home'}
-function renderHomeSummary(){const home=$('#homeSummary');if(home){const activeJobs=(state.jobs||[]).filter(j=>['prepared','scheduled','queued','running','repairing','synthesizing','assembling','paused','interrupted'].includes(String(j.status||''))).length;const runtime=state.runtimeIdentity?.label||'RUNTIME UNKNOWN';home.innerHTML=`<div><strong>${state.books?.length||0}</strong><span>Sách</span></div><div><strong>${activeJobs}</strong><span>Job cần theo dõi</span></div><div><strong>${esc(runtime)}</strong><span>Runtime</span></div>`}const runtimeSummary=$('#settingsRuntimeSummary');if(runtimeSummary)runtimeSummary.textContent=state.runtimeIdentity?.data_root||state.runtimeIdentity?.short_data_root||'Runtime chưa xác định';const providerSummary=$('#settingsProviderSummary');if(providerSummary&&state.config)providerSummary.textContent=`Gemini ${state.config.gemini_configured?'sẵn sàng':'chưa có key'}; VieNeu ${state.config.tts_status}`}
-function setAppRoute(route,{replace=false}={}){const next=APP_ROUTES[route]?route:'home';state.currentRoute=next;if(next!=='production'&&$('#textDialog')?.open)$('#textDialog').close();if(next!=='audio')resetAudioLibraryPlayer();document.querySelectorAll('[data-app-view]').forEach(view=>{const active=view.dataset.appView===next;view.hidden=!active;view.setAttribute('aria-hidden',active?'false':'true')});document.querySelectorAll('[data-app-route]').forEach(link=>{const active=link.dataset.appRoute===next;link.classList.toggle('active',active);if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current')});const heading=$('#appViewHeading');if(heading)heading.textContent=APP_ROUTES[next].heading;const desired=APP_ROUTES[next].hash;if(routeFromHash(window.location.hash)!==next){if(replace)history.replaceState(null,'',desired);else history.pushState(null,'',desired)}renderProductionShell();if(next==='audio')ensureAudioLibraryLoaded()}
-function setupAppShell(){window.addEventListener('hashchange',()=>handleAppRouteChange());document.querySelectorAll('[data-home-continue]').forEach(link=>link.addEventListener('click',()=>setAppRoute('production')));handleAppRouteChange({replace:!APP_ROUTES[String(window.location.hash||'').replace(/^#\/?/,'').split(/[/?]/)[0]]})}
+function homeActionCard(title,meta,label,handler){const card=document.createElement('article'),main=document.createElement('div'),strong=document.createElement('strong'),span=document.createElement('span'),button=document.createElement('button');card.className='home-action-card';strong.textContent=title;span.textContent=meta;button.type='button';button.className='secondary';button.textContent=label;button.addEventListener('click',handler);main.append(strong,span);card.append(main,button);return card}
+function renderHomeDashboard(){
+  const attention=$('#homeAttention'),recent=$('#homeRecentOutputs');if(!attention||!recent)return;
+  const outputs=Array.isArray(state.homeOutputs)?state.homeOutputs:[],pending=outputs.filter(item=>!['approved','accepted','pass','human_qa_pass'].includes(String(item.human_qa_status||'pending').toLowerCase())).slice(0,4),active=(state.jobs||[]).filter(job=>['prepared','scheduled','queued','running','repairing','synthesizing','assembling','paused','interrupted'].includes(String(job.status||''))).slice(0,3);
+  const attentionCards=[];
+  pending.forEach(item=>attentionCards.push(homeActionCard(`${item.book_title||'Book'} · Chapter ${item.chapter_number}`,`Artifact #${item.artifact_id} · Human QA ${item.human_qa_status||'pending'}`,'Open QA',async()=>{setAppRoute('audio');await loadAudioLibrary({force:false});const found=state.audioLibrary.items.find(row=>Number(row.artifact_id)===Number(item.artifact_id));if(found)selectAudioLibraryItem(found,{play:false})})));
+  active.forEach(job=>attentionCards.push(homeActionCard(`Job #${job.id}`,`${job.book_title||'Production'} · ${fmtStatus(job.status)}`,'Open Jobs',()=>setAppRoute('jobs'))));
+  attention.replaceChildren(...(attentionCards.length?attentionCards:[Object.assign(document.createElement('p'),{className:'muted',textContent:'Không có việc cần xử lý ngay.'})]));
+  const recentCards=outputs.slice(0,5).map(item=>homeActionCard(`${item.book_title||'Book'} · Chapter ${item.chapter_number}`,`Artifact #${item.artifact_id} · ${formatDurationMs(item.duration_ms)}`,'Open audio',async()=>{setAppRoute('audio');await loadAudioLibrary({force:false});const found=state.audioLibrary.items.find(row=>Number(row.artifact_id)===Number(item.artifact_id));if(found)selectAudioLibraryItem(found,{play:false})}));
+  recent.replaceChildren(...(recentCards.length?recentCards:[Object.assign(document.createElement('p'),{className:'muted',textContent:'Chưa có audio hoàn thành.'})]));
+}
+async function loadHomeDashboard(){try{const data=await api('/api/audio-library');state.homeOutputs=Array.isArray(data.items)?data.items:[]}catch{state.homeOutputs=[]}renderHomeDashboard()}
+function renderHomeSummary(){const home=$('#homeSummary');if(home){const activeJobs=(state.jobs||[]).filter(j=>['prepared','scheduled','queued','running','repairing','synthesizing','assembling','paused','interrupted'].includes(String(j.status||''))).length;const runtime=state.runtimeIdentity?.label||'RUNTIME UNKNOWN';home.innerHTML=`<div><strong>${state.books?.length||0}</strong><span>Sách</span></div><div><strong>${activeJobs}</strong><span>Job cần theo dõi</span></div><div><strong>${esc(runtime)}</strong><span>Runtime</span></div>`}const runtimeSummary=$('#settingsRuntimeSummary');if(runtimeSummary)runtimeSummary.textContent=state.runtimeIdentity?.data_root||state.runtimeIdentity?.short_data_root||'Runtime chưa xác định';const providerSummary=$('#settingsProviderSummary');if(providerSummary&&state.config)providerSummary.textContent=`Gemini ${state.config.gemini_configured?'sẵn sàng':'chưa có key'}; VieNeu ${state.config.tts_status}`;renderHomeDashboard()}
+function setAppRoute(route,{replace=false}={}){const next=APP_ROUTES[route]?route:'home';state.currentRoute=next;if(next!=='production'&&$('#textDialog')?.open)$('#textDialog').close();if(next!=='audio')resetAudioLibraryPlayer();document.querySelectorAll('[data-app-view]').forEach(view=>{const active=view.dataset.appView===next;view.hidden=!active;view.setAttribute('aria-hidden',active?'false':'true')});document.querySelectorAll('[data-app-route]').forEach(link=>{const active=link.dataset.appRoute===next;link.classList.toggle('active',active);if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current')});const heading=$('#appViewHeading');if(heading)heading.textContent=APP_ROUTES[next].heading;let desired=APP_ROUTES[next].hash;if(next==='production'&&state.productionRange)desired=productionWorkflow().productionHashForScope(state.productionRange);else if(next==='production'&&state.book?.id&&state.dialog?.chapter?.id)desired=productionWorkflow().productionHashForScope({bookId:state.book.id,chapterId:state.dialog.chapter.id});if(window.location.hash!==desired){if(replace)history.replaceState(null,'',desired);else history.pushState(null,'',desired)}renderProductionShell();if(next==='audio')ensureAudioLibraryLoaded()}
+function setupAppShell(){window.addEventListener('hashchange',()=>handleAppRouteChange());document.querySelectorAll('[data-home-continue]').forEach(link=>link.addEventListener('click',()=>{setAppRoute('production');if(!state.dialog&&!state.productionRange)setTimeout(openProductionScopeDialog,0)}));handleAppRouteChange({replace:!APP_ROUTES[String(window.location.hash||'').replace(/^#\/?/,'').split(/[/?]/)[0]]})}
 function handleAppRouteChange({replace=true}={}){const route=routeFromHash();setAppRoute(route,{replace});if(route==='production')restoreProductionScopeFromRoute()}
 const setAppRouteCore=setAppRoute;
 setAppRoute=function(route,options={}){setAppRouteCore(route,options);const active=state.currentRoute;if(active==='assignment')renderAssignmentPage();if(active==='jobs')renderJobsPage();if(active==='storage')ensureStorageReportLoaded()};
 const PRODUCTION_SCOPE_STORAGE_KEY='storyAudio.productionScope.v1';
+const PRODUCTION_RANGE_SCOPE_STORAGE_KEY='storyAudio.productionScope.v2';
 function productionWorkflow(){return window.ProductionWorkflow}
 function storedProductionScope(){try{return JSON.parse(localStorage.getItem(PRODUCTION_SCOPE_STORAGE_KEY)||'null')}catch{return null}}
-function rememberProductionScope(bookId,chapterId){if(!bookId||!chapterId)return;try{localStorage.setItem(PRODUCTION_SCOPE_STORAGE_KEY,JSON.stringify({bookId:Number(bookId),chapterId:Number(chapterId)}))}catch{}}
-function setProductionScopeRoute(bookId,chapterId,{replace=false}={}){const hash=productionWorkflow().productionHashForScope({bookId,chapterId});rememberProductionScope(bookId,chapterId);if(window.location.hash!==hash){if(replace)history.replaceState(null,'',hash);else history.pushState(null,'',hash)}}
-function productionScopeSummary(){const c=state.dialog?.chapter,b=state.book||state.books.find(item=>item.id===c?.book_id);if(!c)return 'Chưa chọn phạm vi';return `${b?.title||'Sách'} · Chương ${c.chapter_number} · Text Revision #${c.active_text_revision_id||'—'}`}
-function productionResolverInput(extra={}){return{book:state.book,chapter:state.dialog?.chapter,revisions:state.dialog?.revisions||[],active_output:state.dialog?.active_output||{},audio_artifact:state.dialog?.audio_artifact||null,human_approval:state.dialog?.human_approval||null,casting:state.casting||null,speakerDraft:state.speakerReview?.draft||null,speakerDrafts:state.speakerReview?.drafts||[],jobs:state.jobs||[],...extra}}
-function currentProductionViewModel(extra={}){return productionWorkflow().resolveProductionState(productionResolverInput(extra))}
+function storedProductionRangeScope(){try{return JSON.parse(localStorage.getItem(PRODUCTION_RANGE_SCOPE_STORAGE_KEY)||'null')}catch{return null}}
+function normalizeProductionRange(scope){const bookId=Number(scope?.bookId??scope?.book_id)||null,fromChapter=Number(scope?.fromChapter??scope?.from_chapter)||null,toChapter=Number(scope?.toChapter??scope?.to_chapter)||null,chapterId=Number(scope?.chapterId??scope?.chapter_id)||null;if(!bookId||!fromChapter||!toChapter||fromChapter>toChapter)return null;return{bookId,fromChapter,toChapter,chapterId,skipCompleted:!!scope?.skipCompleted}}
+function rememberProductionRange(scope){const normalized=normalizeProductionRange(scope);if(!normalized)return;try{localStorage.setItem(PRODUCTION_RANGE_SCOPE_STORAGE_KEY,JSON.stringify(normalized));localStorage.removeItem(PRODUCTION_SCOPE_STORAGE_KEY)}catch{}}
+function rememberProductionScope(bookId,chapterId){if(!bookId||!chapterId)return;try{localStorage.setItem(PRODUCTION_SCOPE_STORAGE_KEY,JSON.stringify({bookId:Number(bookId),chapterId:Number(chapterId)}));localStorage.removeItem(PRODUCTION_RANGE_SCOPE_STORAGE_KEY)}catch{}}
+function setProductionScopeRoute(bookId,chapterId,{replace=false}={}){const range=state.productionRange?.fromChapter&&state.productionRange?.toChapter?state.productionRange:null,hash=productionWorkflow().productionHashForScope({...range,bookId,chapterId});if(range)rememberProductionRange({...range,bookId,chapterId});else rememberProductionScope(bookId,chapterId);if(window.location.hash!==hash){if(replace)history.replaceState(null,'',hash);else history.pushState(null,'',hash)}}
+function productionScopeSummary(){const range=state.productionRange,b=state.book||state.books.find(item=>item.id===range?.bookId),c=state.dialog?.chapter;if(range?.fromChapter&&range?.toChapter)return `${b?.title||'Sách'} · Chương ${range.fromChapter}-${range.toChapter} · ${range.readiness?.summary?.total||'—'} chapter`;if(!c)return 'Chưa chọn phạm vi';return `${b?.title||'Sách'} · Chương ${c.chapter_number} · Text Revision #${c.active_text_revision_id||'—'}`}
+function productionResolverInput(extra={}){return{book:state.book,chapter:state.dialog?.chapter,revisions:state.dialog?.revisions||[],active_output:state.dialog?.active_output||{},audio_artifact:state.dialog?.audio_artifact||null,human_approval:state.dialog?.human_approval||null,casting:state.casting||null,speakerDraft:state.speakerReview?.draft||null,speakerDrafts:state.speakerReview?.drafts||[],jobs:state.jobs||[],rangeReadiness:state.productionRange?.readiness||null,...extra}}
+function currentProductionViewModel(extra={}){const readiness=state.productionRange?.readiness;if(readiness&&readiness.scope?.chapter_count>1&&!state.dialog?.chapter&&productionWorkflow().resolveRangeProductionState)return productionWorkflow().resolveRangeProductionState(readiness,extra);return productionWorkflow().resolveProductionState(productionResolverInput(extra))}
 const PRODUCTION_STAGE_TO_FLOW_STEP={scope:'select-chapter',text:'review-text',speakers:'assign-voices',voices:'assign-voices',voice_map:'review-voice-map',prepare:'render-chapter',render:'render-chapter',qa:'review-audio'};
 function productionCurrentFlowStep(vm=currentProductionViewModel()){if(vm.currentStageKey==='voice_map'&&!state.casting?.casting?.id&&reviewReadyForCastingPlan(state.speakerReview))return'assign-voices';return PRODUCTION_STAGE_TO_FLOW_STEP[vm.currentStageKey]||'select-chapter'}
 function setPanelIsolation(el,active){if(!el)return;el.hidden=!active;el.classList.toggle('hidden',!active);el.classList.toggle('production-isolated-hidden',!active);el.setAttribute('aria-hidden',active?'false':'true');if(active)el.removeAttribute('inert');else el.setAttribute('inert','')}
@@ -25,7 +41,7 @@ function applyProductionStageIsolation(vm=currentProductionViewModel()){if(!prod
 function renderProductionShell(vm=currentProductionViewModel()){
   const shell=$('#productionStageShell');
   if(!shell||!productionWorkflow())return;
-  const stateCard=$('#productionStateCard'),heading=$('#productionCurrentStepHeading'),scope=$('#productionScopeSummary'),explanation=$('#productionStateExplanation'),blocker=$('#productionBlockerReason'),badge=$('#productionStateBadge'),primary=$('#productionPrimaryAction');
+  const stateCard=$('#productionStateCard'),heading=$('#productionCurrentStepHeading'),scope=$('#productionScopeSummary'),explanation=$('#productionStateExplanation'),blocker=$('#productionBlockerReason'),badge=$('#productionStateBadge'),primary=$('#productionPrimaryAction'),changeScope=$('#productionChangeScope');
   if(scope)scope.textContent=productionScopeSummary();
   if(heading)heading.textContent=vm.currentStageLabel;
   if(explanation)explanation.textContent=vm.explanation;
@@ -38,20 +54,38 @@ function renderProductionShell(vm=currentProductionViewModel()){
     primary.disabled=vm.conceptualState==='STATE_UNRESOLVED'&&vm.diagnosticDetails.includes('loading');
     primary.onclick=()=>focusProductionTarget(vm.targetPanel);
   }
+  if(changeScope){changeScope.classList.toggle('hidden',!state.productionRange&&!state.dialog?.chapter);changeScope.onclick=openProductionScopeDialog}
   shell.innerHTML=vm.stages.map(stage=>`<li class="${stage.state}" data-production-stage="${stage.key}"><button type="button" ${stage.locked?'disabled aria-disabled="true"':''} ${stage.current?'aria-current="step"':''} data-production-stage-button="${stage.key}"><span>${stage.number}</span><strong>${esc(stage.label)}</strong><small>${esc(stage.summary)}</small><em class="stage-state">${stage.current?'Hiện tại':stage.complete?'Hoàn tất':'Khóa'}</em></button></li>`).join('');
   shell.querySelectorAll('[data-production-stage-button]').forEach(button=>button.onclick=()=>focusProductionTarget(button.dataset.productionStage));
   if(stateCard)stateCard.dataset.productionState=vm.conceptualState;
   renderProductionStageWorkArea(vm);
   applyProductionStageIsolation(vm);
 }
-function focusProductionTarget(target){const vm=currentProductionViewModel();if(target==='scope'){$('#productionCurrentWorkArea')?.focus?.();$('#productionCurrentWorkArea')?.scrollIntoView({block:'start',behavior:'smooth'});return}if(!state.dialog?.chapter){$('#productionCurrentWorkArea')?.focus?.();return}if(!$('#textDialog')?.open)$('#textDialog').showModal();showRevision(target==='text'?'reflowed':'casting');const panelMap={speakers:'#speakerReviewPanel',voices:'#flowVoiceMemoryDetails',voice_map:'#flowStepReviewVoiceMap',prepare:'#flowStepRenderChapter',render:'#flowStepRenderChapter',qa:'#flowStepReviewAudio',diagnostics:'#productionFlowPanel'};setTimeout(()=>{applyProductionStageIsolation(vm);const el=$(panelMap[target]||'#productionFlowPanel');el?.scrollIntoView({block:'start',behavior:'smooth'});(el?.querySelector('h3')||el)?.focus?.()},0)}
+function focusProductionTarget(target){
+  const vm=currentProductionViewModel();
+  if(target==='scope'||(!state.dialog?.chapter&&!state.productionRange)){openProductionScopeDialog();return}
+  if(state.productionRange&&!state.dialog?.chapter){
+    if(target==='qa'){setAppRoute('audio');return}
+    if(target==='render'){setAppRoute('jobs');return}
+    const wanted={text:'TEXT_BLOCKED',speakers:'SPEAKER_EXCEPTIONS',voices:'VOICE_BLOCKED',voice_map:'CASTING_REVIEW',prepare:'READY_TO_PREPARE'};
+    const item=(state.productionRange.readiness?.chapters||[]).find(row=>row.state===wanted[target])||state.productionRange.readiness?.chapters?.find(row=>row.requires_operator_action);
+    if(item){openChapter(Number(item.chapter_id),{initialTab:'casting',keepDialogClosed:true,preserveRange:true});return}
+    $('#productionCurrentWorkArea')?.focus?.();return
+  }
+  if(!state.dialog?.chapter){openProductionScopeDialog();return}
+  if(!$('#textDialog')?.open)$('#textDialog').showModal();
+  showRevision(target==='text'?'reflowed':'casting');
+  const panelMap={speakers:'#speakerReviewPanel',voices:'#flowVoiceMemoryDetails',voice_map:'#flowStepReviewVoiceMap',prepare:'#flowStepRenderChapter',render:'#flowStepRenderChapter',qa:'#flowStepReviewAudio',diagnostics:'#productionFlowPanel'};
+  setTimeout(()=>{applyProductionStageIsolation(vm);const el=$(panelMap[target]||'#productionFlowPanel');el?.scrollIntoView({block:'start',behavior:'smooth'});(el?.querySelector('h3')||el)?.focus?.()},0)
+}
 async function restoreProductionScopeFromRoute(){
   const parsed=productionWorkflow().productionScopeFromHash(window.location.hash);
   if(parsed.route!=='production')return;
   renderProductionShell(currentProductionViewModel({loading:true}));
-  let scope=parsed.explicit?parsed:storedProductionScope();
-  if(!scope?.bookId||!scope?.chapterId){
-    state.dialog=null;state.casting=null;
+  let scope=parsed.explicit?parsed:(storedProductionRangeScope()||storedProductionScope());
+  if(!scope?.bookId){
+    state.dialog=null;state.casting=null;state.book=null;state.productionRange=null;
+    $('#workspace')?.classList.add('hidden');
     renderProductionShell(currentProductionViewModel());
     return;
   }
@@ -60,19 +94,147 @@ async function restoreProductionScopeFromRoute(){
     const book=state.books.find(item=>Number(item.id)===Number(scope.bookId));
     if(!book){
       localStorage.removeItem(PRODUCTION_SCOPE_STORAGE_KEY);
+      localStorage.removeItem(PRODUCTION_RANGE_SCOPE_STORAGE_KEY);
       state.dialog=null;state.casting=null;
+      state.book=null;state.productionRange=null;
+      $('#workspace')?.classList.add('hidden');
       renderProductionShell(currentProductionViewModel());
       return;
     }
     state.book=book;
     $('#workspace').classList.remove('hidden');
     $('#bookTitle').textContent=book.title;
-    $('#chapterCount').textContent=`${book.chapter_count} chÆ°Æ¡ng`;
-    await openChapter(scope.chapterId,{initialTab:'casting',replaceScopeRoute:true,keepDialogClosed:true});
+    $('#chapterCount').textContent=`${book.chapter_count} chương`;
+    const fromChapter=Number(scope.fromChapter??scope.from_chapter)||null,toChapter=Number(scope.toChapter??scope.to_chapter)||null;
+    if(fromChapter&&toChapter){
+      await restoreProductionRangeScope({bookId:book.id,fromChapter,toChapter,chapterId:Number(scope.chapterId)||null,skipCompleted:!!scope.skipCompleted});
+    }else if(scope.chapterId){
+      await openChapter(scope.chapterId,{initialTab:'casting',replaceScopeRoute:true,keepDialogClosed:true});
+    }else{
+      state.dialog=null;state.casting=null;state.productionRange=null;
+      renderProductionShell(currentProductionViewModel());
+    }
   }catch(e){
     renderProductionShell(currentProductionViewModel({apiError:e.message}));
     toast(e.message,true);
   }
+}
+function scopeSelectionKey(selection=state.productionScopeSelection){return `${Number(selection.bookId||0)}:${Number(selection.fromChapter||0)}-${Number(selection.toChapter||0)}`}
+function scopeSelectedBook(){return state.books.find(item=>Number(item.id)===Number(state.productionScopeSelection.bookId))||null}
+function renderScopeBooks(){
+  const selection=state.productionScopeSelection,list=$('#scopeBookList'),status=$('#scopeBooksStatus'),count=$('#scopeBookCount');
+  if(!list)return;
+  const query=String(selection.bookQuery||'').trim().toLowerCase();
+  const books=(state.books||[]).filter(book=>!isSmokeBook(book.title)&&(!query||`${book.title||''} ${book.author||''}`.toLowerCase().includes(query)));
+  if(count)count.textContent=`${books.length} books`;
+  if(status)status.textContent=selection.loadingBooks?'Loading books...':books.length?`${books.length} matching books.`:'No matching books.';
+  list.replaceChildren(...books.map(book=>{
+    const button=document.createElement('button');button.type='button';button.className=`scope-book-card${Number(selection.bookId)===Number(book.id)?' selected':''}`;button.dataset.scopeBookId=String(book.id);
+    const main=document.createElement('span'),title=document.createElement('strong'),meta=document.createElement('span');title.textContent=book.title||'Untitled book';meta.textContent=`${book.author||'Unknown author'} · ${book.chapter_count||0} chapters · ${book.audio_chapters||0} audio`;main.append(title,meta);
+    const mark=document.createElement('span');mark.textContent=Number(selection.bookId)===Number(book.id)?'Selected':'Select';button.append(main,mark);button.addEventListener('click',()=>selectScopeBook(book.id));return button;
+  }));
+}
+function renderScopeChapters(){
+  const selection=state.productionScopeSelection,list=$('#scopeChapterList'),status=$('#scopeChaptersStatus'),info=$('#scopeChapterPageInfo'),search=$('#scopeChapterSearch'),prev=$('#scopeChapterPrev'),next=$('#scopeChapterNext');
+  if(!list)return;
+  const book=scopeSelectedBook(),items=selection.chapters||[];
+  if(search)search.disabled=!book;
+  if(info)info.textContent=book?`${selection.total?selection.page*selection.pageSize+1:0}-${Math.min((selection.page+1)*selection.pageSize,selection.total)} / ${selection.total}`:'Choose a book';
+  if(status)status.textContent=selection.loadingChapters?'Loading chapters...':book?(items.length?`${items.length} chapters on this page.`:'No matching chapters.'):'Choose a book to load chapters.';
+  if(prev)prev.disabled=selection.loadingChapters||selection.page<=0;
+  if(next)next.disabled=selection.loadingChapters||(selection.page+1)*selection.pageSize>=selection.total;
+  list.replaceChildren(...items.map(item=>{
+    const article=document.createElement('article');article.className='scope-chapter-card';
+    const main=document.createElement('div'),title=document.createElement('strong'),meta=document.createElement('span');title.textContent=`Chapter ${item.chapter_number}: ${item.title||''}`;meta.textContent=`${item.audio_status||'not_created'} · ${item.char_count||0} chars`;main.append(title,meta);
+    const actions=document.createElement('div');actions.className='scope-chapter-actions';
+    [['Start',()=>setScopeBoundary('from',item.chapter_number)],['End',()=>setScopeBoundary('to',item.chapter_number)],['One',()=>setScopeBoundary('one',item.chapter_number)]].forEach(([label,handler])=>{const button=document.createElement('button');button.type='button';button.className='ghost';button.textContent=label;button.addEventListener('click',handler);actions.appendChild(button)});
+    article.append(main,actions);return article;
+  }));
+  renderScopeSelectionReview();
+}
+function renderScopeSelectionReview(){
+  const selection=state.productionScopeSelection,summary=$('#scopeSelectionSummary'),validation=$('#scopeSelectionValidation'),reviewButton=$('#reviewProductionScope'),confirmButton=$('#confirmProductionScope'),book=scopeSelectedBook();
+  if(!summary||!validation)return;
+  const from=Number(selection.fromChapter)||0,to=Number(selection.toChapter)||0;
+  const fromInput=$('#scopeFromChapter'),toInput=$('#scopeToChapter'),skipInput=$('#scopeSkipCompleted');
+  if(fromInput&&document.activeElement!==fromInput)fromInput.value=from||'';
+  if(toInput&&document.activeElement!==toInput)toInput.value=to||'';
+  if(skipInput)skipInput.checked=!!selection.skipCompleted;
+  let message='';
+  if(!book)message='Choose a book.';
+  else if(!from||!to)message='Choose a start and end chapter.';
+  else if(from>to)message='Start chapter cannot be greater than end chapter.';
+  validation.textContent=message;validation.classList.toggle('hidden',!message);
+  if(reviewButton)reviewButton.disabled=!!message||selection.loadingChapters;
+  const result=selection.review?.result,key=scopeSelectionKey();
+  const sameReview=!!result&&selection.review.key===key;
+  const total=Number(result?.summary?.total||Math.max(0,to-from+1)),complete=Number(result?.summary?.complete||0),inspect=Math.max(0,total-(selection.skipCompleted?complete:0));
+  summary.replaceChildren();
+  [[book?.title||'Book','Book'],[from?`Chapter ${from}`:'—','Start'],[to?`Chapter ${to}`:'—','End'],[inspect,'To inspect'],[sameReview?(result?.summary?.needs_attention?`${result.summary.needs_attention} need action`:'Ready to review'):'Not reviewed','Readiness']].forEach(([value,label])=>{const cell=document.createElement('div'),strong=document.createElement('strong'),span=document.createElement('span');strong.textContent=String(value);span.textContent=label;cell.append(strong,span);summary.appendChild(cell)});
+  if(confirmButton)confirmButton.disabled=!sameReview||!!result?.error;
+}
+function renderScopeDialog(){renderScopeBooks();renderScopeChapters();renderScopeSelectionReview()}
+async function loadScopeChapters(){
+  const selection=state.productionScopeSelection,book=scopeSelectedBook();if(!book)return;
+  const requestId=++selection.chapterRequestId,error=$('#scopeChaptersError');
+  selection.loadingChapters=true;if(error){error.textContent='';error.classList.add('hidden')}renderScopeChapters();
+  try{
+    const params=new URLSearchParams({offset:String(selection.page*selection.pageSize),limit:String(selection.pageSize)});
+    if(selection.chapterQuery)params.set('query',selection.chapterQuery);
+    const data=await api(`/api/books/${book.id}/chapters?${params.toString()}`);
+    if(selection!==state.productionScopeSelection||requestId!==selection.chapterRequestId||Number(selection.bookId)!==Number(book.id))return;
+    selection.chapters=Array.isArray(data.items)?data.items:[];selection.total=Number(data.total||0);selection.review=null;
+  }catch(e){if(selection!==state.productionScopeSelection||requestId!==selection.chapterRequestId)return;selection.chapters=[];selection.total=0;if(error){error.textContent=e.message;error.classList.remove('hidden')}}
+  finally{if(selection===state.productionScopeSelection&&requestId===selection.chapterRequestId){selection.loadingChapters=false;renderScopeChapters()}}
+}
+function selectScopeBook(bookId){const selection=state.productionScopeSelection;selection.bookId=Number(bookId);selection.page=0;selection.chapterQuery='';selection.fromChapter=null;selection.toChapter=null;selection.review=null;const search=$('#scopeChapterSearch');if(search)search.value='';renderScopeDialog();loadScopeChapters()}
+function setScopeBoundary(kind,number){
+  const selection=state.productionScopeSelection,value=Number(number)||null;
+  if(kind==='one'){selection.fromChapter=value;selection.toChapter=value}else if(kind==='from')selection.fromChapter=value;else selection.toChapter=value;
+  selection.review=null;renderScopeSelectionReview();
+}
+function productionScopeDialogDefaults(){
+  const current=state.productionRange||storedProductionRangeScope();
+  return{bookId:current?.bookId||null,books:state.books||[],chapters:[],total:0,page:0,pageSize:40,bookQuery:'',chapterQuery:'',fromChapter:current?.fromChapter||null,toChapter:current?.toChapter||null,skipCompleted:!!current?.skipCompleted,review:null,loadingBooks:false,loadingChapters:false,chapterRequestId:0};
+}
+async function openProductionScopeDialog(){
+  const dialog=$('#productionScopeDialog');if(!dialog)return;
+  state.productionScopeSelection=productionScopeDialogDefaults();renderScopeDialog();
+  if(!state.books?.length){state.productionScopeSelection.loadingBooks=true;renderScopeBooks();try{await loadBooks()}catch(e){const error=$('#scopeBooksError');if(error){error.textContent=e.message;error.classList.remove('hidden')}}finally{state.productionScopeSelection.loadingBooks=false}}
+  if(state.productionScopeSelection.bookId)await loadScopeChapters();
+  renderScopeDialog();if(!dialog.open)dialog.showModal();$('#scopeBookSearch')?.focus?.();
+}
+function clearProductionScope({closeDialog=true}={}){
+  localStorage.removeItem(PRODUCTION_SCOPE_STORAGE_KEY);localStorage.removeItem(PRODUCTION_RANGE_SCOPE_STORAGE_KEY);state.productionRange=null;state.dialog=null;state.casting=null;state.speakerReview=null;state.book=null;$('#workspace')?.classList.add('hidden');if(closeDialog&&$('#productionScopeDialog')?.open)$('#productionScopeDialog').close();if(window.location.hash!=='#/production')history.replaceState(null,'','#/production');renderProductionShell();renderScopeDialog();
+}
+async function reviewProductionScope(){
+  const selection=state.productionScopeSelection,book=scopeSelectedBook(),from=Number(selection.fromChapter)||0,to=Number(selection.toChapter)||0,validation=$('#scopeSelectionValidation');
+  if(!book||!from||!to||from>to){renderScopeSelectionReview();return}
+  const error=$('#scopeChaptersError');if(error){error.textContent='';error.classList.add('hidden')}
+  selection.review={loading:true,key:scopeSelectionKey()};renderScopeSelectionReview();
+  try{
+    const params=new URLSearchParams({book_id:String(book.id),from_chapter:String(from),to_chapter:String(to)}),result=await api(`/api/production/range-readiness?${params}`);
+    selection.review={loading:false,key:scopeSelectionKey(),result};if(result?.scope?.chapter_count!==to-from+1)throw new Error('Canonical range is not contiguous.');
+  }catch(e){selection.review={loading:false,key:scopeSelectionKey(),result:null};if(error){error.textContent=e.message;error.classList.remove('hidden')}}
+  renderScopeSelectionReview();
+}
+async function confirmProductionScope(){
+  const selection=state.productionScopeSelection,book=scopeSelectedBook(),result=selection.review?.result;if(!book||!result||selection.review.key!==scopeSelectionKey())return;
+  const normalized=normalizeProductionRange({bookId:book.id,fromChapter:selection.fromChapter,toChapter:selection.toChapter});
+  state.book=book;state.productionRange={...normalized,readiness:result,skipCompleted:!!selection.skipCompleted};state.dialog=null;state.casting=null;rememberProductionRange(state.productionRange);
+  $('#fromChapter').value=normalized.fromChapter;$('#toChapter').value=normalized.toChapter;if($('#skipCompleted'))$('#skipCompleted').checked=!!selection.skipCompleted;$('#workspace')?.classList.remove('hidden');$('#bookTitle').textContent=book.title;$('#chapterCount').textContent=`${book.chapter_count} chương`;
+  const hash=productionWorkflow().productionHashForScope(state.productionRange);if(window.location.hash!==hash)history.pushState(null,'',hash);
+  if($('#productionScopeDialog')?.open)$('#productionScopeDialog').close();
+  const chapters=result.chapters||[];if(chapters.length===1)await openChapter(chapters[0].chapter_id,{initialTab:'casting',keepDialogClosed:true,preserveRange:true});else{renderRangeReadinessResult(result);renderProductionShell(currentProductionViewModel())}
+}
+async function restoreProductionRangeScope(scope){
+  const normalized=normalizeProductionRange(scope);if(!normalized)return;
+  state.productionRange={...normalized,readiness:null};rememberProductionRange(state.productionRange);
+  if($('#skipCompleted'))$('#skipCompleted').checked=!!normalized.skipCompleted;
+  const params=new URLSearchParams({book_id:String(normalized.bookId),from_chapter:String(normalized.fromChapter),to_chapter:String(normalized.toChapter)});
+  const result=await api(`/api/production/range-readiness?${params}`);state.productionRange.readiness=result;
+  const hash=productionWorkflow().productionHashForScope(state.productionRange);if(window.location.hash!==hash)history.replaceState(null,'',hash);
+  const chapters=result.chapters||[];if(chapters.length===1){await openChapter(chapters[0].chapter_id,{initialTab:'casting',replaceScopeRoute:true,keepDialogClosed:true,preserveRange:true})}else{state.dialog=null;state.casting=null;state.speakerReview=null;renderRangeReadinessResult(result);renderProductionShell(currentProductionViewModel())}
 }
 async function api(url,options={}){const method=String(options.method||'GET').toUpperCase(),readiness=state.productionPrepare?.readiness;if(method==='POST'&&readiness?.runtime_mode==='PRODUCTION'){if(/^\/api\/jobs(?:\/prepare)?$/.test(url))throw new Error('Legacy job preparation không khả dụng trong Production mode.');if(/^\/api\/jobs\/\d+\/start$/.test(url)&&!readiness?.start_render_available)throw new Error('START_RENDER chưa được operator mở cho runtime này.')}const r=await fetch(url,{headers:{'Content-Type':'application/json',...(options.headers||{})},...options});let data;try{data=await r.json()}catch{data={detail:'Response error'}}if(!r.ok)throw new Error(data.detail||data.error||'Yêu cầu thất bại');return data}
 function friendlyApiError(payload,status){const detail=payload?.detail??payload?.error??payload;if(typeof detail==='string')return detail;const code=detail?.code||payload?.code||'REQUEST_FAILED',message=detail?.message||payload?.message;const known={SCHEMA_NOT_READY:'Schema chua san sang cho thao tac nay.',AUTH_NOT_READY:'Xac thuc operator chua san sang.',KILL_SWITCH_ACTIVE:'Kill switch dang khoa thao tac.',PREPARE_DISABLED:'PREPARE dang bi tat.',VOICE_ELIGIBILITY_BLOCKED:'Voice da chon khong con kha dung.',JOB_ACTION_NOT_AVAILABLE:'Action nay khong hop le voi trang thai Job hien tai.',QA_REJECTION_NOTE_REQUIRED:'Can nhap ghi chu truoc khi danh dau Needs fixes.',ARCHIVE_RANGE_INCOMPLETE:'Range audio chua day du; xem danh sach chapter bi chan.',STORAGE_CLEANUP_BLOCKED:'Cleanup bi chan boi safety check.',SUPERVISED_RESTART_UNAVAILABLE:'Hay chay app bang durable launcher de dung restart trong UI.'};return message||known[code]||`Yeu cau that bai (${status||'unknown'}).`}
@@ -138,6 +300,21 @@ async function checkRangeReadiness(){const validation=validateRangeReadinessScop
 function refreshRangeReadiness(){return checkRangeReadiness()}
 async function openRangeReadinessChapter(chapterId){if(!state.book||!chapterId)return;setAppRoute('production');await openChapter(Number(chapterId),{initialTab:'casting'})}
 function resetAudioLibraryPlayer(){const audio=$('#audioLibraryAudio');if(audio){audio.pause();audio.removeAttribute('src');audio.load?.()}const player=$('#audioLibraryPlayer');if(player)player.classList.add('hidden');state.audioLibrary.selectedArtifactId=null}
+function renderAudioFilterOptions(items){
+  const select=$('#audioFilterBook');if(!select)return;const current=select.value,books=new Map();
+  items.forEach(item=>books.set(String(item.book_id),item.book_title||`Book ${item.book_id}`));
+  select.replaceChildren(new Option('All books',''),...[...books.entries()].sort((a,b)=>a[1].localeCompare(b[1],'vi')).map(([id,title])=>new Option(title,id)));
+  if([...books.keys()].includes(current))select.value=current;
+}
+function filteredAudioLibraryItems(items){
+  const book=$('#audioFilterBook')?.value||'',query=String($('#audioFilterChapter')?.value||'').trim().toLowerCase(),qa=String($('#audioFilterQa')?.value||'').toLowerCase();
+  return items.filter(item=>{
+    if(book&&String(item.book_id)!==book)return false;
+    if(query&&!`${item.chapter_number||''} ${item.chapter_title||item.title||''}`.toLowerCase().includes(query))return false;
+    if(qa&&String(item.human_qa_status||'pending').toLowerCase()!==qa)return false;
+    return true;
+  });
+}
 function renderAudioLibrary(){
   const lib=state.audioLibrary||{items:[],status:'idle'};
   const status=$('#audioLibraryStatus'),list=$('#audioLibraryList'),empty=$('#audioLibraryEmpty'),error=$('#audioLibraryError'),errorText=$('#audioLibraryErrorText'),player=$('#audioLibraryPlayer');
@@ -157,13 +334,13 @@ function renderAudioLibrary(){
     resetAudioLibraryPlayer();
     return;
   }
-  const items=Array.isArray(lib.items)?lib.items:[];
-  status.textContent=items.length?`${items.length} chương có audio đang hoạt động.`:'Chưa có audio hoàn thành.';
-  if(!items.length){empty.classList.remove('hidden');resetAudioLibraryPlayer();return}
+  const items=Array.isArray(lib.items)?lib.items:[];renderAudioFilterOptions(items);const visibleItems=filteredAudioLibraryItems(items);
+  status.textContent=items.length?`${visibleItems.length} / ${items.length} chương phù hợp bộ lọc.`:'Chưa có audio hoàn thành.';
+  if(!visibleItems.length){empty.classList.remove('hidden');empty.querySelector('p')&&(empty.querySelector('p').textContent=items.length?'Không có audio phù hợp bộ lọc hiện tại.':'Chưa có audio hoàn thành.');resetAudioLibraryPlayer();return}
   const frag=document.createDocumentFragment();
-  items.forEach(item=>frag.appendChild(renderAudioLibraryItem(item)));
+  visibleItems.forEach(item=>frag.appendChild(renderAudioLibraryItem(item)));
   list.appendChild(frag);
-  const selected=items.find(item=>Number(item.artifact_id)===Number(lib.selectedArtifactId));
+  const selected=visibleItems.find(item=>Number(item.artifact_id)===Number(lib.selectedArtifactId));
   if(!selected)resetAudioLibraryPlayer();else selectAudioLibraryItem(selected,{play:false});
 }
 function renderAudioLibraryItem(item){
@@ -261,9 +438,9 @@ loadProductionPrepareReadiness=async function(){await loadProductionPrepareReadi
 async function restartRuntimeFromUi(){if(!state.runtimeStatus?.supervised_restart_available)return;if(!window.confirm('Khoi dong lai Story Audio ngay bay gio? Job va state da luu se duoc giu nguyen.'))return;const button=$('#restartRuntime'),reason=$('#restartRuntimeReason');button.disabled=true;reason.textContent='Dang khoi dong lai...';try{await api('/api/runtime/restart',{method:'POST',body:JSON.stringify({confirmation:'RESTART_STORY_AUDIO'})});let offlineSeen=false;for(let attempt=0;attempt<40;attempt+=1){await new Promise(resolve=>setTimeout(resolve,500));try{const response=await fetch('/api/runtime',{cache:'no-store'});if(response.ok&&(offlineSeen||attempt>=4)){await loadRuntimeIdentity();await loadProductionPrepareReadiness();await loadJobs();reason.textContent='Khoi dong lai thanh cong.';return}}catch{offlineSeen=true}}throw new Error('Runtime chua quay lai trong thoi gian cho.')}catch(e){reason.textContent=e.message;toast(e.message,true)}finally{renderGlobalStatus()}}
 const syncMutationControlsBase=syncMutationControls;
 syncMutationControls=function(){syncMutationControlsBase();const blocked=!startRenderAllowed(),renderPlan=$('#renderCastingPlan');if(renderPlan&&blocked){renderPlan.disabled=true;renderPlan.title='START_RENDER chưa được operator mở cho runtime này.'}document.querySelectorAll('button[onclick^="startPreparedJob"]').forEach(button=>{button.disabled=blocked;if(blocked)button.title='START_RENDER chưa được operator mở cho runtime này.'})}
-async function init(){setRuntimeUnknown('Resolving runtime identity…');try{state.config=await api('/api/config');$('#health').textContent=`Gemini: ${state.config.gemini_configured?'sẵn sàng':'chưa có key'} · VieNeu: ${state.config.tts_status}`;$('#epubPath').innerHTML=state.config.available_epubs.map(p=>`<option value="${p}">${p.split(/[\\/]/).pop()}</option>`).join('')||'<option>Không tìm thấy EPUB</option>';renderHomeSummary()}catch(e){toast(e.message,true)}await loadRuntimeIdentity();await loadProductionPrepareReadiness();try{await loadBooks();await loadJobs()}catch(e){toast(e.message,true)}setInterval(loadJobs,2500)}
+async function init(){setRuntimeUnknown('Resolving runtime identity…');try{state.config=await api('/api/config');$('#health').textContent=`Gemini: ${state.config.gemini_configured?'sẵn sàng':'chưa có key'} · VieNeu: ${state.config.tts_status}`;$('#epubPath').innerHTML=state.config.available_epubs.map(p=>`<option value="${p}">${p.split(/[\\/]/).pop()}</option>`).join('')||'<option>Không tìm thấy EPUB</option>';renderHomeSummary()}catch(e){toast(e.message,true)}await loadRuntimeIdentity();await loadProductionPrepareReadiness();try{await loadBooks();await loadJobs();await loadHomeDashboard()}catch(e){toast(e.message,true)}setInterval(loadJobs,2500)}
 function isSmokeBook(title){const smokePat=/smoke|speaker\s+review\s+smoke|character\s+bible\s+smoke/i;return smokePat.test(title)}
-async function loadBooks(){state.books=await api('/api/books');const filtered=state.showSmokeBooks?state.books:state.books.filter(b=>!isSmokeBook(b.title));$('#books').innerHTML=filtered.map(b=>`<div class="book-card ${state.book?.id===b.id?'active':''}" data-id="${b.id}"><strong>${esc(b.title)}</strong><span>${esc(b.author||'Không rõ tác giả')} · ${b.chapter_count} chương · ${b.audio_chapters||0} có audio</span></div>`).join('')||'<p class="muted">Chưa nhập sách.</p>';document.querySelectorAll('.book-card').forEach(el=>el.onclick=()=>selectBook(+el.dataset.id));renderHomeSummary()}
+async function loadBooks(){state.books=await api('/api/books');const filtered=state.showSmokeBooks?state.books:state.books.filter(b=>!isSmokeBook(b.title));$('#books').innerHTML=filtered.map(b=>`<div class="book-card ${state.book?.id===b.id?'active':''}" data-id="${b.id}"><strong>${esc(b.title)}</strong><span>${esc(b.author||'Không rõ tác giả')} · ${b.chapter_count} chương · ${b.audio_chapters||0} có audio</span></div>`).join('')||'<p class="muted">Chưa nhập sách.</p>';document.querySelectorAll('.book-card').forEach(el=>el.onclick=()=>selectBook(+el.dataset.id));renderHomeSummary();if($('#productionScopeDialog')?.open)renderScopeBooks()}
 async function selectBook(id){state.book=state.books.find(b=>b.id===id);state.dialog=null;state.casting=null;state.speakerReview=null;state.page=0;state.previewOk=false;setAppRoute('production');$('#workspace').classList.remove('hidden');$('#bookTitle').textContent=state.book.title;$('#chapterCount').textContent=`${state.book.chapter_count} chương`;$('#fromChapter').value=1;$('#toChapter').value=Math.min(10,state.book.chapter_count);clearRangeReadinessResult('Phạm vi mới đã sẵn sàng để kiểm tra.');renderProductionShell();await loadBooks();await loadChapters()}
 function chapterStatusSummary(chapter){if(chapter.active_output_has_trustworthy_binding&&chapter.active_output_job_id){const plan=chapter.active_output_casting_plan_revision?` | Plan v${chapter.active_output_casting_plan_revision}`:'';return {label:'ACTIVE AUDIO',className:'active-output',meta:`Job #${chapter.active_output_job_id}${plan}`}}if(chapter.audio_status==='completed')return {label:'HAS AUDIO',className:'done',meta:'Artifact active but job binding unavailable'};if(chapter.qa_count)return {label:`${chapter.qa_count} QA`,className:'',meta:''};return {label:'NOT RENDERED',className:'',meta:''}}
 function chapterAudioMetaText(activeOutput){if(!activeOutput?.active_output_has_trustworthy_binding||!activeOutput?.active_output_job_id)return '';const plan=activeOutput.active_output_casting_plan_revision?` | Casting Plan v${activeOutput.active_output_casting_plan_revision}`:'';return `ACTIVE AUDIO | Job #${activeOutput.active_output_job_id}${plan}`}
@@ -691,7 +868,7 @@ function showLibraryUploadError(msg){const el=$('#libraryUploadError');el.textCo
 function mapLibraryUploadError(msg){if(!msg)return 'The custom voice service is currently unavailable.';const lower=msg.toLowerCase();if(lower.includes('invalid')||lower.includes('bad request')||lower.includes('transcript')||lower.includes('audio'))return 'The reference audio or transcript is invalid.';if(lower.includes('not found'))return 'The selected custom voice no longer exists.';if(lower.includes('conflict'))return 'The custom voice changed while the request was being processed.';if(lower.includes('too large')||lower.includes('size')||lower.includes('413'))return 'The reference audio file is too large.';if(lower.includes('unavailable')||lower.includes('internal')||lower.includes('503'))return 'The custom voice service is currently unavailable.';if(lower.includes('network')||lower.includes('fetch'))return 'Could not connect to the custom voice service.';return 'The reference audio or transcript is invalid.';}
 async function generateTestAudio(){if(state.previewBusy||!state.previewRevisionId)return;const revision=state.libraryRevisions?.find(r=>r.id===state.previewRevisionId);const selectedVoice=state.libraryVoices?.find(v=>v.id===state.selectedVoiceId);if(!revision||!selectedVoice){toast('Please select a revision to test first',true);return}const requestVoiceId=state.selectedVoiceId;const requestRevisionId=state.previewRevisionId;const button=$('#libraryGenerateTestAudio');const originalText=button.textContent;state.previewBusy=true;button.disabled=true;button.textContent='Generating…';$('#libraryPreviewBox').classList.add('hidden');try{const previewText=$('#libraryPreviewText').value.trim();const payload={custom_voice_revision_id:Number(requestRevisionId)};if(previewText)payload.preview_text=previewText;const result=await api('/api/voice-previews',{method:'POST',body:JSON.stringify(payload)});if(state.selectedVoiceId!==requestVoiceId||state.previewRevisionId!==requestRevisionId){return}const audio=$('#libraryPreviewAudio');audio.src=`${result.audio_url}?v=${result.cache_key}`;await audio.load();$('#libraryPreviewBox').classList.remove('hidden');const provenance=`Generated with ${selectedVoice.display_name} — Revision ${revision.revision_number}`;$('#libraryPreviewProvenance').textContent=provenance;await audio.play().catch(()=>{})}catch(e){const lower=e.message.toLowerCase();let msg='Preview generation failed';if(lower.includes('not found')||lower.includes('404'))msg='The selected voice revision is unavailable.';else if(lower.includes('unavailable')||lower.includes('503'))msg='The custom voice service is currently unavailable.';else if(lower.includes('network')||lower.includes('fetch'))msg='Could not connect to the custom voice service.';toast(msg,true)}finally{state.previewBusy=false;if(state.selectedVoiceId===requestVoiceId&&state.previewRevisionId===requestRevisionId){button.disabled=false;button.textContent=originalText}}}
 function renderAssignmentPage(){const scope=$('#assignmentScope'),summary=$('#assignmentSummary'),rowsRoot=$('#assignmentRows'),blocked=$('#assignmentBlockedReason'),button=$('#openAssignmentWorkspace');if(!scope||!summary||!rowsRoot)return;const chapter=state.dialog?.chapter,context=state.casting;if(!chapter||!context){scope.textContent='Chưa chọn chương. Mở Production và chọn một chapter trước.';summary.innerHTML='';rowsRoot.innerHTML='';blocked.textContent='Voice Assignment cần chapter context để tránh gán nhầm sách hoặc revision.';blocked.classList.remove('hidden');if(button)button.disabled=true;return}const rows=buildSpeakerSummaryRows(context),plan=context.casting||{},readiness=buildSpeakerReadinessSummary(rows);scope.textContent=`${state.book?.title||chapter.book_title||'Book'} / Chapter ${chapter.chapter_number} / Text Revision #${chapter.active_text_revision_id||'?'} / Plan ${plan.id?`#${plan.id} ${plan.status}`:'chưa tạo'}`;summary.innerHTML=`<div><strong>${rows.length}</strong><span>roles / speakers</span></div><div><strong>${readiness.needsReview}</strong><span>cần review</span></div><div><strong>${plan.status||'missing'}</strong><span>approval state</span></div><div><strong>${state.voiceCatalog?.items?.length||0}</strong><span>catalog entries khả dụng</span></div>`;rowsRoot.innerHTML=rows.map(row=>`<div class="flow-speaker-row ${row.status.className}"><div><strong>${esc(row.speaker)}</strong><span>${esc(row.roleLabel)}</span></div><div><strong>${esc(row.voice)}</strong><span>Voice hiện tại</span></div><div><strong>${esc(row.status.label)}</strong><span>${esc(row.reason||row.nextAction||'')}</span></div><div><strong>Chapter ${chapter.chapter_number}</strong><span>Phạm vi ảnh hưởng</span></div></div>`).join('');blocked.classList.toggle('hidden',readiness.needsReview===0);blocked.textContent=readiness.needsReview?`${readiness.needsReview} role chưa an toàn. Mở workspace để dùng bulk narrator/unknown, per-character override, save draft và approve plan.`:'';if(button)button.disabled=false}
-function openAssignmentWorkspace(){if(!state.dialog?.chapter)return;setAppRoute('production');focusProductionTarget('voices')}
+function openAssignmentWorkspace(){if(!state.dialog?.chapter)return;setAppRoute('production');setProductionScopeRoute(state.book?.id||state.dialog.chapter.book_id,state.dialog.chapter.id,{replace:true});focusProductionTarget(currentProductionViewModel().targetPanel)}
 
 function safeJobSummary(job){return [`Job #${job.id}`,`${job.book_title||'Book'} ${job.from_chapter}-${job.to_chapter}`,`status=${job.status}`,`chapters=${job.actual_completed||0}/${job.total_chapters||0}`,`segments verified=${job.completed_segments||0} failed=${job.failed_segments||0} pending=${job.pending_segments||0}`,job.error_classification?`error=${job.error_classification}`:''].filter(Boolean).join(' | ')}
 function renderJobsPage(){const root=$('#jobsPageList'),status=$('#jobsPageStatus');if(!root||!status)return;const jobs=state.jobs||[];status.textContent=`${jobs.length} Job gần nhất. Tự động cập nhật mỗi 2.5 giây.`;root.innerHTML=jobs.map(job=>{const actions=job.actions||{},progress=`${job.actual_completed||0}/${job.total_chapters||0} chapter; ${job.completed_segments||0} verified, ${job.failed_segments||0} failed, ${job.pending_segments||0} pending segment`,voice=[job.voice_name,...(job.active_output_chapters||[]).map(row=>row.active_output_casting_plan_revision?`Plan v${row.active_output_casting_plan_revision}`:'')].filter(Boolean).join(' / ');return `<article class="job-page-card ${job.is_historical_output?'historical':''}"><div class="job-page-head"><div><p class="eyebrow">Job #${job.id}</p><h3>${esc(job.book_title)} / ${job.from_chapter}-${job.to_chapter}</h3></div>${statusBadge(job.status)}${outputBadge(job)}</div><div class="job-page-grid"><div><strong>Progress</strong><span>${esc(progress)}</span></div><div><strong>Applied voices</strong><span>${esc(voice||'Pinned in Job snapshot')}</span></div><div><strong>Created</strong><span>${esc(job.created_at||'—')}</span></div><div><strong>Updated</strong><span>${esc(job.updated_at||'—')}</span></div><div><strong>Error class</strong><span>${esc(job.error_classification||'none')}</span></div></div>${job.error_message?`<div class="issue warning">${esc(job.error_message)}</div>`:''}<div class="job-actions"><button type="button" onclick="openJobDiagnostics(${job.id})">Mở chi tiết</button><button type="button" onclick="copyJobSummary(${job.id})">Copy tóm tắt an toàn</button>${actions.can_start?`<button class="primary" type="button" onclick="startPreparedJob(${job.id})">START_RENDER Job #${job.id}</button>`:''}${actions.can_resume?`<button type="button" onclick="act(${job.id},'resume')">Tiếp tục</button>`:''}${actions.can_retry?`<button type="button" onclick="act(${job.id},'retry')">Thử lại phần recoverable</button>`:''}${actions.can_open_audio?`<button type="button" onclick="openJobAudio(${job.id})">Mở audio</button>`:''}</div>${job.is_historical_output?'<p class="muted">Historical evidence only. Không có action render/retry.</p>':''}</article>`}).join('')||'<p class="muted">Chưa có Job.</p>'}
@@ -724,7 +901,7 @@ function outputBadge(job){if(job.is_active_output)return '<span class="badge act
 function jobOutputMeta(job){if(job.is_active_output&&job.active_output_chapters?.length){const chapter=job.active_output_chapters[0],plan=chapter.active_output_casting_plan_revision?` | Plan v${chapter.active_output_casting_plan_revision}`:'';return `Active chapter output: ${chapter.chapter_number}. ${chapter.chapter_title}${plan}`}if(job.is_historical_output)return 'Historical evidence only - not the current chapter output';return ''}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
 const loadJobsForProductionState=loadJobs;
-loadJobs=async function(){await loadJobsForProductionState();renderProductionShell();renderJobsPage();renderAssignmentPage();renderGlobalStatus()}
+loadJobs=async function(){await loadJobsForProductionState();renderProductionShell();renderJobsPage();renderAssignmentPage();renderGlobalStatus();renderHomeDashboard()}
 $('#importBtn').onclick=async()=>{if(!runtimeAllowsMutation()){toast('Runtime identity must be resolved before mutating actions.',true);return}try{const r=await api('/api/books/import',{method:'POST',body:JSON.stringify({path:$('#epubPath').value})});toast(r.created?`Đã nhập ${r.chapter_count} chương`:'Sách đã tồn tại');await loadBooks();selectBook(r.book_id)}catch(e){toast(e.message,true)}};
 $('#showSmokeBooks').onchange=()=>{state.showSmokeBooks=$('#showSmokeBooks').checked;loadBooks()};
 $('#loadPresetVoices').onclick=loadPresetVoices;$('#previewPresetVoice').onclick=previewPresetVoice;$('#presetVoiceSelect').addEventListener('change',()=>{const audio=$('#presetPreviewAudio');audio.pause();audio.removeAttribute('src');$('#presetPreviewBox').classList.add('hidden');$('#previewPresetVoice').disabled=!$('#presetVoiceSelect').value});
@@ -751,6 +928,23 @@ document.querySelectorAll('.tabs button').forEach(b=>b.onclick=()=>showRevision(
 on('#batchPlanTargetPhase','change',()=>{state.batchPlan.targetPhase=batchPlanTargetPhase();state.batchPlan.requestId+=1;clearBatchPlanResult('Phase lập kế hoạch đã thay đổi. Hãy lập lại batch plan khi đã sẵn sàng.')});
 ['voiceSelect','repairMode','outputFormat','skipCompleted'].forEach(id=>{const el=$('#'+id);if(el)el.addEventListener('change',()=>{state.previewOk=false;syncMutationControls()})});
 on('#voiceSelect','change',()=>{const audio=$('#voicePreviewAudio');audio?.pause?.();audio?.removeAttribute('src');$('#voicePreviewBox')?.classList.add('hidden');const previewButton=$('#previewVoice');if(previewButton)previewButton.disabled=!$('#voiceSelect')?.value;syncMutationControls()});
+on('#scopeBookSearch','input',event=>{state.productionScopeSelection.bookQuery=event.target.value;renderScopeBooks()});
+let scopeChapterSearchTimer=null;
+on('#scopeChapterSearch','input',event=>{state.productionScopeSelection.chapterQuery=event.target.value;state.productionScopeSelection.page=0;clearTimeout(scopeChapterSearchTimer);scopeChapterSearchTimer=setTimeout(loadScopeChapters,220)});
+on('#scopeChapterPrev','click',()=>{if(state.productionScopeSelection.page>0){state.productionScopeSelection.page-=1;loadScopeChapters()}});
+on('#scopeChapterNext','click',()=>{if((state.productionScopeSelection.page+1)*state.productionScopeSelection.pageSize<state.productionScopeSelection.total){state.productionScopeSelection.page+=1;loadScopeChapters()}});
+on('#scopeFromChapter','input',event=>{state.productionScopeSelection.fromChapter=Number(event.target.value)||null;state.productionScopeSelection.review=null;renderScopeSelectionReview()});
+on('#scopeToChapter','input',event=>{state.productionScopeSelection.toChapter=Number(event.target.value)||null;state.productionScopeSelection.review=null;renderScopeSelectionReview()});
+on('#scopeSkipCompleted','change',event=>{state.productionScopeSelection.skipCompleted=event.target.checked;renderScopeSelectionReview()});
+on('#reviewProductionScope','click',reviewProductionScope);
+on('#confirmProductionScope','click',confirmProductionScope);
+on('#clearProductionScope','click',()=>clearProductionScope());
+on('#cancelProductionScope','click',()=>$('#productionScopeDialog')?.close());
+on('#cancelProductionScopeTop','click',()=>$('#productionScopeDialog')?.close());
+on('#audioFilterBook','change',renderAudioLibrary);
+on('#audioFilterChapter','input',renderAudioLibrary);
+on('#audioFilterQa','change',renderAudioLibrary);
+on('#clearAudioFilters','click',()=>{if($('#audioFilterBook'))$('#audioFilterBook').value='';if($('#audioFilterChapter'))$('#audioFilterChapter').value='';if($('#audioFilterQa'))$('#audioFilterQa').value='';renderAudioLibrary()});
 window.addEventListener('beforeunload',event=>{if(Object.keys(state.speakerReview?.decisions||{}).length){event.preventDefault();event.returnValue=''}});
 setupAppShell();init();
 document.querySelectorAll('[data-close]').forEach(button=>button.onclick=()=>$('#'+button.dataset.close).close());

@@ -11,11 +11,14 @@ Exact next task:
 
 ## Verified Outputs
 
-- Daily-Use V1 UI is complete: the operator can navigate Production, Voice
-  Assignment, Jobs, Audio Library, and Storage; see global runtime gates;
-  play/download outputs; submit explicit Human QA; download a contiguous range
-  ZIP; run storage report/dry-run; and restart the durable runtime without
-  terminal or database access.
+- Daily-Use V1 is real-browser accepted from a clean `NO_SCOPE` session. The
+  operator can choose a canonical book and one chapter or contiguous range,
+  confirm backend readiness, preserve the exact range across Voice Assignment
+  and restart, and clear it without terminal or database access.
+- Home, Production, Voice Assignment, Jobs, Audio Library, Storage report and
+  dry-run were walked in the canonical browser. Artifact `93` playback and the
+  Chapters `372-373` range ZIP download were observed; no QA or cleanup action
+  was submitted.
 - No Human QA choice was made for Artifacts `93/96` during UI acceptance.
   Their next decision remains intentionally human-only.
 - Safe storage cleanup is complete: `103` proven-orphaned paths deleted,
