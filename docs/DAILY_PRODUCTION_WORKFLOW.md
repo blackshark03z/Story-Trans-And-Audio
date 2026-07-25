@@ -31,15 +31,22 @@ authentication, and creates only durable prepared jobs. It never offers
 START_RENDER, starts the worker, wakes the worker, creates Segments/Artifacts,
 or calls providers.
 
-Production PREPARE defaults disabled. Schema 15, canonical runtime identity,
-every positive feature gate, configured non-test authentication, an open
-operator window, and an inactive kill switch are all required before the
-mutation service is constructed. Schema 12 continues to support read-only
-planning/readiness and Audio Library use while PREPARE remains unavailable.
+Production PREPARE code defaults disabled. The local production launcher may
+enable it only from ignored operator configuration after schema 15, canonical
+runtime identity, every positive feature gate, configured non-test
+authentication, an open operator window, and an inactive kill switch all pass.
+The mutation service is not constructed when any gate is closed.
 
-The initial canary is one fully eligible contiguous range of one to three
-chapters. Activation and rollback are operational procedures defined in
-`docs/PREPARE_ACTIVATION_RUNBOOK.md`.
+START_RENDER has its own explicit render gate and remains unavailable inside
+the PREPARE panel. When enabled, it transitions only the selected existing
+prepared Job, then wakes the worker after the transition commits. Routine
+startup does not auto-start or wake prepared work.
+
+The production canaries are complete: a one-chapter corrected render proved
+Artifact `90`, and the first normal-UI contiguous two-chapter pilot completed
+Book `1`, Chapters `372-373`, on one PREPARE request and one Job `26`. Both new
+outputs remain Human QA pending. Historical activation and rollback evidence is
+defined in `docs/PREPARE_ACTIVATION_RUNBOOK.md`.
 
 ### Voice Eligibility Boundary
 

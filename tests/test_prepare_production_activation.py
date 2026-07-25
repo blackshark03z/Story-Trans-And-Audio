@@ -243,6 +243,24 @@ class ProductionRuntimeGateTests(Phase10FixtureMixin):
         self.assertNotIn(TOKEN, rendered)
         self.assertNotIn("token_sha256", rendered)
 
+    def test_explicit_render_gate_opens_only_start_after_all_production_gates(self):
+        descriptor = self.descriptor(
+            production_values(PREPARE_RENDER_ENABLED="true")
+        )
+        payload = public_runtime_readiness(descriptor)
+        self.assertTrue(descriptor.production_render_enabled)
+        self.assertTrue(payload["start_render_available"])
+        self.assertFalse(payload["prepare_starts_render"])
+
+        killed = self.descriptor(
+            production_values(
+                PREPARE_RENDER_ENABLED="true",
+                PREPARE_KILL_SWITCH_ACTIVE="true",
+            )
+        )
+        self.assertFalse(killed.production_render_enabled)
+        self.assertFalse(public_runtime_readiness(killed)["start_render_available"])
+
     def test_production_mode_blocks_legacy_prepare_and_start_routes(self):
         import story_audio.api as api
 
@@ -353,3 +371,24 @@ class ProductionLifespanTests(unittest.IsolatedAsyncioTestCase):
         worker.start.assert_not_called()
         worker.wake.assert_not_called()
         worker.stop.assert_not_called()
+
+    async def test_explicit_production_render_gate_starts_and_stops_worker(self):
+        import story_audio.api as api
+
+        database = MagicMock()
+        worker = MagicMock()
+        descriptor = SimpleNamespace(
+            runtime_mode=PRODUCTION,
+            production_render_enabled=True,
+        )
+        with (
+            patch.object(api, "prepare_runtime_integration", descriptor),
+            patch.object(api, "db", database),
+            patch.object(api, "worker", worker),
+        ):
+            async with api.lifespan(api.app):
+                pass
+        database.initialize.assert_called_once_with()
+        worker.start.assert_called_once_with()
+        worker.wake.assert_not_called()
+        worker.stop.assert_called_once_with()

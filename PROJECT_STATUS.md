@@ -1,84 +1,59 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-23 (Asia/Saigon)
-**Milestone:** DAILY-PROD-5 Active - Batch Approval, Prepare, Render And QA Closeout
-**Strategic state:** `PRODUCTION_READY / DAILY_PRODUCTION_UX_ROADMAP`
-**Trạng thái hiện tại:** Book 8 Chapter 1 source mojibake has been remediated through the immutable canonical workflow. Active Text Revision `3985` and approved Casting Plan `26` revision `3` preserve the eight `Đức Trí` assignments; replacement Job `25` is durably `prepared` and must not render without separate explicit authorization.
+**Cập nhật:** 2026-07-25 (Asia/Saigon)
+**Milestone:** DAILY-PROD-6 Technical Pilot Complete - Human Audio QA Pending
+**Strategic state:** `DAILY_USE_TWO_CHAPTER_PILOT_TECHNICALLY_PASSED`
+**Trạng thái hiện tại:** Job `26` completed the first normal-UI contiguous two-chapter production pilot for Book `1`, Chapters `372-373`. Active Artifacts `93/96` passed decode, download/hash, restart, voice-provenance, and offline intelligibility screening; both remain Human QA `pending`.
 
-**Last verified implementation commit:** `a60b94c` (`feat: add clone-only disabled PREPARE runtime authentication boundary`)
+**Last verified implementation baseline:** `908df1d6f7c332223df841701ff5cf0df9d59a13`
 **Last verified branch:** `main`
-**Last verified date:** 2026-07-23
+**Last verified date:** 2026-07-25
 **Canonical runtime:** `http://127.0.0.1:8772`
 **Runtime schema:** canonical `15`
-**Default/latest schema:** `12`
-**Runtime:** canonical schema `15`; currently stopped after PREPARE persistence verification
-**Dormant request persistence schema:** `13`
-**Dormant linkage schema artifact:** `14` (not active)
-**Dormant ownership/fencing schema artifact:** `15` (not active)
+**Default/latest schema:** `15`
+**Runtime:** canonical schema `15`; running locally and idle after restart verification
 **DAILY-PROD-5A:** complete
-**DAILY-PROD-5B Phase 1:** complete
-**DAILY-PROD-5B Phase 2:** complete
-**DAILY-PROD-5B Phase 3:** complete
-**DAILY-PROD-5B Phase 4:** complete
-**DAILY-PROD-5B Phase 5:** complete
-**DAILY-PROD-5B Phase 6:** complete
-**DAILY-PROD-5B Phase 7:** complete
-**DAILY-PROD-5B Phase 8:** complete
-**DAILY-PROD-5B Phase 9:** complete
-**DAILY-PROD-5B Phase 10:** complete - isolated end-to-end adapter only
-**DAILY-PROD-5B Phase 11:** complete - design/model contract only
-**DAILY-PROD-5B Phase 12:** complete - clone rehearsal and disabled wiring only
-**DAILY-PROD-5B Phase 13:** complete - clone-only disabled runtime and authentication boundary only
-**DAILY-PROD-5:** active
-**Mutation authorization:** `CLONE_ONLY_PHASE14_TESTING_AUTHORIZED / CANONICAL_ACTIVATION_NOT_AUTHORIZED / PRODUCTION_PREPARE_NOT_AUTHORIZED / PRODUCTION_ENABLED_PREPARE_ROUTE_NOT_AUTHORIZED`
-**Isolated schema-13 integration validation:** `COMPLETE`
-**Isolated PREPARE orchestration contract:** `COMPLETE`
-**Job transaction adapter design:** `COMPLETE`
-**Isolated linkage persistence implementation:** `COMPLETE`
-**Isolated same-transaction prerequisite resolution:** `COMPLETE`
-**Isolated end-to-end PREPARE adapter:** `COMPLETE / TEMPORARY_DATABASE_ONLY`
-**Phase 10 implementation commit:** `c47d829cddd3e16914d5bf60b4beb20063299820`
-**Phase 10 validation:** `1524` tests PASS, `1` skipped; focused affected `404` PASS; Doctor `critical_errors=0`
-**Phase 11 validation:** focused affected `160` PASS; rollout contract `35` PASS twice; full offline `1559` PASS, `1` skipped; syntax/UI checks PASS; Doctor `critical_errors=0`
-**Phase 11 authentication classification:** `AUTH_MISSING_BLOCKS_PRODUCTION`
-**Phase 12 implementation commit:** `843f688`
-**Phase 12 validation:** focused `91` PASS; full offline `1575` PASS, `1` established skip; Doctor `critical_errors=0`; clone migration/rollback rehearsal PASS
-**Phase 12 clone evidence:** external SQLite online-backup clone preserved source facts, migrated `12 -> 15`, injected stage failures rolled back to `12/13/14`, and restored exact schema-12 backup hash
-**Phase 11 canonical safety:** runtime/schema `12 / 12`; DB SHA-256 `dba41f6eb3eaba5de4a4d9964f41ee93bb730ac8c2d6fd47df202479ad203b23`, size `4009984`, mtime `2026-07-20T05:31:47.4292255Z`; dormant tables and WAL/SHM absent; Chapter 369 unchanged
-**Runtime adapter/orchestrator integration:** `NOT_AUTHORIZED`
-**Linkage pipeline integration:** `NOT_AUTHORIZED`
-**Job transaction adapter implementation:** `NOT_AUTHORIZED`
-**Canonical migration authorization:** `NOT_AUTHORIZED`
-**PREPARE execution:** `NOT_AUTHORIZED`
-**API integration:** `NOT_AUTHORIZED`
-**START_RENDER:** `NOT_AUTHORIZED`
-**Phase 11 runtime-readiness design:** `COMPLETE / DESIGN_READY`
-**Phase 12 clone rehearsal:** `COMPLETE / EXTERNAL CLONE ONLY`
-**Phase 12 disabled wiring skeleton:** `COMPLETE / UNREACHABLE DEFAULT-OFF ONLY`
-**Phase 12 authentication classification:** `AUTH_MISSING_BLOCKS_PRODUCTION`
-**Dormant migrations:** `story_audio/migrations/dormant/0013_batch_prepare_requests.sql`, `story_audio/migrations/dormant/0014_batch_prepare_job_links.sql`, `story_audio/migrations/dormant/0015_batch_prepare_execution_attempts.sql`
-**Durable request store:** `story_audio/batch_prepare_store.py`
-**PREPARE orchestration:** `story_audio/batch_prepare_orchestrator.py`
-**Job adapter contract:** `story_audio/batch_prepare_job_adapter_contract.py`
+**DAILY-PROD-5B:** complete and production-proven
+**DAILY-PROD-5:** complete
+**DAILY-PROD-6:** technical acceptance complete; Human Audio QA pending
+**Production authorization:** `AUTHENTICATED_LOCAL_PREPARE_AND_EXPLICIT_START`
+**Kill switch:** active authority; currently disabled
+**START_RENDER:** separate explicit action only
 **DAILY-PROD-4A:** complete
 **DAILY-PROD-4:** complete
 **DAILY-PROD-3A:** complete
 **DAILY-PROD-3:** complete
 
 **Current production state:**
-- Book `8`, Chapter `1` now uses active approved Text Revision `3985`, a
-  byte-verifiable `378`-character Vietnamese source with SHA-256
-  `ff9053993e437319dfd7b8b9159dbee4a2ac86be824fe9418765cc3664306f22`.
-  Revision `3971` remains immutable rejected-render evidence.
-- Approved Casting Plan `26` revision `3` is bound to Revision `3985`; all eight
-  utterances retain usable voice `Đức Trí`. PREPARE request `3` created exactly
-  one replacement Job `25` and JobChapter `25`, both pinned to these corrected
-  inputs. Job `25` is `prepared`, has no Segments/attempts/Artifacts/audio, and
-  remained prepared across runtime restart.
+- Book `1`, Chapters `372-373` completed through exactly one authenticated
+  PREPARE request and one explicit START on Job `26`. JobChapters `26/27` are
+  completed with `53/53` and `58/58` verified Segments; retries are `0`.
+- Chapter `372` pins Text Revision `744` and approved Casting Plan `28` revision
+  `2`. Active Artifact `93` has SHA-256
+  `daddd0f10a3593039a291ad929f9397083ca81e235141c0347943f224630eb31`,
+  size `7,079,956` bytes, and duration `437080 ms`.
+- Chapter `373` pins Text Revision `746` and approved Casting Plan `30` revision
+  `2`. Active Artifact `96` has SHA-256
+  `a72d193206eb017dc1b9ae24d39235f98e95c5cbef1483a39d009b7e6583fc2f`,
+  size `7,895,926` bytes, and duration `486790 ms`.
+- Both active outputs decode completely, pass cached offline Vietnamese
+  intelligibility screening, appear in Audio Library, stream with HTTP range
+  support, download with matching hashes, and persist across runtime restart.
+  Human QA remains `pending` for both.
+- Narrator continuity uses `custom:26` revision `6`; dialogue uses
+  `custom:25` revision `1`, plus text-supported female Character `44` uses
+  preset `Ngọc Lan` in Chapter `373`. Requested and effective voice identities
+  are persisted in Segment diagnostics.
+- Durable local startup uses ignored `secrets/production-runtime.env` through
+  `run_app.ps1`; the runtime binds only to `127.0.0.1:8772`, loads only an
+  allowlisted configuration, does not print token material, and preserves
+  schema/authentication/kill-switch gates.
+- Book `8`, Chapter `1` Job `25` remains completed with active Artifact `90`.
+  Artifact `90` is now Human QA `accepted` with the exact operator note; Text
+  Revision `3985`, Plan `26`, and historical Revision `3971` remain immutable.
 - Active Artifact `87` remains unchanged with Human QA `needs_fixes` and reason
   `unintelligible_audio_no_recognizable_words`; Jobs `23` and `24` remain
-  historical and unchanged. No provider/TTS/Gemini call, worker render wake, or
-  START_RENDER occurred during remediation.
+  historical and unchanged.
 - Canonical text is now rejected fail-closed before activation, casting
   approval, readiness, PREPARE, and START_RENDER when immutable hash/count,
   UTF-8, control-character, or mojibake validation fails.
@@ -87,6 +62,12 @@
 - Chapter `369` is paused as a production operation, not a roadmap milestone: active Text Revision `738`, Speaker Draft `15` approved, Casting Plan `24` revision `1` draft/unapproved, Jobs `0`, JobChapters `0`, artifacts `0`, active audio `none`, and audio status `not_created`.
 - Preview provenance guard is complete and reusable: legacy custom preview cache entries without immutable `custom_voice_id` provenance are quarantined rather than served as valid listening evidence.
 - The production backend, casting boundaries, prepared-job lifecycle, rendering, repair, artifact, and Human QA flows are production-proven.
+
+## Historical Implementation Checkpoints
+
+The entries below preserve the boundary that applied at each earlier checkpoint.
+They do not override the current production state above.
+
 - `DAILY-PROD-1A` implemented the modular application shell: top-level navigation now separates Home, Production, Voice Library, Books And Characters, Audio Library, and Settings.
 - `DAILY-PROD-1B` added a pure Production state resolver and single-chapter resume model. Production now classifies `NO_SCOPE`, `TEXT_BLOCKED`, `SPEAKER_EXCEPTIONS`, `VOICE_BLOCKED`, `CASTING_REVIEW`, `READY_TO_PREPARE`, `PREPARED`, `RENDERING_OR_PAUSED`, `RENDERED_NOT_QA`, `COMPLETE`, and fail-closed `STATE_UNRESOLVED`.
 - Production now displays completed/current/locked canonical stages and exactly one dominant primary action from read-only state. Future stages are disabled, and loading/error/unresolved states expose only safe read-only navigation/reload behavior.

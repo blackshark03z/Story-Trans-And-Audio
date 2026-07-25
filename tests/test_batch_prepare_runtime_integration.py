@@ -146,6 +146,10 @@ class RuntimeIntegrationTests(IsolatedTestCase):
         self.assertEqual(descriptor.status, "CONFIG_INVALID")
         unknown = self.descriptor({"PREPARE_RUNTIME_MODE": CLONE_DISABLED, "PREPARE_MUTATION_ENABLED": "maybe"})
         self.assertEqual(unknown.status, "CONFIG_INVALID")
+        invalid_render = self.descriptor(
+            {"PREPARE_RUNTIME_MODE": CLONE_DISABLED, "PREPARE_RENDER_ENABLED": "TRUE"}
+        )
+        self.assertEqual(invalid_render.status, "CONFIG_INVALID")
 
     def test_missing_canonical_and_repository_paths_are_rejected(self):
         missing = self.descriptor(path=self.external / "missing.db")

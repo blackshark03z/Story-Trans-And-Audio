@@ -24,6 +24,7 @@ REQUIRED_SCHEMA_VERSION = 15
 _RUNTIME_KEYS = frozenset({
     "PREPARE_RUNTIME_MODE",
     "PREPARE_CLONE_MUTATION_TEST_AUTHORIZED",
+    "PREPARE_RENDER_ENABLED",
 })
 _FLAG_KEYS = frozenset({
     "PREPARE_FEATURE_AVAILABLE", "PREPARE_MUTATION_ENABLED",
@@ -47,6 +48,7 @@ class RuntimeIntegrationConfig:
     flags: RuntimePrepareConfig
     auth: OperatorAuthConfig
     clone_mutation_test_authorized: bool = False
+    render_enabled: bool = False
     config_valid: bool = True
     errors: tuple[str, ...] = ()
 
@@ -67,6 +69,7 @@ class RuntimeIntegrationDescriptor:
     kill_switch_active: bool
     authentication_state: str
     read_only_planning_available: bool
+    render_enabled: bool = False
     mutation_service_constructed: bool = False
     isolated_adapter_constructed: bool = False
     request_store_constructed: bool = False
@@ -129,6 +132,10 @@ class RuntimeIntegrationDescriptor:
     def prepare_mutation_enabled(self) -> bool:
         return self.clone_mutation_test_enabled or self.production_mutation_enabled
 
+    @property
+    def production_render_enabled(self) -> bool:
+        return self.production_mutation_enabled and self.render_enabled
+
 
 def _within(path: Path, root: Path) -> bool:
     try:
@@ -150,28 +157,42 @@ def parse_runtime_integration_config(values: Mapping[str, Any] | None = None) ->
     test_authorized, test_error = _parse_test_authorization(
         source.get("PREPARE_CLONE_MUTATION_TEST_AUTHORIZED")
     )
+    render_enabled, render_error = _parse_strict_boolean(
+        source.get("PREPARE_RENDER_ENABLED"),
+        "INVALID_PREPARE_RENDER_ENABLED",
+    )
     errors.extend(flags.errors)
     errors.extend(auth.errors)
     if test_error:
         errors.append(test_error)
+    if render_error:
+        errors.append(render_error)
     return RuntimeIntegrationConfig(
         mode,
         flags,
         auth,
         clone_mutation_test_authorized=test_authorized,
+        render_enabled=render_enabled,
         config_valid=not errors,
         errors=tuple(errors),
     )
 
 
-def _parse_test_authorization(value: Any) -> tuple[bool, str | None]:
+def _parse_strict_boolean(value: Any, error_code: str) -> tuple[bool, str | None]:
     if value is None:
         return False, None
     if isinstance(value, bool):
         return value, None
     if isinstance(value, str) and value in {"true", "false"}:
         return value == "true", None
-    return False, "INVALID_PREPARE_CLONE_MUTATION_TEST_AUTHORIZED"
+    return False, error_code
+
+
+def _parse_test_authorization(value: Any) -> tuple[bool, str | None]:
+    return _parse_strict_boolean(
+        value,
+        "INVALID_PREPARE_CLONE_MUTATION_TEST_AUTHORIZED",
+    )
 
 
 def read_runtime_integration_config(environment: Mapping[str, Any] | None = None) -> RuntimeIntegrationConfig:
@@ -280,7 +301,11 @@ def build_runtime_integration(
                     reasons.append("LOCAL_TEST_AUTH_MODE_REQUIRED")
                 elif parsed.mode == PRODUCTION:
                     status = "PRODUCTION_AUTHENTICATED_READY"
-                    reasons.append("PRODUCTION_PREPARE_ONLY")
+                    reasons.append(
+                        "PRODUCTION_PREPARE_AND_RENDER"
+                        if parsed.render_enabled
+                        else "PRODUCTION_PREPARE_ONLY"
+                    )
                 else:
                     status = "CLONE_AUTHENTICATED_TEST_READY"
                     reasons.append("PHASE14_CLONE_TEST_ONLY")
@@ -306,6 +331,7 @@ def build_runtime_integration(
         kill_switch_active=True if not parsed.config_valid else parsed.flags.kill_switch_active,
         authentication_state=auth_status,
         read_only_planning_available=True,
+        render_enabled=parsed.render_enabled,
         reasons=tuple(reasons),
     )
 
@@ -334,7 +360,7 @@ def public_runtime_readiness(descriptor: RuntimeIntegrationDescriptor) -> dict[s
         "execution_endpoint_available": descriptor.prepare_mutation_enabled,
         "real_job_execution": False,
         "prepare_starts_render": False,
-        "start_render_available": False,
+        "start_render_available": descriptor.production_render_enabled,
         "startup_migration_enabled": False,
         "reasons": list(descriptor.reasons),
     }

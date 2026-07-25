@@ -2,13 +2,14 @@
 
 ## Current State
 
-Production PREPARE code is installed but hard-disabled. Canonical schema remains
-12. Normal startup does not apply migrations 13-15. `PRODUCTION` mode is
-PREPARE-only: it does not start the worker and blocks legacy job prepare/start
-routes.
+Canonical activation is complete. The production database is schema `15`;
+authenticated PREPARE and separately gated START_RENDER have completed real
+one-chapter and two-chapter canaries. Normal startup still performs no automatic
+migration.
 
-Do not execute this runbook until the operator explicitly approves canonical
-activation.
+This file now preserves historical activation/rollback evidence. Do not rerun
+the migration or pre-activation rollback commands against the current canonical
+database. Current daily startup is documented in `docs/RUNBOOK.md`.
 
 ## Verified Package
 
@@ -66,35 +67,26 @@ backup cannot be verified.
 
 ## Production Configuration
 
-Set these values only in the process shell that launches Story Audio. Never
-persist the raw operator token or commit it:
+Daily production configuration is stored in ignored
+`secrets/production-runtime.env`. `run_app.ps1` accepts only the documented
+production keys, rejects duplicate/unknown entries, hashes the raw
+`PREPARE_OPERATOR_TOKEN` in child-process memory, clears the temporary byte
+buffer, and never prints token material.
+
+The local file configures production mode, PREPARE feature/mutation gates,
+operator window, schema readiness, authentication, render enablement, and kill
+switch. Never commit the file, token, or token hash.
+
+Normal startup:
 
 ```powershell
-$PrepareOperatorToken = Read-Host 'Temporary PREPARE operator token'
-$TokenBytes = [Text.Encoding]::UTF8.GetBytes($PrepareOperatorToken)
-$env:PREPARE_OPERATOR_TOKEN_SHA256 = [Convert]::ToHexString(
-  [Security.Cryptography.SHA256]::HashData($TokenBytes)
-).ToLowerInvariant()
-$env:PREPARE_RUNTIME_MODE='PRODUCTION'
-$env:PREPARE_FEATURE_AVAILABLE='true'
-$env:PREPARE_MUTATION_ENABLED='true'
-$env:PREPARE_OPERATOR_WINDOW_OPEN='true'
-$env:PREPARE_CANONICAL_SCHEMA_READY='true'
-$env:PREPARE_KILL_SWITCH_ACTIVE='false'
-$env:PREPARE_OPERATOR_AUTH_ENABLED='true'
-$env:PREPARE_OPERATOR_ID='daily-prepare-operator'
-$env:PREPARE_OPERATOR_TOKEN_VERSION='canary-v1'
-$env:PREPARE_OPERATOR_AUTH_LOCAL_TEST_MODE='false'
-Remove-Item Env:PREPARE_CLONE_MUTATION_TEST_AUTHORIZED -ErrorAction SilentlyContinue
+cd 'D:\Youtube\Story Trans And Audio'
 .\run_app.ps1 --host 127.0.0.1 --port 8772 --no-browser
 ```
 
-Enter `$PrepareOperatorToken` in the PREPARE UI, then clear the shell variable
-after the canary:
-
-```powershell
-Remove-Variable PrepareOperatorToken,TokenBytes -ErrorAction SilentlyContinue
-```
+Verify the UI shows schema/auth/PREPARE/render ready before mutation. PREPARE
+must still create non-executable work, and START_RENDER must still be a second
+explicit action against that exact Job.
 
 ## Canary
 
@@ -116,20 +108,22 @@ no worker wake, and no provider/TTS activity.
 
 ## Kill Switch
 
-Stop the app, set the kill switch, and restart in PREPARE-only mode:
+Stop the app, set this entry in ignored `secrets/production-runtime.env`, and
+restart:
 
-```powershell
-$env:PREPARE_KILL_SWITCH_ACTIVE='true'
-.\run_app.ps1 --host 127.0.0.1 --port 8772 --no-browser
+```text
+PREPARE_KILL_SWITCH_ACTIVE=true
 ```
 
-The readiness endpoint and UI must show `KILL_SWITCHED`; the mutation service
-must not be constructed.
+The readiness endpoint and UI must show `KILL_SWITCHED`; PREPARE, START_RENDER,
+and mutation-service construction must remain blocked.
 
 ## Rollback
 
-Rollback is permitted only after schema activation and before any PREPARE state
-is accepted. Keep the app stopped and every PREPARE flag disabled:
+The historical full-file rollback below was permitted only after schema
+activation and before any PREPARE state was accepted. Production PREPARE state
+now exists, so this command is no longer authorized for the canonical database.
+It remains documented as activation evidence only.
 
 ```powershell
 $env:STORY_AUDIO_ALLOW_LIVE_DB='1'

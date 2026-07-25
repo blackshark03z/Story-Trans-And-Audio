@@ -154,6 +154,19 @@ class SpeakerReviewDraftApiTests(IsolatedTestCase):
         )
         self.assertEqual(bad_character.status_code, 400)
 
+    def test_row_review_route_accepts_narrator_decision(self) -> None:
+        target = self.draft["draft"]["assignments"][0]["utterance_id"]
+        response = self.client.put(
+            f"/api/chapters/{self.chapter_id}/speaker-assignment/drafts/"
+            f"{self.draft['id']}/reviews/{target}",
+            json={"decision": "MARK_NARRATOR"},
+        )
+        self.assertEqual(response.status_code, 200)
+        review = response.json()["review"]
+        self.assertEqual(review["speaker_type"], "narrator")
+        self.assertIsNone(review["character_id"])
+        self.assertEqual(review["decision_source"], "narrator")
+
     def test_incomplete_review_returns_400_with_no_partial_mutation(self) -> None:
         before = int(self.db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans WHERE chapter_id=?", (self.chapter_id,))["n"])
         response = self.client.post(

@@ -321,9 +321,6 @@ def _state_item(
     elif latest_draft and str(latest_draft.get("status") or "").lower() not in {"approved"}:
         state = "SPEAKER_EXCEPTIONS"
         blockers.append("Latest Speaker Draft is not approved.")
-    elif latest_draft and int(latest_draft.get("invalid_count") or 0) > 0:
-        state = "SPEAKER_EXCEPTIONS"
-        blockers.append("Latest Speaker Draft has invalid rows.")
     elif not latest_plan:
         state = "CASTING_REVIEW"
         blockers.append("Final Voice Map is missing.")

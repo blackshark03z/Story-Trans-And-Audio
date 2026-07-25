@@ -2,19 +2,19 @@
 
 Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve du lieu -> kha nang phuc hoi -> chat luong audio -> tinh nang moi.
 
-## Current Boundary - 2026-07-23
+## Current Boundary - 2026-07-25
 
-`DAILY-PROD-5A` and `DAILY-PROD-5B` Phases 1 through 13 are complete;
-`DAILY-PROD-5B` remains active. Phase 13 implementation commit `a60b94c`
-verified a clone-backed schema-15 runtime, hard-disabled mutation construction,
-GET-only readiness, restart safety, exact clone immutability, and a redacted
-single-operator authentication boundary.
+`DAILY-PROD-5` is complete and production-proven. Canonical schema `15`,
+authenticated PREPARE, explicit separate START_RENDER, worker execution,
+Audio Library retrieval, and durable restart have completed both a corrected
+one-chapter canary and one contiguous two-chapter pilot.
 
-The next authorized task is `DAILY-PROD-5B Phase 14 - Clone-Only Authenticated
-PREPARE API And Kill-Switch Acceptance`. It may enable batch PREPARE mutation
-only inside an authenticated external-clone test process and must remain off by
-default. Canonical activation, production runtime/credentials/PREPARE, UI,
-worker wake, provider/TTS, START_RENDER, and `DAILY-PROD-6` remain unauthorized.
+The two-chapter pilot completed Book `1`, Chapters `372-373`, on exactly one
+PREPARE request and Job `26`. Artifacts `93/96` passed technical and cached
+offline intelligibility screening but remain Human QA pending.
+
+The only authorized next task is full human listening and one QA decision for
+each Artifact `93/96`. Do not start a larger batch before those decisions.
 
 ## Completed
 
@@ -58,6 +58,8 @@ worker wake, provider/TTS, START_RENDER, and `DAILY-PROD-6` remain unauthorized.
 - DAILY-PROD-5B Phase 11 - Runtime PREPARE Rollout Design: complete. Pure rollout, backup/restore, operator, audit, kill-switch, authentication, and START_RENDER separation contracts are documented and remain design-only.
 - DAILY-PROD-5B Phase 12 - Clone Rehearsal And Disabled Runtime Wiring: complete. Implementation commit `843f688` added read-only-source external clone creation, explicit dormant migration `12 -> 15`, stage failure rollback, exact backup-hash full-file restore, bounded evidence, disabled wiring, and isolation tests. Canonical schema remains `12`; production mutation remains unauthorized.
 - DAILY-PROD-5B Phase 13 - Clone-Only Disabled Runtime And Authentication Boundary: complete. Implementation commit `a60b94c` added fail-closed clone runtime selection, immutable read-only DB access, GET-only readiness, startup/restart acceptance, SHA-256/constant-time single-operator authentication, and redaction. Full offline suite passed `1608` tests with `1` skip; canonical schema remained `12` and Chapter 369 remained unchanged.
+- DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout: complete and production-proven through authenticated canonical PREPARE, explicit START_RENDER, Job `26`, two completed JobChapters, `111/111` verified Segments, and Artifacts `93/96`.
+- DAILY-PROD-6 - Multi-Chapter Production Acceptance: technical pilot complete; Human Audio QA for Artifacts `93/96` remains the only open acceptance gate.
 
 ## Current Strategic Phase
 
@@ -73,25 +75,12 @@ Chapter production tasks, including Chapter 369 voice selection or Casting Plan 
 
 ## Active System Milestone
 
-**DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout**
+**DAILY-PROD-6 - Multi-Chapter Production Acceptance**
 
-Build batch production behavior only after a deterministic read-only plan, clear eligibility rules, explicit operator confirmation, idempotency, partial-failure handling, retry behavior, and recovery boundaries are defined.
-
-The milestone must:
-
-- continue from the completed read-only batch scope plan and mutation safety contract;
-- reuse `DAILY-PROD-4` range readiness as the eligibility source;
-- require explicit operator confirmation before any batch mutation;
-- preserve existing single-chapter approval, prepare, start, render, repair, and QA boundaries;
-- define idempotent behavior for repeated actions, partial failures, retries, and already-complete chapters;
-- stop before provider/TTS work unless a later task explicitly authorizes execution.
-
-Current boundary:
-
-1. Keep dormant schema artifacts dormant with canonical/default schema at version 12.
-2. Begin only authenticated batch PREPARE API acceptance in an external-clone test process, disabled by default and subordinate to the kill switch.
-3. Keep canonical runtime mutation, production PREPARE/credentials/Jobs, UI, provider/Gemini/TTS, worker wake, and START_RENDER unauthorized.
-4. Keep START_RENDER as a separate explicit lifecycle action and do not advance to DAILY-PROD-6.
+Technical acceptance is complete. The remaining milestone gate is human
+full-chapter listening of Artifacts `93/96`, with one explicit `approved` or
+`needs_fixes` decision per chapter. A larger production batch is not authorized
+until both decisions are recorded.
 
 ## Ordered Daily Production UX Roadmap
 
@@ -104,7 +93,7 @@ Current boundary:
 
 ## Next
 
-`DAILY-PROD-5B Phase 14 - Clone-Only Authenticated PREPARE API And Kill-Switch Acceptance`
+`Human-listen to active Artifacts 93 and 96 for Book 1 Chapters 372-373, then record acceptance or one precise remediation target for each chapter.`
 
 ## Historical Next (superseded)
 

@@ -29,7 +29,7 @@ DECISION_SOURCES = {
     "gemini_suggestion", "gemini_alternative", "narrator", "unknown",
     "manual_character", "keep_current",
 }
-ROW_REVIEW_DECISION_SOURCES = {"unknown", "manual_character"}
+ROW_REVIEW_DECISION_SOURCES = {"narrator", "unknown", "manual_character"}
 _APPROVAL_LOCK = threading.Lock()
 
 
@@ -247,13 +247,14 @@ def _validate_single_row_decision(
     character_id: int | None,
     decision_source: str,
 ) -> dict[str, Any]:
-    if row.get("invalid_item"):
-        raise SpeakerReviewError("Invalid draft targets cannot be reviewed")
     if decision_source not in ROW_REVIEW_DECISION_SOURCES:
         raise SpeakerReviewError("Decision source is invalid for row review")
-    if speaker_type not in {"unknown", "character"}:
+    if speaker_type not in {"narrator", "unknown", "character"}:
         raise SpeakerReviewError("Decision speaker_type is invalid")
-    if decision_source == "unknown":
+    if decision_source == "narrator":
+        if speaker_type != "narrator" or character_id is not None:
+            raise SpeakerReviewError("MARK_NARRATOR must use speaker_type narrator")
+    elif decision_source == "unknown":
         if speaker_type != "unknown" or character_id is not None:
             raise SpeakerReviewError("KEEP_UNKNOWN must use speaker_type unknown")
     elif decision_source == "manual_character":
@@ -405,8 +406,6 @@ def approve_speaker_assignment_draft_only(
         target_ids = _draft_target_ids(detail["draft"])
         if len(target_ids) != len(set(target_ids)):
             raise SpeakerReviewError("Duplicate draft targets")
-        if int(detail["invalid_count"]) != 0 or any(row.get("invalid_item") for row in detail["review_rows"]):
-            raise SpeakerReviewError("Speaker draft contains invalid rows")
         if len(detail["review_rows"]) != int(detail["target_count"]):
             raise SpeakerReviewError("Speaker draft target count mismatch")
         if detail["remaining_unreviewed_count"] != 0:

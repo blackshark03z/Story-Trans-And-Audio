@@ -1,6 +1,6 @@
 # Project
 
-Updated: 2026-07-23
+Updated: 2026-07-25
 
 ## Product Goal
 
@@ -25,48 +25,38 @@ Production must remain a sequential state-driven workflow with one primary next 
 
 ## Current Strategic Milestone
 
-DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout
+DAILY-PROD-6 - Multi-Chapter Production Acceptance
 
 ## Current Authorized Task
 
-DAILY-PROD-5B Phase 14 - Clone-Only Authenticated PREPARE API And Kill-Switch Acceptance
+Human-listen to active Artifacts 93 and 96 for Book 1 Chapters 372-373, then record acceptance or one precise remediation target for each chapter.
 
 ## MVP / Milestone Success Criteria
 
-DAILY-PROD-5B Phases 1-12 are complete. Phase 12 proved clone migration/rollback and a disabled wiring skeleton. Phase 13 is bounded to clone-only disabled runtime integration and operator authentication contract work:
+DAILY-PROD-5 is complete. The first normal-UI contiguous two-chapter pilot
+completed on Job 26 with one PREPARE request, one explicit START, two completed
+JobChapters, 111 verified Segments, zero retries, and active Artifacts 93/96.
 
-- A verified external clone preserves canonical source provenance and is the only migration target.
-- Clone migration proves exact schema 12 -> 15, legacy/protected state, and postflight.
-- Clone rollback restores the original clone hash and schema.
-- Runtime wiring remains hard-default-off, unreachable, and constructs no mutation service.
-- No canonical migration, enabled API/UI mutation, production Job, worker wake, provider/Gemini/TTS, or START_RENDER is authorized.
-- Authentication remains `AUTH_MISSING_BLOCKS_PRODUCTION`; local binding is not operator authentication.
+The remaining DAILY-PROD-6 acceptance gate is:
+
+- listen through both active artifacts;
+- verify narrator/dialogue transitions and complete chapter boundaries;
+- record one explicit Human QA decision per artifact;
+- do not start a larger batch until both decisions are recorded.
 
 ## In Scope
 
-- Copy canonical DB read-only to a verified external temporary location.
-- Rehearse explicit schema 12 -> 15 and rollback on the clone only.
-- Add only an unreachable default-off runtime dependency wiring skeleton and tests.
+- Human Audio QA for Artifacts 93 and 96.
+- One precise remediation target only if a real audible defect is found.
+- Final Daily-Use V1 declaration after both artifacts are accepted.
 
 ## Out Of Scope / Later
 
 - Chapter 369 casting or production.
-- QA state reconciliation from historical documentation.
-- Artifact regeneration.
-- Targeted remediation.
-- Active migration registration or canonical production DB migration.
-- Batch mutation endpoints.
-- Batch approval, prepare, render, or QA execution.
-- Batch execution endpoint implementation.
-- Production database or runtime mutation.
-- Real Job creation or JobChapter creation.
-- Runtime adapter/orchestrator integration.
-- Executable batch PREPARE pipeline wiring.
-- Behavior-changing production pipeline calls.
-- API integration.
-- New provider or TTS behavior.
-- Canonical schema migration, unless proven necessary and approved separately.
-- Runtime PREPARE wiring implementation, canonical activation, production PREPARE execution, API/UI mutation controls, worker wake, and START_RENDER.
+- A larger production batch.
+- Automatic regeneration, replacement Job creation, or speculative hardening.
+- Schema migration or provider/TTS work unless a QA defect later authorizes one
+  bounded remediation.
 
 ## Technical Context
 
@@ -108,22 +98,13 @@ node --check ui\app.js
 ## Constraints
 
 - Read-only inspection must not create provider cost, jobs, previews, artifacts, or audio.
-- Explicit dormant schema 13-15 activation is authorized only for temporary or isolated databases.
-- Canonical production migration remains unauthorized.
-- PREPARE execution endpoint remains unauthorized.
-- Phase 10 end-to-end adapter assembly is complete only through dependency injection on isolated/temporary databases.
-- Phase 11 rollout design is complete in commit `bca068e`.
-- Phase 12 clone rehearsal and disabled skeleton are complete in implementation commit `843f688`.
-- Phase 13 clone-only disabled runtime and authentication boundary are complete in implementation commit `a60b94c`.
-- Phase 14 may enable batch PREPARE only inside an authenticated external-clone test process, disabled by default and subordinate to the kill switch.
-- Production credentials, canonical activation, production PREPARE, and UI controls remain unauthorized.
-- Production runtime PREPARE implementation remains unauthorized.
-- Canonical schema 13/14 or later activation remains unauthorized.
 - START_RENDER remains separate.
 - Approval, prepare, and render start remain separate actions.
 - Immutable plan/job/artifact history must be preserved.
 - Runtime data must not be rewritten to match documentation.
 - Protected untracked paths must remain untouched.
+- Jobs 23-25, Artifacts 87/90, Revisions 3971/3985, and Chapter 369 remain
+  protected historical state.
 
 ## Scope Guard
 

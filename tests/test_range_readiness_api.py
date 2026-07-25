@@ -453,6 +453,16 @@ class RangeReadinessApiTests(IsolatedTestCase):
         self.assertFalse(item["requires_operator_action"])
         self.assertEqual(before, after)
 
+    def test_human_approved_model_invalid_draft_does_not_hide_ready_plan(self) -> None:
+        draft_id = self._speaker_draft(7, "approved")
+        self._execute(
+            "UPDATE speaker_assignment_drafts SET valid_count=0,invalid_count=1 WHERE id=?",
+            (draft_id,),
+        )
+        item = self._readiness(7, 7)["chapters"][0]
+        self.assertEqual(item["state"], "READY_TO_PREPARE")
+        self.assertEqual(item["latest_speaker_draft_status"], "approved")
+
     def test_active_pointer_wins_over_newest_historical_output(self) -> None:
         item = self._readiness(11, 11)["chapters"][0]
         self.assertEqual(item["active_artifact_id"], self.db.fetch_one("SELECT active_audio_artifact_id FROM chapters WHERE id=?", (self.chapters[11],))["active_audio_artifact_id"])

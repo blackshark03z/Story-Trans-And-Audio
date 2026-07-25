@@ -128,7 +128,10 @@ from .voice_eligibility import (
 
 
 def _build_runtime_database(path: Path, integration):
-    if integration.runtime_mode in {CLONE_DISABLED, PRODUCTION}:
+    if integration.runtime_mode == CLONE_DISABLED or (
+        integration.runtime_mode == PRODUCTION
+        and not getattr(integration, "production_render_enabled", False)
+    ):
         return CloneReadOnlyDatabase(path)
     migration_runner = (
         prepare_migration_runner()
@@ -315,7 +318,9 @@ class SpeakerReviewApprovalRequest(BaseModel):
 
 
 class SpeakerAssignmentRowReviewRequest(BaseModel):
-    decision: str = Field(pattern="^(KEEP_UNKNOWN|MAP_TO_EXISTING_CHARACTER)$")
+    decision: str = Field(
+        pattern="^(MARK_NARRATOR|KEEP_UNKNOWN|MAP_TO_EXISTING_CHARACTER)$"
+    )
     character_id: int | None = None
     operator_note: str | None = Field(default=None, max_length=4000)
 
@@ -356,7 +361,17 @@ class BatchPrepareApiRequest(BaseModel):
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    prepare_only_runtime = prepare_runtime_integration.runtime_mode in {CLONE_DISABLED, PRODUCTION}
+    prepare_only_runtime = (
+        prepare_runtime_integration.runtime_mode == CLONE_DISABLED
+        or (
+            prepare_runtime_integration.runtime_mode == PRODUCTION
+            and not getattr(
+                prepare_runtime_integration,
+                "production_render_enabled",
+                False,
+            )
+        )
+    )
     if not prepare_only_runtime:
         db.initialize()
         worker.start()
@@ -1180,7 +1195,11 @@ def review_speaker_assignment_target(
     request: SpeakerAssignmentRowReviewRequest,
 ) -> dict[str, Any]:
     try:
-        if request.decision == "KEEP_UNKNOWN":
+        if request.decision == "MARK_NARRATOR":
+            speaker_type = "narrator"
+            character_id = None
+            decision_source = "narrator"
+        elif request.decision == "KEEP_UNKNOWN":
             speaker_type = "unknown"
             character_id = None
             decision_source = "unknown"
@@ -1584,7 +1603,14 @@ def job_detail(job_id: int) -> dict[str, Any]:
 
 @app.post("/api/jobs/{job_id}/start")
 def start_job(job_id: int) -> dict[str, Any]:
-    if prepare_runtime_integration.runtime_mode == PRODUCTION:
+    if (
+        prepare_runtime_integration.runtime_mode == PRODUCTION
+        and not getattr(
+            prepare_runtime_integration,
+            "production_render_enabled",
+            False,
+        )
+    ):
         raise HTTPException(409, {"code": "START_RENDER_UNAVAILABLE"})
     try:
         result = start_prepared_job(

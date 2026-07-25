@@ -468,20 +468,32 @@ class SpeakerReviewTests(unittest.TestCase):
             self.assertEqual(db.fetch_one("SELECT COUNT(*) AS n FROM jobs")["n"], 0)
             self.assertEqual(db.fetch_one("SELECT COUNT(*) AS n FROM artifacts")["n"], 0)
 
-    def test_draft_only_approval_rejects_invalid_rows(self) -> None:
+    def test_draft_only_approval_requires_human_review_for_invalid_rows(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             config, db, store, _book, chapter, _revision, character = seed(Path(directory))
             draft = self.generate(db, store, config, chapter, character)
             payload = draft["draft"]
-            payload["invalid_items"] = [{"utterance_id": payload["assignments"][0]["utterance_id"], "error_code": "bad"}]
+            invalid_assignment = payload["assignments"].pop(0)
+            payload["invalid_items"] = [{
+                "utterance_id": invalid_assignment["utterance_id"],
+                "error_code": "character_id is not an allowed candidate",
+            }]
             path, digest = store.put_json(payload, namespace="speaker_assignment")
             with db.connect() as connection:
                 connection.execute(
-                    "UPDATE speaker_assignment_drafts SET content_path=?,content_sha256=?,invalid_count=? WHERE id=?",
-                    (path, digest, 1, draft["id"]),
+                    """UPDATE speaker_assignment_drafts
+                       SET content_path=?,content_sha256=?,valid_count=?,invalid_count=?
+                       WHERE id=?""",
+                    (path, digest, 1, 1, draft["id"]),
                 )
             with self.assertRaises(SpeakerReviewError):
                 self.approve_draft_only(db, store, config, chapter, draft)
+            self.review_row(db, store, config, chapter, draft, invalid_assignment)
+            self.review_row(db, store, config, chapter, draft, payload["assignments"][0])
+            result = self.approve_draft_only(db, store, config, chapter, draft)
+            self.assertEqual(result["status"], "approved")
+            self.assertEqual(result["reviewed_count"], 2)
+            self.assertEqual(result["invalid_count"], 1)
 
     def test_zero_target_draft_only_approval_is_valid_without_casting_plan(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -207,9 +207,9 @@
     }
     const speakerReason=speakerBlocked(input);
     if(speakerReason)return buildViewModel('SPEAKER_EXCEPTIONS',{blockerReason:speakerReason,explanation:speakerReason});
+    if(!casting.id)return buildViewModel('CASTING_REVIEW',{title:'Chưa có bản đồ giọng cuối',explanation:'Cần tạo/kiểm tra Final Voice Map draft trước khi approve.'});
     const voiceReason=voiceBlocked(input);
     if(voiceReason)return buildViewModel('VOICE_BLOCKED',{blockerReason:voiceReason,explanation:voiceReason});
-    if(!casting.id)return buildViewModel('CASTING_REVIEW',{title:'Chưa có bản đồ giọng cuối',explanation:'Cần tạo/kiểm tra Final Voice Map draft trước khi approve.'});
     if(planStatus==='draft')return buildViewModel('CASTING_REVIEW');
     if(planStatus!=='approved')return buildViewModel('STATE_UNRESOLVED',{blockerReason:`Casting Plan có trạng thái không hỗ trợ: ${casting.status}`,readOnlyOnly:true,diagnosticDetails:['unsupported_casting_status']});
     return buildViewModel('READY_TO_PREPARE');

@@ -25,15 +25,31 @@ YouTube Auto: `http://127.0.0.1:8765` — do not stop or repurpose this port whi
 Notes:
 
 - `run_app.ps1` sets `STORY_AUDIO_ALLOW_LIVE_DB=1` for the launched Story Audio process only. Do not persist this variable at user or machine scope.
+- Normal production startup reads the ignored local file
+  `secrets/production-runtime.env`. Keep this file outside Git and restrict it
+  to the production allowlist. At minimum it holds the production PREPARE
+  gates, render gate, kill-switch state, operator-auth configuration, and raw
+  `PREPARE_OPERATOR_TOKEN`.
+- `run_app.ps1` hashes the raw operator token in child-process memory, clears
+  the temporary byte buffer, and never prints the token or hash. Do not put the
+  token or its hash in tracked files, command examples, UI screenshots, or
+  support logs.
+- The launcher defaults to `127.0.0.1:8772`. Do not bind the authenticated
+  production runtime to a non-loopback address.
 - Canonical production root is `D:\Youtube\Story Trans And Audio\data`.
 - Any isolated runtime must use a different `STORY_AUDIO_DATA_DIR`; isolated data is not merged back into canonical production automatically.
 - The acceptance-to-production switch has been verified: stop only the acceptance app, then relaunch canonical Story Audio on `8772` and re-check `/api/runtime`.
-- Production batch PREPARE activation is governed by
-  `docs/PREPARE_ACTIVATION_RUNBOOK.md`. Do not set `PREPARE_RUNTIME_MODE=PRODUCTION`
-  or apply schema 13-15 without the explicit activation approval described there.
-- In `PRODUCTION` PREPARE-only mode, the app verifies schema without automatic
-  migration, does not start the worker, and blocks legacy prepare/start routes.
-  Use `PREPARE_KILL_SWITCH_ACTIVE=true` and restart to fail closed.
+- Canonical schema `15` and authenticated production PREPARE are active.
+  Startup never migrates automatically. PREPARE creates only durable
+  `prepared` work and does not wake the worker.
+- START_RENDER is a separate explicit action. The worker is available only when
+  the render gate is enabled, and prepared Jobs remain non-executable until the
+  operator starts that exact Job.
+- Set `PREPARE_KILL_SWITCH_ACTIVE=true` in the ignored local config and restart
+  to fail closed. The kill switch overrides all PREPARE/render enablement.
+- Historical activation, backup, and rollback evidence remains in
+  `docs/PREPARE_ACTIVATION_RUNBOOK.md`; its pre-activation commands are not a
+  routine startup path.
 
 ## Health check
 
@@ -48,6 +64,12 @@ Expect canonical production to report:
 - `data_root = D:\Youtube\Story Trans And Audio\data`
 - `is_canonical_live_data_root = true`
 - `is_canonical_live_db = true`
+- `schema_version = 15`
+
+The Production PREPARE panel must show schema ready, authentication configured,
+kill switch off, and PREPARE allowed before submission. A normal page load,
+range readiness check, or batch-plan preview remains read-only and must not wake
+the worker.
 
 UI runtime banner meanings:
 

@@ -1,10 +1,71 @@
 # DAILY-PROD Checkpoint State
 
-Updated: 2026-07-23
+Updated: 2026-07-25
 
 ## Current Phase
 
-`Book 8 Chapter 1 corrected Job 25 is complete. Artifact 90 passed technical and offline intelligibility screening; Human QA is pending.`
+`The two-chapter daily-production pilot completed on Job 26. Artifacts 93 and 96 passed technical/offline intelligibility screening and remain Human QA pending.`
+
+## Two-Chapter Daily Production Pilot
+
+- Starting Git HEAD and `origin/main`:
+  `908df1d6f7c332223df841701ff5cf0df9d59a13`; canonical schema `15`.
+- Artifact `90` is now Human QA `accepted` with the exact operator note that
+  content is intelligible and no audible defect was reported, while voice
+  distinction was not conclusively evaluated because all eight utterances used
+  the same catalog voice. No other Artifact was accepted.
+- Durable local startup uses ignored `secrets/production-runtime.env` and the
+  normal `run_app.ps1` entry point. The launcher loads a strict allowlist,
+  hashes the raw operator token only in child-process memory, never prints the
+  token or hash, binds `127.0.0.1:8772`, and keeps schema/authentication/kill
+  switch checks active. PREPARE and render remain explicit separate actions.
+- Readiness selected the first viable contiguous two-chapter scope after the
+  smallest real speaker/casting blockers were resolved through supported UI/API
+  semantics: Book `1` (`Quang Âm Chi Ngoại`), Chapters `372-373`.
+- Chapter `372` pins Text Revision `744` and approved Casting Plan `28` revision
+  `2`: `50` narrator utterances use `custom:26` revision `6`; `3` unknown
+  utterances use `custom:25` revision `1`.
+- Chapter `373` pins Text Revision `746` and approved Casting Plan `30` revision
+  `2`: `52` narrator utterances use `custom:26` revision `6`; one text-supported
+  female character (`Thiếu phụ ngọn núi thứ hai`, Character `44`) uses preset
+  `Ngọc Lan`; Hứa Thanh (Character `42`) and four unknown utterances use
+  `custom:25` revision `1`.
+- Exactly one PREPARE request (`4`,
+  `prepare-7e2a5765-c214-401d-b844-46a0d6686a86`) created Job `26` with
+  JobChapters `26/27`. PREPARE persisted `prepared` with zero Segments and zero
+  Artifacts; the worker was not woken.
+- One explicit UI START transitioned the same Job `26`. The worker rendered
+  `111 / 111` verified Segments with `attempt_count=1`; VieNeu/TTS calls were
+  `111`, retries were `0`, and Gemini calls were `0`.
+- Chapter `372` active Artifact `93`:
+  `data/output/1-quang-am-chi-ngoai/chapter_0372/job_26/render_0001/chapter.m4a`,
+  SHA-256
+  `daddd0f10a3593039a291ad929f9397083ca81e235141c0347943f224630eb31`,
+  `7,079,956` bytes, authoritative and independently decoded duration
+  `437080 ms`.
+- Chapter `373` active Artifact `96`:
+  `data/output/1-quang-am-chi-ngoai/chapter_0373/job_26/render_0001/chapter.m4a`,
+  SHA-256
+  `a72d193206eb017dc1b9ae24d39235f98e95c5cbef1483a39d009b7e6583fc2f`,
+  `7,895,926` bytes, authoritative and independently decoded duration
+  `486790 ms`.
+- Both M4A files decode fully. Cached offline faster-whisper-tiny classified
+  both as Vietnamese and preserved source order: Chapter `372` ordered recall
+  `0.6820`, token coverage `0.9021`; Chapter `373` ordered recall `0.6971`,
+  token coverage `0.9178`.
+- Audio Library shows both active outputs with Human QA `pending`. Range
+  playback returned `206`; full downloads returned `200` and matched active
+  hashes. The product does not currently provide a range/batch archive
+  download. Restart preserved Job, output, QA, and voice identity state.
+- A direct pilot blocker was fixed: Production now recognizes a prepared batch
+  Job from any covered chapter, so the same Job exposes the separate
+  `Bắt đầu render` action after resume.
+- Protected historical digests for Jobs `23-25`, JobChapters `23-25`,
+  Artifacts `87/90`, Text Revisions `3971/3985`, Chapter `369`, and unrelated
+  Jobs/JobChapters exactly match the pre-pilot baseline.
+- Exact next action: human-listen to active Artifacts `93` and `96`, then record
+  acceptance or one precise remediation target per chapter. Do not start a
+  larger batch.
 
 ## Book 8 Chapter 1 Corrected Render
 

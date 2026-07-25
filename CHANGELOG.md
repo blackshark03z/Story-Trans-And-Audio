@@ -4,6 +4,42 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ## Unreleased
 
+### Daily-Use Two-Chapter Production Pilot
+
+- Added durable local production startup through ignored
+  `secrets/production-runtime.env` and `run_app.ps1`. Configuration loading is
+  allowlisted and fail-closed; the raw operator token is hashed only in child
+  process memory, token material is never printed, localhost binding remains
+  `127.0.0.1:8772`, and schema/authentication/kill-switch gates remain active.
+- Production PREPARE and START_RENDER remain separate. PREPARE request `4`
+  created exactly one prepared Job `26` with two JobChapters and no
+  Segments/Artifacts/worker wake; one later explicit UI START reused Job `26`.
+- Fixed routine resume for prepared batch Jobs: any chapter covered by the
+  prepared range now exposes the same Job's separate `Bắt đầu render` action,
+  while single-chapter plan matching remains supported.
+- Expanded staged speaker review so provider-invalid suggestions can be
+  replaced by complete human row review, including explicit narrator
+  classification. Approved fully reviewed drafts can then satisfy readiness
+  without weakening unresolved-row or stale-draft guards.
+- Book `1`, Chapters `372-373` completed in Job `26` with Text Revisions
+  `744/746`, approved Casting Plans `28/30` revision `2`, JobChapters `26/27`,
+  `111 / 111` verified Segments, `111` VieNeu calls, `0` Gemini calls, and
+  `0` retries.
+- Voice differentiation is pinned and visible: narrator `custom:26` revision
+  `6`; dialogue `custom:25` revision `1`; and the text-supported female
+  Character `44` uses preset `Ngọc Lan` in Chapter `373`.
+- Active Artifact `93` is `437080 ms`, `7,079,956` bytes, SHA-256
+  `daddd0f10a3593039a291ad929f9397083ca81e235141c0347943f224630eb31`.
+  Active Artifact `96` is `486790 ms`, `7,895,926` bytes, SHA-256
+  `a72d193206eb017dc1b9ae24d39235f98e95c5cbef1483a39d009b7e6583fc2f`.
+- Both outputs decode fully, pass cached offline Vietnamese intelligibility
+  screening, appear in Audio Library, stream with HTTP range support, download
+  with matching hashes, and persist after runtime restart. Human QA remains
+  pending for both; range/batch archive download is not currently implemented.
+- Artifact `90` is Human QA accepted with the exact operator note. Artifacts
+  `87/90`, Jobs `23-25`, Revisions `3971/3985`, Chapter `369`, and unrelated
+  Jobs/JobChapters otherwise match their protected pre-pilot baselines.
+
 ### Book 8 Chapter 1 Corrected Production Render
 
 - Started exactly existing prepared Job `25`; Job/JobChapter completed with
