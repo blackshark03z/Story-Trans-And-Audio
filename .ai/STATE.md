@@ -4,7 +4,29 @@ Updated: 2026-07-26
 
 ## Current Phase
 
-`Daily-Use V1 now includes the accepted P0 frontend usability rework. Production has one Vietnamese navigation set, compact health diagnostics, direct book/range entry, quick range actions, and a restrained eight-step progress strip. The two-chapter pilot remains on Job 26; Artifacts 93 and 96 are available for operator playback and both remain Human QA pending.`
+`Daily-Use V1 now has UTF-8-safe Vietnamese UI copy and a four-phase Production journey over the unchanged canonical backend states. Casting review, PREPARE/START_RENDER, render recovery, and QA are isolated on the main page with one visible primary action. The two-chapter pilot remains on Job 26; Artifacts 93 and 96 are available for operator playback and both remain Human QA pending.`
+
+## Vietnamese UI and Production Flow
+
+- Root cause was repeated UTF-8/Windows-1252 corruption in legacy source
+  literals, not canonical JSON or story data. User-facing source is now valid
+  UTF-8, HTML declares UTF-8 before content, and static assets use a new cache
+  version.
+- The resolver's detailed states remain unchanged. The visible Production
+  journey groups them into `Chọn chương`, `Kiểm tra nội dung và giọng`,
+  `Tạo audio`, and `Nghe và duyệt`.
+- Casting, preparation, render progress/recovery, and QA now render in the main
+  Production workspace. Detailed line assignment and technical metadata remain
+  collapsed; the chapter text dialog is still available for bounded text work.
+- Real-browser checks covered canonical Chapter `369` read-only plus isolated
+  approved, prepared, running, recoverable-failure, and QA states at
+  `1366x768` and `1920x1080`. The primary action remained visible, no long
+  workflow dialog or visible nested scroll remained, and rendered text had no
+  mojibake.
+- Canonical schema remains `15`; Chapter `369` remains on Text Revision `738`
+  and draft Casting Plan `24`, with zero JobChapter rows. No PREPARE,
+  START_RENDER, QA, provider/Gemini/TTS, Job, Artifact, or story mutation
+  occurred.
 
 ## P0 Frontend Usability Rework
 
@@ -231,7 +253,8 @@ Updated: 2026-07-26
 - Text Revision `3971` is internally hash-consistent but already corrupted:
   its stored text is `504` characters and contains ten C1 control characters,
   while the canonical `SMOKE_TEXT` source is `378` valid Vietnamese characters.
-  Examples passed to TTS include `Trá»i vá»«a...` and `ChÃ o anh...`.
+  Examples passed to TTS were mojibake variants of `Trời vừa...` and
+  `Chào anh...`.
 - All eight Segment text blobs and immutable synthesis snapshots contain the
   same UTF-8 mojibake class. Every Segment used preset `Đức Trí`, provider
   `vieneu`, model/mode `v3turbo`, temperature `0.8`, top-k `25`, max chars

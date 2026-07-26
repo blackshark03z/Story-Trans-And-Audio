@@ -45,6 +45,10 @@
   }
 
   function renderUsageSummary(){
+    if (typeof applyCastingOperatorSummary === 'function') {
+      applyCastingOperatorSummary()
+      return
+    }
     const target = document.querySelector('#flowVoiceUsageSummary')
     if (!target) return
     const summary = usageSummary(currentPlan())
@@ -109,23 +113,6 @@
     const table = document.querySelector('#flowVoiceMapTable')
     if (!table || !state?.casting?.casting?.plan) return
     renderUsageSummary()
-    Array.from(table.querySelectorAll('.flow-voice-map-row')).forEach((row, index) => {
-      const data = (typeof buildVoiceMapRows === 'function' ? buildVoiceMapRows(state.casting, currentPlan()) : [])[index]
-      if (!data || row.dataset.voiceMapEnhanced === '1') return
-      const voiceColumn = row.children[2]
-      if (!voiceColumn) return
-      const detail = document.createElement('small')
-      detail.className = 'voice-provenance'
-      detail.textContent = `${data.voiceKey || 'unresolved'} · ${data.voiceKind} · ${data.count || 1} dòng. ${data.provenance || ''}`
-      voiceColumn.appendChild(detail)
-      const roleColumn = row.children[1]
-      if (roleColumn) {
-        const note = document.createElement('small')
-        note.textContent = 'Speaker identity remains separate from voice selection.'
-        roleColumn.appendChild(note)
-      }
-      row.dataset.voiceMapEnhanced = '1'
-    })
   }
 
   document.addEventListener('DOMContentLoaded', () => {

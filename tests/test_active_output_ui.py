@@ -31,10 +31,8 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "ACTIVE OUTPUT",
             "HISTORICAL",
             "ACTIVE CHAPTER OUTPUT",
-            "Historical evidence only - not the current chapter output",
-            "Artifact active but job binding unavailable",
-            "Open current Production Flow",
-            "Current active audio: Job",
+            "JOB LỊCH SỬ · không phải output hiện tại của chương",
+            "Mở quy trình Sản xuất hiện tại",
             "Current playback still uses the active historical plan until a new job is rendered",
             "Nâng cao / Gỡ lỗi: dùng phần này để xem job hiện tại hoặc job lịch sử.",
             "Nâng cao / Gỡ lỗi: segment attempts chỉ dùng để xử lý lỗi audio cụ thể sau QA",
@@ -54,14 +52,13 @@ class ActiveOutputUiTests(IsolatedTestCase):
 
     def test_active_output_and_plan_identity_are_explained_in_character_voices(self) -> None:
         for value in (
-            "Technical: Casting Plan #",
-            "Current active audio: Job",
+            "Casting Plan #",
             "Render / Production Output",
-            "Historical Job",
+            "JOB LỊCH SỬ",
             "Bản đồ giọng cuối đã duyệt này là bản Render / Production Output sẽ dùng cho đến khi có một plan mới hơn được duyệt.",
-            "Đây là nguồn sự thật trước khi tạo audio.",
-            "Chỉ dùng phần này sau khi Casting Plan đã được duyệt.",
-            "Đây là bản đồ giọng cuối mà hệ thống sẽ dùng khi tạo audio.",
+            "Bản đồ giọng cuối đã duyệt này sẽ là đúng mapping mà bước render sử dụng.",
+            "Chỉ có thể tạo audio từ Bản đồ giọng cuối đã được duyệt.",
+            "Đây là lựa chọn cuối cùng được dùng khi tạo audio.",
         ):
             self.assertIn(value, self.html + self.js)
 
@@ -90,9 +87,9 @@ class ActiveOutputUiTests(IsolatedTestCase):
         for value in (
             "Chương này đã có audio; hãy dùng QA hoặc replacement workflow thay vì render thường.",
             "Hãy mở active artifact, listening checklist, và segment QA chỉ cho các lỗi thật sự cụ thể.",
-            "Chốt bản audio cuối",
-            "Đánh dấu cần sửa",
-            "Trạng thái chốt bản audio cuối",
+            "Chấp nhận",
+            "Cần sửa",
+            "Duyệt bản audio cuối",
             "Bản audio hiện tại khác với bản đã chốt trước đó. Cần kiểm tra lại.",
         ):
             self.assertIn(value, self.html + self.js)

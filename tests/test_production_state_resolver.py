@@ -27,6 +27,10 @@ console.log(JSON.stringify({
   lockedCount: vm.stages.filter(stage => stage.locked).length,
   blockerReason: vm.blockerReason,
   targetPanel: vm.targetPanel,
+  currentPhaseKey: vm.currentPhaseKey,
+  currentPhaseNumber: vm.currentPhaseNumber,
+  phaseCount: vm.phases.length,
+  currentPhaseCount: vm.phases.filter(phase => phase.current).length,
 }));
 """
     result = subprocess.run(
@@ -101,6 +105,22 @@ class ProductionStateResolverTests(unittest.TestCase):
         self.assertEqual(vm["conceptualState"], state)
         self.assertEqual(vm["currentStageKey"], stage)
         self.assertEqual(vm["currentCount"], 1)
+        expected_phase = {
+            "NO_SCOPE": "scope",
+            "TEXT_BLOCKED": "review",
+            "SPEAKER_EXCEPTIONS": "review",
+            "VOICE_BLOCKED": "review",
+            "CASTING_REVIEW": "review",
+            "READY_TO_PREPARE": "review",
+            "PREPARED": "audio",
+            "RENDERING_OR_PAUSED": "audio",
+            "RENDERED_NOT_QA": "qa",
+            "COMPLETE": "qa",
+            "STATE_UNRESOLVED": "scope",
+        }[state]
+        self.assertEqual(vm["currentPhaseKey"], expected_phase)
+        self.assertEqual(vm["phaseCount"], 4)
+        self.assertEqual(vm["currentPhaseCount"], 1)
         return vm
 
     def test_no_scope_returns_no_scope(self) -> None:
@@ -124,7 +144,7 @@ class ProductionStateResolverTests(unittest.TestCase):
     def test_draft_unapproved_casting_plan_goes_to_casting_review(self) -> None:
         vm = self.assert_state(base_state(), "CASTING_REVIEW", "voice_map")
         self.assertEqual(vm["primaryActionKey"], "REVIEW_FINAL_VOICE_MAP")
-        self.assertEqual(vm["primaryActionLabel"], "Cần duyệt phân vai")
+        self.assertEqual(vm["primaryActionLabel"], "Duyệt giọng")
 
     def test_approved_plan_without_job_is_ready_to_prepare(self) -> None:
         payload = base_state()

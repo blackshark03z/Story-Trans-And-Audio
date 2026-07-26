@@ -81,6 +81,20 @@ main{max-width:1240px;margin:18px auto;padding:0 20px 50px}.app-view{animation:n
 .production-stage-shell .stage-state{text-transform:none;font-size:10px}.production-stage-summaries{display:none}
 .production-current-work{margin-top:5px;padding:12px 14px;border:0;border-left:4px solid #5a9474;border-radius:0;background:#f5f9f6;box-shadow:none}
 .production-current-work .eyebrow{margin-bottom:2px}
+.production-stage-shell{grid-template-columns:repeat(4,minmax(0,1fr))}
+.production-phase-workspace{margin-top:14px}
+.production-phase-workspace>.casting-panel{display:block;padding:0}
+.production-phase-workspace #productionFlowPanel{display:none}
+.production-phase-workspace .production-flow-main{margin-top:0}
+.production-phase-workspace .flow-step-panel{padding:20px;border:0;border-top:1px solid #dce5de;border-radius:0;background:#fff;box-shadow:none}
+.production-phase-workspace .flow-step-panel:first-child{border-top:0}
+.production-phase-workspace .casting-plan-panel,.production-phase-workspace .render-plan-panel{border:0;border-radius:0;background:transparent;padding:0}
+.production-phase-workspace .casting-plan-panel>.section-head{margin-bottom:6px}
+.production-phase-workspace #approveCastingPlan,.production-phase-workspace #renderCastingPlan{display:none}
+.production-phase-workspace .casting-actions{position:sticky;bottom:12px;z-index:2;padding:12px 0;background:linear-gradient(180deg,rgba(255,255,255,0),#fff 24%)}
+.production-phase-workspace .flow-secondary-details{background:#fafbf9}
+.production-phase-workspace .voice-usage-grid{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
+.production-phase-workspace .voice-usage-card span{color:var(--ink);font-weight:700}
 
 .scope-dialog{width:min(1040px,calc(100vw - 28px));height:auto;max-height:calc(100vh - 24px);overflow:visible;padding:20px 24px;border-radius:16px;background:#fbfcfa;box-shadow:0 24px 70px rgba(15,39,27,.32)}
 .scope-dialog::backdrop{background:rgba(15,39,27,.58);backdrop-filter:blur(2px)}

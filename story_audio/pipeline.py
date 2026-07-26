@@ -200,25 +200,25 @@ def create_job(
     voice_catalog: EffectiveVoiceCatalog | None = None,
 ) -> dict[str, Any]:
     if from_chapter > to_chapter:
-        raise ValueError("ChÆ°Æ¡ng báº¯t Ä‘áº§u pháº£i nhá» hÆ¡n hoáº·c báº±ng chÆ°Æ¡ng káº¿t thÃºc.")
+        raise ValueError("Chương bắt đầu phải nhỏ hơn hoặc bằng chương kết thúc.")
     if repair_mode not in {"off", "qa_only", "all_selected"}:
-        raise ValueError("Cháº¿ Ä‘á»™ Gemini khÃ´ng há»£p lá»‡.")
+        raise ValueError("Chế độ Gemini không hợp lệ.")
     if output_format not in {"m4a", "mp3"}:
-        raise ValueError("Äá»‹nh dáº¡ng Ä‘áº§u ra pháº£i lÃ  m4a hoáº·c mp3.")
+        raise ValueError("Định dạng đầu ra phải là m4a hoặc mp3.")
     book = db.fetch_one("SELECT * FROM books WHERE id=?", (book_id,))
     if not book:
-        raise ValueError("KhÃ´ng tÃ¬m tháº¥y sÃ¡ch.")
+        raise ValueError("Không tìm thấy sách.")
     chapters = db.fetch_all(
         "SELECT * FROM chapters WHERE book_id=? AND chapter_number BETWEEN ? AND ? ORDER BY chapter_number",
         (book_id, from_chapter, to_chapter),
     )
     if not chapters:
-        raise ValueError("Khoáº£ng Ä‘Æ°á»£c chá»n khÃ´ng cÃ³ chÆ°Æ¡ng.")
+        raise ValueError("Khoảng được chọn không có chương.")
     expected = list(range(from_chapter, to_chapter + 1))
     actual = [int(row["chapter_number"]) for row in chapters]
     missing = sorted(set(expected) - set(actual))
     if missing:
-        raise ValueError(f"Khoáº£ng chÆ°Æ¡ng bá»‹ thiáº¿u: {missing[:20]}")
+        raise ValueError(f"Khoảng chương bị thiếu: {missing[:20]}")
     selected = [row for row in chapters if not (skip_completed and row["active_audio_artifact_id"])]
     _validate_chapter_text_inputs(db, store, selected)
     now = datetime.now(timezone.utc)
@@ -421,7 +421,7 @@ def start_prepared_job(
     with db.transaction() as connection:
         job = connection.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
         if not job:
-            raise LookupError("KhÃ´ng tÃ¬m tháº¥y prepared job.")
+            raise LookupError("Không tìm thấy prepared job.")
         if str(job["status"]) != JOB_PREPARED_STATUS:
             raise JobStartConflict(f"Job #{job_id} is not in '{JOB_PREPARED_STATUS}' status")
         chapters = connection.execute(
@@ -551,11 +551,11 @@ class PipelineWorker:
     def _control(self, job_id: int) -> None:
         row = self.db.fetch_one("SELECT pause_requested,cancel_requested FROM jobs WHERE id=?", (job_id,))
         if not row:
-            raise JobCancelled("Job khÃ´ng cÃ²n tá»“n táº¡i.")
+            raise JobCancelled("Job không còn tồn tại.")
         if row["cancel_requested"]:
-            raise JobCancelled("ÄÃ£ yÃªu cáº§u há»§y.")
+            raise JobCancelled("Đã yêu cầu hủy.")
         if row["pause_requested"]:
-            raise JobPaused("ÄÃ£ yÃªu cáº§u táº¡m dá»«ng.")
+            raise JobPaused("Đã yêu cầu tạm dừng.")
 
     def _set_job(self, job_id: int, status: str, stage: str | None = None, **values: Any) -> None:
         fields = ["status=?", "updated_at=?"]
@@ -763,7 +763,7 @@ class PipelineWorker:
             (chapter_id,),
         )
         if not source_revision:
-            raise RuntimeError("ChÆ°Æ¡ng chÆ°a cÃ³ reflowed TextRevision.")
+            raise RuntimeError("Chương chưa có reflowed TextRevision.")
         source_text = load_validated_text_revision(
             self.store,
             source_revision,
@@ -941,7 +941,7 @@ class PipelineWorker:
             try:
                 api_key = self.config.gemini_key()
                 if not api_key:
-                    raise ChapterNeedsReview("ChÆ°a cáº¥u hÃ¬nh GEMINI_API_KEY hoáº·c file key.")
+                    raise ChapterNeedsReview("Chưa cấu hình GEMINI_API_KEY hoặc file key.")
                 with self.db.connect() as connection:
                     connection.execute(
                         "UPDATE repair_blocks SET status='running',attempt_count=attempt_count+1,error_message=NULL WHERE id=?",
@@ -1002,7 +1002,7 @@ class PipelineWorker:
                         "UPDATE repair_blocks SET status='failed',error_message=? WHERE id=?",
                         (str(exc)[:2000], row["id"]),
                     )
-                raise ChapterNeedsReview(f"Gemini block {row['block_index']} lá»—i: {exc}") from exc
+                raise ChapterNeedsReview(f"Gemini block {row['block_index']} lỗi: {exc}") from exc
         repaired_text = self._assemble_repaired_blocks(repaired_blocks, expected_blocks)
         validate_canonical_text(repaired_text, field="Gemini repaired Text Revision")
         content_path, content_sha = self.store.put_text(repaired_text)
@@ -1148,7 +1148,7 @@ class PipelineWorker:
                     }
                 )
         if not specs:
-            raise RuntimeError("KhÃ´ng táº¡o Ä‘Æ°á»£c TTS segment.")
+            raise RuntimeError("Không tạo được TTS segment.")
 
         now = utcnow()
         with self.db.transaction() as connection:
@@ -1305,7 +1305,7 @@ class PipelineWorker:
             (job_chapter_id,),
         )
         if not rows or any(row["status"] != "verified" or not row["wav_path"] for row in rows):
-            raise RuntimeError("ChÆ°a Ä‘á»§ segment há»£p lá»‡ Ä‘á»ƒ ghÃ©p chÆ°Æ¡ng.")
+            raise RuntimeError("Chưa đủ segment hợp lệ để ghép chương.")
         job_output_dir = (
             self.config.output_dir
             / f"{int(chapter['book_id'])}-{safe_slug(str(chapter['book_title']), 'book')}"
@@ -1424,7 +1424,7 @@ class PipelineWorker:
         final_duration = self._ffprobe_ms(final_partial)
         if abs(final_duration - master_duration) > 750:
             raise RuntimeError(
-                f"Audio export lá»‡ch duration: master={master_duration}ms, final={final_duration}ms"
+                f"Audio export lệch duration: master={master_duration}ms, final={final_duration}ms"
             )
         final_partial.replace(final)
         export_hash = sha256_text(json.dumps({"format": output_format, "bitrate": "128k"}, sort_keys=True))
@@ -1509,7 +1509,7 @@ class PipelineWorker:
         )
         value = float(result.stdout.strip())
         if value <= 0:
-            raise RuntimeError(f"FFprobe duration khÃ´ng há»£p lá»‡: {path}")
+            raise RuntimeError(f"FFprobe duration không hợp lệ: {path}")
         return int(round(value * 1000))
 
     @staticmethod
@@ -1522,4 +1522,4 @@ class PipelineWorker:
         usage = shutil.disk_usage(self.config.data_dir)
         free_gb = usage.free / (1024 ** 3)
         if free_gb < self.config.minimum_free_gb:
-            raise RuntimeError(f"á»” Ä‘Ä©a chá»‰ cÃ²n {free_gb:.1f} GB, tháº¥p hÆ¡n ngÆ°á»¡ng an toÃ n.")
+            raise RuntimeError(f"Ổ đĩa chỉ còn {free_gb:.1f} GB, thấp hơn ngưỡng an toàn.")

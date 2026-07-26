@@ -45,7 +45,6 @@ class CastingVoiceMapUiContractTests(unittest.TestCase):
 
     def test_voice_map_preserves_speaker_identity_and_unknown_fallback_semantics(self) -> None:
         for value in (
-            "Speaker identity remains separate from voice selection.",
             "speakerName(utterance.role, utterance.character_id)",
             "utterance.role === 'unknown'",
             "unknown fallback",

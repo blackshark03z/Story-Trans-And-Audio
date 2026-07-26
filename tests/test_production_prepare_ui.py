@@ -120,19 +120,15 @@ class ProductionPrepareUiTests(IsolatedTestCase):
     def test_voice_profile_remains_available_while_reviewing_voice_map(self):
         self.assertIn(
             'id="flowStepAssignVoices" class="flow-step-panel hidden" '
-            'data-production-owned-stage="speakers voices voice_map"',
+            'data-production-owned-stage="speakers voices"',
             self.html,
         )
         self.assertIn(
             'id="flowVoiceMemoryDetails" class="flow-secondary-details" '
-            'data-production-owned-stage="voices voice_map"',
+            'data-production-owned-stage="voices"',
             self.html,
         )
-        self.assertIn(
-            "voiceMemory.open=vm.currentStageKey==='voices'||"
-            "vm.currentStageKey==='voice_map'",
-            self.js,
-        )
+        self.assertIn("voiceMemory.open=vm.currentStageKey==='voices'", self.js)
 
     def test_missing_map_is_resolved_before_voice_eligibility(self):
         missing = self.production_state.index(

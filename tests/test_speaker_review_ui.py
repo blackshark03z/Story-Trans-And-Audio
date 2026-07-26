@@ -23,7 +23,7 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
             "regenerateSpeakerDraft",
             "refreshSpeakerDrafts",
             "speakerDraftSelect",
-            "No speaker-assignment draft exists for this chapter.",
+            "Chương này chưa có nháp xác định người nói.",
         ):
             self.assertIn(value, self.html + self.js)
         self.assertIn("force_refresh:force", self.js)
@@ -190,10 +190,10 @@ console.log(JSON.stringify({
         for value in (
             "/api/jobs/prepare",
             "/api/jobs/${preparedJob.id}/start",
-            "Chuáº©n bá»‹ job audio",
-            "Báº¯t Ä‘áº§u render",
+            "Hệ thống sẽ cố định văn bản và giọng cho phạm vi đã chọn. Chưa gọi TTS.",
+            "Bắt đầu render",
             "preparedJob=preparedCastingJob",
-            "Job #${preparedJob.id}",
+            "preparedCastingJob",
         ):
             self.assertIn(value, self.js)
 

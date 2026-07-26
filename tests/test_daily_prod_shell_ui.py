@@ -79,7 +79,7 @@ console.log(JSON.stringify({
         self.assertEqual(lines[0], '{"empty":"home","production":"production","unknown":"home"}')
         self.assertEqual(lines[1], '{"route":"voices","hash":"#/voices","visible":["voices"],"active":["voices"]}')
 
-    def test_production_shell_lists_eight_canonical_stages(self) -> None:
+    def test_production_shell_lists_four_operator_phases(self) -> None:
         match = re.search(
             r'<ol id="productionStageShell".*?</ol>',
             self.html,
@@ -88,16 +88,12 @@ console.log(JSON.stringify({
         self.assertIsNotNone(match)
         stage_html = match.group(0)
         expected = [
-            "Phạm vi",
-            "Văn bản",
-            "Người nói",
-            "Giọng",
-            "Phân vai",
-            "Chuẩn bị",
+            "Chọn chương",
+            "Kiểm tra nội dung và giọng",
             "Tạo audio",
-            "Duyệt audio",
+            "Nghe và duyệt",
         ]
-        self.assertEqual(stage_html.count("<li"), 8)
+        self.assertEqual(stage_html.count("<li"), 4)
         for label in expected:
             self.assertIn(f"<strong>{label}</strong>", stage_html)
 
@@ -116,7 +112,7 @@ console.log(JSON.stringify({
     def test_resolver_renders_completed_current_and_locked_stage_buttons(self) -> None:
         self.assertIn('aria-current="step"', self.js)
         self.assertIn('disabled aria-disabled="true"', self.js)
-        self.assertIn("stage.complete?", self.js)
+        self.assertIn("phase.complete?", self.js)
         self.assertIn(".production-stage-shell li.locked button", self.css)
         self.assertIn(".production-stage-shell li.complete button", self.css)
 
@@ -151,7 +147,10 @@ console.log(JSON.stringify({
             self.js.index("function showRevision")
         ]
         self.assertIn("await openCasting()", open_chapter)
-        self.assertIn("if(state.casting)renderProductionShell()", open_chapter)
+        self.assertIn(
+            "if(state.casting){renderProductionShell();applyCastingOperatorSummary()}",
+            open_chapter,
+        )
 
     def test_chapter_369_shape_resolves_to_casting_review_without_hardcoding(self) -> None:
         script = """
@@ -170,7 +169,7 @@ console.log(JSON.stringify({state: vm.conceptualState, stage: vm.currentStageLab
         result = subprocess.run(["node", "-e", script], check=True, capture_output=True, text=True, cwd=str(ROOT), encoding="utf-8")
         self.assertEqual(
             json.loads(result.stdout),
-            {"state": "CASTING_REVIEW", "stage": "Phân vai", "action": "Cần duyệt phân vai", "current": 1},
+            {"state": "CASTING_REVIEW", "stage": "Phân vai", "action": "Duyệt giọng", "current": 1},
         )
 
     def test_existing_panels_are_not_duplicated_across_views(self) -> None:

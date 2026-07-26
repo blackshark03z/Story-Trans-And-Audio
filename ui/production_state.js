@@ -9,6 +9,25 @@
     {key:'render',number:7,label:'Tạo audio',summary:'Tạo bản nghe'},
     {key:'qa',number:8,label:'Duyệt audio',summary:'Nghe và duyệt'},
   ];
+  const PHASES=[
+    {key:'scope',number:1,label:'Chọn chương',summary:'Chọn sách và phạm vi'},
+    {key:'review',number:2,label:'Kiểm tra nội dung và giọng',summary:'Duyệt văn bản, người nói và giọng'},
+    {key:'audio',number:3,label:'Tạo audio',summary:'Chuẩn bị rồi bắt đầu render'},
+    {key:'qa',number:4,label:'Nghe và duyệt',summary:'Nghe bản cuối và ghi kết luận'},
+  ];
+  const STATE_PHASE={
+    NO_SCOPE:'scope',
+    TEXT_BLOCKED:'review',
+    SPEAKER_EXCEPTIONS:'review',
+    VOICE_BLOCKED:'review',
+    CASTING_REVIEW:'review',
+    READY_TO_PREPARE:'review',
+    PREPARED:'audio',
+    RENDERING_OR_PAUSED:'audio',
+    RENDERED_NOT_QA:'qa',
+    COMPLETE:'qa',
+    STATE_UNRESOLVED:'scope',
+  };
   const STAGE_INDEX=new Map(STAGES.map((stage,index)=>[stage.key,index]));
   const ACTIVE_JOB_STATUSES=new Set(['scheduled','queued','running','repairing','synthesizing','assembling','paused','interrupted']);
   const PREPARED_JOB_STATUSES=new Set(['prepared']);
@@ -37,8 +56,8 @@
     TEXT_BLOCKED:{stage:'text',action:'RESOLVE_TEXT',label:'Cần duyệt văn bản',title:'Cần duyệt văn bản',target:'text',explanation:'Duyệt bản văn đang dùng của chương này trước khi tiếp tục.'},
     SPEAKER_EXCEPTIONS:{stage:'speakers',action:'REVIEW_SPEAKERS',label:'Cần gán giọng',title:'Cần xác nhận người nói',target:'speakers',explanation:'Xác nhận những câu thoại còn chưa rõ người nói.'},
     VOICE_BLOCKED:{stage:'voices',action:'CONFIGURE_VOICES',label:'Cần gán giọng',title:'Cần gán giọng',target:'voices',explanation:'Chọn giọng đọc hợp lệ cho các vai còn thiếu.'},
-    CASTING_REVIEW:{stage:'voice_map',action:'REVIEW_FINAL_VOICE_MAP',label:'Cần duyệt phân vai',title:'Cần duyệt phân vai',target:'voice_map',explanation:'Kiểm tra cách phân giọng cuối cùng trước khi chuẩn bị audio.'},
-    READY_TO_PREPARE:{stage:'prepare',action:'PREPARE',label:'Sẵn sàng chuẩn bị',title:'Sẵn sàng chuẩn bị',target:'prepare',explanation:'Văn bản và phân vai đã sẵn sàng; chưa có audio đang xử lý cho chương này.'},
+    CASTING_REVIEW:{stage:'voice_map',action:'REVIEW_FINAL_VOICE_MAP',label:'Duyệt giọng',title:'Duyệt giọng',target:'voice_map',explanation:'Kiểm tra người nói và giọng được chọn, sau đó duyệt để tiếp tục.'},
+    READY_TO_PREPARE:{stage:'prepare',action:'PREPARE',label:'Chuẩn bị',title:'Sẵn sàng chuẩn bị',target:'prepare',explanation:'Hệ thống sẽ cố định văn bản và giọng cho phạm vi đã chọn. Chưa gọi TTS.'},
     PREPARED:{stage:'render',action:'START_RENDER',label:'Bắt đầu render',title:'Sẵn sàng bắt đầu render',target:'render',explanation:'Đầu vào đã được ghim an toàn. Audio chỉ được tạo khi bạn bấm bắt đầu render.'},
     RENDERING_OR_PAUSED:{stage:'render',action:'MONITOR_OR_RESUME',label:'Theo dõi tiến độ',title:'Đang tạo audio',target:'render',explanation:'Audio đang được tạo hoặc đang chờ bạn tiếp tục.'},
     RENDERED_NOT_QA:{stage:'qa',action:'QA',label:'Cần nghe và duyệt',title:'Cần nghe và duyệt',target:'qa',explanation:'Audio đã tạo xong; hãy nghe trước khi hoàn tất chương.'},
@@ -48,6 +67,24 @@
   function n(value){const num=Number(value);return Number.isFinite(num)?num:0}
   function lower(value){return String(value||'').toLowerCase()}
   function stageKeysBefore(stageKey){const index=STAGE_INDEX.get(stageKey)??0;return STAGES.slice(0,index).map(stage=>stage.key)}
+  function phaseViewModel(conceptualState){
+    const currentKey=STATE_PHASE[conceptualState]||'scope';
+    const currentIndex=Math.max(0,PHASES.findIndex(phase=>phase.key===currentKey));
+    const completeAll=conceptualState==='COMPLETE';
+    const phases=PHASES.map((phase,index)=>({
+      ...phase,
+      current:index===currentIndex,
+      complete:completeAll||index<currentIndex,
+      locked:!completeAll&&index>currentIndex,
+      state:index===currentIndex?'current':completeAll||index<currentIndex?'complete':'locked',
+    }));
+    return {
+      currentPhaseKey:currentKey,
+      currentPhaseNumber:currentIndex+1,
+      currentPhaseLabel:PHASES[currentIndex].label,
+      phases,
+    };
+  }
   function buildViewModel(conceptualState,overrides={}){
     const meta={...(STATE_META[conceptualState]||STATE_META.STATE_UNRESOLVED),...overrides};
     const currentStageKey=meta.stage;
@@ -60,6 +97,7 @@
       locked:lockedStageKeys.includes(stage.key),
       state:stage.key===currentStageKey?'current':completedStageKeys.includes(stage.key)?'complete':'locked',
     }));
+    const phase=phaseViewModel(conceptualState);
     const viewModel={
       conceptualState,
       currentStageKey,
@@ -76,6 +114,7 @@
       rangeReadinessAvailable:!!meta.rangeReadinessAvailable,
       diagnosticDetails:meta.diagnosticDetails||[],
       stages,
+      ...phase,
     };
     viewModel.stageSummaries=stageSummaries(viewModel);
     viewModel.panelStates=stagePanelStates(viewModel);
@@ -271,7 +310,7 @@
     if(scope?.skipCompleted)params.set('skip_completed','1');
     return `#/production?${params.toString()}`;
   }
-  const api={STAGES,STAGE_PANEL_OWNERSHIP,resolveProductionState,resolveRangeProductionState,productionScopeFromHash,productionHashForScope,stagePanelStates};
+  const api={STAGES,PHASES,STATE_PHASE,STAGE_PANEL_OWNERSHIP,resolveProductionState,resolveRangeProductionState,productionScopeFromHash,productionHashForScope,stagePanelStates};
   if(typeof module!=='undefined'&&module.exports)module.exports=api;
   root.ProductionWorkflow=api;
 })(typeof window!=='undefined'?window:globalThis);

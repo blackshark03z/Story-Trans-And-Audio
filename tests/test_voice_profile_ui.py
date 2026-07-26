@@ -162,8 +162,8 @@ class VoiceProfileApiUiTests(IsolatedTestCase):
             "newCharacterAssignment",
         ):
             self.assertIn(f'id="{element_id}"', html)
-        self.assertIn("Use book default", html)
-        self.assertIn("Use custom voice", html)
+        self.assertIn("Dùng giọng mặc định của sách", html)
+        self.assertIn("Chọn giọng riêng", html)
         self.assertIn("data-profile-preview", html)
         self.assertIn("esc(resolutionText", script)
         self.assertIn("esc(c.display_name)", script)

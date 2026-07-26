@@ -1656,11 +1656,11 @@ def _legacy_validated_job_payload(request: JobRequest) -> dict[str, Any]:
         try:
             resolve_custom_ref(voice_name, ctx, repository=custom_voice_repo)
         except Exception as exc:
-            raise ValueError(f"Giá»ng '{voice_name}' khÃ´ng kháº£ dá»¥ng: {str(exc)}") from exc
+            raise ValueError(f"Giọng '{voice_name}' không khả dụng: {str(exc)}") from exc
     else:
         valid_voices = _preset_voice_ids()
         if voice_name not in valid_voices:
-            raise ValueError(f"Giá»ng '{voice_name}' khÃ´ng tá»“n táº¡i trong VieNeu.")
+            raise ValueError(f"Giọng '{voice_name}' không tồn tại trong VieNeu.")
 
     if payload.get("casting_plan_id") is not None:
         validate_approved_plan(
@@ -1700,7 +1700,7 @@ def prepare_job_route(request: JobRequest) -> dict[str, Any]:
     if prepare_runtime_integration.runtime_mode == PRODUCTION:
         raise HTTPException(409, {"code": "BATCH_PREPARE_API_REQUIRED"})
     if request.repair_mode != "off" and not settings.gemini_key():
-        raise HTTPException(400, "ChÆ°a cÃ³ GEMINI_API_KEY hoáº·c gemini_api_key.txt.")
+        raise HTTPException(400, "Chưa có GEMINI_API_KEY hoặc gemini_api_key.txt.")
     try:
         payload = _validated_job_payload(request)
         return prepare_job(db, settings, store=store, **payload)

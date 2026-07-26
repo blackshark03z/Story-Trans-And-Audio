@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Story Audio</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=20260726-p0-usability-2">
+  <link rel="stylesheet" href="/assets/styles.css?v=20260726-vietnamese-flow-3">
 </head>
 <body>
   <header class="topbar">
@@ -92,7 +92,7 @@
             <p class="eyebrow">Quy trình hằng ngày</p>
             <h2 id="productionHeading">Sản xuất</h2>
           </div>
-          <span id="productionStateBadge" class="production-step-count">Bước 1 / 8</span>
+          <span id="productionStateBadge" class="production-step-count">Giai đoạn 1 / 4</span>
         </div>
         <p class="section-guide">Chọn phạm vi, sau đó làm đúng một bước đang được mở. Ứng dụng không tự tạo audio khi bạn chỉ xem hoặc đổi phạm vi.</p>
         <div id="productionStateCard" class="production-state-card" role="status" aria-live="polite">
@@ -107,15 +107,11 @@
             <button id="productionPrimaryAction" class="primary dominant-production-action" type="button" aria-label="Chọn sách và chương">Chọn sách và chương</button>
           </div>
         </div>
-        <ol id="productionStageShell" class="production-stage-shell" aria-label="Các bước sản xuất canonical">
-          <li class="current"><span>1</span><strong>Phạm vi</strong><small>Chọn sách và chương</small></li>
-          <li><span>2</span><strong>Văn bản</strong><small>Duyệt nội dung</small></li>
-          <li><span>3</span><strong>Người nói</strong><small>Xác nhận lời thoại</small></li>
-          <li><span>4</span><strong>Giọng</strong><small>Gán giọng đọc</small></li>
-          <li><span>5</span><strong>Phân vai</strong><small>Duyệt phân vai</small></li>
-          <li><span>6</span><strong>Chuẩn bị</strong><small>Chuẩn bị audio</small></li>
-          <li><span>7</span><strong>Tạo audio</strong><small>Tạo bản nghe</small></li>
-          <li><span>8</span><strong>Duyệt audio</strong><small>Nghe và duyệt</small></li>
+        <ol id="productionStageShell" class="production-stage-shell" aria-label="Bốn giai đoạn sản xuất">
+          <li class="current"><span>1</span><strong>Chọn chương</strong><small>Chọn sách và phạm vi</small></li>
+          <li><span>2</span><strong>Kiểm tra nội dung và giọng</strong><small>Duyệt văn bản, người nói và giọng</small></li>
+          <li><span>3</span><strong>Tạo audio</strong><small>Chuẩn bị rồi bắt đầu render</small></li>
+          <li><span>4</span><strong>Nghe và duyệt</strong><small>Nghe bản cuối và ghi kết luận</small></li>
         </ol>
         <section id="productionStageIsolation" class="production-stage-isolation" aria-labelledby="productionCurrentWorkHeading">
           <div id="productionCompletedSummaries" class="production-stage-summaries" aria-label="Các bước đã hoàn tất"></div>
@@ -127,6 +123,7 @@
           <div id="productionLockedSummaries" class="production-stage-summaries locked" aria-label="Các bước đang khóa"></div>
         </section>
       </section>
+      <section id="productionPhaseWorkspace" class="production-phase-workspace hidden" aria-label="Công việc của giai đoạn hiện tại"></section>
 
       <section id="workspace" class="workspace hidden">
         <aside class="panel chapter-panel">
@@ -562,7 +559,7 @@
   <dialog id="productionScopeDialog" class="scope-dialog" aria-labelledby="productionScopeDialogTitle">
     <div class="dialog-head">
       <div>
-        <p class="eyebrow">Bước 1 / 8</p>
+        <p class="eyebrow">Giai đoạn 1 / 4</p>
         <h2 id="productionScopeDialogTitle">Chọn sách và chương</h2>
       </div>
       <button id="cancelProductionScopeTop" class="ghost" type="button">Hủy</button>
@@ -703,7 +700,7 @@
           </div>
         </section>
 
-        <section id="flowStepAssignVoices" class="flow-step-panel hidden" data-production-owned-stage="speakers voices voice_map">
+        <section id="flowStepAssignVoices" class="flow-step-panel hidden" data-production-owned-stage="speakers voices">
           <div class="section-head">
             <div><p class="eyebrow">Bước 3</p><h3>Gán giọng</h3></div>
             <span id="flowAssignStatus" class="pill">Chờ</span>
@@ -721,7 +718,7 @@
             <p class="muted">Các người nói trong phần này đã có giọng an toàn theo trạng thái hiện tại. Bạn chỉ cần mở ra khi muốn rà lại danh sách đã tự gán.</p>
             <div id="flowReadySpeakerSummary" class="flow-speaker-list"></div>
           </details>
-          <details id="flowVoiceMemoryDetails" class="flow-secondary-details" data-production-owned-stage="voices voice_map">
+          <details id="flowVoiceMemoryDetails" class="flow-secondary-details" data-production-owned-stage="voices">
             <summary>Thiết lập giọng cho sách</summary>
             <p class="muted">Phần này áp dụng lại cho nhiều chương trong cùng cuốn sách. Chỉ mở khi bạn muốn chỉnh giọng mặc định, bộ nhớ nhân vật, alias, hoặc custom voice ở cấp sách; còn với một chương cụ thể, hãy bắt đầu từ danh sách người nói ở phía trên.</p>
             <div id="flowAssignBookSummary" class="flow-summary-grid"></div>
@@ -730,28 +727,28 @@
             </div>
             <section id="voiceProfileSection" class="voice-profile-card">
             <div class="section-head">
-              <div><p class="eyebrow">Book settings</p><h3>Book Voice Profile</h3></div>
-              <span id="voiceProfileMeta" class="pill">Not configured</span>
+              <div><p class="eyebrow">Thiết lập cho sách</p><h3>Giọng mặc định của sách</h3></div>
+              <span id="voiceProfileMeta" class="pill">Chưa thiết lập</span>
             </div>
-            <p class="section-guide">Use this to set the default narrator and dialogue voices for the whole book before building or reviewing a plan. Do not use it to change one line inside the current plan.</p>
+            <p class="section-guide">Đặt giọng mặc định cho người kể chuyện và lời thoại trong toàn bộ sách. Muốn đổi riêng một câu, hãy chỉnh trong phân công từng câu.</p>
             <div id="voiceProfileEmpty" class="profile-empty">
-              <strong>No Book Voice Profile configured.</strong>
-              <span>Create one before using automatic three-voice resolution.</span>
+              <strong>Chưa có thiết lập giọng mặc định.</strong>
+              <span>Hãy tạo thiết lập trước khi dùng cơ chế tự gán giọng.</span>
             </div>
             <div class="profile-grid">
-              <label>Narrator voice<select id="profileNarratorVoice" aria-describedby="profileNarratorProvenance"></select><small id="profileNarratorProvenance" class="voice-provenance muted"></small><button class="ghost profile-preview" data-profile-preview="narrator">▶ Preview Narrator</button></label>
-              <label>Default male dialogue<select id="profileMaleVoice" aria-describedby="profileMaleProvenance"></select><small id="profileMaleProvenance" class="voice-provenance muted"></small><button class="ghost profile-preview" data-profile-preview="male">▶ Preview Male</button></label>
-              <label>Default female dialogue<select id="profileFemaleVoice" aria-describedby="profileFemaleProvenance"></select><small id="profileFemaleProvenance" class="voice-provenance muted"></small><button class="ghost profile-preview" data-profile-preview="female">▶ Preview Female</button></label>
-              <label>Unknown fallback
+              <label>Giọng người kể chuyện<select id="profileNarratorVoice" aria-describedby="profileNarratorProvenance"></select><small id="profileNarratorProvenance" class="voice-provenance muted"></small><button class="ghost profile-preview" data-profile-preview="narrator">▶ Nghe thử người kể</button></label>
+              <label>Giọng nam mặc định<select id="profileMaleVoice" aria-describedby="profileMaleProvenance"></select><small id="profileMaleProvenance" class="voice-provenance muted"></small><button class="ghost profile-preview" data-profile-preview="male">▶ Nghe thử giọng nam</button></label>
+              <label>Giọng nữ mặc định<select id="profileFemaleVoice" aria-describedby="profileFemaleProvenance"></select><small id="profileFemaleProvenance" class="voice-provenance muted"></small><button class="ghost profile-preview" data-profile-preview="female">▶ Nghe thử giọng nữ</button></label>
+              <label>Giọng thay thế khi chưa rõ
                 <select id="profileUnknownFallback">
-                  <option value="narrator">Narrator</option>
-                  <option value="male_dialogue">Male dialogue</option>
-                  <option value="female_dialogue">Female dialogue</option>
-                  <option value="explicit_voice">Explicit voice</option>
+                  <option value="narrator">Người kể chuyện</option>
+                  <option value="male_dialogue">Giọng nam mặc định</option>
+                  <option value="female_dialogue">Giọng nữ mặc định</option>
+                  <option value="explicit_voice">Chọn một giọng riêng</option>
                 </select>
-                <button class="ghost profile-preview" data-profile-preview="fallback">▶ Preview Fallback</button>
+                <button class="ghost profile-preview" data-profile-preview="fallback">▶ Nghe thử giọng thay thế</button>
               </label>
-              <label id="profileExplicitVoiceLabel" class="hidden">Explicit fallback voice<select id="profileExplicitVoice" aria-describedby="profileExplicitProvenance"></select><small id="profileExplicitProvenance" class="voice-provenance muted"></small></label>
+              <label id="profileExplicitVoiceLabel" class="hidden">Giọng thay thế riêng<select id="profileExplicitVoice" aria-describedby="profileExplicitProvenance"></select><small id="profileExplicitProvenance" class="voice-provenance muted"></small></label>
             </div>
             <div id="profileValidation" class="profile-validation muted"></div>
             <div id="profilePreviewBox" class="voice-preview hidden">
@@ -759,31 +756,31 @@
               <span id="profilePreviewStatus" class="muted"></span>
             </div>
             <div class="profile-actions">
-              <span class="muted">Changes apply only to new casting plans and jobs.</span>
-              <button id="saveVoiceProfile" class="secondary" data-runtime-mutation-control>Create Voice Profile</button>
+              <span class="muted">Thay đổi chỉ áp dụng cho phân vai và công việc được tạo sau đó.</span>
+              <button id="saveVoiceProfile" class="secondary" data-runtime-mutation-control>Tạo thiết lập giọng</button>
             </div>
             </section>
             <section id="characterBibleSection" class="character-bible-import">
             <div class="section-head">
-              <div><p class="eyebrow">Character memory</p><h3>Character Bible import</h3></div>
-              <span id="characterBibleState" class="pill">No file selected</span>
+              <div><p class="eyebrow">Bộ nhớ nhân vật</p><h3>Nhập danh mục nhân vật</h3></div>
+              <span id="characterBibleState" class="pill">Chưa chọn file</span>
             </div>
-            <p class="section-guide">Use this to keep character names, aliases, and roles consistent across chapters. It is background memory for the book, not a one-off chapter fix.</p>
+            <p class="section-guide">Dùng danh mục này để giữ tên, bí danh và vai trò nhất quán giữa các chương. Đây là bộ nhớ dùng chung cho sách, không phải cách sửa riêng một chương.</p>
             <div class="character-bible-controls">
               <input id="characterBibleFile" type="file" accept="application/json,.json">
-              <label class="check"><input id="characterBibleUpdateExisting" type="checkbox"> Update existing metadata</label>
-              <button id="characterBibleDryRun" class="secondary" disabled>Chạy Dry-Run</button>
+              <label class="check"><input id="characterBibleUpdateExisting" type="checkbox"> Cập nhật thông tin đã có</label>
+              <button id="characterBibleDryRun" class="secondary" disabled>Kiểm tra thử</button>
               <button id="characterBibleApply" class="primary" disabled data-runtime-mutation-control>Áp dụng import</button>
-              <button id="characterBibleClear" class="ghost" disabled data-runtime-mutation-control>Clear</button>
+              <button id="characterBibleClear" class="ghost" disabled data-runtime-mutation-control>Xóa lựa chọn</button>
             </div>
-            <div id="characterBibleFileInfo" class="muted">No file selected.</div>
+            <div id="characterBibleFileInfo" class="muted">Chưa chọn file.</div>
             <div id="characterBibleSummary" class="import-summary"></div>
             <div id="characterBiblePlan" class="import-plan"></div>
             </section>
             <div class="character-add row">
               <input id="newCharacterName" placeholder="Tên nhân vật">
-              <select id="newCharacterGender"><option value="unknown">Unknown</option><option value="male">Male</option><option value="female">Female</option></select>
-              <select id="newCharacterAssignment"><option value="default">Use book default</option><option value="custom">Use custom voice</option></select>
+              <select id="newCharacterGender"><option value="unknown">Chưa rõ</option><option value="male">Nam</option><option value="female">Nữ</option></select>
+              <select id="newCharacterAssignment"><option value="default">Dùng giọng mặc định của sách</option><option value="custom">Chọn giọng riêng</option></select>
               <select id="newCharacterVoice" aria-describedby="newCharacterVoiceProvenance"></select>
               <small id="newCharacterVoiceProvenance" class="voice-provenance muted">Đang kế thừa giọng hiệu lực từ Book Voice Profile.</small>
               <button id="addCharacterBtn" class="secondary" data-runtime-mutation-control>Thêm nhân vật</button>
@@ -807,31 +804,31 @@
                 <button id="refreshSpeakerDrafts" class="ghost">Làm mới danh sách draft</button>
               </div>
               <div id="speakerReviewEmpty" class="profile-empty">
-                <strong>No speaker-assignment draft exists for this chapter.</strong>
-                <span>Generate a draft to begin review.</span>
+                <strong>Chương này chưa có nháp xác định người nói.</strong>
+                <span>Tạo một bản nháp để bắt đầu rà soát.</span>
               </div>
               <div id="speakerReviewMeta" class="speaker-review-meta"></div>
               <div id="speakerReviewStale" class="issue error hidden"></div>
               <div id="speakerReviewWorkspace" class="hidden">
                 <div class="speaker-review-jumps"><button id="jumpToPendingReview" class="ghost">Nhảy đến chỗ còn cần rà soát</button><button id="jumpToApprovalControls" class="ghost">Nhảy đến phần duyệt Speaker Draft</button></div>
                 <div class="speaker-review-toolbar">
-                  <label>Filter<select id="speakerReviewFilter">
-                    <option value="all">All</option><option value="unreviewed">Unreviewed</option>
-                    <option value="high">High confidence</option><option value="medium">Medium confidence</option>
-                    <option value="low">Low confidence</option><option value="invalid">Invalid</option>
+                  <label>Bộ lọc<select id="speakerReviewFilter">
+                    <option value="all">Tất cả</option><option value="unreviewed">Chưa rà soát</option>
+                    <option value="high">Tin cậy cao</option><option value="medium">Tin cậy vừa</option>
+                    <option value="low">Tin cậy thấp</option><option value="invalid">Không hợp lệ</option>
                     <option value="needs_review">Cần kiểm tra</option>
                   </select></label>
                   <div class="speaker-review-bulk">
-                    <button id="reviewSelectVisible" class="ghost">Select visible</button>
-                    <button id="reviewAcceptSuggestions" class="ghost">Accept selected suggestions</button>
-                    <button id="reviewMarkNarrator" class="ghost">Mark selected as narrator</button>
-                    <button id="reviewMarkUnknown" class="ghost">Mark selected as unknown</button>
-                    <button id="reviewClearSelection" class="ghost">Clear selection</button>
+                    <button id="reviewSelectVisible" class="ghost">Chọn các dòng đang hiện</button>
+                    <button id="reviewAcceptSuggestions" class="ghost">Nhận gợi ý đã chọn</button>
+                    <button id="reviewMarkNarrator" class="ghost">Đánh dấu là người kể</button>
+                    <button id="reviewMarkUnknown" class="ghost">Đánh dấu chưa rõ</button>
+                    <button id="reviewClearSelection" class="ghost">Bỏ chọn</button>
                   </div>
                 </div>
                 <div id="speakerReviewRows" class="speaker-review-list"></div>
                 <div id="speakerReviewApprovalControls" class="speaker-review-approve">
-                  <span id="speakerReviewDecisionCount" class="muted">0 reviewed</span>
+                  <span id="speakerReviewDecisionCount" class="muted">Đã rà soát 0 dòng</span>
                   <button id="approveSpeakerReview" class="primary" disabled data-runtime-mutation-control>Duyệt Speaker Draft</button>
                   <button id="createSpeakerReviewCastingPlan" class="secondary" disabled data-runtime-mutation-control>Tạo Final Voice Map draft</button>
                 </div>
@@ -843,58 +840,62 @@
 
         <section id="flowStepReviewVoiceMap" class="flow-step-panel hidden" data-production-owned-stage="voice_map">
           <div class="section-head">
-            <div><p class="eyebrow">Bước 4</p><h3>Duyệt bản đồ giọng cuối</h3></div>
+            <div><p class="eyebrow">Giai đoạn 2</p><h3>Duyệt giọng</h3></div>
             <span id="flowVoiceMapStatus" class="pill">Chờ</span>
           </div>
-          <p class="section-guide">Đây là bản đồ giọng cuối mà hệ thống sẽ dùng khi tạo audio. Hãy kiểm tra từng người nói và giọng tương ứng, rồi duyệt trước khi render.</p>
+          <p class="section-guide">Kiểm tra người nói, giọng được chọn và số câu bị ảnh hưởng trước khi tiếp tục.</p>
           <div id="flowVoiceMapWarnings"></div>
           <div id="flowVoiceMapTable" class="flow-voice-map"></div>
           <section id="castingPlanPanel" class="casting-plan-panel" data-production-owned-stage="voice_map">
             <div class="section-head">
-              <div><p class="eyebrow">Kỹ thuật</p><h3>Chi tiết bản đồ giọng cuối</h3></div>
+              <div><p class="eyebrow">Tóm tắt</p><h3>Giọng sẽ dùng</h3></div>
               <span id="castingPlanReviewMeta" class="pill">Chưa có plan</span>
             </div>
-            <p class="section-guide">Đây là nguồn sự thật trước khi tạo audio. Ghi chú kỹ thuật: bản đồ giọng cuối được lưu dưới dạng Casting Plan bất biến.</p>
-            <p id="flowVoiceMapCatalogNote" class="muted">Voice labels below come from the shared preset/custom voice catalog. Loading this review is read-only; changes require Lưu draft, and approval remains separate.</p>
+            <p class="section-guide">Đây là lựa chọn cuối cùng được dùng khi tạo audio. Chỉ những mục cần xử lý mới hiển thị cảnh báo.</p>
+            <p id="flowVoiceMapCatalogNote" class="muted">Mở phần phân công từng câu nếu bạn muốn kiểm tra chi tiết.</p>
             <p id="castingPlanReviewWarning" class="muted">Hãy kiểm tra các gán giọng trước khi render.</p>
             <div id="flowVoiceUsageSummary" class="voice-usage-summary" aria-live="polite"></div>
             <div id="castingPlanWarning" class="issue warning hidden"></div>
+            <details id="castingTechnicalDetails" class="flow-secondary-details">
+              <summary>Chi tiết kỹ thuật</summary>
+              <p id="castingTechnicalSummary" class="muted"></p>
+            </details>
             <details class="flow-secondary-details">
-              <summary>Line-by-line assignments</summary>
-              <div class="casting-section-head"><h3>Utterances</h3><span id="utteranceCount" class="muted"></span></div>
+              <summary>Phân công từng câu</summary>
+              <div class="casting-section-head"><h3>Các câu</h3><span id="utteranceCount" class="muted"></span></div>
               <div id="utteranceList" class="utterance-list"></div>
             </details>
             <div id="castingPlanApprovalControls" class="casting-actions">
-              <button id="saveCastingDraft" class="secondary" data-runtime-mutation-control>Lưu draft</button>
-              <button id="approveCastingPlan" class="primary" disabled data-runtime-mutation-control>Duyệt bản đồ giọng cuối & tiếp tục tạo audio</button>
+              <button id="saveCastingDraft" class="secondary" data-runtime-mutation-control>Lưu nháp</button>
+              <button id="approveCastingPlan" class="primary" disabled data-runtime-mutation-control>Duyệt và tiếp tục</button>
             </div>
           </section>
         </section>
 
         <section id="flowStepRenderChapter" class="flow-step-panel hidden" data-production-owned-stage="prepare render">
           <div class="section-head">
-            <div><p class="eyebrow">Bước 5</p><h3>Tạo audio chương</h3></div>
+            <div><p class="eyebrow">Giai đoạn 3</p><h3>Tạo audio</h3></div>
             <span id="flowRenderStatus" class="pill">Chờ</span>
           </div>
-          <p class="section-guide">Chỉ bắt đầu hoặc tiếp tục tạo audio sau khi bản đồ giọng cuối đã được duyệt.</p>
+          <p class="section-guide">Chuẩn bị để cố định đầu vào trước. Chỉ nút Bắt đầu render mới tạo audio.</p>
           <div id="flowRenderSummary" class="flow-summary-grid"></div>
           <div id="flowRenderWarnings"></div>
           <section id="renderPlanPanel" class="render-plan-panel" data-production-owned-stage="prepare render">
             <div class="section-head">
-              <div><p class="eyebrow">Render / Production Output</p><h3>Tạo audio từ chương đã duyệt</h3></div>
+              <div><p class="eyebrow">Thao tác tiếp theo</p><h3>Chuẩn bị rồi render</h3></div>
             </div>
-          <p class="section-guide">Chỉ dùng phần này sau khi Casting Plan đã được duyệt. Không tạo audio trực tiếp từ nháp AI hoặc từ plan bạn chưa rà soát xong.</p>
-          <p id="renderPlanNotice" class="muted">Chỉ có thể tạo audio từ Final Voice Map đã được duyệt.</p>
-          <p class="muted hidden">Render / Production Output will use the exact approved Final Voice Map below.</p>
+          <p class="section-guide">Hệ thống luôn tách bước cố định văn bản và giọng khỏi bước gọi TTS.</p>
+          <p id="renderPlanNotice" class="muted">Hệ thống sẽ cố định văn bản và giọng cho phạm vi đã chọn. Chưa gọi TTS.</p>
+          <p class="muted hidden">Bản audio sẽ dùng đúng phân vai đã được duyệt.</p>
           <div class="casting-actions render-actions">
-            <button id="renderCastingPlan" class="primary" disabled data-runtime-mutation-control>Bắt đầu tạo audio</button>
+            <button id="renderCastingPlan" class="primary" disabled data-runtime-mutation-control>Chuẩn bị</button>
           </div>
           </section>
         </section>
 
         <section id="flowStepReviewAudio" class="flow-step-panel hidden" data-production-owned-stage="qa">
           <div class="section-head">
-            <div><p class="eyebrow">Bước 6</p><h3>Nghe kiểm tra / Chốt bản cuối</h3></div>
+            <div><p class="eyebrow">Giai đoạn 4</p><h3>Nghe và duyệt</h3></div>
             <span id="flowAudioStatus" class="pill">Chờ</span>
           </div>
           <p class="section-guide">Nghe lại bản audio đang hoạt động, chỉ dùng công cụ QA khi thật sự cần, rồi chốt bản cuối sau khi nghe xong.</p>
@@ -907,7 +908,7 @@
           <div id="chapterAudioMeta" class="chapter-audio-meta hidden"></div>
           <section id="flowFinalApprovalPanel" class="flow-final-approval" data-production-owned-stage="qa">
             <div class="section-head">
-              <div><p class="eyebrow">Production record</p><h3>Trạng thái chốt bản audio cuối</h3></div>
+              <div><p class="eyebrow">Kết luận</p><h3>Duyệt bản audio cuối</h3></div>
               <span id="flowFinalApprovalStatus" class="pill">Chưa chốt</span>
             </div>
             <div id="flowFinalApprovalSummary" class="flow-summary-grid"></div>
@@ -915,17 +916,17 @@
             <label class="flow-notes-label" for="flowFinalApprovalNotes">Ghi chú QA cuối</label>
             <textarea id="flowFinalApprovalNotes" rows="3" placeholder="Ví dụ: Nghe kiểm tra xong, chốt bản audio cuối."></textarea>
             <div class="flow-finalize-actions">
-              <button id="flowFinalizeOutput" class="primary" disabled data-runtime-mutation-control>Chốt bản audio cuối</button>
-              <button id="flowNeedsFixes" class="secondary" disabled data-runtime-mutation-control>Đánh dấu cần sửa</button>
+              <button id="flowFinalizeOutput" class="primary" disabled data-runtime-mutation-control>Chấp nhận</button>
+              <button id="flowNeedsFixes" class="secondary" disabled data-runtime-mutation-control>Cần sửa</button>
             </div>
-            <span id="flowFinalizeHint" class="muted">Record này chỉ ghi nhận kết luận human QA cho bản audio active hiện tại, không tự render lại audio.</span>
+            <span id="flowFinalizeHint" class="muted">Kết luận này chỉ ghi nhận việc nghe duyệt bản audio hiện tại, không tự render lại.</span>
           </section>
           <div class="flow-finalize-actions">
             <span id="flowFinalApprovalDetail" class="muted"></span>
           </div>
           <details class="flow-advanced-tools">
             <summary>Nâng cao / Gỡ lỗi: QA và xử lý sự cố segment</summary>
-            <p class="diagnostic-guide">Chỉ dùng diagnostics, historical jobs, và segment attempts khi human QA phát hiện lỗi thật sự. Chúng không thuộc luồng chuẩn để chuẩn bị chương.</p>
+            <p class="diagnostic-guide">Chỉ mở chẩn đoán, công việc cũ và các lần thử từng đoạn khi người nghe phát hiện lỗi thật sự.</p>
           </details>
         </section>
       </div>
@@ -981,9 +982,9 @@
     <div id="segmentDiagnosticBody" class="diagnostic-body"></div>
   </dialog>
   <div id="toast" class="toast hidden"></div>
-  <script src="/assets/production_state.js?v=20260726-p0-usability-2"></script>
-  <script src="/assets/app.js?v=20260726-p0-usability-2"></script>
-  <script src="/assets/casting_voice_map.js?v=20260720-daily-prod-2b1"></script>
+  <script src="/assets/production_state.js?v=20260726-vietnamese-flow-3"></script>
+  <script src="/assets/app.js?v=20260726-vietnamese-flow-3"></script>
+  <script src="/assets/casting_voice_map.js?v=20260726-vietnamese-flow-3"></script>
   <script src="/assets/contextual_voice_detour.js?v=20260720-daily-prod-2b2"></script>
 </body>
 </html>

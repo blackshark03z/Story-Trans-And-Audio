@@ -1,9 +1,9 @@
 ﻿# Trạng thái dự án
 
 **Cập nhật:** 2026-07-26 (Asia/Saigon)
-**Milestone:** DAILY-PROD-6 P0 Frontend Usability Accepted - Human Audio QA Pending
-**Strategic state:** `DAILY_USE_V1_P0_USABILITY_ACCEPTED`
-**Trạng thái hiện tại:** The routine workflow now has one consistent Vietnamese shell, a compact health summary, direct book/range entry, quick range actions, and a restrained eight-step Production strip. Canonical real-browser acceptance passed at 1366x768 and 1920x1080 without production mutation. Job `26` and active Artifacts `93/96` remain intact and both outputs remain Human QA `pending`.
+**Milestone:** DAILY-PROD-6 Vietnamese Four-Phase Production UI Accepted - Human Audio QA Pending
+**Strategic state:** `DAILY_USE_V1_FOUR_PHASE_UI_ACCEPTED`
+**Trạng thái hiện tại:** The routine workflow now has UTF-8-safe Vietnamese copy and four operator phases over the unchanged backend resolver states. Casting, PREPARE/START_RENDER, render recovery, and QA use the main Production workspace with one visible primary action. Canonical and isolated real-browser acceptance passed at 1366x768 and 1920x1080 without production mutation. Job `26` and active Artifacts `93/96` remain intact and both outputs remain Human QA `pending`.
 
 **Last verified implementation starting baseline:** `e9c6a164a1a35fc07a00c3d34ac6f00b845074c5`
 **Last verified branch:** `main`
@@ -25,6 +25,22 @@
 **DAILY-PROD-3:** complete
 
 **Current production state:**
+- User-facing source literals are valid UTF-8. HTML/static responses declare
+  the correct charset, JSON remains single-encoded UTF-8, and cache-versioned
+  assets prevent the previous bundle from persisting after restart.
+- The visible Production journey is now four phases: `Chọn chương`,
+  `Kiểm tra nội dung và giọng`, `Tạo audio`, and `Nghe và duyệt`. Detailed
+  backend states and mutation gates are unchanged.
+- Casting review, PREPARE/START_RENDER, progress/recovery, and QA are shown in
+  the main page instead of a long workflow modal. Technical IDs and line-level
+  assignments are collapsed by default.
+- Canonical Chapter `369` read-only acceptance and isolated approved/prepared/
+  running/failure/QA acceptance passed at `1366x768` and `1920x1080`. No
+  mojibake, visible nested scroll, hidden primary action, or raw failure detail
+  was observed.
+- Chapter `369` remains Text Revision `738`, draft Casting Plan `24`, and zero
+  JobChapter rows. No PREPARE, START_RENDER, QA, provider/Gemini/TTS, Job,
+  Artifact, audio, or immutable revision mutation occurred.
 - P0 frontend usability rework replaces duplicate/technical navigation with
   Trang chủ, Sản xuất, Gán giọng, Công việc, Audio, and Dung lượng. The primary
   shell shows `Hệ thống sẵn sàng`; schema, authentication, worker, PREPARE,
