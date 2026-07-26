@@ -105,7 +105,7 @@ class ScopeFixtureHandler(SimpleHTTPRequestHandler):
                         "id": 1,
                         "title": "Fixture Book",
                         "author": "Fixture Author",
-                        "chapter_count": 45,
+                        "chapter_count": 394,
                         "audio_chapters": 2,
                     },
                     {
@@ -226,13 +226,28 @@ class ProductionScopeBrowserTests(unittest.TestCase):
         evidence = json.loads(result.stdout)
         self.assertTrue(evidence["ok"])
         self.assertEqual(evidence["bookCount"], 2)
-        self.assertEqual(evidence["firstPage"], "1-40 / 45")
+        self.assertEqual(evidence["firstPage"], "1-6 / 45")
         self.assertEqual(evidence["confirmedCount"], 2)
+        self.assertTrue(evidence["oneChapterReady"])
+        self.assertTrue(evidence["rowSelectionWorks"])
+        self.assertTrue(evidence["keyboardWorkflow"])
+        self.assertEqual(evidence["quickRanges"], ["372-372", "372-376", "372-381"])
         self.assertTrue(evidence["apiErrorVisible"])
+        self.assertTrue(evidence["technicalErrorAvailable"])
         self.assertTrue(evidence["staleResponseIgnored"])
         self.assertTrue(evidence["recoveredErrorHidden"])
         self.assertTrue(evidence["skipCompletedRestored"])
+        self.assertTrue(evidence["primaryLabelsAreHuman"])
+        self.assertTrue(evidence["layout1366"]["ctaVisible"])
+        self.assertFalse(evidence["layout1366"]["horizontal"])
+        self.assertEqual(evidence["layout1366"]["nestedScrolling"], [])
+        self.assertTrue(evidence["layout1920"]["ctaVisible"])
+        self.assertFalse(evidence["layout1920"]["horizontal"])
+        self.assertTrue(evidence["browserOpenLayout"]["ctaVisible"])
+        self.assertFalse(evidence["browserOpenLayout"]["horizontal"])
+        self.assertEqual(evidence["interactionCounts"], {"oneChapter": 3, "range": 3})
         self.assertEqual(evidence["final"]["state"], "NO_SCOPE")
+        self.assertEqual(evidence["final"]["primaryAction"], "Chọn sách và chương")
         self.assertEqual(evidence["final"]["route"], "#/production")
 
 

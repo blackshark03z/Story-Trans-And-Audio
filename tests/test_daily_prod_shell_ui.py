@@ -22,10 +22,10 @@ class DailyProductionShellUiTests(unittest.TestCase):
         expected = [
             ("home", "#/home", "Trang chủ"),
             ("production", "#/production", "Sản xuất"),
-            ("voices", "#/voices", "Thư viện giọng"),
-            ("books", "#/books", "Sách và nhân vật"),
-            ("audio", "#/audio", "Audio đã tạo"),
-            ("settings", "#/settings", "Cài đặt"),
+            ("assignment", "#/assignment", "Gán giọng"),
+            ("jobs", "#/jobs", "Công việc"),
+            ("audio", "#/audio", "Audio"),
+            ("storage", "#/storage", "Dung lượng"),
         ]
         self.assertIn('id="appNav"', self.html)
         self.assertIn('aria-label="Khu vực chính"', self.html)
@@ -37,7 +37,7 @@ class DailyProductionShellUiTests(unittest.TestCase):
             self.assertIn(f"{route}:{{hash:'{href}'", self.js)
 
     def test_all_top_level_views_are_isolated_by_route(self) -> None:
-        for route in ("home", "production", "voices", "books", "audio", "settings"):
+        for route in ("home", "production", "assignment", "jobs", "audio", "storage"):
             self.assertIn(f'data-app-view="{route}"', self.html)
         self.assertIn(".app-view[hidden]{display:none!important}", self.css)
         self.assertIn("view.hidden=!active", self.js)
@@ -92,10 +92,10 @@ console.log(JSON.stringify({
             "Văn bản",
             "Người nói",
             "Giọng",
-            "Duyệt bản đồ giọng",
+            "Phân vai",
             "Chuẩn bị",
-            "Render",
-            "QA",
+            "Tạo audio",
+            "Duyệt audio",
         ]
         self.assertEqual(stage_html.count("<li"), 8)
         for label in expected:
@@ -170,7 +170,7 @@ console.log(JSON.stringify({state: vm.conceptualState, stage: vm.currentStageLab
         result = subprocess.run(["node", "-e", script], check=True, capture_output=True, text=True, cwd=str(ROOT), encoding="utf-8")
         self.assertEqual(
             json.loads(result.stdout),
-            {"state": "CASTING_REVIEW", "stage": "Duyệt bản đồ giọng", "action": "Duyệt bản đồ giọng", "current": 1},
+            {"state": "CASTING_REVIEW", "stage": "Phân vai", "action": "Cần duyệt phân vai", "current": 1},
         )
 
     def test_existing_panels_are_not_duplicated_across_views(self) -> None:

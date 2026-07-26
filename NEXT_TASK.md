@@ -11,6 +11,11 @@ Exact next task:
 
 ## Verified Outputs
 
+- P0 frontend usability is real-browser accepted at `1366x768` and
+  `1920x1080`: one Vietnamese navigation set, compact expandable diagnostics,
+  direct Chapter `372`, range `372-373`, quick selection, title search, row
+  selection, cross-book clearing, keyboard-only completion, refresh, and
+  durable restart. The browser was returned to clean `NO_SCOPE`.
 - Daily-Use V1 is real-browser accepted from a clean `NO_SCOPE` session. The
   operator can choose a canonical book and one chapter or contiguous range,
   confirm backend readiness, preserve the exact range across Voice Assignment

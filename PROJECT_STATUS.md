@@ -1,11 +1,11 @@
 ﻿# Trạng thái dự án
 
 **Cập nhật:** 2026-07-26 (Asia/Saigon)
-**Milestone:** DAILY-PROD-6 Daily-Use V1 Real-Browser Accepted - Human Audio QA Pending
-**Strategic state:** `DAILY_USE_V1_BROWSER_ACCEPTED`
-**Trạng thái hiện tại:** The routine workflow now passes from a clean `NO_SCOPE` session through canonical book/range selection and readiness in a real browser. Top-level Production, Voice Assignment, Jobs, Audio Library, and Storage remain available. Job `26` and active Artifacts `93/96` remain intact and both outputs remain Human QA `pending`.
+**Milestone:** DAILY-PROD-6 P0 Frontend Usability Accepted - Human Audio QA Pending
+**Strategic state:** `DAILY_USE_V1_P0_USABILITY_ACCEPTED`
+**Trạng thái hiện tại:** The routine workflow now has one consistent Vietnamese shell, a compact health summary, direct book/range entry, quick range actions, and a restrained eight-step Production strip. Canonical real-browser acceptance passed at 1366x768 and 1920x1080 without production mutation. Job `26` and active Artifacts `93/96` remain intact and both outputs remain Human QA `pending`.
 
-**Last verified implementation starting baseline:** `2225d967e2941b91c877c47699ae6756c5a061dc`
+**Last verified implementation starting baseline:** `e9c6a164a1a35fc07a00c3d34ac6f00b845074c5`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-25
 **Canonical runtime:** `http://127.0.0.1:8772`
@@ -25,6 +25,22 @@
 **DAILY-PROD-3:** complete
 
 **Current production state:**
+- P0 frontend usability rework replaces duplicate/technical navigation with
+  Trang chủ, Sản xuất, Gán giọng, Công việc, Audio, and Dung lượng. The primary
+  shell shows `Hệ thống sẵn sàng`; schema, authentication, worker, PREPARE,
+  and kill-switch details are available only in expandable diagnostics.
+- Scope selection uses a searchable book combobox, direct numeric
+  `Từ chương` / `Đến chương`, one-chapter mode, next-missing-audio and
+  1/5/10-chapter quick actions. Chapter browsing is secondary, row clicks
+  follow the explicit From/To sequence, and backend readiness remains
+  authoritative behind the single `Kiểm tra phạm vi` CTA.
+- Canonical browser acceptance covered Chapter `372`, range `372-373`, title
+  search, row selection, changing books, keyboard-only completion, refresh,
+  and durable restart. At `1366x768`, the primary CTA remained visible with no
+  nested scroll or horizontal overflow; `1920x1080` also passed.
+- No PREPARE, START_RENDER, provider/Gemini/TTS, Human QA, Job, Segment,
+  Artifact, audio, or canonical data mutation occurred. The browser was
+  returned to clean `NO_SCOPE`; Chapter `369` remains unchanged.
 - The former Daily-Use V1 completion claim was reopened because `NO_SCOPE`
   could display `Chọn phạm vi` without a usable selector. The root cause was an
   incomplete click handler that only focused the existing work area.

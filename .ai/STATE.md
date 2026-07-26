@@ -4,7 +4,30 @@ Updated: 2026-07-26
 
 ## Current Phase
 
-`Daily-Use V1 is real-browser accepted from clean NO_SCOPE through canonical range readiness. The two-chapter pilot remains on Job 26; Artifacts 93 and 96 are available for operator playback, explicit Human QA, individual download, and deterministic range ZIP, and both remain Human QA pending.`
+`Daily-Use V1 now includes the accepted P0 frontend usability rework. Production has one Vietnamese navigation set, compact health diagnostics, direct book/range entry, quick range actions, and a restrained eight-step progress strip. The two-chapter pilot remains on Job 26; Artifacts 93 and 96 are available for operator playback and both remain Human QA pending.`
+
+## P0 Frontend Usability Rework
+
+- Starting Git HEAD and `origin/main`:
+  `e9c6a164a1a35fc07a00c3d34ac6f00b845074c5`; canonical schema `15`.
+- Primary navigation is one consistent Vietnamese set: Trang chủ, Sản xuất,
+  Gán giọng, Công việc, Audio, and Dung lượng. Runtime/schema/auth/worker/
+  kill-switch detail is collapsed under the compact `Hệ thống sẵn sàng`
+  summary.
+- Production range selection now uses a searchable book combobox, direct
+  `Từ chương` / `Đến chương` inputs, one-chapter mode, `Tiếp theo chưa có
+  audio`, and 1/5/10-chapter quick actions. Chapter browsing remains secondary,
+  and one primary `Kiểm tra phạm vi` action keeps backend readiness
+  authoritative.
+- Real-browser acceptance passed at `1366x768` and `1920x1080`: direct Chapter
+  `372`, range `372-373`, quick ranges, title search, row selection, cross-book
+  clearing, keyboard-only completion, refresh restoration, and durable restart.
+  The 1366 dialog kept its CTA visible with no nested scroll or horizontal
+  overflow.
+- The browser was returned to clean `NO_SCOPE`. No PREPARE, START_RENDER,
+  provider/Gemini/TTS, Human QA, Job, Artifact, or canonical data mutation
+  occurred. Chapter `369` remains unchanged.
+- Exact next action remains full Human Audio QA for Artifacts `93` and `96`.
 
 ## Daily-Use V1 UI Closure
 

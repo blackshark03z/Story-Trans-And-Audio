@@ -1,13 +1,13 @@
 (function(root){
   const STAGES=[
-    {key:'scope',number:1,label:'Phạm vi',summary:'Chọn sách/chương'},
-    {key:'text',number:2,label:'Văn bản',summary:'Kiểm tra revision'},
-    {key:'speakers',number:3,label:'Người nói',summary:'Chỉ xử lý exception'},
-    {key:'voices',number:4,label:'Giọng',summary:'Cấu hình khi thiếu'},
-    {key:'voice_map',number:5,label:'Duyệt bản đồ giọng',summary:'Approval riêng'},
-    {key:'prepare',number:6,label:'Chuẩn bị',summary:'Không render'},
-    {key:'render',number:7,label:'Render',summary:'Start riêng'},
-    {key:'qa',number:8,label:'QA',summary:'Nghe và chốt'},
+    {key:'scope',number:1,label:'Phạm vi',summary:'Chọn sách và chương'},
+    {key:'text',number:2,label:'Văn bản',summary:'Duyệt nội dung'},
+    {key:'speakers',number:3,label:'Người nói',summary:'Xác nhận lời thoại'},
+    {key:'voices',number:4,label:'Giọng',summary:'Gán giọng đọc'},
+    {key:'voice_map',number:5,label:'Phân vai',summary:'Duyệt phân vai'},
+    {key:'prepare',number:6,label:'Chuẩn bị',summary:'Chuẩn bị audio'},
+    {key:'render',number:7,label:'Tạo audio',summary:'Tạo bản nghe'},
+    {key:'qa',number:8,label:'Duyệt audio',summary:'Nghe và duyệt'},
   ];
   const STAGE_INDEX=new Map(STAGES.map((stage,index)=>[stage.key,index]));
   const ACTIVE_JOB_STATUSES=new Set(['scheduled','queued','running','repairing','synthesizing','assembling','paused','interrupted']);
@@ -33,16 +33,16 @@
     {id:'flowFinalApprovalPanel',stages:['qa'],kind:'work'},
   ];
   const STATE_META={
-    NO_SCOPE:{stage:'scope',action:'SELECT_SCOPE',label:'Chọn phạm vi',title:'Chưa chọn chương sản xuất',target:'scope',explanation:'Hãy chọn một sách và một chương để bắt đầu quy trình sản xuất một chương.'},
-    TEXT_BLOCKED:{stage:'text',action:'RESOLVE_TEXT',label:'Xử lý văn bản',title:'Văn bản chưa sẵn sàng',target:'text',explanation:'Cần có Text Revision active đã duyệt trước khi tiếp tục.'},
-    SPEAKER_EXCEPTIONS:{stage:'speakers',action:'REVIEW_SPEAKERS',label:'Duyệt người nói',title:'Cần duyệt người nói',target:'speakers',explanation:'Speaker Draft chưa sẵn sàng hoặc còn dòng cần review.'},
-    VOICE_BLOCKED:{stage:'voices',action:'CONFIGURE_VOICES',label:'Cấu hình giọng',title:'Cần cấu hình giọng',target:'voices',explanation:'Voice Profile hoặc effective voice chưa đủ an toàn để tạo Casting Plan.'},
-    CASTING_REVIEW:{stage:'voice_map',action:'REVIEW_FINAL_VOICE_MAP',label:'Duyệt bản đồ giọng',title:'Bản đồ giọng đang chờ duyệt',target:'voice_map',explanation:'Speaker Draft đã duyệt; Casting Plan hiện tại vẫn là draft/unapproved; chưa có prepared job hay audio.'},
-    READY_TO_PREPARE:{stage:'prepare',action:'PREPARE',label:'Chuẩn bị sản xuất',title:'Sẵn sàng chuẩn bị job audio',target:'prepare',explanation:'Casting Plan đã duyệt và chưa có job/audio active cho chương này.'},
-    PREPARED:{stage:'render',action:'START_RENDER',label:'Bắt đầu render',title:'Job audio đã được chuẩn bị',target:'render',explanation:'Job đã ghim đầu vào và đang chờ lệnh start riêng; mở Production không tự render.'},
-    RENDERING_OR_PAUSED:{stage:'render',action:'MONITOR_OR_RESUME',label:'Theo dõi tiến độ',title:'Job audio đang cần theo dõi',target:'render',explanation:'Đang có job active/resumable cho chương này; ưu tiên trạng thái job hơn cấu hình upstream.'},
-    RENDERED_NOT_QA:{stage:'qa',action:'QA',label:'Kiểm tra chất lượng',title:'Audio đã tạo, chưa chốt Human QA',target:'qa',explanation:'Đã có active output; cần nghe QA trước khi đóng chu trình sản xuất.'},
-    COMPLETE:{stage:'qa',action:'VIEW_OUTPUTS_OR_SELECT_NEXT_SCOPE',label:'Xem audio đã tạo',title:'Chương đã hoàn tất production',target:'qa',explanation:'Active output đã có dấu hiệu Human QA pass/accepted.'},
+    NO_SCOPE:{stage:'scope',action:'SELECT_SCOPE',label:'Chọn sách và chương',title:'Chọn sách và chương',target:'scope',explanation:'Chọn một chương hoặc một phạm vi liên tiếp để bắt đầu.'},
+    TEXT_BLOCKED:{stage:'text',action:'RESOLVE_TEXT',label:'Cần duyệt văn bản',title:'Cần duyệt văn bản',target:'text',explanation:'Duyệt bản văn đang dùng của chương này trước khi tiếp tục.'},
+    SPEAKER_EXCEPTIONS:{stage:'speakers',action:'REVIEW_SPEAKERS',label:'Cần gán giọng',title:'Cần xác nhận người nói',target:'speakers',explanation:'Xác nhận những câu thoại còn chưa rõ người nói.'},
+    VOICE_BLOCKED:{stage:'voices',action:'CONFIGURE_VOICES',label:'Cần gán giọng',title:'Cần gán giọng',target:'voices',explanation:'Chọn giọng đọc hợp lệ cho các vai còn thiếu.'},
+    CASTING_REVIEW:{stage:'voice_map',action:'REVIEW_FINAL_VOICE_MAP',label:'Cần duyệt phân vai',title:'Cần duyệt phân vai',target:'voice_map',explanation:'Kiểm tra cách phân giọng cuối cùng trước khi chuẩn bị audio.'},
+    READY_TO_PREPARE:{stage:'prepare',action:'PREPARE',label:'Sẵn sàng chuẩn bị',title:'Sẵn sàng chuẩn bị',target:'prepare',explanation:'Văn bản và phân vai đã sẵn sàng; chưa có audio đang xử lý cho chương này.'},
+    PREPARED:{stage:'render',action:'START_RENDER',label:'Bắt đầu render',title:'Sẵn sàng bắt đầu render',target:'render',explanation:'Đầu vào đã được ghim an toàn. Audio chỉ được tạo khi bạn bấm bắt đầu render.'},
+    RENDERING_OR_PAUSED:{stage:'render',action:'MONITOR_OR_RESUME',label:'Theo dõi tiến độ',title:'Đang tạo audio',target:'render',explanation:'Audio đang được tạo hoặc đang chờ bạn tiếp tục.'},
+    RENDERED_NOT_QA:{stage:'qa',action:'QA',label:'Cần nghe và duyệt',title:'Cần nghe và duyệt',target:'qa',explanation:'Audio đã tạo xong; hãy nghe trước khi hoàn tất chương.'},
+    COMPLETE:{stage:'qa',action:'VIEW_OUTPUTS_OR_SELECT_NEXT_SCOPE',label:'Xem audio đã tạo',title:'Chương đã hoàn tất',target:'qa',explanation:'Audio đã được nghe và chấp nhận.'},
     STATE_UNRESOLVED:{stage:'scope',action:'RELOAD_READ_ONLY',label:'Tải lại trạng thái',title:'Không xác định được trạng thái an toàn',target:'diagnostics',explanation:'Dữ liệu đọc được đang thiếu hoặc mâu thuẫn; chỉ hiển thị chẩn đoán/read-only.'},
   };
   function n(value){const num=Number(value);return Number.isFinite(num)?num:0}
@@ -83,8 +83,8 @@
   }
   function stageSummaryText(stage,vm){
     if(stage.current)return vm.explanation||stage.summary;
-    if(stage.complete)return `${stage.label} đã hoàn tất cho phạm vi hiện tại.`;
-    return `${stage.label} đang khóa cho đến khi hoàn tất bước hiện tại.`;
+    if(stage.complete)return 'Đã xong.';
+    return 'Sau bước hiện tại.';
   }
   function stageSummaries(vm){
     return vm.stages.map(stage=>({
@@ -217,6 +217,20 @@
     if(planStatus!=='approved')return buildViewModel('STATE_UNRESOLVED',{blockerReason:`Casting Plan có trạng thái không hỗ trợ: ${casting.status}`,readOnlyOnly:true,diagnosticDetails:['unsupported_casting_status']});
     return buildViewModel('READY_TO_PREPARE');
   }
+  function rangeBlockerText(state,item={}){
+    const chapter=`Chương ${n(item.chapter_number)||'đang chọn'}`;
+    const messages={
+      STATE_UNRESOLVED:`${chapter} có trạng thái chưa xác định. Hãy mở chi tiết kỹ thuật và kiểm tra lại dữ liệu chương.`,
+      TEXT_BLOCKED:`${chapter} cần duyệt văn bản. Hãy mở chương này và duyệt nội dung trước khi tiếp tục.`,
+      SPEAKER_EXCEPTIONS:`${chapter} còn câu chưa rõ người nói. Hãy mở chương này để xác nhận người nói.`,
+      VOICE_BLOCKED:`${chapter} chưa có giọng hợp lệ. Hãy mở Gán giọng và hoàn tất các vai còn thiếu.`,
+      CASTING_REVIEW:`${chapter} cần duyệt phân vai. Hãy mở chương này và kiểm tra bản phân vai cuối.`,
+      PREPARED:`${chapter} đã được chuẩn bị. Hãy mở Công việc khi bạn sẵn sàng bắt đầu render.`,
+      RENDERING_OR_PAUSED:`${chapter} đang tạo audio hoặc tạm dừng. Hãy mở Công việc để theo dõi.`,
+      RENDERED_NOT_QA:`${chapter} cần nghe và duyệt. Hãy mở Audio và hoàn tất kiểm tra chất lượng.`,
+    };
+    return messages[state]||`${chapter} cần xử lý. Hãy mở chương này để xem bước tiếp theo.`;
+  }
   function resolveRangeProductionState(readiness,extra={}){
     const chapters=Array.isArray(readiness?.chapters)?readiness.chapters:[];
     if(!readiness?.scope||!chapters.length)return buildViewModel('NO_SCOPE',{rangeReadinessAvailable:true});
@@ -225,10 +239,11 @@
     const priority=state=>order.indexOf(state)<0?0:order.indexOf(state);
     const current=states.slice().sort((a,b)=>priority(a)-priority(b))[0]||'STATE_UNRESOLVED';
     const first=chapters.find(item=>item.state===current)||chapters[0];
-    const blocker=first?.blockers?.[0]||first?.message||'Phạm vi có chương cần xử lý.';
+    const rawBlocker=first?.blockers?.[0]||first?.message||'';
+    const blocker=rangeBlockerText(current,first);
     const summary=readiness.summary||{};
     const detail=`${readiness.scope.book_title||'Sách'} · Chương ${readiness.scope.from_chapter}-${readiness.scope.to_chapter} · ${summary.needs_attention??0} cần xử lý.`;
-    const overrides={rangeReadinessAvailable:true,explanation:detail,blockerReason:current==='READY_TO_PREPARE'?'':blocker,diagnosticDetails:[`range:${readiness.scope.from_chapter}-${readiness.scope.to_chapter}`,...chapters.filter(item=>item.requires_operator_action).map(item=>`chapter:${item.chapter_id}:${item.state}`)],...extra};
+    const overrides={rangeReadinessAvailable:true,explanation:detail,blockerReason:['READY_TO_PREPARE','COMPLETE'].includes(current)?'':blocker,diagnosticDetails:[`range:${readiness.scope.from_chapter}-${readiness.scope.to_chapter}`,...(rawBlocker?[`backend:${rawBlocker}`]:[]),...chapters.filter(item=>item.requires_operator_action).map(item=>`chapter:${item.chapter_id}:${item.state}`)],...extra};
     if(current==='COMPLETE')return buildViewModel('COMPLETE',{...overrides,completedStageKeys:STAGES.map(stage=>stage.key)});
     return buildViewModel(current,overrides);
   }

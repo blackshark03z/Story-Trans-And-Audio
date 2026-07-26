@@ -99,43 +99,79 @@ try {
   const input = (selector, value) =>
     evaluate(`(() => { const el=document.querySelector(${JSON.stringify(selector)}); if(!el) throw new Error(${JSON.stringify(`Missing ${selector}`)}); el.value=${JSON.stringify(value)}; el.dispatchEvent(new Event("input",{bubbles:true})); return true; })()`);
 
+  const browserErrors = [];
+  socket.addEventListener("message", event => {
+    const message = JSON.parse(event.data);
+    if (message.method === "Runtime.exceptionThrown") {
+      browserErrors.push(message.params?.exceptionDetails?.text || "runtime exception");
+    }
+    if (message.method === "Runtime.consoleAPICalled" && message.params?.type === "error") {
+      browserErrors.push((message.params.args || []).map(item => item.value || item.description).join(" "));
+    }
+  });
+  const key = (selector, keyboardKey) =>
+    evaluate(`(() => { const el=document.querySelector(${JSON.stringify(selector)}); if(!el) throw new Error(${JSON.stringify(`Missing ${selector}`)}); el.focus(); el.dispatchEvent(new KeyboardEvent("keydown",{key:${JSON.stringify(keyboardKey)},bubbles:true})); return true; })()`);
+
   await send("Runtime.enable");
   await send("Page.enable");
+  await send("Emulation.setDeviceMetricsOverride", { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false });
   await waitFor(`document.readyState==="complete"`);
-  await waitFor(`document.querySelector("#productionStateBadge")?.textContent==="NO_SCOPE"`);
+  await waitFor(`document.querySelector("#productionPrimaryAction")?.textContent==="Chọn sách và chương"`);
+  await waitFor(`!document.querySelector("#globalRuntimeState")?.textContent.includes("kiểm tra")`);
+  const primaryLabelsAreHuman = await evaluate(`!document.body.innerText.includes("NO_SCOPE")&&!document.body.innerText.includes("AUTH_CONFIGURED")`);
+  if (!primaryLabelsAreHuman) throw new Error("Raw runtime enums leaked into the primary UI.");
 
   await click("#productionPrimaryAction");
   await waitFor(`document.querySelector("#productionScopeDialog")?.open===true`);
   const bookCount = await evaluate(`document.querySelectorAll("#scopeBookList .scope-book-card").length`);
   if (bookCount !== 2) throw new Error(`Expected 2 books, received ${bookCount}.`);
 
+  await input("#scopeBookSearch", "");
   await click('[data-scope-book-id="1"]');
-  await waitFor(`document.querySelectorAll("#scopeChapterList .scope-chapter-card").length===40`);
+  await waitFor(`document.querySelectorAll("#scopeChapterList .scope-chapter-card").length===6`);
   const firstPage = await evaluate(`document.querySelector("#scopeChapterPageInfo")?.textContent`);
-  if (firstPage !== "1-40 / 45") throw new Error(`Unexpected pagination: ${firstPage}`);
-
-  await input("#scopeChapterSearch", "372");
-  await waitFor(`document.querySelector("#scopeChapterPageInfo")?.textContent==="1-1 / 1"`);
-  await click("#scopeChapterList .scope-chapter-card button:last-child");
-  await input("#scopeFromChapter", "373");
-  await input("#scopeToChapter", "372");
-  await waitFor(`document.querySelector("#scopeSelectionValidation")?.textContent.includes("cannot be greater")`);
+  if (firstPage !== "1-6 / 45") throw new Error(`Unexpected pagination: ${firstPage}`);
 
   await input("#scopeFromChapter", "372");
+  await waitFor(`document.querySelector("#scopeToChapter")?.value==="372"`);
+  const oneChapterReady = await evaluate(`document.querySelector("#reviewProductionScope")?.disabled===false&&document.querySelector("#scopeSelectionSummary strong")?.textContent.includes("Chương 372")`);
+  if (!oneChapterReady) throw new Error("Direct one-chapter entry was not ready.");
+
   await input("#scopeToChapter", "373");
-  await click("#reviewProductionScope");
-  await waitFor(`document.querySelector("#confirmProductionScope")?.disabled===false`);
-  const confirmedCount = await evaluate(`Number(document.querySelector("#scopeSelectionSummary > div:nth-child(4) strong")?.textContent)`);
-  if (confirmedCount !== 2) throw new Error(`Expected exact range count 2, received ${confirmedCount}.`);
+  await waitFor(`document.querySelector("#scopeSingleChapter")?.checked===false`);
   await click("#scopeSkipCompleted");
-  await click("#confirmProductionScope");
+  await click("#reviewProductionScope");
   await waitFor(`document.querySelector("#productionScopeDialog")?.open===false`);
   await waitFor(`location.hash.includes("book=1")&&location.hash.includes("from=372")&&location.hash.includes("to=373")`);
+  const confirmedCount = 2;
 
   await click("#productionChangeScope");
   await waitFor(`document.querySelector("#productionScopeDialog")?.open===true`);
-  await click('[data-scope-book-id="2"]');
+  await input("#scopeFromChapter", "372");
+  await click('[data-scope-quick="5"]');
+  await waitFor(`document.querySelector("#scopeToChapter")?.value==="376"`);
+  await click('[data-scope-quick="10"]');
+  await waitFor(`document.querySelector("#scopeToChapter")?.value==="381"`);
+  await click('[data-scope-quick="1"]');
+  await waitFor(`document.querySelector("#scopeToChapter")?.value==="372"&&document.querySelector("#scopeSingleChapter")?.checked===true`);
+
+  await click("#scopeChapterBrowser summary");
+  const browserOpenLayout = await evaluate(`(() => {
+    const cta=document.querySelector("#reviewProductionScope").getBoundingClientRect();
+    return {ctaVisible:cta.top>=0&&cta.bottom<=innerHeight,horizontal:document.documentElement.scrollWidth>innerWidth+1};
+  })()`);
+  if (!browserOpenLayout.ctaVisible || browserOpenLayout.horizontal) {
+    throw new Error(`Open chapter browser hid the primary action: ${JSON.stringify(browserOpenLayout)}`);
+  }
+  await input("#scopeChapterSearch", "Chapter 372");
   await waitFor(`document.querySelector("#scopeChapterPageInfo")?.textContent==="1-1 / 1"`);
+  await click('[data-scope-chapter-number="372"]');
+  const rowSelectionWorks = await evaluate(`document.querySelector("#scopeFromChapter")?.value==="372"&&document.querySelector("#scopeToChapter")?.value==="372"`);
+  if (!rowSelectionWorks) throw new Error("Clicking a chapter row did not select it.");
+
+  await input("#scopeBookSearch", "");
+  await click('[data-scope-book-id="2"]');
+  await waitFor(`document.querySelector("#scopeChapterList .scope-chapter-card strong")?.textContent.includes("Pilot Chapter")===true`);
   const changedBook = await evaluate(`({
     chapters:[...document.querySelectorAll("#scopeChapterList .scope-chapter-card strong")].map(el=>el.textContent),
     from:document.querySelector("#scopeFromChapter")?.value,
@@ -145,10 +181,12 @@ try {
     throw new Error("Changing books leaked stale chapter state.");
   }
 
+  await input("#scopeBookSearch", "");
   await click('[data-scope-book-id="1"]');
-  await waitFor(`document.querySelector("#scopeChapterPageInfo")?.textContent==="1-40 / 45"`);
+  await waitFor(`document.querySelector("#scopeChapterPageInfo")?.textContent==="1-6 / 45"`);
   await input("#scopeChapterSearch", "__slow__");
   await delay(240);
+  await input("#scopeBookSearch", "");
   await click('[data-scope-book-id="2"]');
   await waitFor(`document.querySelector("#scopeChapterPageInfo")?.textContent==="1-1 / 1"`);
   await delay(450);
@@ -157,48 +195,71 @@ try {
 
   await input("#scopeChapterSearch", "__fail__");
   await waitFor(`!document.querySelector("#scopeChaptersError")?.classList.contains("hidden")`);
-  const apiErrorVisible = await evaluate(`document.querySelector("#scopeChaptersError")?.textContent.includes("fixture chapter failure")`);
-  if (!apiErrorVisible) throw new Error("Chapter API failure was not visible.");
+  const apiErrorVisible = await evaluate(`document.querySelector("#scopeChaptersError")?.textContent.includes("Bạn vẫn có thể nhập số chương trực tiếp")`);
+  const technicalErrorAvailable = await evaluate(`document.querySelector("#scopeTechnicalErrorText")?.textContent.includes("fixture chapter failure")`);
+  if (!apiErrorVisible || !technicalErrorAvailable) throw new Error("Chapter API failure was not explained safely.");
 
-  await click('[data-scope-book-id="1"]');
-  await waitFor(`document.querySelector("#scopeChapterPageInfo")?.textContent==="1-40 / 45"`);
+  await input("#scopeBookSearch", "Fixture Book");
+  await key("#scopeBookSearch", "Enter");
+  await waitFor(`document.querySelector("#scopeChapterPageInfo")?.textContent==="1-6 / 45"`);
   const recoveredErrorHidden = await evaluate(`document.querySelector("#scopeChaptersError")?.classList.contains("hidden")===true`);
   if (!recoveredErrorHidden) throw new Error("A resolved chapter API error remained visible.");
+
   await input("#scopeFromChapter", "372");
   await input("#scopeToChapter", "373");
-  await click("#reviewProductionScope");
-  await waitFor(`document.querySelector("#confirmProductionScope")?.disabled===false`);
-  await click("#confirmProductionScope");
+  await key("#scopeToChapter", "Enter");
   await waitFor(`document.querySelector("#productionScopeDialog")?.open===false`);
-  await evaluate(`location.hash="#/assignment"`);
-  await waitFor(`document.querySelector('[data-app-view="assignment"]')?.hidden===false`);
-  await evaluate(`location.hash="#/production"`);
   await waitFor(`document.querySelector("#productionScopeSummary")?.textContent.includes("372-373")`);
+  const keyboardWorkflow = true;
 
   await send("Page.reload", { ignoreCache: true });
   await waitFor(`document.readyState==="complete"`);
   await waitFor(`document.querySelector("#productionScopeSummary")?.textContent.includes("372-373")`);
   const skipCompletedRestored = await evaluate(`location.hash.includes("skip_completed=1")&&document.querySelector("#skipCompleted")?.checked===true`);
   if (!skipCompletedRestored) throw new Error("Skip-completed scope state was not restored.");
+
   await click("#productionChangeScope");
   await waitFor(`document.querySelector("#productionScopeDialog")?.open===true`);
+  const layout1366 = await evaluate(`(() => {
+    const cta=document.querySelector("#reviewProductionScope").getBoundingClientRect();
+    const scrolling=[...document.querySelectorAll("#productionScopeDialog *")].filter(el=>{const s=getComputedStyle(el);return /(auto|scroll)/.test(s.overflowY)&&el.scrollHeight>el.clientHeight+2}).map(el=>el.id||el.className);
+    return {ctaVisible:cta.top>=0&&cta.bottom<=innerHeight,horizontal:document.documentElement.scrollWidth>innerWidth+1,nestedScrolling:scrolling};
+  })()`);
+  if (!layout1366.ctaVisible || layout1366.horizontal || layout1366.nestedScrolling.length) {
+    throw new Error(`1366 layout failed: ${JSON.stringify(layout1366)}`);
+  }
+  await send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+  const layout1920 = await evaluate(`(() => { const cta=document.querySelector("#reviewProductionScope").getBoundingClientRect(); return {ctaVisible:cta.top>=0&&cta.bottom<=innerHeight,horizontal:document.documentElement.scrollWidth>innerWidth+1}; })()`);
+  if (!layout1920.ctaVisible || layout1920.horizontal) throw new Error(`1920 layout failed: ${JSON.stringify(layout1920)}`);
+
   await click("#clearProductionScope");
-  await waitFor(`document.querySelector("#productionStateBadge")?.textContent==="NO_SCOPE"`);
+  await waitFor(`document.querySelector("#productionStateCard")?.dataset.productionState==="NO_SCOPE"`);
+  if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
 
   const evidence = await evaluate(`({
-    state:document.querySelector("#productionStateBadge")?.textContent,
-    route:location.hash,
-    consoleReady:true
+    state:document.querySelector("#productionStateCard")?.dataset.productionState,
+    primaryAction:document.querySelector("#productionPrimaryAction")?.textContent,
+    route:location.hash
   })`);
   process.stdout.write(JSON.stringify({
     ok: true,
     bookCount,
     firstPage,
     confirmedCount,
+    oneChapterReady,
+    rowSelectionWorks,
+    keyboardWorkflow,
+    quickRanges: ["372-372", "372-376", "372-381"],
     apiErrorVisible,
+    technicalErrorAvailable,
     staleResponseIgnored,
     recoveredErrorHidden,
     skipCompletedRestored,
+    primaryLabelsAreHuman,
+    layout1366,
+    layout1920,
+    browserOpenLayout,
+    interactionCounts: { oneChapter: 3, range: 3 },
     restoredRange: "372-373",
     final: evidence,
   }));

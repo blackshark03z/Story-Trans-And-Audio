@@ -27,28 +27,39 @@ class RuntimeIdentityUiTests(IsolatedTestCase):
 
     def test_header_renders_persistent_runtime_banner(self) -> None:
         for value in (
+            'id="systemDiagnostics"',
+            'id="systemHealthLabel"',
             'id="runtimeIdentity"',
             'id="runtimeBadge"',
             'id="runtimePath"',
-            "RUNTIME UNKNOWN",
-            "topbar-status",
+            "Hệ thống sẵn sàng",
+            "system-diagnostics",
             "runtime-identity",
             "runtime-badge",
             "runtime-path",
         ):
-            self.assertIn(value, self.html + self.css)
+            self.assertIn(value, self.html + self.css + self.js)
 
     def test_runtime_contract_and_labels_are_explicit(self) -> None:
         for value in (
             "api('/api/runtime')",
-            "CANONICAL PRODUCTION",
-            "ISOLATED / NON-PRODUCTION",
-            "RUNTIME UNKNOWN",
-            "setRuntimeUnknown('Resolving runtime identity…')",
+            "Dữ liệu sản xuất",
+            "Dữ liệu thử nghiệm",
+            "Chưa xác định dữ liệu",
+            "setRuntimeUnknown('Đang kiểm tra môi trường dữ liệu…')",
             "await loadRuntimeIdentity();await loadProductionPrepareReadiness();try{await loadBooks();await loadJobs();await loadHomeDashboard()}",
             "state.config=await api('/api/config')",
         ):
             self.assertIn(value, self.js)
+
+    def test_raw_runtime_enums_are_not_primary_labels(self) -> None:
+        header = self.html[
+            self.html.index('<header class="topbar">'):
+            self.html.index("</header>") + len("</header>")
+        ]
+        self.assertNotIn("NO_SCOPE", header)
+        self.assertNotIn("AUTH_CONFIGURED", header)
+        self.assertNotIn("RUNTIME UNKNOWN", header)
 
     def test_primary_mutation_controls_are_runtime_guarded(self) -> None:
         for value in (

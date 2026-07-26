@@ -49,6 +49,7 @@ console.log(JSON.stringify({
   currentStageKey: vm.currentStageKey,
   blockerReason: vm.blockerReason,
   rangeReadinessAvailable: vm.rangeReadinessAvailable,
+  diagnosticDetails: vm.diagnosticDetails,
 }));
 """
     result = subprocess.run(
@@ -123,7 +124,7 @@ class ProductionStateResolverTests(unittest.TestCase):
     def test_draft_unapproved_casting_plan_goes_to_casting_review(self) -> None:
         vm = self.assert_state(base_state(), "CASTING_REVIEW", "voice_map")
         self.assertEqual(vm["primaryActionKey"], "REVIEW_FINAL_VOICE_MAP")
-        self.assertEqual(vm["primaryActionLabel"], "Duyệt bản đồ giọng")
+        self.assertEqual(vm["primaryActionLabel"], "Cần duyệt phân vai")
 
     def test_approved_plan_without_job_is_ready_to_prepare(self) -> None:
         payload = base_state()
@@ -242,6 +243,7 @@ console.log(JSON.stringify({hash, parsed: resolver.productionScopeFromHash(hash)
                     {"chapter_id": 372, "state": "COMPLETE", "requires_operator_action": False},
                     {
                         "chapter_id": 373,
+                        "chapter_number": 373,
                         "state": "RENDERED_NOT_QA",
                         "requires_operator_action": True,
                         "blockers": ["Human QA is pending."],
@@ -252,6 +254,11 @@ console.log(JSON.stringify({hash, parsed: resolver.productionScopeFromHash(hash)
         self.assertEqual(vm["conceptualState"], "RENDERED_NOT_QA")
         self.assertEqual(vm["currentStageKey"], "qa")
         self.assertTrue(vm["rangeReadinessAvailable"])
+        self.assertEqual(
+            vm["blockerReason"],
+            "Chương 373 cần nghe và duyệt. Hãy mở Audio và hoàn tất kiểm tra chất lượng.",
+        )
+        self.assertIn("backend:Human QA is pending.", vm["diagnosticDetails"])
 
 
 if __name__ == "__main__":

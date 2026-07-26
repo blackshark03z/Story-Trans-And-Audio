@@ -4,6 +4,26 @@ Ghi thay Ä‘á»•i hÃ nh vi ngÆ°á»i dÃ¹ng, schema, artifact contra
 
 ## Unreleased
 
+### P0 Frontend Usability Rework
+
+- Simplified the shell to one Vietnamese navigation set: Trang chủ, Sản xuất,
+  Gán giọng, Công việc, Audio, and Dung lượng. Replaced the large technical
+  status rail with `Hệ thống sẵn sàng` and expandable diagnostics.
+- Replaced repeated Start/End/One controls with a searchable book combobox,
+  direct `Từ chương` / `Đến chương` entry, one-chapter mode, next-missing-audio
+  selection, and 1/5/10-chapter quick actions.
+- Kept chapter browsing as a secondary title-searchable list. Whole-row clicks
+  now fill From, then To, and visibly restart a completed selection.
+- Reduced card and badge noise while preserving the eight-step Production
+  workflow as the signature progress strip. Current, completed, future, and
+  blocked states now use concise operator-facing Vietnamese copy.
+- Extended browser regression coverage for direct entry, quick ranges, title
+  search, row selection, book-change clearing, keyboard-only completion,
+  restoration, human-facing errors, and responsive CTA visibility.
+- Canonical browser acceptance passed at `1366x768` and `1920x1080`, including
+  durable restart. No PREPARE, START_RENDER, provider/Gemini/TTS, Human QA,
+  Job, Artifact, audio, or Chapter `369` mutation occurred.
+
 ### Real-Browser Production Scope Completion
 
 - Replaced the inert `NO_SCOPE` action with a searchable, paginated book and
