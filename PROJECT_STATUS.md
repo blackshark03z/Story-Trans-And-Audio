@@ -1,9 +1,9 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-26 (Asia/Saigon)
-**Milestone:** DAILY-PROD-6 Vietnamese Four-Phase Production UI Accepted - Human Audio QA Pending
-**Strategic state:** `DAILY_USE_V1_FOUR_PHASE_UI_ACCEPTED`
-**Trạng thái hiện tại:** The routine workflow now has UTF-8-safe Vietnamese copy and four operator phases over the unchanged backend resolver states. Casting, PREPARE/START_RENDER, render recovery, and QA use the main Production workspace with one visible primary action. Canonical and isolated real-browser acceptance passed at 1366x768 and 1920x1080 without production mutation. Job `26` and active Artifacts `93/96` remain intact and both outputs remain Human QA `pending`.
+**Cập nhật:** 2026-07-27 (Asia/Saigon)
+**Milestone:** DAILY-PROD-6 Task-Oriented Production Workbench Accepted - Human Audio QA Pending
+**Strategic state:** `DAILY_USE_V1_TASK_WORKBENCH_ACCEPTED`
+**Trạng thái hiện tại:** The routine workflow now uses a five-stage task-oriented Production workbench over unchanged backend resolver and transaction boundaries. A compact range context, ordered chapter queue, one current task, one primary action, and collapsed technical details replace the visible all-in-one stack. Browser journeys A-H passed at 1366x768 and 1920x1080 without canonical production mutation. Job `26` and active Artifacts `93/96` remain intact and both outputs remain Human QA `pending`.
 
 **Last verified implementation starting baseline:** `e9c6a164a1a35fc07a00c3d34ac6f00b845074c5`
 **Last verified branch:** `main`
@@ -28,9 +28,14 @@
 - User-facing source literals are valid UTF-8. HTML/static responses declare
   the correct charset, JSON remains single-encoded UTF-8, and cache-versioned
   assets prevent the previous bundle from persisting after restart.
-- The visible Production journey is now four phases: `Chọn chương`,
-  `Kiểm tra nội dung và giọng`, `Tạo audio`, and `Nghe và duyệt`. Detailed
-  backend states and mutation gates are unchanged.
+- The visible Production journey is now five stages: `Chọn chương`,
+  `Xác nhận nội dung và người nói`, `Gán và duyệt giọng`, `Chuẩn bị và
+  render`, and `Nghe và duyệt`. Detailed backend states, immutable approvals,
+  PREPARE, START_RENDER, retry, and QA transaction boundaries are unchanged.
+- The workbench automatically focuses the first incomplete chapter in the
+  selected range, displays one unresolved speaker at a time, separates voice
+  edit/save from review/approval, and never shows PREPARE with START_RENDER.
+  Human QA remains the only screen with two verdict actions.
 - Casting review, PREPARE/START_RENDER, progress/recovery, and QA are shown in
   the main page instead of a long workflow modal. Technical IDs and line-level
   assignments are collapsed by default.

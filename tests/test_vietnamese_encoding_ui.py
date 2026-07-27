@@ -33,9 +33,9 @@ class VietnameseEncodingUiTests(unittest.TestCase):
     def test_charset_precedes_text_and_assets_are_cache_versioned(self) -> None:
         html = (ROOT / "ui" / "index.html").read_text(encoding="utf-8")
         self.assertLess(html.index('<meta charset="utf-8">'), html.index("<title>"))
-        self.assertIn("styles.css?v=20260726-vietnamese-flow-3", html)
-        self.assertIn("production_state.js?v=20260726-vietnamese-flow-3", html)
-        self.assertIn("app.js?v=20260726-vietnamese-flow-3", html)
+        self.assertIn("styles.css?v=20260727-task-workbench-1", html)
+        self.assertIn("production_state.js?v=20260727-task-workbench-1", html)
+        self.assertIn("app.js?v=20260727-task-workbench-1", html)
 
     def test_operator_phase_copy_renders_as_unicode(self) -> None:
         script = """
@@ -53,5 +53,5 @@ console.log(JSON.stringify(resolver.PHASES.map(item => item.label)));
         )
         self.assertEqual(
             json.loads(result.stdout),
-            ["Chọn chương", "Kiểm tra nội dung và giọng", "Tạo audio", "Nghe và duyệt"],
+            ["Chọn chương", "Xác nhận nội dung và người nói", "Gán và duyệt giọng", "Chuẩn bị và render", "Nghe và duyệt"],
         )

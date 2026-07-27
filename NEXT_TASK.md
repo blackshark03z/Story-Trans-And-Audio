@@ -11,6 +11,10 @@ Exact next task:
 
 ## Verified Outputs
 
+- Production now uses a five-stage task workbench with an ordered chapter
+  queue, one current task, one primary action, separate voice save/approval,
+  separate PREPARE/START_RENDER, recoverable retry, and explicit QA verdicts.
+  Browser journeys A-H passed without canonical mutation.
 - P0 frontend usability is real-browser accepted at `1366x768` and
   `1920x1080`: one Vietnamese navigation set, compact expandable diagnostics,
   direct Chapter `372`, range `372-373`, quick selection, title search, row

@@ -139,6 +139,23 @@ Purpose:
 - Resume from the actual current state.
 - Expose only the current valid production action.
 
+The daily Production surface is a task-oriented workbench with five user
+stages: `Chọn chương`, `Xác nhận nội dung và người nói`, `Gán và duyệt giọng`,
+`Chuẩn bị và render`, and `Nghe và duyệt`. These stages are presentation only;
+they do not merge or reorder backend transactions.
+
+The workbench contains a compact range context, a chapter queue in canonical
+order, one current task, and collapsed technical details. It automatically
+focuses the first incomplete chapter after a read-only range check. Completing
+an action refreshes authoritative state and reveals the next task, but never
+performs that next mutation automatically.
+
+Except for the two explicit Human QA verdicts, the current task exposes at
+most one primary action. Voice draft save and voice approval are separate;
+PREPARE and START_RENDER are separate; running work never offers another
+start. Technical IDs, provenance, raw resolver values, history selection, and
+regeneration controls stay under progressive disclosure.
+
 Exclusions:
 
 - Production must not show every technical panel at once.

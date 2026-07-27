@@ -165,8 +165,10 @@ console.log(JSON.stringify({
             "$('#speakerReviewPanel').classList.toggle('has-existing-plan',existingPlan)",
             "$('#approveSpeakerReview').textContent=speakerDraftApprovalLabel()",
             "review.lastApproval",
-            "Speaker Draft #${result.draft_id} approved",
-            "Final Voice Map draft v${result.casting_plan_revision} created",
+            "Đã xác nhận người nói.",
+            "Đã tạo bản nháp gán giọng.",
+            "/approve-only",
+            "/speaker-review/casting-plan-draft",
         ):
             self.assertIn(value, self.html + self.js + self.css)
 

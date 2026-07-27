@@ -116,7 +116,7 @@ try {
   await send("Page.enable");
   await send("Emulation.setDeviceMetricsOverride", { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false });
   await waitFor(`document.readyState==="complete"`);
-  await waitFor(`document.querySelector("#productionPrimaryAction")?.textContent==="Chọn sách và chương"`);
+  await waitFor(`document.querySelector("#productionPrimaryAction")?.textContent==="Chọn chương"`);
   await waitFor(`!document.querySelector("#globalRuntimeState")?.textContent.includes("kiểm tra")`);
   const primaryLabelsAreHuman = await evaluate(`!document.body.innerText.includes("NO_SCOPE")&&!document.body.innerText.includes("AUTH_CONFIGURED")`);
   if (!primaryLabelsAreHuman) throw new Error("Raw runtime enums leaked into the primary UI.");

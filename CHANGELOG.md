@@ -4,6 +4,26 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Task-Oriented Production Workbench
+
+- Replaced the visible all-in-one Production stack with a compact range
+  context, ordered chapter task queue, one current-task workspace, and a
+  collapsed technical-details drawer.
+- Added a pure five-stage operator view-model while preserving the existing
+  backend resolver states and mutation boundaries. The primary UI now exposes
+  task intent instead of raw state, Draft, Casting Plan, revision, provider,
+  or Job identities.
+- Speaker work now creates a proposal only when needed and reviews one
+  unresolved row at a time. Voice assignment separates editing and draft save
+  from final review and approval.
+- PREPARE and START_RENDER remain distinct actions. Active render has progress
+  only, recoverable failure has one retry action, and QA keeps its explicit
+  `Cần sửa` / `Chấp nhận` pair with required rejection notes.
+- Added isolated real-browser journeys A-H, including a ten-chapter queue and
+  responsive checks at `1366x768` and `1920x1080`. Canonical acceptance was
+  read-only; no Speaker Draft, Casting Plan, Job, Artifact, QA, provider,
+  Gemini, TTS, or Chapter `369` mutation occurred.
+
 ### Vietnamese UI and Four-Phase Production Flow
 
 - Repaired legacy UTF-8/Windows-1252 mojibake in user-facing JavaScript,

@@ -31,6 +31,16 @@ console.log(JSON.stringify({
   currentPhaseNumber: vm.currentPhaseNumber,
   phaseCount: vm.phases.length,
   currentPhaseCount: vm.phases.filter(phase => phase.current).length,
+  user_stage: vm.user_stage,
+  task_type: vm.task_type,
+  task_title: vm.task_title,
+  task_summary: vm.task_summary,
+  affected_chapter: vm.affected_chapter,
+  primary_action: vm.primary_action,
+  secondary_links: vm.secondary_links,
+  blocker: vm.blocker,
+  technical_details: vm.technical_details,
+  next_task_after_success: vm.next_task_after_success,
 }));
 """
     result = subprocess.run(
@@ -107,20 +117,33 @@ class ProductionStateResolverTests(unittest.TestCase):
         self.assertEqual(vm["currentCount"], 1)
         expected_phase = {
             "NO_SCOPE": "scope",
-            "TEXT_BLOCKED": "review",
-            "SPEAKER_EXCEPTIONS": "review",
-            "VOICE_BLOCKED": "review",
-            "CASTING_REVIEW": "review",
-            "READY_TO_PREPARE": "review",
-            "PREPARED": "audio",
-            "RENDERING_OR_PAUSED": "audio",
+            "TEXT_BLOCKED": "content",
+            "SPEAKER_EXCEPTIONS": "content",
+            "VOICE_BLOCKED": "voice",
+            "CASTING_REVIEW": "voice",
+            "READY_TO_PREPARE": "voice",
+            "PREPARED": "render",
+            "RENDERING_OR_PAUSED": "render",
             "RENDERED_NOT_QA": "qa",
             "COMPLETE": "qa",
             "STATE_UNRESOLVED": "scope",
         }[state]
         self.assertEqual(vm["currentPhaseKey"], expected_phase)
-        self.assertEqual(vm["phaseCount"], 4)
+        self.assertEqual(vm["phaseCount"], 5)
         self.assertEqual(vm["currentPhaseCount"], 1)
+        for field in (
+            "user_stage",
+            "task_type",
+            "task_title",
+            "task_summary",
+            "affected_chapter",
+            "primary_action",
+            "secondary_links",
+            "blocker",
+            "technical_details",
+            "next_task_after_success",
+        ):
+            self.assertIn(field, vm)
         return vm
 
     def test_no_scope_returns_no_scope(self) -> None:
@@ -143,8 +166,8 @@ class ProductionStateResolverTests(unittest.TestCase):
 
     def test_draft_unapproved_casting_plan_goes_to_casting_review(self) -> None:
         vm = self.assert_state(base_state(), "CASTING_REVIEW", "voice_map")
-        self.assertEqual(vm["primaryActionKey"], "REVIEW_FINAL_VOICE_MAP")
-        self.assertEqual(vm["primaryActionLabel"], "Duyệt giọng")
+        self.assertEqual(vm["primaryActionKey"], "REVIEW_VOICE_MAP")
+        self.assertEqual(vm["primaryActionLabel"], "Duyệt và tiếp tục")
 
     def test_approved_plan_without_job_is_ready_to_prepare(self) -> None:
         payload = base_state()

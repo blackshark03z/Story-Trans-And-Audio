@@ -132,7 +132,7 @@ class ProductionPrepareUiTests(IsolatedTestCase):
 
     def test_missing_map_is_resolved_before_voice_eligibility(self):
         missing = self.production_state.index(
-            "if(!casting.id)return buildViewModel('CASTING_REVIEW'"
+            "if(!casting.id)return buildViewModel('VOICE_BLOCKED'"
         )
         voice = self.production_state.index(
             "const voiceReason=voiceBlocked(input)",

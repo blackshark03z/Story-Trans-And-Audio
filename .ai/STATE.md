@@ -1,10 +1,31 @@
 # DAILY-PROD Checkpoint State
 
-Updated: 2026-07-26
+Updated: 2026-07-27
 
 ## Current Phase
 
-`Daily-Use V1 now has UTF-8-safe Vietnamese UI copy and a four-phase Production journey over the unchanged canonical backend states. Casting review, PREPARE/START_RENDER, render recovery, and QA are isolated on the main page with one visible primary action. The two-chapter pilot remains on Job 26; Artifacts 93 and 96 are available for operator playback and both remain Human QA pending.`
+`Daily-Use V1 now uses a five-stage task-oriented Production workbench over the unchanged canonical backend states. A compact range bar, chapter queue, current-task workspace, and collapsed technical drawer replace the visible all-in-one Production stack. The resolver selects the next chapter/task and exposes at most one primary action, except the explicit QA verdict pair. The two-chapter pilot remains on Job 26; Artifacts 93 and 96 are available for operator playback and both remain Human QA pending.`
+
+## Task-Oriented Production Workbench
+
+- The five user stages are `Chọn chương`, `Xác nhận nội dung và người nói`,
+  `Gán và duyệt giọng`, `Chuẩn bị và render`, and `Nghe và duyệt`.
+- A pure view-model exposes the user stage, task type/title/summary, affected
+  chapter, primary action, secondary links, blocker, technical details, and
+  next task. Backend enum names and Draft/Plan/Job identities remain outside
+  the primary UI.
+- The chapter queue preserves canonical range order and automatically opens
+  the first chapter that is not complete. Manual chapter inspection does not
+  require editing URL parameters.
+- Speaker review shows one unresolved row at a time. Voice editing, draft
+  save, final review, and approval are separate screens/actions. PREPARE and
+  START_RENDER remain separate; active render never offers another start.
+- QA shows one active output, playback, metadata, history, required rejection
+  note, and the explicit `Cần sửa` / `Chấp nhận` verdict pair.
+- Browser journeys A-H passed on isolated fixtures at `1366x768` and
+  `1920x1080`, including a ten-chapter queue with no nested operational scroll.
+  Canonical Chapter `369` was only read; no production mutation or provider
+  call occurred.
 
 ## Vietnamese UI and Production Flow
 

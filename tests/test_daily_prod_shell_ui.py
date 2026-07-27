@@ -79,7 +79,7 @@ console.log(JSON.stringify({
         self.assertEqual(lines[0], '{"empty":"home","production":"production","unknown":"home"}')
         self.assertEqual(lines[1], '{"route":"voices","hash":"#/voices","visible":["voices"],"active":["voices"]}')
 
-    def test_production_shell_lists_four_operator_phases(self) -> None:
+    def test_production_shell_lists_five_operator_phases(self) -> None:
         match = re.search(
             r'<ol id="productionStageShell".*?</ol>',
             self.html,
@@ -89,11 +89,12 @@ console.log(JSON.stringify({
         stage_html = match.group(0)
         expected = [
             "Chọn chương",
-            "Kiểm tra nội dung và giọng",
-            "Tạo audio",
+            "Xác nhận nội dung và người nói",
+            "Gán và duyệt giọng",
+            "Chuẩn bị và render",
             "Nghe và duyệt",
         ]
-        self.assertEqual(stage_html.count("<li"), 4)
+        self.assertEqual(stage_html.count("<li"), 5)
         for label in expected:
             self.assertIn(f"<strong>{label}</strong>", stage_html)
 
@@ -107,7 +108,7 @@ console.log(JSON.stringify({
         self.assertIn("dominant-production-action", self.html)
         self.assertIn('id="productionCurrentStepHeading"', self.html)
         self.assertIn('role="status"', self.html)
-        self.assertIn("primary.onclick=()=>focusProductionTarget(vm.targetPanel)", self.js)
+        self.assertIn("primary.onclick=()=>runProductionPrimaryAction(vm)", self.js)
 
     def test_resolver_renders_completed_current_and_locked_stage_buttons(self) -> None:
         self.assertIn('aria-current="step"', self.js)
@@ -169,12 +170,13 @@ console.log(JSON.stringify({state: vm.conceptualState, stage: vm.currentStageLab
         result = subprocess.run(["node", "-e", script], check=True, capture_output=True, text=True, cwd=str(ROOT), encoding="utf-8")
         self.assertEqual(
             json.loads(result.stdout),
-            {"state": "CASTING_REVIEW", "stage": "Phân vai", "action": "Duyệt giọng", "current": 1},
+            {"state": "CASTING_REVIEW", "stage": "Phân vai", "action": "Duyệt và tiếp tục", "current": 1},
         )
 
     def test_existing_panels_are_not_duplicated_across_views(self) -> None:
         self.assertEqual(self.html.count('id="workspace"'), 1)
-        self.assertEqual(self.html.count('class="panel queue-panel"'), 1)
+        self.assertEqual(self.html.count('id="productionQueuePanel"'), 1)
+        self.assertIn('class="panel queue-panel hidden" id="productionQueuePanel" aria-hidden="true"', self.html)
         self.assertEqual(self.html.count('custom-voice-library-panel'), 1)
         production_section = re.search(
             r'<section id="productionView".*?</section>\s*</section>\s*<section id="voicesView"',

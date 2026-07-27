@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Story Audio</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=20260726-vietnamese-flow-3">
+  <link rel="stylesheet" href="/assets/styles.css?v=20260727-task-workbench-1">
 </head>
 <body>
   <header class="topbar">
@@ -86,44 +86,74 @@
     </section>
 
     <section id="productionView" class="app-view" data-app-view="production" aria-labelledby="productionHeading" hidden>
-      <section class="panel production-shell-panel">
-        <div class="section-head">
+      <section class="panel production-shell-panel production-workbench-shell">
+        <div id="productionRangeContext" class="production-range-context" aria-label="Phạm vi sản xuất hiện tại">
           <div>
-            <p class="eyebrow">Quy trình hằng ngày</p>
-            <h2 id="productionHeading">Sản xuất</h2>
+            <p class="eyebrow">Phạm vi đang làm</p>
+            <strong id="productionScopeSummary">Chưa chọn phạm vi</strong>
           </div>
-          <span id="productionStateBadge" class="production-step-count">Giai đoạn 1 / 4</span>
+          <div class="production-range-progress" aria-label="Tiến độ phạm vi">
+            <span id="productionRangeProgressText">0 / 0 chương hoàn tất</span>
+            <div class="progress"><span id="productionRangeProgressBar" style="width:0%"></span></div>
+          </div>
+          <button id="productionChangeScope" class="text-action hidden" type="button">Đổi phạm vi</button>
         </div>
-        <p class="section-guide">Chọn phạm vi, sau đó làm đúng một bước đang được mở. Ứng dụng không tự tạo audio khi bạn chỉ xem hoặc đổi phạm vi.</p>
-        <div id="productionStateCard" class="production-state-card" role="status" aria-live="polite">
-          <div>
-            <p id="productionScopeSummary" class="eyebrow">Chưa chọn phạm vi</p>
-            <h3 id="productionCurrentStepHeading">Chọn sách và chương</h3>
-            <p id="productionStateExplanation" class="muted">Hãy chọn sách và chương để xem bước sản xuất tiếp theo.</p>
-            <p id="productionBlockerReason" class="issue warning hidden"></p>
-          </div>
-          <div class="production-state-actions">
-            <button id="productionChangeScope" class="ghost hidden" type="button">Đổi phạm vi</button>
-            <button id="productionPrimaryAction" class="primary dominant-production-action" type="button" aria-label="Chọn sách và chương">Chọn sách và chương</button>
-          </div>
-        </div>
-        <ol id="productionStageShell" class="production-stage-shell" aria-label="Bốn giai đoạn sản xuất">
+
+        <ol id="productionStageShell" class="production-stage-shell production-stage-strip" aria-label="Năm giai đoạn sản xuất">
           <li class="current"><span>1</span><strong>Chọn chương</strong><small>Chọn sách và phạm vi</small></li>
-          <li><span>2</span><strong>Kiểm tra nội dung và giọng</strong><small>Duyệt văn bản, người nói và giọng</small></li>
-          <li><span>3</span><strong>Tạo audio</strong><small>Chuẩn bị rồi bắt đầu render</small></li>
-          <li><span>4</span><strong>Nghe và duyệt</strong><small>Nghe bản cuối và ghi kết luận</small></li>
+          <li><span>2</span><strong>Xác nhận nội dung và người nói</strong><small>Duyệt nội dung và từng người nói</small></li>
+          <li><span>3</span><strong>Gán và duyệt giọng</strong><small>Lưu nháp rồi duyệt riêng</small></li>
+          <li><span>4</span><strong>Chuẩn bị và render</strong><small>Cố định đầu vào rồi tạo audio</small></li>
+          <li><span>5</span><strong>Nghe và duyệt</strong><small>Nghe bản cuối và ghi kết luận</small></li>
         </ol>
-        <section id="productionStageIsolation" class="production-stage-isolation" aria-labelledby="productionCurrentWorkHeading">
-          <div id="productionCompletedSummaries" class="production-stage-summaries" aria-label="Các bước đã hoàn tất"></div>
-          <div id="productionCurrentWorkArea" class="production-current-work" tabindex="-1">
-            <p class="eyebrow">Việc cần làm</p>
-            <h3 id="productionCurrentWorkHeading">Chọn sách và chương</h3>
-            <p id="productionCurrentWorkBody" class="muted">Chỉ khu vực của bước hiện tại được mở để thao tác.</p>
-          </div>
-          <div id="productionLockedSummaries" class="production-stage-summaries locked" aria-label="Các bước đang khóa"></div>
-        </section>
+
+        <div id="productionWorkbench" class="production-workbench">
+          <aside id="productionQueueRegion" class="production-task-queue" aria-labelledby="productionQueueHeading">
+            <div class="production-queue-head">
+              <div><p class="eyebrow">Hàng chờ</p><h2 id="productionQueueHeading">Các chương</h2></div>
+              <button id="productionQueueToggle" class="text-action" type="button" aria-expanded="true">Thu gọn</button>
+            </div>
+            <div id="productionChapterQueue" class="production-chapter-queue"><p class="muted">Chọn phạm vi để xem công việc.</p></div>
+          </aside>
+
+          <main id="productionTaskWorkspace" class="production-task-workspace" tabindex="-1">
+            <div id="productionStateCard" class="production-task-card" role="status" aria-live="polite">
+              <div class="production-task-heading">
+                <div>
+                  <p id="productionStateBadge" class="eyebrow">Giai đoạn 1 / 5</p>
+                  <h2 id="productionCurrentStepHeading">Chọn sách và chương</h2>
+                </div>
+                <span id="productionAffectedChapter" class="production-chapter-chip hidden"></span>
+              </div>
+              <p id="productionStateExplanation" class="production-task-summary">Hãy chọn sách và chương để xem việc cần làm tiếp theo.</p>
+              <p id="productionBlockerReason" class="issue warning hidden"></p>
+              <div id="productionPrimaryActions" class="production-primary-actions">
+                <button id="productionPrimaryAction" class="primary dominant-production-action" type="button" aria-label="Chọn chương">Chọn chương</button>
+              </div>
+              <section id="productionTaskContent" class="production-task-content" aria-label="Nội dung việc hiện tại"></section>
+              <section id="productionPhaseWorkspace" class="production-phase-workspace hidden" aria-label="Công cụ của việc hiện tại"></section>
+              <div id="productionQaActions" class="production-qa-actions hidden" aria-label="Kết luận nghe duyệt">
+                <button id="productionQaNeedsFixes" class="secondary" type="button">Cần sửa</button>
+                <button id="productionQaAccept" class="primary" type="button">Chấp nhận</button>
+              </div>
+              <div id="productionSecondaryLinks" class="production-secondary-links"></div>
+              <p id="productionNextTaskHint" class="production-next-hint"></p>
+            </div>
+            <details id="productionTechnicalDetails" class="production-technical-details">
+              <summary>Chi tiết kỹ thuật</summary>
+              <div id="productionTechnicalBody" class="muted">Không có chẩn đoán kỹ thuật.</div>
+              <div id="productionCompletedSummaries" class="production-stage-summaries" aria-label="Các bước đã hoàn tất"></div>
+              <div id="productionLockedSummaries" class="production-stage-summaries locked" aria-label="Các bước đang khóa"></div>
+            </details>
+            <section id="productionStageIsolation" class="production-stage-isolation hidden" aria-labelledby="productionCurrentWorkHeading">
+              <div id="productionCurrentWorkArea" class="production-current-work" tabindex="-1">
+                <h3 id="productionCurrentWorkHeading">Chọn sách và chương</h3>
+                <p id="productionCurrentWorkBody" class="muted"></p>
+              </div>
+            </section>
+          </main>
+        </div>
       </section>
-      <section id="productionPhaseWorkspace" class="production-phase-workspace hidden" aria-label="Công việc của giai đoạn hiện tại"></section>
 
       <section id="workspace" class="workspace hidden">
         <aside class="panel chapter-panel">
@@ -236,7 +266,7 @@
         </section>
       </section>
 
-      <section class="panel queue-panel" id="productionQueuePanel">
+      <section class="panel queue-panel hidden" id="productionQueuePanel" aria-hidden="true">
         <div class="section-head">
           <div><p class="eyebrow">Checkpoint bền vững</p><h2>Hàng đợi</h2></div>
           <button id="refreshJobs" class="ghost">Làm mới</button>
@@ -559,7 +589,7 @@
   <dialog id="productionScopeDialog" class="scope-dialog" aria-labelledby="productionScopeDialogTitle">
     <div class="dialog-head">
       <div>
-        <p class="eyebrow">Giai đoạn 1 / 4</p>
+        <p class="eyebrow">Giai đoạn 1 / 5</p>
         <h2 id="productionScopeDialogTitle">Chọn sách và chương</h2>
       </div>
       <button id="cancelProductionScopeTop" class="ghost" type="button">Hủy</button>
@@ -982,8 +1012,8 @@
     <div id="segmentDiagnosticBody" class="diagnostic-body"></div>
   </dialog>
   <div id="toast" class="toast hidden"></div>
-  <script src="/assets/production_state.js?v=20260726-vietnamese-flow-3"></script>
-  <script src="/assets/app.js?v=20260726-vietnamese-flow-3"></script>
+  <script src="/assets/production_state.js?v=20260727-task-workbench-1"></script>
+  <script src="/assets/app.js?v=20260727-task-workbench-1"></script>
   <script src="/assets/casting_voice_map.js?v=20260726-vietnamese-flow-3"></script>
   <script src="/assets/contextual_voice_detour.js?v=20260720-daily-prod-2b2"></script>
 </body>

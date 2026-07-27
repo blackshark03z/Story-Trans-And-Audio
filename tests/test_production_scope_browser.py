@@ -247,7 +247,7 @@ class ProductionScopeBrowserTests(unittest.TestCase):
         self.assertFalse(evidence["browserOpenLayout"]["horizontal"])
         self.assertEqual(evidence["interactionCounts"], {"oneChapter": 3, "range": 3})
         self.assertEqual(evidence["final"]["state"], "NO_SCOPE")
-        self.assertEqual(evidence["final"]["primaryAction"], "Chọn sách và chương")
+        self.assertEqual(evidence["final"]["primaryAction"], "Chọn chương")
         self.assertEqual(evidence["final"]["route"], "#/production")
 
 
