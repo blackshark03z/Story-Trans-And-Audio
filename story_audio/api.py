@@ -89,6 +89,13 @@ from .pipeline import (
     start_prepared_job,
 )
 from .production_task_projection import get_production_task_projection
+from .range_input import (
+    RangeInputError,
+    approve_ready_casting_plans,
+    approve_ready_speaker_drafts,
+    get_range_input_snapshot,
+    prepare_range_inputs,
+)
 from .range_readiness import get_range_readiness
 from .storage import ContentStore
 from .storage_cleanup import (
@@ -389,6 +396,37 @@ class BatchPrepareApiRequest(BaseModel):
     target_phase: Literal["PREPARE"]
     plan_fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
     confirmation: Literal[True]
+
+
+class RangeInputScopeRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    book_id: int = Field(gt=0)
+    from_chapter: int = Field(ge=0)
+    to_chapter: int = Field(ge=0)
+    skip_completed: bool = True
+
+
+class RangeSpeakerDraftRef(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    chapter_id: int = Field(gt=0)
+    draft_id: int = Field(gt=0)
+
+
+class RangeSpeakerApprovalRequest(RangeInputScopeRequest):
+    chapters: list[RangeSpeakerDraftRef] = Field(min_length=1, max_length=50)
+
+
+class RangeCastingPlanRef(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    chapter_id: int = Field(gt=0)
+    plan_id: int = Field(gt=0)
+
+
+class RangeCastingApprovalRequest(RangeInputScopeRequest):
+    chapters: list[RangeCastingPlanRef] = Field(min_length=1, max_length=50)
 
 
 @asynccontextmanager
@@ -849,12 +887,166 @@ def production_task_projection(
             inspected_chapter_id=inspected_chapter_id,
             voice_catalog=voice_catalog,
             store=store,
+            config=settings,
+            custom_voice_context=_build_custom_voice_context(),
         )
     except VoiceCatalogUnavailable as exc:
         raise _job_http_error(exc) from exc
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from exc
     except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+def _range_input_state(
+    *,
+    book_id: int,
+    from_chapter: int,
+    to_chapter: int,
+    skip_completed: bool,
+) -> dict[str, Any]:
+    voice_catalog = _load_voice_catalog()
+    return get_range_input_snapshot(
+        db,
+        store,
+        settings,
+        book_id=book_id,
+        from_chapter=from_chapter,
+        to_chapter=to_chapter,
+        voice_catalog=voice_catalog,
+        custom_voice_context=_build_custom_voice_context(),
+        skip_completed=skip_completed,
+    )
+
+
+@app.get("/api/production/range-inputs")
+def production_range_inputs(
+    book_id: int = Query(..., gt=0),
+    from_chapter: int = Query(..., ge=0),
+    to_chapter: int = Query(..., ge=0),
+    skip_completed: bool = Query(True),
+) -> dict[str, Any]:
+    try:
+        return _range_input_state(
+            book_id=book_id,
+            from_chapter=from_chapter,
+            to_chapter=to_chapter,
+            skip_completed=skip_completed,
+        )
+    except VoiceCatalogUnavailable as exc:
+        raise _job_http_error(exc) from exc
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except (RangeInputError, ValueError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/production/range-inputs/prepare")
+@_serialized_production_mutation
+def production_prepare_range_inputs(
+    request: RangeInputScopeRequest,
+) -> dict[str, Any]:
+    try:
+        voice_catalog = _load_voice_catalog()
+        return prepare_range_inputs(
+            db,
+            store,
+            settings,
+            book_id=request.book_id,
+            from_chapter=request.from_chapter,
+            to_chapter=request.to_chapter,
+            voice_catalog=voice_catalog,
+            allowed_voice_ids=_preset_voice_ids(),
+            custom_voice_context=_build_custom_voice_context(),
+            skip_completed=request.skip_completed,
+        )
+    except VoiceCatalogUnavailable as exc:
+        raise _job_http_error(exc) from exc
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except (RangeInputError, ValueError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/production/range-inputs/speaker-approvals")
+@_serialized_production_mutation
+def production_approve_range_speaker_drafts(
+    request: RangeSpeakerApprovalRequest,
+) -> dict[str, Any]:
+    try:
+        snapshot = _range_input_state(
+            book_id=request.book_id,
+            from_chapter=request.from_chapter,
+            to_chapter=request.to_chapter,
+            skip_completed=request.skip_completed,
+        )
+        result = approve_ready_speaker_drafts(
+            db,
+            store,
+            settings,
+            snapshot=snapshot,
+            requested=[item.model_dump() for item in request.chapters],
+        )
+        result["snapshot"] = _range_input_state(
+            book_id=request.book_id,
+            from_chapter=request.from_chapter,
+            to_chapter=request.to_chapter,
+            skip_completed=request.skip_completed,
+        )
+        return result
+    except VoiceCatalogUnavailable as exc:
+        raise _job_http_error(exc) from exc
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except (RangeInputError, ValueError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.post("/api/production/range-inputs/casting-approvals")
+@_serialized_production_mutation
+def production_approve_range_casting_plans(
+    request: RangeCastingApprovalRequest,
+) -> dict[str, Any]:
+    try:
+        voice_catalog = _load_voice_catalog()
+        custom_context = _build_custom_voice_context()
+        snapshot = get_range_input_snapshot(
+            db,
+            store,
+            settings,
+            book_id=request.book_id,
+            from_chapter=request.from_chapter,
+            to_chapter=request.to_chapter,
+            voice_catalog=voice_catalog,
+            custom_voice_context=custom_context,
+            skip_completed=request.skip_completed,
+        )
+        result = approve_ready_casting_plans(
+            db,
+            store,
+            snapshot=snapshot,
+            requested=[item.model_dump() for item in request.chapters],
+            voice_catalog=voice_catalog,
+            allowed_voice_ids=_preset_voice_ids(),
+            custom_voice_context=custom_context,
+        )
+        result["snapshot"] = get_range_input_snapshot(
+            db,
+            store,
+            settings,
+            book_id=request.book_id,
+            from_chapter=request.from_chapter,
+            to_chapter=request.to_chapter,
+            voice_catalog=voice_catalog,
+            custom_voice_context=custom_context,
+            skip_completed=request.skip_completed,
+        )
+        return result
+    except VoiceCatalogUnavailable as exc:
+        raise _job_http_error(exc) from exc
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except (RangeInputError, ValueError) as exc:
         raise HTTPException(400, str(exc)) from exc
 
 

@@ -34,8 +34,8 @@ class VietnameseEncodingUiTests(unittest.TestCase):
         html = (ROOT / "ui" / "index.html").read_text(encoding="utf-8")
         self.assertLess(html.index('<meta charset="utf-8">'), html.index("<title>"))
         self.assertIn("styles.css?v=20260727-task-workbench-1", html)
-        self.assertIn("production_state.js?v=20260727-task-workbench-1", html)
-        self.assertIn("app.js?v=20260727-task-workbench-1", html)
+        self.assertIn("production_state.js?v=20260727-range-input-1", html)
+        self.assertIn("app.js?v=20260727-range-input-1", html)
 
     def test_operator_phase_copy_renders_as_unicode(self) -> None:
         script = """

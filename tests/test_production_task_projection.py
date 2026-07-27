@@ -169,6 +169,142 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertNotEqual(projection["primary_action"]["key"], "PREPARE_RANGE")
         self.assertEqual(projection["affected_chapter"]["number"], 1)
 
+    def test_range_input_tasks_replace_chapter_repetition(self) -> None:
+        rows = (_row(1), _row(2))
+        base = {
+            "scope": _readiness(*rows)["scope"],
+            "summary": {
+                "total_chapters": 2,
+                "ready_chapters": 0,
+                "blocked_chapters": 0,
+                "proposal_required_chapters": 0,
+                "speaker_exception_count": 0,
+                "voice_exception_count": 0,
+                "chapters_awaiting_speaker_approval": 0,
+                "chapters_awaiting_casting_approval": 0,
+                "casting_generation_ready_chapters": 0,
+                "inherited_voice_count": 0,
+                "skipped_chapters": 0,
+            },
+            "proposal_chapters": [],
+            "speaker_exception_queue": [],
+            "ready_speaker_drafts": [],
+            "voice_exception_queue": [],
+            "casting_generation_ready": [],
+            "casting_approvals": [],
+            "blocked": [],
+            "skipped": [],
+        }
+        exception = {
+            "chapter_id": rows[0]["chapter_id"],
+            "chapter_number": 1,
+            "chapter_title": "Chapter 1",
+            "draft_id": 41,
+            "utterance_id": "u0002-test",
+            "sequence": 2,
+        }
+        cases = (
+            (
+                {"proposal_chapters": [{
+                    "chapter_id": rows[0]["chapter_id"],
+                    "chapter_number": 1,
+                    "chapter_title": "Chapter 1",
+                }]},
+                "PREPARE_RANGE_INPUTS",
+                "speaker",
+            ),
+            (
+                {"speaker_exception_queue": [exception]},
+                "REVIEW_RANGE_SPEAKER_EXCEPTIONS",
+                "speaker",
+            ),
+            (
+                {"ready_speaker_drafts": [{
+                    "chapter_id": rows[0]["chapter_id"],
+                    "chapter_number": 1,
+                    "chapter_title": "Chapter 1",
+                    "draft_id": 41,
+                }]},
+                "APPROVE_READY_SPEAKER_DRAFTS",
+                "speaker",
+            ),
+            (
+                {"voice_exception_queue": [{
+                    "chapter_id": rows[0]["chapter_id"],
+                    "chapter_number": 1,
+                    "chapter_title": "Chapter 1",
+                    "speaker_key": "character:7",
+                }]},
+                "REVIEW_RANGE_VOICE_EXCEPTIONS",
+                "casting",
+            ),
+            (
+                {"casting_generation_ready": [{
+                    "chapter_id": rows[0]["chapter_id"],
+                    "chapter_number": 1,
+                    "chapter_title": "Chapter 1",
+                    "draft_id": 41,
+                }]},
+                "PREPARE_RANGE_INPUTS",
+                "speaker",
+            ),
+            (
+                {"casting_approvals": [{
+                    "chapter_id": rows[0]["chapter_id"],
+                    "chapter_number": 1,
+                    "chapter_title": "Chapter 1",
+                    "plan_id": 81,
+                }]},
+                "APPROVE_RANGE_CASTING_PLANS",
+                "casting",
+            ),
+        )
+        for changes, expected, section in cases:
+            with self.subTest(expected=expected):
+                range_inputs = {
+                    **base,
+                    **changes,
+                    "summary": {
+                        **base["summary"],
+                        "proposal_required_chapters": len(
+                            changes.get("proposal_chapters", [])
+                        ),
+                        "speaker_exception_count": len(
+                            changes.get("speaker_exception_queue", [])
+                        ),
+                        "voice_exception_count": len(
+                            changes.get("voice_exception_queue", [])
+                        ),
+                    },
+                }
+                projection = project_production_task({
+                    "readiness": _readiness(*rows),
+                    "range_inputs": range_inputs,
+                })
+                self.assertEqual(projection["task_type"], expected)
+                self.assert_typed_section(projection, section)
+
+    def test_text_blocker_precedes_range_input_orchestration(self) -> None:
+        blocked = _row(
+            1,
+            "TEXT_BLOCKED",
+            latest_speaker_draft_id=None,
+            blockers=["bad text"],
+        )
+        range_inputs = {
+            "summary": {"total_chapters": 1},
+            "proposal_chapters": [{
+                "chapter_id": blocked["chapter_id"],
+                "chapter_number": 1,
+                "chapter_title": "Chapter 1",
+            }],
+        }
+        projection = project_production_task({
+            "readiness": _readiness(blocked),
+            "range_inputs": range_inputs,
+        })
+        self.assertEqual(projection["task_type"], "REVIEW_TEXT")
+
     def test_exact_prepared_job_is_a_separate_range_task(self) -> None:
         projection = project_production_task(
             {

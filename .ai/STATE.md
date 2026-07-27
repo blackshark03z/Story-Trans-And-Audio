@@ -4,6 +4,30 @@ Updated: 2026-07-27
 
 ## Current Phase
 
+### Range Input Preparation And Exception Workflow
+
+- Production input preparation is now range-oriented. One bounded
+  `PREPARE_RANGE_INPUTS` command creates or reuses eligible Speaker Drafts,
+  classifies outcomes, and later creates per-chapter Casting Plan drafts only
+  after every speaker requirement in the range is complete.
+- Human work is normalized into deterministic speaker and voice exception
+  queues. High-confidence non-unknown speaker proposals are not shown as
+  exceptions, but they are only materialized and approved after the operator
+  explicitly submits the exact batch of ready Speaker Drafts.
+- Intermediate speaker actions use `Lưu và sang câu tiếp theo`; the last
+  exception in a chapter uses `Lưu và duyệt chương`, applies the existing
+  per-row/per-draft boundaries, refreshes projection, and visibly advances.
+- New range tasks cover input preparation, speaker exceptions, ready-draft
+  approval, voice exceptions, and Casting Plan approval. Projection supplies
+  all totals; Home and Production do not derive or repeat chapter-by-chapter
+  work.
+- Browser scenarios A-J pass at `1366x768` and `1920x1080`, including ten
+  chapters, seven-draft batch approval, five continuous exceptions, voice
+  inheritance, nine-plan approval, PREPARE gating, and five stable polls.
+- Acceptance used isolated data only. No canonical Speaker Draft, review,
+  Casting Plan, Job, Artifact, QA, provider/TTS call, Chapter `369`, or audio
+  mutation was made.
+
 ### Projection Ordering Fix
 
 - The canonical range task is now selected by workflow priority across the

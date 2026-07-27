@@ -25,6 +25,31 @@
 **DAILY-PROD-3A:** complete
 **DAILY-PROD-3:** complete
 
+**Range input preparation and exception workflow:**
+- Input work is now organized around the selected range rather than ten
+  independent chapter workflows. `POST /api/production/range-inputs/prepare`
+  creates/reuses eligible Speaker Drafts and, only after speaker completion,
+  creates immutable per-chapter Casting Plan drafts without approving them.
+- `GET /api/production/range-inputs` returns one deterministic human-work
+  queue ordered by canonical chapter and utterance order, plus authoritative
+  totals for proposals, speaker exceptions, voice exceptions, batch
+  approvals, inherited voices, blockers, and skipped chapters.
+- High-confidence narrator/known-character proposals are grouped behind one
+  explicit batch approval. Medium/low confidence, unknown, invalid, missing,
+  unavailable, and conflicting cases remain explicit exceptions. Batch
+  operations are bounded, identity-pinned, idempotent where the underlying
+  approval is idempotent, and report per-chapter partial failures.
+- Speaker actions now say `Lưu và sang câu tiếp theo`, `Lưu và duyệt chương`,
+  or `Duyệt N chương` according to their real transition. Every success
+  refreshes the projection and opens the next exception or range task.
+- Voice continuity reuses the book narrator/defaults and existing character
+  overrides. Only new/unavailable/conflicting mappings appear; Casting Plan
+  approval remains a separate explicit range action, followed by the existing
+  separate PREPARE and START_RENDER boundaries.
+- Browser acceptance A-J passed at `1366x768` and `1920x1080`, with no nested
+  operational scroll and five polling cycles preserving focus/input.
+  Canonical data was not mutated during implementation acceptance.
+
 **Projection ordering and typed task contract correction:**
 - The canonical selector now evaluates the entire selected range by workflow
   priority instead of choosing the first chapter row. Text/speaker/voice/

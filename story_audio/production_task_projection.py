@@ -6,8 +6,11 @@ from typing import Any, Iterable
 
 from .db import Database
 from .pipeline import JOB_ACTIVE_STATUSES, JOB_PREPARED_STATUS
+from .range_input import get_range_input_snapshot
 from .range_readiness import get_range_readiness
 from .storage import ContentStore
+from .config import Settings
+from .voice_ref import CustomVoiceContext
 from .voice_eligibility import EffectiveVoiceCatalog
 
 
@@ -29,8 +32,18 @@ _SPEAKER_TASKS = {
     "CREATE_SPEAKER_PROPOSAL",
     "RESOLVE_SPEAKER",
     "APPROVE_SPEAKER_DRAFT",
+    "PREPARE_RANGE_INPUTS",
+    "REVIEW_RANGE_SPEAKER_EXCEPTIONS",
+    "APPROVE_READY_SPEAKER_DRAFTS",
+    "RESOLVE_SPEAKER_EXCEPTION",
 }
-_CASTING_TASKS = {"ASSIGN_VOICE", "REVIEW_CASTING_PLAN"}
+_CASTING_TASKS = {
+    "ASSIGN_VOICE",
+    "REVIEW_CASTING_PLAN",
+    "REVIEW_RANGE_VOICE_EXCEPTIONS",
+    "RESOLVE_VOICE_EXCEPTION",
+    "APPROVE_RANGE_CASTING_PLANS",
+}
 _RENDER_TASKS = {"START_RENDER_RANGE", "MONITOR_RENDER", "RECOVER_RENDER"}
 
 
@@ -240,21 +253,54 @@ def _typed_task_sections(
     }
     source = payload or {}
     if task_type in _SPEAKER_TASKS:
-        review = _review_summary(source)
-        sections["speaker"] = {
-            "chapter_id": affected["id"] if affected else None,
-            "draft_id": source.get("latest_speaker_draft_id"),
-            "draft_status": source.get("latest_speaker_draft_status"),
-            **review,
-        }
+        if task_type in {
+            "PREPARE_RANGE_INPUTS",
+            "REVIEW_RANGE_SPEAKER_EXCEPTIONS",
+            "APPROVE_READY_SPEAKER_DRAFTS",
+            "RESOLVE_SPEAKER_EXCEPTION",
+        }:
+            sections["speaker"] = {
+                "summary": dict(source.get("summary") or {}),
+                "proposal_chapters": list(source.get("proposal_chapters") or []),
+                "exception_queue": list(
+                    source.get("speaker_exception_queue") or []
+                ),
+                "ready_drafts": list(source.get("ready_speaker_drafts") or []),
+                "casting_generation_ready": list(
+                    source.get("casting_generation_ready") or []
+                ),
+            }
+        else:
+            review = _review_summary(source)
+            sections["speaker"] = {
+                "chapter_id": affected["id"] if affected else None,
+                "draft_id": source.get("latest_speaker_draft_id"),
+                "draft_status": source.get("latest_speaker_draft_status"),
+                **review,
+            }
     elif task_type in _CASTING_TASKS:
-        sections["casting"] = {
-            "chapter_id": affected["id"] if affected else None,
-            "plan_id": source.get("latest_casting_plan_id"),
-            "plan_revision": source.get("latest_casting_plan_revision"),
-            "plan_status": source.get("latest_casting_plan_status"),
-            "voice_issues": list(source.get("voice_issues") or []),
-        }
+        if task_type in {
+            "REVIEW_RANGE_VOICE_EXCEPTIONS",
+            "RESOLVE_VOICE_EXCEPTION",
+            "APPROVE_RANGE_CASTING_PLANS",
+        }:
+            sections["casting"] = {
+                "summary": dict(source.get("summary") or {}),
+                "voice_exception_queue": list(
+                    source.get("voice_exception_queue") or []
+                ),
+                "plans_awaiting_approval": list(
+                    source.get("casting_approvals") or []
+                ),
+            }
+        else:
+            sections["casting"] = {
+                "chapter_id": affected["id"] if affected else None,
+                "plan_id": source.get("latest_casting_plan_id"),
+                "plan_revision": source.get("latest_casting_plan_revision"),
+                "plan_status": source.get("latest_casting_plan_status"),
+                "voice_issues": list(source.get("voice_issues") or []),
+            }
     elif task_type == "PREPARE_RANGE":
         scope = readiness.get("scope") or {}
         sections["range_prepare"] = {
@@ -331,6 +377,7 @@ def _base_projection(
             4: "prepare",
             5: "qa",
         }[user_stage],
+        "input_summary": dict((task_payload or {}).get("summary") or {}),
         **sections,
     }
     result = {
@@ -357,6 +404,7 @@ def _base_projection(
         "range_task": range_task,
         "current_stage_key": canonical_task["current_stage_key"],
         "conceptual_state": task_type,
+        "input_summary": dict(canonical_task["input_summary"]),
         "phases": _phases(user_stage, task_type == "COMPLETE"),
         "canonical_task": canonical_task,
         "inspected_chapter": None,
@@ -484,6 +532,193 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
                 ),
             }
         )
+
+    range_inputs = state.get("range_inputs")
+    if isinstance(range_inputs, dict):
+        text_candidates = []
+        for row in rows:
+            task = _chapter_task(row)
+            if task and task["task_type"] == "REVIEW_TEXT":
+                text_candidates.append((int(row["chapter_number"]), row, task))
+        if text_candidates:
+            _, row, task = min(text_candidates, key=lambda item: item[0])
+            ref = _chapter_ref(row)
+            for queue_item in queue:
+                queue_item["status"] = (
+                    "current"
+                    if int(queue_item["chapter_id"]) == ref["id"]
+                    else "blocked"
+                    if queue_item["status"] == "pending"
+                    else queue_item["status"]
+                )
+            return finish(_base_projection(
+                readiness=readiness,
+                task_scope="chapter",
+                task_type=task["task_type"],
+                task_key=f"chapter:{ref['id']}:{task['task_type']}",
+                user_stage=task["user_stage"],
+                title=task["title"],
+                summary=task["summary"],
+                affected=ref,
+                action=task["action"],
+                blocker=task["blocker"],
+                next_hint=task["next"],
+                queue=queue,
+                technical=[
+                    f"state:{row.get('state')}",
+                    f"chapter_id:{ref['id']}",
+                ],
+                range_task=False,
+                task_payload=row,
+            ))
+
+        input_summary = dict(range_inputs.get("summary") or {})
+        proposals = list(range_inputs.get("proposal_chapters") or [])
+        speaker_exceptions = list(
+            range_inputs.get("speaker_exception_queue") or []
+        )
+        ready_drafts = list(range_inputs.get("ready_speaker_drafts") or [])
+        voice_exceptions = list(range_inputs.get("voice_exception_queue") or [])
+        casting_ready = list(
+            range_inputs.get("casting_generation_ready") or []
+        )
+        casting_approvals = list(range_inputs.get("casting_approvals") or [])
+        total = int(input_summary.get("total_chapters") or len(rows))
+
+        def range_input_task(
+            *,
+            task_type: str,
+            task_key: str,
+            user_stage: int,
+            title: str,
+            summary: str,
+            action_label: str,
+            next_hint: str,
+            affected_item: dict[str, Any] | None = None,
+            blocker: str | None = None,
+        ) -> dict[str, Any]:
+            affected = None
+            if affected_item:
+                affected = {
+                    "id": int(affected_item["chapter_id"]),
+                    "number": int(affected_item["chapter_number"]),
+                    "title": affected_item.get("chapter_title") or "",
+                }
+                for queue_item in queue:
+                    if int(queue_item["chapter_id"]) == affected["id"]:
+                        queue_item["status"] = "current"
+                    elif queue_item["status"] == "pending":
+                        queue_item["status"] = "blocked"
+            return finish(_base_projection(
+                readiness=readiness,
+                task_scope="exception" if affected else "range",
+                task_type=task_type,
+                task_key=task_key,
+                user_stage=user_stage,
+                title=title,
+                summary=summary,
+                affected=affected,
+                action=_action(task_type, action_label, "speakers" if user_stage == 2 else "voices"),
+                blocker=blocker,
+                next_hint=next_hint,
+                queue=queue,
+                technical=[
+                    f"range_input_task:{task_type}",
+                    f"speaker_exceptions:{len(speaker_exceptions)}",
+                    f"voice_exceptions:{len(voice_exceptions)}",
+                ],
+                range_task=True,
+                task_payload=range_inputs,
+            ))
+
+        if proposals:
+            return range_input_task(
+                task_type="PREPARE_RANGE_INPUTS",
+                task_key=f"{scope_key}:prepare-inputs:{len(proposals)}",
+                user_stage=2,
+                title="Chuẩn bị dữ liệu đầu vào",
+                summary=f"{len(proposals)} trong {total} chương cần tạo hoặc làm mới đề xuất người nói.",
+                action_label=f"Chuẩn bị dữ liệu cho {total} chương",
+                next_hint="Sau khi phân tích, hệ thống chỉ đưa các trường hợp ngoại lệ vào hàng chờ.",
+            )
+        if speaker_exceptions:
+            first = speaker_exceptions[0]
+            chapters = len({
+                int(item["chapter_id"]) for item in speaker_exceptions
+            })
+            return range_input_task(
+                task_type="REVIEW_RANGE_SPEAKER_EXCEPTIONS",
+                task_key=(
+                    f"{scope_key}:speaker-exception:"
+                    f"{first['draft_id']}:{first['utterance_id']}:"
+                    f"{len(speaker_exceptions)}"
+                ),
+                user_stage=2,
+                title="Kiểm tra ngoại lệ người nói",
+                summary=(
+                    f"{len(speaker_exceptions)} trường hợp cần kiểm tra "
+                    f"trong {chapters} chương."
+                ),
+                action_label=(
+                    "Lưu và duyệt chương"
+                    if sum(
+                        1
+                        for item in speaker_exceptions
+                        if int(item["chapter_id"]) == int(first["chapter_id"])
+                    ) == 1
+                    else "Lưu và sang câu tiếp theo"
+                ),
+                next_hint="Sau mỗi quyết định, hệ thống mở ngoại lệ tiếp theo theo thứ tự chương.",
+                affected_item=first,
+            )
+        if ready_drafts:
+            return range_input_task(
+                task_type="APPROVE_READY_SPEAKER_DRAFTS",
+                task_key=f"{scope_key}:approve-speakers:{','.join(str(item['draft_id']) for item in ready_drafts)}",
+                user_stage=2,
+                title="Duyệt chương không có ngoại lệ",
+                summary=f"{len(ready_drafts)} chương không còn ngoại lệ người nói.",
+                action_label=f"Duyệt {len(ready_drafts)} chương",
+                next_hint="Các đề xuất high-confidence sẽ chỉ được chấp nhận khi bạn bấm duyệt.",
+            )
+        if voice_exceptions:
+            first = voice_exceptions[0]
+            return range_input_task(
+                task_type="REVIEW_RANGE_VOICE_EXCEPTIONS",
+                task_key=(
+                    f"{scope_key}:voice-exception:"
+                    f"{first['speaker_key']}:{len(voice_exceptions)}"
+                ),
+                user_stage=3,
+                title="Gán giọng cho ngoại lệ",
+                summary=(
+                    f"{input_summary.get('inherited_voice_count', 0)} người nói đã kế thừa giọng; "
+                    f"{len(voice_exceptions)} cần chọn."
+                ),
+                action_label=f"Gán giọng cho {len(voice_exceptions)} người",
+                next_hint="Giọng narrator và nhân vật đã biết được giữ lại; chỉ ngoại lệ cần thao tác.",
+                affected_item=first,
+            )
+        if casting_ready:
+            return range_input_task(
+                task_type="PREPARE_RANGE_INPUTS",
+                task_key=f"{scope_key}:create-casting-drafts:{','.join(str(item['draft_id']) for item in casting_ready)}",
+                user_stage=3,
+                title="Tạo bản đồ giọng theo phạm vi",
+                summary=f"{len(casting_ready)} chương đã đủ người nói và giọng để tạo bản nháp.",
+                action_label=f"Chuẩn bị bản đồ giọng cho {len(casting_ready)} chương",
+                next_hint="Bản nháp vẫn chưa được duyệt và chưa thể dùng để PREPARE.",
+            )
+        if casting_approvals:
+            return range_input_task(
+                task_type="APPROVE_RANGE_CASTING_PLANS",
+                task_key=f"{scope_key}:approve-casting:{','.join(str(item['plan_id']) for item in casting_approvals)}",
+                user_stage=3,
+                title="Duyệt bản đồ giọng",
+                summary=f"{len(casting_approvals)} chương có bản đồ giọng hợp lệ đang chờ duyệt.",
+                action_label=f"Duyệt bản đồ giọng cho {len(casting_approvals)} chương",
+                next_hint="Chỉ sau bước duyệt này phạm vi mới có thể sẵn sàng PREPARE.",
+            )
 
     first_task: tuple[dict[str, Any], dict[str, Any]] | None = None
     input_candidates: list[
@@ -727,6 +962,8 @@ def get_production_task_projection(
     inspected_chapter_id: int | None = None,
     voice_catalog: EffectiveVoiceCatalog | None = None,
     store: ContentStore | None = None,
+    config: Settings | None = None,
+    custom_voice_context: CustomVoiceContext | None = None,
 ) -> dict[str, Any]:
     """Build the projection from canonical read-only application state."""
 
@@ -778,10 +1015,24 @@ def get_production_task_projection(
         to_chapter=to_chapter,
         chapter_ids=chapter_ids,
     )
+    range_inputs = None
+    if voice_catalog is not None and store is not None and config is not None:
+        range_inputs = get_range_input_snapshot(
+            db,
+            store,
+            config,
+            book_id=book_id,
+            from_chapter=from_chapter,
+            to_chapter=to_chapter,
+            voice_catalog=voice_catalog,
+            custom_voice_context=custom_voice_context,
+            skip_completed=True,
+        )
     projection = project_production_task(
         {
             "readiness": readiness,
             "range_jobs": range_jobs,
+            "range_inputs": range_inputs,
             "inspected_chapter_id": inspected_chapter_id,
         }
     )

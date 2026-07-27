@@ -4,6 +4,24 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Range Input Preparation And Exception Queues
+
+- Added bounded range input APIs for proposal creation/reuse, read-only
+  exception summaries, explicit ready Speaker Draft approval, draft-only
+  Casting Plan generation, and explicit eligible Casting Plan approval.
+- Replaced repeated chapter navigation with deterministic speaker and voice
+  exception queues. Intermediate and final speaker actions now have distinct
+  labels and refresh to the next canonical task immediately.
+- Added explicit grouping for chapters with no speaker exceptions. Proposal
+  decisions are never approved silently; high-confidence rows are applied only
+  inside the operator-confirmed batch approval.
+- Added range voice continuity summaries so narrator, known characters, and
+  valid catalog mappings are inherited while only new, unavailable, or
+  conflicting mappings require attention.
+- Added typed projection tasks, Home inbox aggregates, exact eligible counts,
+  and real-browser A-J coverage at both required viewports. PREPARE,
+  START_RENDER, TTS, QA, Job, Artifact, and canonical data remained untouched.
+
 ### Typed Task Projection Ordering
 
 - Fixed mixed-range task selection so workflow priority is evaluated across

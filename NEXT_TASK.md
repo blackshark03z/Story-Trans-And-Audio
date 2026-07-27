@@ -13,6 +13,12 @@ The projection-ordering correction is complete and does not authorize this
 next Human Audio QA action automatically. Production must continue to use the
 canonical `Việc tiếp theo` task; manual chapter inspection is read-only.
 
+The range input preparation and exception workflow is also complete. It
+groups proposal creation, speaker exceptions, inherited voice continuity, and
+eligible per-chapter approvals across an exact range while preserving the
+existing human approval boundaries. This closeout does not authorize
+PREPARE, START_RENDER, provider/TTS work, or the pending Human Audio QA task.
+
 ## Verified Outputs
 
 - Production now uses a five-stage task workbench with an ordered chapter

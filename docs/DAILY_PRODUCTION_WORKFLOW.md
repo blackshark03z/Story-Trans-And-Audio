@@ -23,6 +23,55 @@ An operator can:
 
 The UI must always make the next valid action clear.
 
+## Range Input Preparation
+
+Input preparation is range-oriented while persistence remains per chapter.
+The application command may create or reuse eligible Speaker Drafts, use the
+existing Gemini speaker-analysis cache, classify results, and build one
+normalized exception queue. It may not approve a human decision implicitly,
+create a Casting Plan before speaker work is complete, PREPARE a Job, wake the
+worker, call TTS, or render audio.
+
+Speaker proposal rows are classified as follows:
+
+- invalid, missing, unknown, medium-confidence, and low-confidence results are
+  human exceptions;
+- high-confidence narrator or known-character results may be grouped as
+  proposal-backed rows;
+- grouped rows are persisted and approved only after the operator explicitly
+  submits the exact ready Speaker Draft batch.
+
+The exception queue is ordered by canonical chapter then utterance sequence.
+An intermediate decision uses `Lưu và sang câu tiếp theo`. The final exception
+for a chapter uses `Lưu và duyệt chương`, saves the row, applies the existing
+row-review and draft-approval boundaries, refreshes projection, and advances
+to the next exception or range task. Drafts with no exceptions are displayed
+with their exact chapters, draft identities, unresolved proposal count, and
+proposal source before one explicit `Duyệt N chương` action.
+
+After speaker completion, voice preparation resolves the narrator, unknown
+fallback, and characters through the current Book Voice Profile, character
+overrides, usable custom revisions, and effective voice catalog. Valid
+inherited mappings remain quiet. New characters using an uncertain fallback,
+unavailable voices, missing profiles, and conflicting mappings enter the voice
+exception queue. Casting Plan drafts are still immutable per chapter and are
+created only after all speaker and voice exceptions are clear. Their exact
+chapter/plan revisions are shown before one explicit range approval.
+
+The corresponding canonical task types are:
+
+- `PREPARE_RANGE_INPUTS`;
+- `REVIEW_RANGE_SPEAKER_EXCEPTIONS`;
+- `APPROVE_READY_SPEAKER_DRAFTS`;
+- `REVIEW_RANGE_VOICE_EXCEPTIONS`;
+- `APPROVE_RANGE_CASTING_PLANS`;
+- the existing `PREPARE_RANGE`, `START_RENDER_RANGE`, render, and Human QA
+  tasks.
+
+Projection supplies total, ready, blocked, exception, and batch-approval
+counts. Home and Production render these aggregates directly instead of
+deriving generic chapter statuses.
+
 ## Canonical Task Projection
 
 The Production workbench reads one read-only projection from
