@@ -4,7 +4,7 @@ Task classification:
 `PRODUCTION_OPERATION / TWO_CHAPTER_HUMAN_AUDIO_QA_REQUIRED`
 
 Active milestone:
-`DAILY-PROD-6 - Multi-Chapter Production Acceptance`
+`DAILY-PROD-6 - Task Projection And Multi-Chapter Production Acceptance`
 
 Exact next task:
 `Human-listen to active Artifacts 93 and 96 for Book 1 Chapters 372-373, then record acceptance or one precise remediation target for each chapter.`
@@ -15,6 +15,11 @@ Exact next task:
   queue, one current task, one primary action, separate voice save/approval,
   separate PREPARE/START_RENDER, recoverable retry, and explicit QA verdicts.
   Browser journeys A-H passed without canonical mutation.
+- The read-only backend task projection now owns canonical task ordering,
+  range PREPARE/START_RENDER gates, exact Job monitoring/recovery, queue
+  identity, and stable `task_key` polling behavior. Pure projection, affected
+  API/UI, real-browser polling, the full `1734`-test offline suite, Doctor,
+  canonical integrity, and supervised restart validation all pass.
 - P0 frontend usability is real-browser accepted at `1366x768` and
   `1920x1080`: one Vietnamese navigation set, compact expandable diagnostics,
   direct Chapter `372`, range `372-373`, quick selection, title search, row

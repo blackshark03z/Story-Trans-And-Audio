@@ -84,6 +84,8 @@ try {
   await send("Emulation.setDeviceMetricsOverride", { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false });
   await waitFor(`document.readyState==="complete"`);
   await waitFor(`document.querySelector("#productionWorkbench")`);
+  await waitFor(`window.storyAudioAppState`);
+  await evaluate(`loadProductionTaskProjection=async()=>{renderProductionShell(state.productionProjection||undefined);return state.productionProjection}`);
 
   const fixture = {
     book: { id: 91, title: "Sách kiểm thử cô lập" },
@@ -115,6 +117,19 @@ try {
     state.jobs=structuredClone(patch.jobs||[]);
     state.speakerReview={chapterId:state.dialog?.chapter?.id||null,drafts:[],draft:structuredClone(patch.draft===null?null:(patch.draft||base.draft)),decisions:{},selected:{},generation:null};
     state.productionRange=patch.productionRange||{bookId:91,fromChapter:401,toChapter:401,chapterId:9101,skipCompleted:false,readiness:{scope:{book_id:91,book_title:"Sách kiểm thử cô lập",from_chapter:401,to_chapter:401,chapter_count:1},summary:{total:1,complete:0,needs_attention:1},chapters:[{chapter_id:9101,chapter_number:401,title:"Chương kiểm thử",state:patch.rangeState||"CASTING_REVIEW",requires_operator_action:true}]}};
+    const rangeState=patch.rangeState||"CASTING_REVIEW",draft=state.speakerReview.draft,failedJob=state.jobs.find(item=>["failed","completed_with_errors","paused","interrupted"].includes(item.status));
+    let taskType="REVIEW_CASTING_PLAN",actionKey="REVIEW_CASTING_PLAN",actionLabel="Kiểm tra bản đồ giọng",stage=3,stageKey="voice_map",rangeTask=false;
+    if(rangeState==="RENDERED_NOT_QA"){taskType="HUMAN_QA";actionKey=null;actionLabel="";stage=5;stageKey="qa"}
+    else if(!draft){taskType="CREATE_SPEAKER_PROPOSAL";actionKey=taskType;actionLabel="Tạo đề xuất người nói";stage=2;stageKey="speakers"}
+    else if(draft.status!=="approved"&&Number(draft.remaining_unreviewed_count||0)>0){taskType="RESOLVE_SPEAKER";actionKey=taskType;actionLabel="Xác nhận và tiếp tục";stage=2;stageKey="speakers"}
+    else if(draft.status!=="approved"){taskType="APPROVE_SPEAKER_DRAFT";actionKey=taskType;actionLabel="Duyệt Speaker Draft";stage=2;stageKey="speakers"}
+    else if(rangeState==="VOICE_BLOCKED"){taskType="ASSIGN_VOICE";actionKey=taskType;actionLabel="Gán giọng";stage=3;stageKey="voices"}
+    else if(rangeState==="READY_TO_PREPARE"){taskType="PREPARE_RANGE";actionKey=taskType;actionLabel="Chuẩn bị audio";stage=4;stageKey="prepare";rangeTask=true}
+    else if(rangeState==="PREPARED"){taskType="START_RENDER_RANGE";actionKey=taskType;actionLabel="Bắt đầu render";stage=4;stageKey="render";rangeTask=true}
+    else if(rangeState==="RENDERING_OR_PAUSED"&&failedJob){taskType="RECOVER_RENDER";actionKey=taskType;actionLabel="Xử lý render";stage=4;stageKey="render";rangeTask=true}
+    else if(rangeState==="RENDERING_OR_PAUSED"){taskType="MONITOR_RENDER";actionKey=taskType;actionLabel="Theo dõi render";stage=4;stageKey="render";rangeTask=true}
+    const queue=(state.productionRange.readiness?.chapters||[]).map((item,index)=>({chapter_id:item.chapter_id,chapter_number:item.chapter_number,title:item.title||"",status:index===0&&!rangeTask?"current":"ready",state:item.state,user_stage:stage,task_type:rangeTask?null:taskType,task_key:"chapter:"+item.chapter_id+":"+taskType}));
+    state.productionProjection={range_identity:"book:91:401-401",task_scope:rangeTask?"range":"chapter",task_type:taskType,task_key:(rangeTask?"range:91:401-401:":"chapter:9101:")+taskType,user_stage:stage,title:actionLabel||"Nghe và duyệt",summary:"Trạng thái fixture",task_title:actionLabel||"Nghe và duyệt",task_summary:"Trạng thái fixture",affected_chapter:rangeTask?null:{id:9101,number:401,title:state.dialog?.chapter?.title||""},chapter_queue:queue,queue,primary_action:actionKey?{key:actionKey,label:actionLabel,target:stageKey}:null,secondary_actions:[],secondary_links:[],blocker:null,next_task_hint:"Bước tiếp theo",next_task_after_success:"Bước tiếp theo",technical_details:[],phases:[],conceptual_state:rangeState,current_stage_key:stageKey};
     state.runtimeIdentity={state:"isolated",label:"Dữ liệu kiểm thử"};
     state.runtimeIdentityResolved=true;
     renderProductionShell();
@@ -131,6 +146,8 @@ try {
   const journeyB = await show({ casting: noDraftCasting, draft: null, rangeState: "SPEAKER_EXCEPTIONS" });
   const unresolvedDraft = { id: 602, status: "draft", stale: false, remaining_unreviewed_count: 1, invalid_count: 0, characters: [{ id: 7001, display_name: "Nhân vật A" }], review_rows: [{ utterance_id: "u2", sequence: 2, text: "Ai đang nói?", reviewed: false, context: [{ text: "Ngữ cảnh trước" }, { text: "Ai đang nói?", is_target: true }, { text: "Ngữ cảnh sau" }], suggestion: { speaker_type: "character", character_id: 7001, confidence_level: "medium", confidence: 0.7, reason: "Có tên nhân vật gần câu thoại." } }] };
   const journeyC = await show({ casting: noDraftCasting, draft: unresolvedDraft, rangeState: "SPEAKER_EXCEPTIONS" });
+  await waitFor(`document.querySelector("#productionSpeakerChoice")`);
+  const pollingStability = await evaluate(`(async()=>{const details=document.querySelector(".production-advanced-options"),choice=document.querySelector("#productionSpeakerChoice");details.open=true;choice.value="unknown";choice.focus();const key=state.productionProjection.task_key;for(let index=0;index<5;index+=1){await new Promise(resolve=>setTimeout(resolve,2600));if(state.productionProjection.task_key!==key||!details.isConnected||!details.open||choice.value!=="unknown"||document.activeElement!==choice)return false}return true})()`);
   const voiceBlocked = structuredClone(fixture.casting); voiceBlocked.casting.plan.utterances[0].resolved_voice_id = null;
   const journeyDEdit = await show({ casting: voiceBlocked, rangeState: "VOICE_BLOCKED" });
   const journeyDReview = await show({ casting: fixture.casting, rangeState: "CASTING_REVIEW" });
@@ -144,17 +161,17 @@ try {
   const qaNoteRequired = await evaluate(`(() => { document.querySelector("#productionQaNote").value=""; document.querySelector("#productionQaNeedsFixes").click(); return document.querySelector("#toast")?.textContent||document.querySelector(".toast")?.textContent||""; })()`);
   const rangeChapters = Array.from({ length: 10 }, (_, index) => ({ chapter_id: 9200 + index, chapter_number: 500 + index, title: `Chương ${500 + index}`, state: index < 3 ? "COMPLETE" : index === 3 ? "SPEAKER_EXCEPTIONS" : "READY_TO_PREPARE", requires_operator_action: index >= 3 }));
   const tenRange = { bookId: 91, fromChapter: 500, toChapter: 509, chapterId: null, skipCompleted: false, readiness: { scope: { book_id: 91, book_title: "Sách kiểm thử cô lập", from_chapter: 500, to_chapter: 509, chapter_count: 10 }, summary: { total: 10, complete: 3, needs_attention: 7 }, chapters: rangeChapters } };
-  const journeyH = await evaluate(`(() => { state.dialog=null;state.casting=null;state.speakerReview=null;state.jobs=[];state.productionRange=${JSON.stringify(tenRange)};renderProductionShell();return {queue:document.querySelectorAll(".production-queue-item").length,current:document.querySelector(".production-queue-item.current")?.innerText||"",primary:document.querySelector("#productionPrimaryAction").textContent}; })()`);
+  const journeyH = await evaluate(`(() => { state.dialog=null;state.casting=null;state.speakerReview=null;state.jobs=[];state.productionRange=${JSON.stringify(tenRange)};const queue=state.productionRange.readiness.chapters.map((item,index)=>({chapter_id:item.chapter_id,chapter_number:item.chapter_number,title:item.title,status:index<3?"complete":index===3?"current":"blocked",state:item.state,user_stage:index===3?2:4,task_type:index===3?"RESOLVE_SPEAKER":null,task_key:"chapter:"+item.chapter_id+":"+(index===3?"RESOLVE_SPEAKER":"READY")}));state.productionProjection={range_identity:"book:91:500-509",task_scope:"chapter",task_type:"RESOLVE_SPEAKER",task_key:"chapter:9203:RESOLVE_SPEAKER",user_stage:2,title:"Xác nhận người nói",summary:"Chương 503 còn dòng chưa xác nhận.",task_title:"Xác nhận người nói",task_summary:"Chương 503 còn dòng chưa xác nhận.",affected_chapter:{id:9203,number:503,title:"Chương 503"},chapter_queue:queue,queue,primary_action:{key:"RESOLVE_SPEAKER",label:"Xác nhận và tiếp tục",target:"speakers"},secondary_actions:[],secondary_links:[],blocker:null,next_task_hint:"Tiếp tục",next_task_after_success:"Tiếp tục",technical_details:[],phases:[],conceptual_state:"SPEAKER_EXCEPTIONS",current_stage_key:"speakers"};renderProductionShell();return {queue:document.querySelectorAll(".production-queue-item").length,current:document.querySelector(".production-queue-item.current")?.innerText||"",primary:document.querySelector("#productionPrimaryAction").textContent}; })()`);
 
   const expected = [
     [journeyB, "Tạo đề xuất người nói"],
     [journeyC, "Xác nhận và tiếp tục"],
-    [journeyDEdit, "Lưu bản nháp"],
-    [journeyDReview, "Duyệt và tiếp tục"],
+    [journeyDEdit, "Gán giọng"],
+    [journeyDReview, "Kiểm tra bản đồ giọng"],
     [journeyEPrepare, "Chuẩn bị 1 chương"],
     [journeyEStart, "Bắt đầu render 1 chương"],
-    [journeyERunning, "Xem tiến độ"],
-    [journeyF, "Thử lại phần lỗi"],
+    [journeyERunning, "Theo dõi render"],
+    [journeyF, "Xử lý render"],
   ];
   for (const [journey, label] of expected) {
     if (journey.primary.length !== 1 || journey.primary[0] !== label) throw new Error(`Primary action mismatch for ${label}: ${JSON.stringify(journey)}`);
@@ -162,6 +179,7 @@ try {
     if (journey.nested.length) throw new Error(`Nested operational scroll found: ${JSON.stringify(journey.nested)}`);
   }
   if (!journeyA.workspaceVisible) throw new Error("Journey A did not focus the current task.");
+  if (!pollingStability) throw new Error("Advanced speaker controls did not survive five polling intervals.");
   if (journeyDReview.body.includes("Lưu bản nháp")) throw new Error("Voice save and approval competed on the review screen.");
   if (journeyERunning.body.includes("Bắt đầu render")) throw new Error("Running state exposed duplicate start.");
   if (journeyG.primary.length !== 1 || !journeyG.primary.includes("Chấp nhận") || !journeyG.body.includes("Ghi chú QA")) throw new Error(`QA controls are unclear: ${JSON.stringify(journeyG)}`);
@@ -173,12 +191,20 @@ try {
   if (desktop.horizontal || !desktop.primaryVisible) throw new Error(`1920 layout failed: ${JSON.stringify(desktop)}`);
   if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
 
-  process.stdout.write(JSON.stringify({ ok: true, journeyA, journeyB, journeyC, journeyDEdit, journeyDReview, journeyEPrepare, journeyEStart, journeyERunning, journeyF, journeyG, journeyH, desktop }));
+  process.stdout.write(JSON.stringify({ ok: true, journeyA, journeyB, journeyC, pollingStability, journeyDEdit, journeyDReview, journeyEPrepare, journeyEStart, journeyERunning, journeyF, journeyG, journeyH, desktop }));
 } finally {
   try { socket?.close(); } catch {}
+  const browserExited = new Promise(resolve => {
+    if (child.exitCode !== null) resolve();
+    else child.once("exit", resolve);
+  });
   child.kill();
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  await Promise.race([browserExited, delay(3000)]);
+  for (let attempt = 0; attempt < 30; attempt += 1) {
     try { await rm(profile, { recursive: true, force: true }); break; }
-    catch (error) { if (error?.code !== "EBUSY" || attempt === 9) throw error; await delay(100); }
+    catch (error) {
+      if (!["EBUSY", "EPERM"].includes(error?.code) || attempt === 29) throw error;
+      await delay(200);
+    }
   }
 }

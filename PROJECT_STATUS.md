@@ -1,11 +1,11 @@
 ﻿# Trạng thái dự án
 
 **Cập nhật:** 2026-07-27 (Asia/Saigon)
-**Milestone:** DAILY-PROD-6 Task-Oriented Production Workbench Accepted - Human Audio QA Pending
-**Strategic state:** `DAILY_USE_V1_TASK_WORKBENCH_ACCEPTED`
-**Trạng thái hiện tại:** The routine workflow now uses a five-stage task-oriented Production workbench over unchanged backend resolver and transaction boundaries. A compact range context, ordered chapter queue, one current task, one primary action, and collapsed technical details replace the visible all-in-one stack. Browser journeys A-H passed at 1366x768 and 1920x1080 without canonical production mutation. Job `26` and active Artifacts `93/96` remain intact and both outputs remain Human QA `pending`.
+**Milestone:** DAILY-PROD-6 Task Projection And Daily Workflow Stabilization - Human Audio QA Pending
+**Strategic state:** `DAILY_USE_V1_TASK_PROJECTION_ACCEPTED`
+**Trạng thái hiện tại:** The routine workflow now uses a five-stage task-oriented Production workbench over unchanged backend resolver and transaction boundaries. A compact range context, ordered chapter queue, one current task, one primary action, and collapsed technical details replace the visible all-in-one stack. Browser journeys A-H plus the five-interval polling-stability scenario passed at 1366x768 and 1920x1080 without canonical production mutation. Job `26` and active Artifacts `93/96` remain intact and both outputs remain Human QA `pending`.
 
-**Last verified implementation starting baseline:** `e9c6a164a1a35fc07a00c3d34ac6f00b845074c5`
+**Last verified implementation starting baseline:** `26806b36d21809d6faf4414d7c0be8618bf4e040`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-25
 **Canonical runtime:** `http://127.0.0.1:8772`
@@ -15,7 +15,8 @@
 **DAILY-PROD-5A:** complete
 **DAILY-PROD-5B:** complete and production-proven
 **DAILY-PROD-5:** complete
-**DAILY-PROD-6:** real-browser acceptance complete; Human Audio QA pending
+**DAILY-PROD-6:** task projection accepted; Human Audio QA pending
+**Task projection:** read-only backend projection implemented and fully validated
 **Production authorization:** `AUTHENTICATED_LOCAL_PREPARE_AND_EXPLICIT_START`
 **Kill switch:** active authority; currently disabled
 **START_RENDER:** separate explicit action only
@@ -23,6 +24,28 @@
 **DAILY-PROD-4:** complete
 **DAILY-PROD-3A:** complete
 **DAILY-PROD-3:** complete
+
+**Task Projection And Polling Stabilization:**
+- `GET /api/production/task-projection` is the canonical read-only source for
+  task ordering, affected chapter, queue state, range eligibility, and the
+  single primary action. The pure projection is covered by precedence tests;
+  the API adapter reads existing readiness, speaker-review, and exact-range
+  Job state without mutation.
+- The Production workbench now uses stable `task_key` identity. Polling keeps
+  the active task DOM in place when the key is unchanged, so open advanced
+  details, unsaved inputs, focus, scroll, and audio playback are not reset.
+- Range PREPARE is shown only when every selected chapter is eligible;
+  START_RENDER, monitoring, and recovery require one exact existing range Job.
+  Multiple exact live/recoverable Jobs fail closed without START/PREPARE, and
+  a ready inspected chapter never overrides an earlier blocked chapter.
+- Validation passed: pure projection tests `9 / 9`, focused/affected suites,
+  browser journeys A-H plus five consecutive polling intervals, JavaScript
+  syntax, PowerShell AST, full offline suite `1734` with one established skip,
+  Doctor `critical_errors=0`, SQLite quick check `ok`, foreign keys `0`, and
+  a supervised canonical runtime restart with the new endpoint live.
+- No canonical production mutation, provider/Gemini/TTS call, Chapter `369`
+  change, Job, Artifact, QA, database, audio, credential, or protected
+  `experiment_b_transcript/` / `runs/` change was made by this implementation.
 
 **Current production state:**
 - User-facing source literals are valid UTF-8. HTML/static responses declare

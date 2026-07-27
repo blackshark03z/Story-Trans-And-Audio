@@ -4,6 +4,28 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Canonical Production Task Projection
+
+- Added a read-only `GET /api/production/task-projection` endpoint and a pure
+  projection service for canonical task ordering, affected chapter, queue,
+  range readiness, task key, blocker, and primary action.
+- Split speaker proposal creation, row resolution, Speaker Draft approval,
+  voice assignment, Casting Plan review, PREPARE, START_RENDER, monitoring,
+  recovery, and Human QA into explicit task types without widening mutation
+  boundaries.
+- Made the workbench poll projection state while preserving the active task
+  DOM when `task_key` is stable. Advanced details, unsaved controls, focus,
+  scroll, and audio playback are therefore not reset by refresh.
+- Failed closed when more than one exact live/recoverable range Job exists;
+  cancelled or completed historical Jobs do not silently become recovery
+  targets or block a newly eligible PREPARE.
+- Validated pure projection precedence, affected API/UI behavior, browser
+  journeys A-H plus five polling intervals, the full `1734`-test offline
+  suite, Doctor, canonical SQLite integrity, and supervised runtime restart.
+- Kept the implementation read-only: no canonical Job, Artifact, QA,
+  provider/Gemini/TTS, Chapter `369`, database, audio, credential, or
+  protected runtime path changed.
+
 ### Task-Oriented Production Workbench
 
 - Replaced the visible all-in-one Production stack with a compact range

@@ -4,7 +4,29 @@ Updated: 2026-07-27
 
 ## Current Phase
 
-`Daily-Use V1 now uses a five-stage task-oriented Production workbench over the unchanged canonical backend states. A compact range bar, chapter queue, current-task workspace, and collapsed technical drawer replace the visible all-in-one Production stack. The resolver selects the next chapter/task and exposes at most one primary action, except the explicit QA verdict pair. The two-chapter pilot remains on Job 26; Artifacts 93 and 96 are available for operator playback and both remain Human QA pending.`
+`Daily-Use V1 now uses a five-stage task-oriented Production workbench over the unchanged canonical backend states. A compact range bar, chapter queue, current-task workspace, and collapsed technical drawer replace the visible all-in-one Production stack. The backend read-only task projection is now the workbench source of truth for canonical ordering, range gates, task keys, and primary actions. The two-chapter pilot remains on Job 26; Artifacts 93 and 96 are available for operator playback and both remain Human QA pending.`
+
+## Canonical Task Projection
+
+- `GET /api/production/task-projection` now returns the normalized read-only
+  task contract for a chapter or contiguous range. The pure projection keeps
+  text, speaker proposal/review, voice, Casting Plan, PREPARE, START_RENDER,
+  monitoring/recovery, QA, and complete states in one canonical order.
+- Range tasks are emitted only for an eligible range, one exact prepared Job,
+  or one exact active/recoverable Job. An inspected ready chapter cannot
+  override an earlier blocked chapter or expose PREPARE.
+- The UI stores the projection `task_key` and does not replace the active task
+  DOM while that key is unchanged. Polling updates render progress in place,
+  preserving open advanced details, unsaved controls, focus, and scroll.
+- Validation passed: pure projection `9 / 9`, affected API/UI suites, browser
+  journeys A-H plus five consecutive polling intervals, full offline suite
+  `1734` with one established skip, JavaScript syntax, PowerShell AST, Doctor
+  `critical_errors=0`, quick check `ok`, foreign keys `0`, and supervised
+  canonical restart. The canonical DB hash, size, mtime, row counts, and
+  Chapter `369` digest remained unchanged across restart.
+- This implementation remains read-only in canonical data. No PREPARE,
+  START_RENDER, QA, provider/Gemini/TTS, Job, Artifact, Chapter `369`, or
+  protected runtime path was mutated by the task.
 
 ## Task-Oriented Production Workbench
 

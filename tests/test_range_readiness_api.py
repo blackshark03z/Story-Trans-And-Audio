@@ -453,6 +453,27 @@ class RangeReadinessApiTests(IsolatedTestCase):
         self.assertFalse(item["requires_operator_action"])
         self.assertEqual(before, after)
 
+    def test_task_projection_is_read_only_and_uses_canonical_range_gate(self) -> None:
+        self._speaker_draft(7, "approved")
+        before_jobs = self.db.fetch_one("SELECT COUNT(*) AS n FROM jobs")["n"]
+        response = self.client.get(
+            "/api/production/task-projection",
+            params={
+                "book_id": self.book_id,
+                "from_chapter": 7,
+                "to_chapter": 7,
+            },
+        )
+        self.assertEqual(response.status_code, 200, response.text)
+        projection = response.json()
+        self.assertEqual(projection["task_type"], "PREPARE_RANGE")
+        self.assertEqual(projection["task_scope"], "range")
+        self.assertEqual(projection["primary_action"]["key"], "PREPARE_RANGE")
+        self.assertEqual(
+            self.db.fetch_one("SELECT COUNT(*) AS n FROM jobs")["n"],
+            before_jobs,
+        )
+
     def test_human_approved_model_invalid_draft_does_not_hide_ready_plan(self) -> None:
         draft_id = self._speaker_draft(7, "approved")
         self._execute(

@@ -23,6 +23,36 @@ An operator can:
 
 The UI must always make the next valid action clear.
 
+## Canonical Task Projection
+
+The Production workbench reads one read-only projection from
+`GET /api/production/task-projection`. It is the application-layer source of
+truth for the current task, affected chapter, ordered queue, blocker, range
+gate, and one primary action. The projection is pure over a supplied snapshot,
+with a SQLite adapter that only reads canonical readiness, speaker-review
+rows, and exact-range Job identity.
+
+The projection order is deterministic:
+
+1. invalid or unapproved text;
+2. missing speaker proposal;
+3. unresolved speaker decisions;
+4. Speaker Draft approval;
+5. missing or invalid voice;
+6. Casting Plan review;
+7. eligible-range PREPARE;
+8. exact-range START_RENDER;
+9. exact-range monitoring or recovery;
+10. pending Human QA;
+11. complete.
+
+The frontend stores the projection `task_key`. Polling refreshes business
+state, but does not replace the current task DOM while that key is unchanged.
+This preserves advanced disclosure, unsaved controls, focus, scroll, and audio
+position in the daily workbench. PREPARE and START_RENDER remain separate
+operator actions; this projection does not mutate, wake the worker, or call a
+provider.
+
 ## Daily-Use V1 Operator Surface
 
 Daily-Use V1 is implemented through five primary views:

@@ -88,6 +88,7 @@ from .pipeline import (
     prepare_job,
     start_prepared_job,
 )
+from .production_task_projection import get_production_task_projection
 from .range_readiness import get_range_readiness
 from .storage import ContentStore
 from .storage_cleanup import (
@@ -818,6 +819,34 @@ def production_range_readiness(
             book_id=book_id,
             from_chapter=from_chapter,
             to_chapter=to_chapter,
+            voice_catalog=voice_catalog,
+            store=store,
+        )
+    except VoiceCatalogUnavailable as exc:
+        raise _job_http_error(exc) from exc
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/production/task-projection")
+def production_task_projection(
+    book_id: int = Query(..., gt=0),
+    from_chapter: int = Query(..., ge=0),
+    to_chapter: int = Query(..., ge=0),
+    inspected_chapter_id: int | None = Query(None, gt=0),
+) -> dict[str, Any]:
+    """Return the canonical read-only task projection for the workbench."""
+
+    try:
+        voice_catalog = _load_voice_catalog()
+        return get_production_task_projection(
+            db,
+            book_id=book_id,
+            from_chapter=from_chapter,
+            to_chapter=to_chapter,
+            inspected_chapter_id=inspected_chapter_id,
             voice_catalog=voice_catalog,
             store=store,
         )

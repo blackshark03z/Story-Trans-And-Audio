@@ -180,6 +180,110 @@ class ScopeFixtureHandler(SimpleHTTPRequestHandler):
                     "exceptions": [],
                 }
             )
+        if parsed.path == "/api/production/task-projection":
+            book_id = int(query["book_id"][0])
+            start = int(query["from_chapter"][0])
+            end = int(query["to_chapter"][0])
+            if book_id == 91:
+                queue = [
+                    {
+                        "chapter_id": 9101,
+                        "chapter_number": 401,
+                        "title": "Chương kiểm thử",
+                        "status": "current",
+                        "state": "SPEAKER_EXCEPTIONS",
+                        "user_stage": 2,
+                        "task_type": "RESOLVE_SPEAKER",
+                        "task_key": "chapter:9101:RESOLVE_SPEAKER",
+                    }
+                ]
+                return self._json(
+                    {
+                        "range_identity": "book:91:401-401",
+                        "task_scope": "chapter",
+                        "task_type": "RESOLVE_SPEAKER",
+                        "task_key": "chapter:9101:RESOLVE_SPEAKER",
+                        "user_stage": 2,
+                        "title": "Xác nhận người nói",
+                        "summary": "Chương 401 còn một dòng chưa xác nhận.",
+                        "task_title": "Xác nhận người nói",
+                        "task_summary": "Chương 401 còn một dòng chưa xác nhận.",
+                        "affected_chapter": {
+                            "id": 9101,
+                            "number": 401,
+                            "title": "Chương kiểm thử",
+                        },
+                        "chapter_queue": queue,
+                        "queue": queue,
+                        "primary_action": {
+                            "key": "RESOLVE_SPEAKER",
+                            "label": "Xác nhận và tiếp tục",
+                            "target": "speakers",
+                        },
+                        "secondary_actions": [],
+                        "secondary_links": [],
+                        "blocker": None,
+                        "range_readiness": {
+                            "scope": {
+                                "book_id": 91,
+                                "from_chapter": 401,
+                                "to_chapter": 401,
+                            },
+                            "summary": {},
+                        },
+                        "next_task_hint": "Duyệt Speaker Draft.",
+                        "next_task_after_success": "Duyệt Speaker Draft.",
+                        "technical_details": [],
+                        "phases": [],
+                        "conceptual_state": "SPEAKER_EXCEPTIONS",
+                        "current_stage_key": "speakers",
+                    }
+                )
+            rows = [
+                row
+                for row in self._chapters(book_id, "")
+                if start <= row["chapter_number"] <= end
+            ]
+            queue = [
+                {
+                    "chapter_id": row["id"],
+                    "chapter_number": row["chapter_number"],
+                    "title": row["title"],
+                    "status": "complete",
+                    "state": "COMPLETE",
+                    "user_stage": 5,
+                    "task_type": None,
+                    "task_key": f"chapter:{row['id']}:READY",
+                }
+                for row in rows
+            ]
+            return self._json(
+                {
+                    "range_identity": f"book:{book_id}:{start}-{end}",
+                    "task_scope": "range",
+                    "task_type": "COMPLETE",
+                    "task_key": f"range:{book_id}:{start}-{end}:COMPLETE",
+                    "user_stage": 5,
+                    "title": "Phạm vi đã hoàn tất",
+                    "summary": "Tất cả chương trong phạm vi đã hoàn tất.",
+                    "task_title": "Phạm vi đã hoàn tất",
+                    "task_summary": "Tất cả chương trong phạm vi đã hoàn tất.",
+                    "affected_chapter": None,
+                    "chapter_queue": queue,
+                    "queue": queue,
+                    "primary_action": None,
+                    "secondary_actions": [],
+                    "secondary_links": [],
+                    "blocker": None,
+                    "range_readiness": {"scope": {"book_id": book_id, "from_chapter": start, "to_chapter": end}, "summary": {}},
+                    "next_task_hint": "Chọn phạm vi tiếp theo.",
+                    "next_task_after_success": "Chọn phạm vi tiếp theo.",
+                    "technical_details": [],
+                    "phases": [],
+                    "conceptual_state": "COMPLETE",
+                    "current_stage_key": "qa",
+                }
+            )
         return self._json({"detail": f"Unhandled fixture route: {parsed.path}"}, 404)
 
     def _serve_file(self, path: Path, content_type: str | None = None) -> None:
