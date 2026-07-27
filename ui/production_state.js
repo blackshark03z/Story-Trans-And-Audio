@@ -38,7 +38,7 @@
     {id:'productionStageIsolation',stages:['scope','text','speakers','voices','voice_map','prepare','render','qa'],kind:'shell'},
     {id:'workspace',stages:['scope','prepare'],kind:'work'},
     {id:'productionQueuePanel',stages:['render'],kind:'work'},
-    {id:'productionLegacyJobPanel',stages:['scope','prepare'],kind:'work'},
+    {id:'productionLegacyJobPanel',stages:[],kind:'work'},
     {id:'flowStepSelectChapter',stages:['scope'],kind:'work'},
     {id:'flowStepReviewText',stages:['text'],kind:'work'},
     {id:'flowStepAssignVoices',stages:['speakers','voices'],kind:'work'},

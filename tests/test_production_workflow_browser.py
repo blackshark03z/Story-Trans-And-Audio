@@ -84,7 +84,7 @@ class ProductionWorkflowBrowserTests(unittest.TestCase):
         self.assertEqual(evidence["scenarioE"]["remaining"], 3)
         self.assertEqual(evidence["scenarioGEnd"]["phase"], "castingGeneration")
         self.assertEqual(evidence["scenarioH"]["label"], "Chuẩn bị 9 chương")
-        self.assertTrue(evidence["scenarioJ"])
+        self.assertTrue(evidence["scenarioJ"]["ok"])
         self.assertTrue(evidence["layout1366"]["primaryVisible"])
         self.assertFalse(evidence["layout1366"]["horizontal"])
         self.assertEqual(evidence["layout1366"]["nested"], [])

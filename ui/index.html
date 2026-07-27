@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Story Audio</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=20260727-task-workbench-1">
+  <link rel="stylesheet" href="/assets/styles.css?v=20260727-production-preflight-1">
 </head>
 <body>
   <header class="topbar">
@@ -993,6 +993,28 @@
     </div>
   </dialog>
 
+  <dialog id="productionPrepareAuthDialog" class="production-auth-dialog" aria-labelledby="productionPrepareAuthHeading">
+    <div class="dialog-head">
+      <div>
+        <p class="eyebrow">Xác thực thao tác</p>
+        <h2 id="productionPrepareAuthHeading">Chuẩn bị phạm vi audio</h2>
+      </div>
+      <button class="ghost" type="button" data-close="productionPrepareAuthDialog">Đóng</button>
+    </div>
+    <p id="productionPrepareDialogStatus" class="production-auth-message"></p>
+    <label class="check production-confirmation">
+      <input id="productionPrepareDialogConfirmation" type="checkbox" onchange="updateProductionPrepareDialog()">
+      <span id="productionPrepareConfirmationCopy">Tôi xác nhận phạm vi đã chọn. Bước này chưa tạo audio.</span>
+    </label>
+    <label class="production-operator-key" for="productionTaskOperatorToken">Mã xác nhận vận hành
+      <input id="productionTaskOperatorToken" type="password" autocomplete="off" placeholder="Nhập mã xác nhận" oninput="updateProductionPrepareDialog()">
+    </label>
+    <div class="production-auth-actions">
+      <button class="ghost" type="button" onclick="document.querySelector('#productionPrepareAuthDialog').close()">Hủy</button>
+      <button id="productionPrepareDialogSubmit" class="primary" type="button" onclick="submitProductionPrepareDialog()" disabled>Chuẩn bị phạm vi</button>
+    </div>
+  </dialog>
+
   <dialog id="jobDiagnosticsDialog" class="diagnostic-dialog">
     <div class="dialog-head">
       <div><p class="eyebrow">Chẩn đoán job</p><h2 id="jobDiagnosticTitle">Job</h2></div>
@@ -1020,8 +1042,8 @@
     <div id="segmentDiagnosticBody" class="diagnostic-body"></div>
   </dialog>
   <div id="toast" class="toast hidden"></div>
-  <script src="/assets/production_state.js?v=20260727-range-input-1"></script>
-  <script src="/assets/app.js?v=20260727-range-input-1"></script>
+  <script src="/assets/production_state.js?v=20260727-production-preflight-1"></script>
+  <script src="/assets/app.js?v=20260727-production-preflight-1"></script>
   <script src="/assets/casting_voice_map.js?v=20260726-vietnamese-flow-3"></script>
   <script src="/assets/contextual_voice_detour.js?v=20260720-daily-prod-2b2"></script>
 </body>

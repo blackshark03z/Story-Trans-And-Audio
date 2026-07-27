@@ -113,6 +113,9 @@ try {
   });
   await waitFor(`document.readyState==="complete"`);
   await waitFor(`window.storyAudioAppState && document.querySelector("#productionWorkbench")`);
+  await waitFor(`window.storyAudioAppState.config
+    && window.storyAudioAppState.runtimeIdentityResolved
+    && !document.querySelector("#homeAttention")?.textContent.includes("Đang tải")`);
 
   await evaluate(`(() => {
     const chapters=Array.from({length:10},(_,index)=>({
@@ -267,8 +270,9 @@ try {
     `document.querySelector("#productionPrimaryAction")?.textContent.trim()`
   );
   const clickPrimary = async () => {
-    await evaluate(`document.querySelector("#productionPrimaryAction").click()`);
-    await delay(80);
+    await evaluate(
+      `Promise.resolve(document.querySelector("#productionPrimaryAction").onclick())`
+    );
   };
 
   const scenarioAStart = await primaryLabel();
@@ -310,9 +314,28 @@ try {
     speakerApprovalCalls:__rangeFixture.calls.filter(item=>item.path==="/api/production/range-inputs/speaker-approvals").length,
     visible:document.querySelector("[data-range-exception]")?.dataset.rangeException
   })`);
+  let exceptionRounds = 0;
   while (await evaluate(`__rangeFixture.phase==="exceptions"`)) {
+    if (exceptionRounds++ >= 10) {
+      throw new Error("Speaker exception journey did not converge.");
+    }
+    const remainingBefore = await evaluate(`__rangeFixture.exceptions.length`);
     await evaluate(`document.querySelector("#productionRangeSpeakerChoice").value="narrator"`);
     await clickPrimary();
+    try {
+      await poll(async () => evaluate(
+        `__rangeFixture.phase!=="exceptions"||__rangeFixture.exceptions.length<${remainingBefore}`
+      ), 5000);
+    } catch (error) {
+      const stalled = await evaluate(`({
+        phase:__rangeFixture.phase,
+        remaining:__rangeFixture.exceptions.length,
+        primary:document.querySelector("#productionPrimaryAction")?.textContent,
+        selected:document.querySelector("#productionRangeSpeakerChoice")?.value,
+        lastCalls:__rangeFixture.calls.slice(-5),
+      })`);
+      throw new Error(`Speaker exception stalled: ${JSON.stringify({ remainingBefore, stalled })}`);
+    }
   }
   const scenarioC = await evaluate(`({
     remaining:__rangeFixture.exceptions.length,
@@ -364,9 +387,17 @@ try {
     for(let index=0;index<5;index+=1){
       await loadProductionTaskProjection({silent:true});
       await new Promise(resolve=>setTimeout(resolve,30));
-      if(state.productionProjection.canonical_task.task_key!==key||!select.isConnected||select.value!=="unknown"||document.activeElement!==select)return false;
+      const evidence={
+        index,
+        keyStable:state.productionProjection.canonical_task.task_key===key,
+        connected:select.isConnected,
+        valueStable:select.value==="unknown",
+        focusStable:document.activeElement===select,
+        activeElement:document.activeElement?.id||document.activeElement?.tagName||null,
+      };
+      if(!evidence.keyStable||!evidence.connected||!evidence.valueStable||!evidence.focusStable)return{ok:false,...evidence};
     }
-    return true;
+    return{ok:true};
   })()`);
 
   const layout1366 = await evaluate(`(() => {
@@ -422,7 +453,7 @@ try {
       || scenarioH.label !== "Chuẩn bị 9 chương") {
     throw new Error(`Scenarios H/I failed: ${JSON.stringify({ scenarioHStart, prepareUnavailableBeforeH, scenarioH })}`);
   }
-  if (!scenarioJ) throw new Error("Scenario J failed: polling reset current exception state.");
+  if (!scenarioJ.ok) throw new Error(`Scenario J failed: ${JSON.stringify(scenarioJ)}`);
   if (!layout1366.primaryVisible || layout1366.horizontal || layout1366.nested.length) {
     throw new Error(`1366 layout failed: ${JSON.stringify(layout1366)}`);
   }

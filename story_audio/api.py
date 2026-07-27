@@ -89,6 +89,7 @@ from .pipeline import (
     start_prepared_job,
 )
 from .production_task_projection import get_production_task_projection
+from .production_preflight import get_production_preflight
 from .range_input import (
     RangeInputError,
     approve_ready_casting_plans,
@@ -888,6 +889,40 @@ def production_task_projection(
             voice_catalog=voice_catalog,
             store=store,
             config=settings,
+            custom_voice_context=_build_custom_voice_context(),
+        )
+    except VoiceCatalogUnavailable as exc:
+        raise _job_http_error(exc) from exc
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/production/preflight")
+def production_preflight(
+    book_id: int = Query(..., gt=0),
+    from_chapter: int = Query(..., ge=0),
+    to_chapter: int = Query(..., ge=0),
+    skip_completed: bool = Query(True),
+) -> dict[str, Any]:
+    """Return one read-only review of production data and execution gates."""
+
+    try:
+        voice_catalog = _load_voice_catalog()
+        runtime_readiness = public_runtime_readiness(prepare_runtime_integration)
+        runtime_readiness["mutation_service_constructed"] = batch_prepare_api_service is not None
+        runtime_readiness["mutation_route_registered"] = batch_prepare_api_service is not None
+        return get_production_preflight(
+            db,
+            book_id=book_id,
+            from_chapter=from_chapter,
+            to_chapter=to_chapter,
+            skip_completed=skip_completed,
+            voice_catalog=voice_catalog,
+            store=store,
+            config=settings,
+            runtime_readiness=runtime_readiness,
             custom_voice_context=_build_custom_voice_context(),
         )
     except VoiceCatalogUnavailable as exc:

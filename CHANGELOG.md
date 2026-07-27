@@ -4,6 +4,24 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Lean Production Preflight Review
+
+- Added deterministic read-only `GET /api/production/preflight` projection for
+  range contents, excluded chapters, ordered blockers, five readiness checks,
+  effective voice routing, execution gates, and one exact next action.
+- Kept data readiness separate from schema/authentication/kill-switch state.
+  Unavailable voices and conflicting work fail closed without fallback.
+- Added the single-screen Production review with display-name voice mapping,
+  plain PREPARE impact, responsive execution summary, blocker navigation, and
+  stable focus/disclosure across refresh.
+- Moved PREPARE confirmation and secret entry into a bounded dialog, retained
+  START_RENDER as a separate lifecycle action, and demoted the legacy batch
+  panel to hidden/inert compatibility markup.
+- Added pure decision, aggregation, API, navigation, and real-browser A-H
+  coverage at `1366x768` and `1920x1080`. Canonical acceptance was read-only;
+  no Job, Artifact, QA, Chapter `369`, provider/Gemini/TTS, or audio mutation
+  occurred.
+
 ### Range Input Preparation And Exception Queues
 
 - Added bounded range input APIs for proposal creation/reuse, read-only

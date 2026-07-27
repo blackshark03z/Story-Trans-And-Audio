@@ -1,13 +1,13 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-27 (Asia/Saigon)
-**Milestone:** DAILY-PROD-6 Task Projection And Daily Workflow Stabilization - Human Audio QA Pending
-**Strategic state:** `DAILY_USE_V1_TASK_PROJECTION_ACCEPTED`
-**Trạng thái hiện tại:** The routine workflow now uses a five-stage task-oriented Production workbench over unchanged backend resolver and transaction boundaries. A compact range context, ordered chapter queue, one current task, one primary action, and collapsed technical details replace the visible all-in-one stack. Browser journeys A-H plus the five-interval polling-stability scenario passed at 1366x768 and 1920x1080 without canonical production mutation. Job `26` and active Artifacts `93/96` remain intact and both outputs remain Human QA `pending`.
+**Cập nhật:** 2026-07-28 (Asia/Saigon)
+**Milestone:** DAILY-PROD-6 Lean Production Preflight Accepted - Human Audio QA Pending
+**Strategic state:** `DAILY_USE_V1_PREFLIGHT_ACCEPTED`
+**Trạng thái hiện tại:** The routine workflow now combines the canonical Task Projection with one read-only Production Preflight review. The operator can see range readiness, exact blockers, effective display-name voice routing, PREPARE contents, authorization state, and one valid next action on one screen. Legacy batch panels are hidden and inert; technical IDs remain collapsed. Job `26` and active Artifacts `93/96` remain intact and both outputs remain Human QA `pending`.
 
-**Last verified implementation starting baseline:** `26806b36d21809d6faf4414d7c0be8618bf4e040`
+**Last verified implementation starting baseline:** `cb6b4e20d0e4775b835502a11f4484e8450b9467`
 **Last verified branch:** `main`
-**Last verified date:** 2026-07-25
+**Last verified date:** 2026-07-28
 **Canonical runtime:** `http://127.0.0.1:8772`
 **Runtime schema:** canonical `15`
 **Default/latest schema:** `15`
@@ -17,6 +17,7 @@
 **DAILY-PROD-5:** complete
 **DAILY-PROD-6:** task projection accepted; Human Audio QA pending
 **Task projection:** read-only backend projection implemented and fully validated
+**Production preflight:** read-only range review implemented and browser accepted
 **Production authorization:** `AUTHENTICATED_LOCAL_PREPARE_AND_EXPLICIT_START`
 **Kill switch:** active authority; currently disabled
 **START_RENDER:** separate explicit action only
@@ -24,6 +25,30 @@
 **DAILY-PROD-4:** complete
 **DAILY-PROD-3A:** complete
 **DAILY-PROD-3:** complete
+
+**Lean Production Preflight:**
+- `GET /api/production/preflight` composes existing range readiness, task
+  projection, batch-plan, Casting Plan, and effective voice catalog services
+  without duplicating domain rules or creating production state.
+- The stable projection separates data readiness from authorization and
+  runtime gates. It reports included/excluded chapters, ordered blockers, five
+  readiness checks, effective voice display names and assignment sources,
+  estimated Segments, prepared Job identity when present, and one next action.
+- Missing/unusable voices and conflicting live work fail closed. Task
+  Projection remains authoritative for workflow ordering, prepared/running
+  transitions, recovery, Human QA, and completion.
+- The Production review shows one primary action. PREPARE confirmation and the
+  operator secret are confined to a small dialog; START_RENDER remains a
+  separate action and is never offered beside PREPARE.
+- The old batch/readiness/PREPARE surface is retained only as inactive
+  compatibility markup. It is hidden and inert in every daily workflow stage;
+  schema/auth/IDs/hashes remain in collapsed technical details.
+- Browser scenarios A-H passed at `1366x768` and `1920x1080`, including
+  blocked, ready, authorization-missing, unavailable-voice, prepared, running,
+  disclosure/focus stability, and responsive states.
+- Canonical live verification used Book `1`, Chapter `2` read-only and showed
+  one ready narrator voice (`Chanlee`) and one PREPARE action. No canonical
+  mutation, provider/Gemini/TTS call, or Chapter `369` change occurred.
 
 **Range input preparation and exception workflow:**
 - Input work is now organized around the selected range rather than ten

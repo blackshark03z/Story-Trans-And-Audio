@@ -9,6 +9,12 @@ Active milestone:
 Exact next task:
 `Human-listen to active Artifacts 93 and 96 for Book 1 Chapters 372-373, then record acceptance or one precise remediation target for each chapter.`
 
+The Lean Production Preflight review is complete. It does not authorize this
+Human Audio QA task, PREPARE, START_RENDER, or provider work automatically.
+Task Projection remains authoritative for ordering, while Preflight is the
+read-only review of readiness, effective voices, batch contents, execution
+gates, and the one valid range-level action.
+
 The projection-ordering correction is complete and does not authorize this
 next Human Audio QA action automatically. Production must continue to use the
 canonical `Việc tiếp theo` task; manual chapter inspection is read-only.

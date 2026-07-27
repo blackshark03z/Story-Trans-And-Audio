@@ -1,8 +1,30 @@
 # DAILY-PROD Checkpoint State
 
-Updated: 2026-07-27
+Updated: 2026-07-28
 
 ## Current Phase
+
+### Lean Production Preflight Review
+
+- `GET /api/production/preflight` now provides one deterministic, read-only
+  review of the selected range: included/excluded chapters, ordered blockers,
+  five readiness checks, the effective voice map, execution gates, and the
+  exact next action.
+- Data readiness remains separate from schema, authentication, kill-switch,
+  and conflict gates. Missing or unusable voices fail closed and are never
+  replaced by a silent fallback.
+- The Production workbench shows the preflight only at range preparation,
+  start, and render-monitoring boundaries. It uses display names in the main
+  view, keeps IDs and diagnostics collapsed, and presents PREPARE or
+  START_RENDER, never both.
+- The former batch/readiness/PREPARE panel remains in source for compatibility
+  but has no active workflow stage and is always hidden and inert in the daily
+  Production view.
+- Browser scenarios A-H pass at `1366x768` and `1920x1080`. Canonical runtime
+  verification was read-only and showed Chapter `2` ready with narrator voice
+  `Chanlee`, one primary action, and no exposed auth enum or provider voice ID.
+- No canonical Draft, Casting Plan, Job, Artifact, QA, Chapter `369`, provider,
+  Gemini, TTS, database, audio, or protected-path mutation was performed.
 
 ### Range Input Preparation And Exception Workflow
 

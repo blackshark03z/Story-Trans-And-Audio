@@ -116,6 +116,38 @@ position in the daily workbench. PREPARE and START_RENDER remain separate
 operator actions; this projection does not mutate, wake the worker, or call a
 provider.
 
+## Production Preflight Review
+
+Task Projection answers which workflow task is next. The read-only
+`GET /api/production/preflight` projection answers whether the selected range
+is safe to execute and which approved data it will use. The two projections
+are loaded together, but Task Projection remains authoritative for ordering.
+
+Preflight composes the canonical range-readiness, batch-plan, Casting Plan,
+effective-voice catalog, and exact-range Job services. It returns:
+
+- included and excluded chapters with reasons;
+- text, speaker, Casting Plan, voice availability, and Job-conflict checks;
+- ordered blockers with their canonical chapter task;
+- effective narrator/character/unknown voice display names, assignment source,
+  affected chapters, and line counts;
+- PREPARE, schema, authentication, kill-switch, and conflict gates as separate
+  facts;
+- estimated chapter/Segment/voice scope and one exact next action;
+- IDs, fingerprints, and raw runtime classifications only in technical detail.
+
+Unavailable voices, unresolved routing, stale production inputs, and
+conflicting live work fail closed. The primary review never substitutes an
+unknown or unavailable voice silently and does not recompute domain rules in
+JavaScript.
+
+The daily screen shows one action: resolve the first blocker, authenticate,
+PREPARE, START_RENDER, monitor/recover, or Human QA. PREPARE and START_RENDER
+never appear together. PREPARE confirmation and any required operator token
+are entered only in a small dialog; the token is not rendered in the review or
+stored in source. Legacy batch diagnostics are hidden and inert, while the
+technical drawer is collapsed by default.
+
 ## Daily-Use V1 Operator Surface
 
 Daily-Use V1 is implemented through five primary views:
