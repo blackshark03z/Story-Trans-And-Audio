@@ -34,6 +34,17 @@ def _readiness(*rows: dict) -> dict:
 
 
 class ProductionTaskProjectionTests(unittest.TestCase):
+    def assert_typed_section(self, projection: dict, expected: str | None) -> None:
+        task = projection["canonical_task"]
+        sections = ("speaker", "casting", "range_prepare", "render", "qa")
+        self.assertEqual(task["task_type"], projection["task_type"])
+        self.assertEqual(task["task_key"], projection["task_key"])
+        for section in sections:
+            if section == expected:
+                self.assertIsInstance(task[section], dict)
+            else:
+                self.assertIsNone(task[section])
+
     def test_canonical_chapter_precedence(self) -> None:
         cases = (
             (
@@ -69,6 +80,72 @@ class ProductionTaskProjectionTests(unittest.TestCase):
                 self.assertEqual(projection["task_type"], expected)
                 self.assertEqual(projection["task_scope"], "chapter")
                 self.assertEqual(projection["affected_chapter"]["number"], 1)
+                expected_section = (
+                    "speaker"
+                    if expected in {
+                        "CREATE_SPEAKER_PROPOSAL",
+                        "RESOLVE_SPEAKER",
+                        "APPROVE_SPEAKER_DRAFT",
+                    }
+                    else "casting" if expected in {"ASSIGN_VOICE", "REVIEW_CASTING_PLAN"} else None
+                )
+                self.assert_typed_section(projection, expected_section)
+
+    def test_mixed_range_uses_workflow_priority_before_chapter_order(self) -> None:
+        qa = _row(
+            1,
+            "RENDERED_NOT_QA",
+            blockers=["audio awaits QA"],
+            active_artifact_id=39,
+            active_output_job_id=14,
+        )
+        speaker = _row(
+            3,
+            "SPEAKER_EXCEPTIONS",
+            latest_speaker_draft_status="generated",
+            speaker_review={
+                "remaining_unreviewed_count": 0,
+                "invalid_count": 1,
+            },
+        )
+
+        projection = project_production_task(
+            {
+                "readiness": _readiness(qa, _row(2), speaker),
+                "inspected_chapter_id": qa["chapter_id"],
+            }
+        )
+
+        self.assertEqual(projection["task_type"], "APPROVE_SPEAKER_DRAFT")
+        self.assertEqual(projection["affected_chapter"]["number"], 3)
+        self.assert_typed_section(projection, "speaker")
+        self.assertEqual(projection["inspected_chapter"]["number"], 1)
+        self.assertTrue(projection["inspection_summary"]["read_only"])
+        self.assertEqual(projection["inspection_summary"]["task_type"], "HUMAN_QA")
+        self.assertNotIn("primary_action", projection["inspection_summary"])
+        queue = {item["chapter_number"]: item for item in projection["chapter_queue"]}
+        self.assertTrue(queue[3]["canonical_task"])
+        self.assertTrue(queue[1]["inspected"])
+
+    def test_render_range_task_precedes_pending_qa(self) -> None:
+        qa = _row(1, "RENDERED_NOT_QA", active_artifact_id=39)
+        ready = _row(2)
+        projection = project_production_task(
+            {
+                "readiness": _readiness(qa, ready),
+                "range_jobs": [
+                    {
+                        "id": 44,
+                        "status": "prepared",
+                        "chapter_count": 2,
+                        "all_chapters_match": True,
+                    }
+                ],
+            }
+        )
+        self.assertEqual(projection["task_type"], "START_RENDER_RANGE")
+        self.assertEqual(projection["canonical_task"]["render"]["job_id"], 44)
+        self.assert_typed_section(projection, "render")
 
     def test_ready_range_is_the_only_prepare_gate(self) -> None:
         projection = project_production_task(
@@ -78,6 +155,7 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertEqual(projection["task_scope"], "range")
         self.assertEqual(projection["primary_action"]["key"], "PREPARE_RANGE")
         self.assertTrue(all(item["status"] == "ready" for item in projection["chapter_queue"]))
+        self.assert_typed_section(projection, "range_prepare")
 
     def test_blocked_chapter_prevents_range_prepare_even_when_another_is_ready(self) -> None:
         blocked = _row(
@@ -200,6 +278,7 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertEqual(projection["user_stage"], 5)
         self.assertIsNone(projection["primary_action"])
         self.assertEqual(projection["chapter_queue"][0]["status"], "current")
+        self.assert_typed_section(projection, "qa")
 
         complete = _row(1, "COMPLETE")
         projection = project_production_task({"readiness": _readiness(complete)})

@@ -46,6 +46,20 @@ The projection order is deterministic:
 10. pending Human QA;
 11. complete.
 
+For a mixed range, the selector compares the first pending task in each
+workflow group across all chapters before choosing by chapter number. A
+pending Human QA chapter therefore remains visible in the queue but cannot
+become the canonical task while earlier input blockers remain. The response
+contains one authoritative `canonical_task`, an optional `inspected_chapter`,
+and a read-only `inspection_summary`; range inspection is carried by the
+`inspect` URL parameter and never changes the canonical task.
+
+Each typed task contract exposes only its relevant section: speaker tasks use
+`speaker`, voice/casting tasks use `casting`, range preparation uses
+`range_prepare`, render/recovery uses `render`, and Human QA uses `qa`.
+Production UI parsing rejects missing or mismatched sections into a concise
+recoverable state, and QA rendering does not assume casting data exists.
+
 The frontend stores the projection `task_key`. Polling refreshes business
 state, but does not replace the current task DOM while that key is unchanged.
 This preserves advanced disclosure, unsaved controls, focus, scroll, and audio

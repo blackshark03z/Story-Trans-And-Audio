@@ -341,20 +341,23 @@
     const params=new URLSearchParams(query);
     const bookId=n(params.get('book'));
     const chapterId=n(params.get('chapter'));
+    const inspectedChapterId=n(params.get('inspect'));
     const fromChapter=n(params.get('from'));
     const toChapter=n(params.get('to'));
     const skipCompleted=params.get('skip_completed')==='1';
-    return {route,explicit:route==='production'&&(bookId||chapterId||fromChapter||toChapter),bookId:bookId||null,chapterId:chapterId||null,fromChapter:fromChapter||null,toChapter:toChapter||null,skipCompleted};
+    return {route,explicit:route==='production'&&(bookId||chapterId||fromChapter||toChapter),bookId:bookId||null,chapterId:chapterId||null,inspectedChapterId:inspectedChapterId||null,fromChapter:fromChapter||null,toChapter:toChapter||null,skipCompleted};
   }
   function productionHashForScope(scope){
     const bookId=n(scope?.bookId??scope?.book_id??scope?.book?.id);
     const chapterId=n(scope?.chapterId??scope?.chapter_id??scope?.chapter?.id);
+    const inspectedChapterId=n(scope?.inspectedChapterId??scope?.inspected_chapter_id);
     const fromChapter=n(scope?.fromChapter??scope?.from_chapter);
     const toChapter=n(scope?.toChapter??scope?.to_chapter);
     if(!bookId||(!chapterId&&!fromChapter&&!toChapter))return '#/production';
     const params=new URLSearchParams({book:String(bookId)});
     if(fromChapter&&toChapter){params.set('from',String(fromChapter));params.set('to',String(toChapter))}
-    if(chapterId)params.set('chapter',String(chapterId));
+    if(chapterId&&!fromChapter&&!toChapter)params.set('chapter',String(chapterId));
+    if(inspectedChapterId&&fromChapter&&toChapter)params.set('inspect',String(inspectedChapterId));
     if(scope?.skipCompleted)params.set('skip_completed','1');
     return `#/production?${params.toString()}`;
   }

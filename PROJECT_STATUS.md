@@ -25,6 +25,29 @@
 **DAILY-PROD-3A:** complete
 **DAILY-PROD-3:** complete
 
+**Projection ordering and typed task contract correction:**
+- The canonical selector now evaluates the entire selected range by workflow
+  priority instead of choosing the first chapter row. Text/speaker/voice/
+  casting blockers precede range PREPARE, exact render work, Human QA, and
+  complete.
+- For the current read-only Book 1 Chapters 1-10 state, the canonical task is
+  Chapter 3 `APPROVE_SPEAKER_DRAFT`; Chapter 1 `HUMAN_QA` remains visible but
+  cannot become primary before Chapter 3 and the other input blockers clear.
+- The API now separates `canonical_task` from optional
+  `inspected_chapter`/read-only `inspection_summary` and emits one
+  task-specific section: `speaker`, `casting`, `range_prepare`, `render`, or
+  `qa`. Range inspection uses `inspect`, not the legacy `chapter` meaning.
+- The frontend renders only the typed canonical projection for task selection.
+  QA no longer invokes the casting renderer, malformed payloads fail closed
+  with a recoverable Vietnamese state, and internal JavaScript errors are not
+  shown as raw toasts.
+- Isolated browser scenarios A-I passed at `1366x768` and `1920x1080`,
+  including five-poll stability, canonical-vs-inspection separation, QA with
+  no casting payload, and malformed-contract recovery. The live runtime
+  restart and Book 1 Chapters 1-10 projection returned Chapter 3 as expected.
+- Canonical schema remains `15`; no Job, Artifact, QA, provider/Gemini/TTS,
+  Chapter 369, database, audio, or protected runtime path was mutated.
+
 **Task Projection And Polling Stabilization:**
 - `GET /api/production/task-projection` is the canonical read-only source for
   task ordering, affected chapter, queue state, range eligibility, and the

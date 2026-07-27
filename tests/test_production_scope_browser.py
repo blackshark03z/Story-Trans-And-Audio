@@ -237,6 +237,41 @@ class ScopeFixtureHandler(SimpleHTTPRequestHandler):
                         "phases": [],
                         "conceptual_state": "SPEAKER_EXCEPTIONS",
                         "current_stage_key": "speakers",
+                        "canonical_task": {
+                            "task_scope": "chapter",
+                            "task_type": "RESOLVE_SPEAKER",
+                            "task_key": "chapter:9101:RESOLVE_SPEAKER",
+                            "user_stage": 2,
+                            "title": "Xác nhận người nói",
+                            "summary": "Chương 401 còn một dòng chưa xác nhận.",
+                            "affected_chapter": {
+                                "id": 9101,
+                                "number": 401,
+                                "title": "Chương kiểm thử",
+                            },
+                            "primary_action": {
+                                "key": "RESOLVE_SPEAKER",
+                                "label": "Xác nhận và tiếp tục",
+                                "target": "speakers",
+                            },
+                            "blocker": None,
+                            "next_task_hint": "Duyệt Speaker Draft.",
+                            "technical_details": [],
+                            "current_stage_key": "speakers",
+                            "speaker": {
+                                "chapter_id": 9101,
+                                "draft_id": 601,
+                                "draft_status": "draft",
+                                "target_count": 1,
+                                "invalid_count": 0,
+                                "remaining_unreviewed_count": 1,
+                                "stale": False,
+                            },
+                            "casting": None,
+                            "range_prepare": None,
+                            "render": None,
+                            "qa": None,
+                        },
                     }
                 )
             rows = [
@@ -282,6 +317,25 @@ class ScopeFixtureHandler(SimpleHTTPRequestHandler):
                     "phases": [],
                     "conceptual_state": "COMPLETE",
                     "current_stage_key": "qa",
+                    "canonical_task": {
+                        "task_scope": "range",
+                        "task_type": "COMPLETE",
+                        "task_key": f"range:{book_id}:{start}-{end}:COMPLETE",
+                        "user_stage": 5,
+                        "title": "Phạm vi đã hoàn tất",
+                        "summary": "Tất cả chương trong phạm vi đã hoàn tất.",
+                        "affected_chapter": None,
+                        "primary_action": None,
+                        "blocker": None,
+                        "next_task_hint": "Chọn phạm vi tiếp theo.",
+                        "technical_details": [],
+                        "current_stage_key": "qa",
+                        "speaker": None,
+                        "casting": None,
+                        "range_prepare": None,
+                        "render": None,
+                        "qa": None,
+                    },
                 }
             )
         return self._json({"detail": f"Unhandled fixture route: {parsed.path}"}, 404)

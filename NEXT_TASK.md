@@ -9,6 +9,10 @@ Active milestone:
 Exact next task:
 `Human-listen to active Artifacts 93 and 96 for Book 1 Chapters 372-373, then record acceptance or one precise remediation target for each chapter.`
 
+The projection-ordering correction is complete and does not authorize this
+next Human Audio QA action automatically. Production must continue to use the
+canonical `Việc tiếp theo` task; manual chapter inspection is read-only.
+
 ## Verified Outputs
 
 - Production now uses a five-stage task workbench with an ordered chapter

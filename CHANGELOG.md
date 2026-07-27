@@ -4,6 +4,21 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Typed Task Projection Ordering
+
+- Fixed mixed-range task selection so workflow priority is evaluated across
+  the complete range instead of letting an earlier Chapter QA row override
+  unresolved text, speaker, voice, or casting work.
+- Added `canonical_task`, optional read-only `inspected_chapter` and
+  `inspection_summary`, typed `speaker`/`casting`/`range_prepare`/`render`/`qa`
+  sections, and the `inspect` range URL parameter.
+- Made the Production frontend fail closed on malformed projections, keep
+  `Việc tiếp theo` separate from `Đang xem`, and prevent QA rendering from
+  reading or refreshing casting state.
+- Added focused ordering/contract tests and real-browser scenarios A-I at
+  `1366x768` and `1920x1080`. No canonical production mutation or provider
+  call occurred.
+
 ### Canonical Production Task Projection
 
 - Added a read-only `GET /api/production/task-projection` endpoint and a pure

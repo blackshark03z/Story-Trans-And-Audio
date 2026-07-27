@@ -4,6 +4,25 @@ Updated: 2026-07-27
 
 ## Current Phase
 
+### Projection Ordering Fix
+
+- The canonical range task is now selected by workflow priority across the
+  whole range, then by chapter number: text, speaker, voice, casting, eligible
+  range work, render/recovery, QA, and complete.
+- For the current read-only Book 1 Chapters 1-10 snapshot, the canonical task
+  is Chapter 3 `APPROVE_SPEAKER_DRAFT`. Chapter 1 `HUMAN_QA` remains visible
+  in the queue only as an inspected/read-only chapter when requested.
+- `GET /api/production/task-projection` now exposes `canonical_task`,
+  optional `inspected_chapter`, and read-only `inspection_summary`. A typed
+  task section is present only for the relevant task type: `speaker`,
+  `casting`, `range_prepare`, `render`, or `qa`.
+- The Production UI labels the canonical row `Việc tiếp theo` and an inspected
+  row `Đang xem`. Inspection uses `inspect` in a range URL and cannot replace
+  the canonical primary action.
+- Malformed projection contracts fail closed to `Không thể tải việc tiếp theo`
+  with `Thử lại` and sanitized technical code. QA rendering no longer calls
+  the legacy casting renderer and remains safe when casting detail is absent.
+
 `Daily-Use V1 now uses a five-stage task-oriented Production workbench over the unchanged canonical backend states. A compact range bar, chapter queue, current-task workspace, and collapsed technical drawer replace the visible all-in-one Production stack. The backend read-only task projection is now the workbench source of truth for canonical ordering, range gates, task keys, and primary actions. The two-chapter pilot remains on Job 26; Artifacts 93 and 96 are available for operator playback and both remain Human QA pending.`
 
 ## Canonical Task Projection
