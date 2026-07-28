@@ -506,6 +506,18 @@ def _effective_synthesis_settings(settings_snapshot: dict) -> str:
     }
     return json.dumps(cleaned, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
+
+def _tts_attempt_limit(settings_snapshot: dict[str, Any]) -> int:
+    """Allow repair jobs to pin a stricter retry budget without changing defaults."""
+
+    raw = settings_snapshot.get("tts_attempt_limit", 3)
+    try:
+        parsed = int(raw)
+    except (TypeError, ValueError):
+        return 3
+    return min(3, max(1, parsed))
+
+
 class PipelineWorker:
     def __init__(self, db: Database, store: ContentStore, tts: TtsService, config: Settings):
         self.db = db
@@ -732,8 +744,9 @@ class PipelineWorker:
                     )
                 raise ChapterNeedsReview(f"Segment {segment['segment_index']} snapshot error: {exc}") from exc
 
+            attempt_limit = _tts_attempt_limit(settings_snapshot)
             attempts = int(segment["attempt_count"] or 0)
-            while attempts < 3:
+            while attempts < attempt_limit:
                 self._control(job_id)
                 attempts += 1
                 try:
@@ -768,8 +781,8 @@ class PipelineWorker:
                             "UPDATE segments SET status='failed',error_message=? WHERE id=?",
                             (str(exc)[:2000], segment["id"]),
                         )
-                    if attempts >= 3:
-                        raise RuntimeError(f"Segment {segment['segment_index']} lỗi sau 3 lần: {exc}") from exc
+                    if attempts >= attempt_limit:
+                        raise RuntimeError(f"Segment {segment['segment_index']} lỗi sau {attempt_limit} lần: {exc}") from exc
                     time.sleep(min(2.0, attempts * 0.5))
         self._control(job_id)
         self._set_job(job_id, "assembling", "assemble", current_chapter_number=chapter["chapter_number"])

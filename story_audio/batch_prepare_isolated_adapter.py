@@ -247,6 +247,14 @@ class DatabaseAuthoritativeSnapshotProvider:
                         chapter_id=chapter_id,
                         chapter_number=int(chapter["chapter_number"]),
                     )
+                reason_codes = tuple(
+                    str(code) for code in item.get("reason_codes") or ("READY_TO_PREPARE",)
+                )
+                tts_settings = dict(self.settings_snapshot)
+                if "REPAIR_REQUIRED" in reason_codes or any(
+                    code.startswith("REJECTED_ARTIFACT:") for code in reason_codes
+                ):
+                    tts_settings["tts_attempt_limit"] = 1
                 pin = {
                     "casting_plan_id": int(plan_row["id"]),
                     "casting_plan_sha256": str(plan_row["plan_sha256"]),
@@ -259,8 +267,8 @@ class DatabaseAuthoritativeSnapshotProvider:
                         for utterance in approved_plan["utterances"]
                         if utterance["role"] == "character"
                     },
-                    "engine_version": self.settings_snapshot["engine_version"],
-                    "tts_settings": self.settings_snapshot,
+                    "engine_version": tts_settings["engine_version"],
+                    "tts_settings": tts_settings,
                     "chunker_version": CHUNKER_VERSION,
                 }
                 encoded_pin = json.dumps(pin, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -275,9 +283,7 @@ class DatabaseAuthoritativeSnapshotProvider:
                         casting_plan_sha256=str(plan_row["plan_sha256"]),
                         narrator_voice_id=str(plan_row["narrator_voice_id"]),
                         deterministic_order=order,
-                        eligibility_evidence=tuple(
-                            str(code) for code in item.get("reason_codes") or ("READY_TO_PREPARE",)
-                        ),
+                        eligibility_evidence=reason_codes,
                         casting_snapshot_json=encoded_pin,
                         voice_snapshot_json=encoded_pin,
                     )

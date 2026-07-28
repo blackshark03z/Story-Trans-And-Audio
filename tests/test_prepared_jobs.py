@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
@@ -120,6 +121,49 @@ class PreparedJobLifecycleTests(IsolatedTestCase):
             JOB_PREPARED_STATUS,
         )
         self.assertIsNone(worker._next_job())
+
+    def test_worker_honors_pinned_single_tts_attempt_limit(self) -> None:
+        prepared = prepare_job(self.db, self.config, store=self.store, **self._payload())
+        job = self.db.fetch_one("SELECT * FROM jobs WHERE id=?", (prepared["job_id"],))
+        settings = json.loads(job["settings_json"])
+        settings["tts_attempt_limit"] = 1
+        with self.db.transaction() as conn:
+            conn.execute(
+                "UPDATE jobs SET settings_json=? WHERE id=?",
+                (
+                    json.dumps(settings, ensure_ascii=False, sort_keys=True),
+                    prepared["job_id"],
+                ),
+            )
+        job = self.db.fetch_one("SELECT * FROM jobs WHERE id=?", (prepared["job_id"],))
+        chapter = self.db.fetch_one(
+            """SELECT jc.*,c.chapter_number
+               FROM job_chapters jc
+               JOIN chapters c ON c.id=jc.chapter_id
+               WHERE jc.job_id=?""",
+            (prepared["job_id"],),
+        )
+
+        class FailingTts:
+            calls = 0
+
+            def synthesize(self, *, synth_input, output_path):
+                self.calls += 1
+                raise RuntimeError("provider failed")
+
+        tts = FailingTts()
+        worker = PipelineWorker(self.db, self.store, tts, self.config)
+
+        with self.assertRaises(RuntimeError):
+            worker._process_chapter(dict(job), dict(chapter))
+
+        segment = self.db.fetch_one(
+            "SELECT status,attempt_count FROM segments WHERE job_chapter_id=?",
+            (chapter["id"],),
+        )
+        self.assertEqual(tts.calls, 1)
+        self.assertEqual(segment["status"], "failed")
+        self.assertEqual(segment["attempt_count"], 1)
 
     def test_prepare_and_start_fail_closed_for_invalid_text_without_partial_execution(self) -> None:
         malformed = legacy_decode_utf8("Trời vừa sáng.")

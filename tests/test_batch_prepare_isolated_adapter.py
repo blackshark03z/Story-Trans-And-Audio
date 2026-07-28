@@ -9,12 +9,14 @@ from pathlib import Path
 
 from story_audio.batch_prepare_isolated_adapter import (
     BatchPrepareIsolatedAdapter,
+    DatabaseAuthoritativeSnapshotProvider,
     DurablePrepareEvidence,
     IsolatedAdapterError,
     assert_phase10_temporary_database,
     authorization_flags,
 )
 from story_audio.batch_prepare_orchestrator import STATUS_ACCEPTED, STATUS_CONFLICT, STATUS_FAILED, STATUS_REJECTED
+from story_audio.batch_prepare_persistence_contract import PrepareRequestBinding
 from story_audio.files import sha256_text
 from story_audio.text import split_tts_segments
 from tests.batch_prepare_phase10_fixture import Phase10FixtureMixin
@@ -105,6 +107,35 @@ class BatchPrepareIsolatedAdapterTests(Phase10FixtureMixin):
         self.assertTrue(planned_chunks)
         self.assertEqual(self.counts()["segments"], 0)
         self.assertEqual(self.counts()["artifacts"], 0)
+
+    def test_repair_required_snapshot_pins_single_tts_attempt(self) -> None:
+        plan = copy.deepcopy(self.plan(from_chapter=10, to_chapter=10))
+        plan["included"][0]["reason_codes"] = [
+            "PREPARE_ELIGIBLE",
+            "REPAIR_REQUIRED",
+            "REJECTED_ARTIFACT:93",
+        ]
+        provider = DatabaseAuthoritativeSnapshotProvider(
+            self.database,
+            self.content_store,
+            self.config,
+            temporary_root=self.temp_root,
+        )
+        binding = PrepareRequestBinding(
+            client_request_id="repair-pin-1",
+            request_identity="a" * 64,
+            target_phase="PREPARE",
+            book_id=int(plan["scope"]["book_id"]),
+            from_chapter=10,
+            to_chapter=10,
+            plan_fingerprint=plan["plan_fingerprint"],
+        )
+
+        snapshots = provider(binding=binding, plan=plan)
+
+        self.assertEqual(snapshots[0].eligibility_evidence[-2:], ("REPAIR_REQUIRED", "REJECTED_ARTIFACT:93"))
+        pin = json.loads(snapshots[0].voice_snapshot_json)
+        self.assertEqual(pin["tts_settings"]["tts_attempt_limit"], 1)
 
     def test_large_committed_evidence_uses_compact_bounded_references(self) -> None:
         count = 100
