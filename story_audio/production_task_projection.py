@@ -696,6 +696,58 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
             }
         )
 
+    def repair_projection_or_none() -> dict[str, Any] | None:
+        repair_candidates = [
+            (row, task)
+            for row in rows
+            if (task := _chapter_task(row)) and task["task_type"] == "REPAIR_REQUIRED"
+        ]
+        if not repair_candidates:
+            return None
+        row, task = min(
+            repair_candidates,
+            key=lambda item: int(item[0]["chapter_number"]),
+        )
+        ref = _chapter_ref(row)
+        for queue_item in queue:
+            if int(queue_item["chapter_id"]) == ref["id"]:
+                queue_item["status"] = "current"
+            elif queue_item["status"] == "pending":
+                queue_item["status"] = "blocked"
+        return finish(_base_projection(
+            readiness=readiness,
+            task_scope="chapter",
+            task_type=task["task_type"],
+            task_key=(
+                f"chapter:{ref['id']}:REPAIR_REQUIRED:"
+                f"artifact:{int(row.get('active_artifact_id') or 0)}:"
+                f"plan:{int(row.get('latest_casting_plan_id') or 0)}"
+            ),
+            user_stage=task["user_stage"],
+            title=task["title"],
+            summary=task["summary"],
+            affected=ref,
+            action=task["action"],
+            blocker=task["blocker"],
+            next_hint=task["next"],
+            queue=queue,
+            technical=[
+                f"chapter_state:{row.get('state')}",
+                f"artifact_id:{int(row.get('active_artifact_id') or 0)}",
+                f"current_casting_plan_id:{int(row.get('latest_casting_plan_id') or 0)}",
+            ],
+            range_task=False,
+            task_payload=row,
+        ))
+
+    # A rejected active artifact is the immediate operator task. Do not let stale
+    # range-input preparation hide the repair decision unless a live exact job
+    # already needs attention below.
+    if len(exact_jobs) < 2 and exact_job is None:
+        repair_projection = repair_projection_or_none()
+        if repair_projection:
+            return repair_projection
+
     range_inputs = state.get("range_inputs")
     if isinstance(range_inputs, dict):
         text_candidates = []
@@ -1032,47 +1084,9 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
             task_payload=exact_job,
         ))
 
-    repair_candidates = [
-        (row, task)
-        for row in rows
-        if (task := _chapter_task(row)) and task["task_type"] == "REPAIR_REQUIRED"
-    ]
-    if repair_candidates:
-        row, task = min(
-            repair_candidates,
-            key=lambda item: int(item[0]["chapter_number"]),
-        )
-        ref = _chapter_ref(row)
-        for queue_item in queue:
-            if int(queue_item["chapter_id"]) == ref["id"]:
-                queue_item["status"] = "current"
-            elif queue_item["status"] == "pending":
-                queue_item["status"] = "blocked"
-        return finish(_base_projection(
-            readiness=readiness,
-            task_scope="chapter",
-            task_type=task["task_type"],
-            task_key=(
-                f"chapter:{ref['id']}:REPAIR_REQUIRED:"
-                f"artifact:{int(row.get('active_artifact_id') or 0)}:"
-                f"plan:{int(row.get('latest_casting_plan_id') or 0)}"
-            ),
-            user_stage=task["user_stage"],
-            title=task["title"],
-            summary=task["summary"],
-            affected=ref,
-            action=task["action"],
-            blocker=task["blocker"],
-            next_hint=task["next"],
-            queue=queue,
-            technical=[
-                f"chapter_state:{row.get('state')}",
-                f"artifact_id:{int(row.get('active_artifact_id') or 0)}",
-                f"current_casting_plan_id:{int(row.get('latest_casting_plan_id') or 0)}",
-            ],
-            range_task=False,
-            task_payload=row,
-        ))
+    repair_projection = repair_projection_or_none()
+    if repair_projection:
+        return repair_projection
 
     eligible = all(row.get("state") in _COMPLETE_STATES | _READY_STATES for row in rows)
     if eligible and any(row.get("state") == "READY_TO_PREPARE" for row in rows):

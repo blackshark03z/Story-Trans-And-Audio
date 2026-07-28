@@ -35,9 +35,24 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertIn("idempotencyKey", coordinator)
         self.assertIn("productionInteractionEpoch", coordinator)
         self.assertIn("VERIFYING_UNKNOWN", coordinator)
+        self.assertIn("productionCommandClientFailure", coordinator)
+        self.assertIn("failProductionCommand", coordinator)
         self.assertIn("await submit()", coordinator)
         self.assertIn("applyProductionCommandEnvelope", coordinator)
         self.assertIn("AbortController", self.js)
+
+    def test_command_verification_does_not_hide_validation_failures(self) -> None:
+        coordinator = self._function_source("runProductionCommand")
+        self.assertIn("productionCommandClientFailure(error)", coordinator)
+        self.assertIn("status>=400&&status<500", self.js)
+        self.assertIn("status:'FAILED'", self.js)
+        self.assertIn("Có thể thử lại an toàn", self.js)
+
+    def test_same_chapter_command_sync_refreshes_context(self) -> None:
+        sync = self._function_source("syncCanonicalProductionContext")
+        self.assertIn("sameChapter", sync)
+        self.assertIn("await openChapter(chapterId", sync)
+        self.assertNotIn("===chapterId)return", sync)
 
     def test_production_handlers_do_not_post_directly(self) -> None:
         handlers = (
@@ -132,6 +147,15 @@ class ProductionCommandUiTests(unittest.TestCase):
             self.assertIn(text, self.js)
         self.assertIn("Quay lại bản audio cần sửa", self.html)
         self.assertIn("assignment-page-actions", self.css)
+
+    def test_repair_required_hides_legacy_qa_verdict_controls(self) -> None:
+        self.assertIn("approvalStatus==='needs_fixes'", self.js)
+        self.assertIn("displayState==='REPAIR_REQUIRED'", self.js)
+        self.assertIn("hideVerdicts", self.js)
+        self.assertIn("flowFinalizeOutput", self.js)
+        self.assertIn("flowNeedsFixes", self.js)
+        self.assertIn("classList.toggle('hidden',hideVerdicts)", self.js)
+        self.assertIn("productionCommandBusy()", self.js)
 
 
 if __name__ == "__main__":

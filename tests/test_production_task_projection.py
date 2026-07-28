@@ -290,6 +290,39 @@ class ProductionTaskProjectionTests(unittest.TestCase):
                 self.assertEqual(projection["task_type"], expected)
                 self.assert_typed_section(projection, section)
 
+    def test_repair_required_precedes_stale_range_input_preparation(self) -> None:
+        repair = _row(
+            1,
+            "REPAIR_REQUIRED",
+            blockers=["needs fixes"],
+            active_artifact_id=93,
+            latest_casting_plan_id=28,
+        )
+        range_inputs = {
+            "summary": {
+                "total_chapters": 1,
+                "proposal_required_chapters": 1,
+            },
+            "proposal_chapters": [{
+                "chapter_id": repair["chapter_id"],
+                "chapter_number": 1,
+                "chapter_title": "Chapter 1",
+                "reason": "stale",
+                "draft_id": 16,
+            }],
+        }
+
+        projection = project_production_task({
+            "readiness": _readiness(repair),
+            "range_inputs": range_inputs,
+        })
+
+        self.assertEqual(projection["task_type"], "REPAIR_REQUIRED")
+        self.assertEqual(projection["affected_chapter"]["number"], 1)
+        self.assertIn("artifact:93", projection["task_key"])
+        self.assertEqual(projection["chapter_queue"][0]["status"], "current")
+        self.assert_typed_section(projection, "repair")
+
     def test_text_blocker_precedes_range_input_orchestration(self) -> None:
         blocked = _row(
             1,
