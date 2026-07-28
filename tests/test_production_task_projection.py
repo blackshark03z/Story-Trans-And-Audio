@@ -1,8 +1,14 @@
 from __future__ import annotations
 
+import json
 import unittest
+from unittest.mock import patch
 
+from story_audio.db import utcnow
+from story_audio.production_task_projection import get_production_task_projection
 from story_audio.production_task_projection import project_production_task
+from tests.base import IsolatedTestCase
+from tests.test_active_output import seed_active_output
 
 
 def _row(number: int, state: str = "READY_TO_PREPARE", **overrides) -> dict:
@@ -468,6 +474,143 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertEqual(projection["task_type"], "COMPLETE")
         self.assertIsNone(projection["primary_action"])
         self.assertEqual(projection["task_scope"], "range")
+
+
+class ProductionTaskProjectionAuditTests(IsolatedTestCase):
+    def setUp(self) -> None:
+        super().setUp()
+        seeded = seed_active_output(self.temp_root)
+        self.db = seeded["db"]
+        self.chapter_id = seeded["chapter_one"]
+        self.artifact_id = seeded["old_artifact_id"]
+        self.book_id = int(
+            self.db.fetch_one(
+                "SELECT book_id FROM chapters WHERE id=?",
+                (self.chapter_id,),
+            )["book_id"]
+        )
+        self.full_note = "Khoảng 3:11, audio repeats: “truyền tống truyền tống”."
+        self.full_recorded_at = utcnow()
+        self.placeholder_recorded_at = utcnow()
+        approval = {
+            "status": "needs_fixes",
+            "recorded_at": self.placeholder_recorded_at,
+            "approved_at": None,
+            "notes": "x",
+            "artifact_id": self.artifact_id,
+            "job_id": seeded["job_old"],
+            "output_path": "placeholder",
+            "sha256": "placeholder",
+            "duration_ms": 1000,
+        }
+        with self.db.transaction() as connection:
+            connection.execute(
+                "UPDATE chapters SET human_approval_json=?, updated_at=? WHERE id=?",
+                (
+                    json.dumps(approval, ensure_ascii=False),
+                    self.placeholder_recorded_at,
+                    self.chapter_id,
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO audit_events(event_code,job_id,chapter_id,details_json,created_at)
+                VALUES(?,?,?,?,?)
+                """,
+                (
+                    "human_qa_recorded",
+                    seeded["job_old"],
+                    self.chapter_id,
+                    json.dumps(
+                        {
+                            "status": "needs_fixes",
+                            "notes": self.full_note,
+                            "artifact_id": self.artifact_id,
+                            "job_id": seeded["job_old"],
+                            "sha256": "placeholder",
+                            "duration_ms": 1000,
+                        },
+                        ensure_ascii=False,
+                    ),
+                    self.full_recorded_at,
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO audit_events(event_code,job_id,chapter_id,details_json,created_at)
+                VALUES(?,?,?,?,?)
+                """,
+                (
+                    "human_qa_recorded",
+                    seeded["job_old"],
+                    self.chapter_id,
+                    json.dumps(
+                        {
+                            "status": "needs_fixes",
+                            "notes": "x",
+                            "artifact_id": self.artifact_id,
+                            "job_id": seeded["job_old"],
+                            "sha256": "placeholder",
+                            "duration_ms": 1000,
+                        },
+                        ensure_ascii=False,
+                    ),
+                    self.placeholder_recorded_at,
+                ),
+            )
+
+    def test_repair_projection_uses_audit_note_when_snapshot_contains_placeholder(self) -> None:
+        readiness = {
+            "scope": {
+                "book_id": self.book_id,
+                "book_title": "Book",
+                "from_chapter": 10,
+                "to_chapter": 10,
+                "chapter_count": 1,
+            },
+            "summary": {},
+            "chapters": [
+                {
+                    "chapter_id": self.chapter_id,
+                    "chapter_number": 10,
+                    "chapter_title": "Chapter 10",
+                    "state": "REPAIR_REQUIRED",
+                    "blockers": ["needs fixes"],
+                    "latest_speaker_draft_id": 12,
+                    "latest_speaker_draft_status": "approved",
+                    "active_artifact_id": self.artifact_id,
+                    "latest_casting_plan_id": 6,
+                    "latest_casting_plan_revision": 1,
+                    "latest_casting_plan_status": "approved",
+                    "active_text_revision_id": 1,
+                    "active_output_text_revision_id": 1,
+                    "active_output_casting_plan_id": 4,
+                    "active_output_casting_plan_revision": 4,
+                    "human_qa_status": "needs_fixes",
+                    "repair_prepare_ready": True,
+                    "repair_input_blockers": [],
+                    "effective_voice_map": [],
+                    "voice_map_diff": [],
+                }
+            ],
+        }
+        with patch("story_audio.production_task_projection.get_range_readiness", return_value=readiness), patch(
+            "story_audio.production_task_projection._exact_range_jobs",
+            return_value=[],
+        ):
+            projection = get_production_task_projection(
+                self.db,
+                book_id=self.book_id,
+                from_chapter=10,
+                to_chapter=10,
+                store=None,
+            )
+        self.assertEqual(projection["task_type"], "REPAIR_REQUIRED")
+        self.assertEqual(projection["canonical_task"]["repair"]["qa_note"], self.full_note)
+        self.assertEqual(
+            projection["canonical_task"]["repair"]["qa_recorded_at"],
+            self.full_recorded_at,
+        )
 
 
 if __name__ == "__main__":

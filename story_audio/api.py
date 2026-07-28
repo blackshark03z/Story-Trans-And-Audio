@@ -78,6 +78,7 @@ from .diagnostics import (
     retry_job_chapter,
     retry_segment,
 )
+from .human_approval import resolve_authoritative_human_approval
 from .epub import import_epub
 from .gemini import GeminiSpeakerAssignmentError
 from .pipeline import (
@@ -2061,9 +2062,14 @@ def chapter_detail(chapter_id: int) -> dict[str, Any]:
             (chapter["active_audio_artifact_id"],),
         )
     active_output = get_active_output_bindings(db, [chapter_id]).get(chapter_id, {})
+    approval = resolve_authoritative_human_approval(
+        db,
+        chapter_id,
+        active_artifact_id=int(chapter["active_audio_artifact_id"] or 0),
+    )
     chapter_data, human_approval = _decorate_human_approval(
         dict(chapter),
-        _parse_human_approval(chapter["human_approval_json"]),
+        approval,
         active_output,
     )
     revision_data = []

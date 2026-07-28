@@ -1,10 +1,12 @@
 from __future__ import annotations
 
+import json
 import unittest
 from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+from story_audio.db import utcnow
 from story_audio.storage import ContentStore
 from tests.base import IsolatedTestCase
 from tests.test_active_output import seed_active_output
@@ -76,6 +78,64 @@ class HumanApprovalApiTests(IsolatedTestCase):
         data = response.json()
         self.assertEqual(data["human_approval"]["status"], "needs_fixes")
         self.assertIsNone(data["human_approval"]["approved_at"])
+        self.assertEqual(data["chapter"]["human_qa_status"], "needs_fixes")
+        self.assertEqual(data["chapter"]["human_approval_label"], "Cần sửa")
+
+    def test_chapter_detail_prefers_audit_note_over_placeholder_snapshot(self) -> None:
+        response = self.client.put(
+            f"/api/chapters/{self.chapter_id}/human-approval",
+            json={
+                "status": "needs_fixes",
+                "notes": "Khoảng 3:11, audio repeats: “truyền tống truyền tống”.",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        approval = response.json()["human_approval"]
+        original_recorded_at = approval["recorded_at"]
+        placeholder_recorded_at = utcnow()
+        placeholder = dict(approval)
+        placeholder["notes"] = "x"
+        placeholder["recorded_at"] = placeholder_recorded_at
+        with self.db.transaction() as connection:
+            connection.execute(
+                "UPDATE chapters SET human_approval_json=?, updated_at=? WHERE id=?",
+                (
+                    json.dumps(placeholder, ensure_ascii=False),
+                    placeholder_recorded_at,
+                    self.chapter_id,
+                ),
+            )
+            connection.execute(
+                """
+                INSERT INTO audit_events(event_code,job_id,chapter_id,details_json,created_at)
+                VALUES(?,?,?,?,?)
+                """,
+                (
+                    "human_qa_recorded",
+                    approval["job_id"],
+                    self.chapter_id,
+                    json.dumps(
+                        {
+                            "status": "needs_fixes",
+                            "notes": "x",
+                            "artifact_id": approval["artifact_id"],
+                            "job_id": approval["job_id"],
+                            "sha256": approval["sha256"],
+                            "duration_ms": approval["duration_ms"],
+                        },
+                        ensure_ascii=False,
+                    ),
+                    placeholder_recorded_at,
+                ),
+            )
+        refreshed = self.client.get(f"/api/chapters/{self.chapter_id}")
+        self.assertEqual(refreshed.status_code, 200)
+        data = refreshed.json()
+        self.assertEqual(
+            data["human_approval"]["notes"],
+            "Khoảng 3:11, audio repeats: “truyền tống truyền tống”.",
+        )
+        self.assertEqual(data["human_approval"]["recorded_at"], original_recorded_at)
         self.assertEqual(data["chapter"]["human_qa_status"], "needs_fixes")
         self.assertEqual(data["chapter"]["human_approval_label"], "Cần sửa")
 

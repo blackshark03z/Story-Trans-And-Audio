@@ -8,6 +8,7 @@ from typing import Any, Iterable
 
 from .casting import get_plan
 from .db import Database
+from .human_approval import resolve_authoritative_human_approval
 from .pipeline import JOB_ACTIVE_STATUSES, JOB_PREPARED_STATUS
 from .range_input import get_range_input_snapshot
 from .range_readiness import get_range_readiness
@@ -1254,17 +1255,12 @@ def get_production_task_projection(
                 item["artifact_size_bytes"] = artifact["size_bytes"]
                 item["artifact_created_at"] = artifact["created_at"]
         if item.get("human_qa_status") == "needs_fixes":
-            chapter = db.fetch_one(
-                "SELECT human_approval_json FROM chapters WHERE id=?",
-                (int(item["chapter_id"]),),
+            approval = resolve_authoritative_human_approval(
+                db,
+                int(item["chapter_id"]),
+                active_artifact_id=int(artifact_id or 0),
             )
-            try:
-                approval = json.loads(chapter["human_approval_json"] or "{}")
-            except (TypeError, ValueError):
-                approval = {}
-            if isinstance(approval, dict) and int(
-                approval.get("artifact_id") or 0
-            ) == int(artifact_id or 0):
+            if approval and int(approval.get("artifact_id") or 0) == int(artifact_id or 0):
                 item["human_qa_note"] = str(approval.get("notes") or "")
                 item["human_qa_recorded_at"] = approval.get("recorded_at")
             if store is not None:
