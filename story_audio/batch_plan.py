@@ -83,6 +83,12 @@ def _reason_codes(item: dict[str, Any], target_phase: str, eligibility: str) -> 
         elif "unsupported casting plan status" in lowered:
             codes.append("UNSUPPORTED_CASTING_PLAN_STATUS")
 
+    if state == "REPAIR_REQUIRED":
+        codes.append("REPAIR_REQUIRED")
+        artifact_id = int(item.get("replacement_for_artifact_id") or 0)
+        if artifact_id:
+            codes.append(f"REJECTED_ARTIFACT:{artifact_id}")
+
     return list(dict.fromkeys(codes))
 
 
@@ -100,10 +106,17 @@ def _operator_message(item: dict[str, Any], target_phase: str, eligibility: str)
         return "Chapter already has live render work to monitor or resume."
     if eligibility == EXCLUDED_RENDERED_NOT_QA:
         return "Chapter has active output awaiting Human QA."
+    if str(item.get("state") or "") == "REPAIR_REQUIRED":
+        return "Rejected active output requires an explicit one-chapter replacement workflow."
     return "Chapter is not eligible for the requested future batch phase."
 
 
-def _eligibility_for_phase(state: str, target_phase: str) -> str:
+def _eligibility_for_phase(
+    state: str,
+    target_phase: str,
+    item: dict[str, Any] | None = None,
+) -> str:
+    item = item or {}
     if target_phase == "NO_ACTION":
         return ELIGIBLE if state == "COMPLETE" else EXCLUDED_UNSUPPORTED
 
@@ -115,6 +128,8 @@ def _eligibility_for_phase(state: str, target_phase: str) -> str:
     if target_phase == "PREPARE":
         if state == "READY_TO_PREPARE":
             return ELIGIBLE
+        if state == "REPAIR_REQUIRED":
+            return ELIGIBLE if item.get("repair_prepare_ready") is True else EXCLUDED_BLOCKED
         if state == "PREPARED":
             return EXCLUDED_ALREADY_PREPARED
         if state == "RENDERING_OR_PAUSED":
@@ -256,7 +271,7 @@ def build_batch_plan(readiness: dict[str, Any], *, target_phase: str) -> dict[st
 
     for item in chapters:
         state = str(item.get("state") or "")
-        eligibility = _eligibility_for_phase(state, normalized_phase)
+        eligibility = _eligibility_for_phase(state, normalized_phase, item)
         row = {
             "chapter_id": item.get("chapter_id"),
             "chapter_number": item.get("chapter_number"),
@@ -277,6 +292,8 @@ def build_batch_plan(readiness: dict[str, Any], *, target_phase: str) -> dict[st
             "human_qa_status": item.get("human_qa_status"),
             "active_output_text_revision_id": item.get("active_output_text_revision_id"),
             "replacement_for_artifact_id": item.get("replacement_for_artifact_id"),
+            "repair_prepare_ready": bool(item.get("repair_prepare_ready")),
+            "repair_input_blockers": list(item.get("repair_input_blockers") or []),
             "text_validation_error": item.get("text_validation_error"),
             "voice_issues": item.get("voice_issues") or [],
         }

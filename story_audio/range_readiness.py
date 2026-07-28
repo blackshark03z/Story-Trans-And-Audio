@@ -31,6 +31,7 @@ STATE_META = {
     "PREPARED": ("START_RENDER", "prepared", True),
     "RENDERING_OR_PAUSED": ("MONITOR_OR_RESUME", "rendering_or_paused", True),
     "RENDERED_NOT_QA": ("QA", "qa_required", True),
+    "REPAIR_REQUIRED": ("CHOOSE_REPAIR_PATH", "repair_required", True),
     "COMPLETE": ("VIEW_OUTPUTS_OR_SELECT_NEXT_SCOPE", None, False),
     "STATE_UNRESOLVED": ("RELOAD_READ_ONLY", "state_unresolved", True),
 }
@@ -51,10 +52,14 @@ def _parse_human_approval(raw: Any) -> dict[str, Any] | None:
 
 
 def _human_qa_status(raw: Any, active_artifact_id: int | None) -> str:
+    if raw in (None, ""):
+        return "pending"
     approval = _parse_human_approval(raw)
     if not approval:
-        return "pending"
+        return "invalid"
     status = str(approval.get("status") or "").lower()
+    if status not in {"approved", "needs_fixes"}:
+        return "invalid"
     stored_artifact_id = int(approval.get("artifact_id") or 0)
     matches_active = bool(stored_artifact_id and active_artifact_id and stored_artifact_id == active_artifact_id)
     if status == "approved" and matches_active:
@@ -287,20 +292,51 @@ def _state_item(
         and active_text_revision_id != rendered_text_revision_id
     )
 
+    repair_prepare_ready = False
+    repair_input_blockers: list[str] = []
+
     if active_binding.get("active_audio_artifact_id") and not active_binding.get("active_output_artifact_id"):
         blockers.append("Active audio artifact binding is invalid.")
-    elif active_artifact_id and not replacement_revision_ready:
-        if human_qa_status == "accepted":
-            state = "COMPLETE"
-        elif human_qa_status == "needs_fixes" and chapter_id not in approved_text_ids:
-            state = "TEXT_BLOCKED"
-            blockers.append(
+    elif active_artifact_id and human_qa_status == "accepted":
+        state = "COMPLETE"
+    elif active_artifact_id and human_qa_status == "invalid":
+        state = "STATE_UNRESOLVED"
+        blockers.append("Active audio has malformed or unsupported Human QA state.")
+    elif active_artifact_id and human_qa_status == "needs_fixes":
+        state = "REPAIR_REQUIRED"
+        if chapter_id not in approved_text_ids:
+            repair_input_blockers.append(
                 text_validation_error
-                or "Rejected output still points to an invalid active Text Revision."
+                or "Active approved Text Revision is missing for the replacement."
             )
+        if len(live_jobs) > 1:
+            repair_input_blockers.append("Multiple live jobs exist for this chapter.")
+        elif len(live_jobs) == 1:
+            repair_input_blockers.append(
+                f"Existing job #{int(live_jobs[0]['job_id'])} must be resolved before replacement PREPARE."
+            )
+        if not latest_draft or str(latest_draft.get("status") or "").lower() != "approved":
+            repair_input_blockers.append("Latest Speaker Draft is not approved.")
+        if not latest_plan:
+            repair_input_blockers.append("Final Voice Map is missing.")
+        elif int(latest_plan.get("text_revision_id") or 0) != int(active_text_revision_id or 0):
+            repair_input_blockers.append("Final Voice Map is stale for the active Text Revision.")
+        elif str(latest_plan.get("status") or "").lower() != "approved":
+            repair_input_blockers.append("Final Voice Map is draft/unapproved.")
         else:
-            state = "RENDERED_NOT_QA"
-            blockers.append("Active audio exists but Human QA is not accepted.")
+            voice_blocker, voice_issues = _voice_blocker(
+                latest_plan,
+                voice_catalog=voice_catalog,
+                chapter_id=chapter_id,
+                chapter_number=int(chapter["chapter_number"]),
+            )
+            if voice_blocker:
+                repair_input_blockers.append(voice_blocker)
+        repair_prepare_ready = not repair_input_blockers
+        blockers.extend(repair_input_blockers)
+    elif active_artifact_id:
+        state = "RENDERED_NOT_QA"
+        blockers.append("Active audio exists but Human QA has no verdict for this Artifact.")
     elif len(live_jobs) > 1:
         blockers.append("Multiple live jobs exist for this chapter.")
     elif len(live_jobs) == 1:
@@ -359,6 +395,12 @@ def _state_item(
         "active_artifact_id": active_artifact_id,
         "active_output_job_id": active_binding.get("active_output_job_id"),
         "active_output_job_chapter_id": active_binding.get("active_output_job_chapter_id"),
+        "active_output_casting_plan_id": active_binding.get(
+            "active_output_casting_plan_id"
+        ),
+        "active_output_casting_plan_revision": active_binding.get(
+            "active_output_casting_plan_revision"
+        ),
         "human_qa_status": human_qa_status,
         "active_text_revision_id": active_text_revision_id,
         "latest_speaker_draft_id": int(latest_draft["id"]) if latest_draft else None,
@@ -373,8 +415,11 @@ def _state_item(
         "text_validation_error": text_validation_error,
         "active_output_text_revision_id": rendered_text_revision_id,
         "replacement_for_artifact_id": (
-            int(active_artifact_id) if replacement_revision_ready else None
+            int(active_artifact_id) if human_qa_status == "needs_fixes" else None
         ),
+        "replacement_revision_ready": replacement_revision_ready,
+        "repair_prepare_ready": repair_prepare_ready,
+        "repair_input_blockers": repair_input_blockers,
     }
     if exception_kind and state not in {"READY_TO_PREPARE", "COMPLETE"}:
         item["exception_kind"] = exception_kind

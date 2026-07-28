@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from collections import Counter
+import json
 from typing import Any, Iterable
 
+from .casting import get_plan
 from .db import Database
 from .pipeline import JOB_ACTIVE_STATUSES, JOB_PREPARED_STATUS
 from .range_input import get_range_input_snapshot
@@ -45,6 +48,117 @@ _CASTING_TASKS = {
     "APPROVE_RANGE_CASTING_PLANS",
 }
 _RENDER_TASKS = {"START_RENDER_RANGE", "MONITOR_RENDER", "RECOVER_RENDER"}
+
+
+def _effective_voice_summary(
+    db: Database,
+    store: ContentStore,
+    plan_id: int | None,
+    voice_catalog: EffectiveVoiceCatalog | None,
+) -> list[dict[str, Any]]:
+    if not plan_id:
+        return []
+    result = get_plan(db, store, int(plan_id))
+    utterances = list((result.get("plan") or {}).get("utterances") or [])
+    character_ids = sorted(
+        {
+            int(item["character_id"])
+            for item in utterances
+            if item.get("character_id") not in (None, "")
+        }
+    )
+    character_names: dict[int, str] = {}
+    if character_ids:
+        marks = ",".join("?" for _ in character_ids)
+        rows = db.fetch_all(
+            f"SELECT id,display_name FROM characters WHERE id IN ({marks})",
+            tuple(character_ids),
+        )
+        character_names = {
+            int(row["id"]): str(row["display_name"])
+            for row in rows
+        }
+    catalog_items = {
+        str(item.get("assignment_key")): item
+        for item in (voice_catalog.items if voice_catalog else ())
+    }
+    grouped: Counter[tuple[str, int | None, str, str]] = Counter()
+    for item in utterances:
+        role = str(item.get("role") or "unknown")
+        character_id = (
+            int(item["character_id"])
+            if item.get("character_id") not in (None, "")
+            else None
+        )
+        voice_id = str(item.get("resolved_voice_id") or "")
+        source = str(item.get("resolution_source") or "pinned_plan")
+        grouped[(role, character_id, voice_id, source)] += 1
+    summary: list[dict[str, Any]] = []
+    for (role, character_id, voice_id, source), line_count in grouped.items():
+        if role == "narrator":
+            speaker_name = "Người kể chuyện"
+            speaker_key = "narrator"
+        elif role == "character" and character_id:
+            speaker_name = character_names.get(character_id, f"Nhân vật {character_id}")
+            speaker_key = f"character:{character_id}"
+        else:
+            speaker_name = "Người nói chưa rõ"
+            speaker_key = "unknown"
+        voice = catalog_items.get(voice_id, {})
+        summary.append(
+            {
+                "speaker_key": speaker_key,
+                "speaker_name": speaker_name,
+                "voice_name": str(voice.get("display_name") or voice_id or "Chưa có"),
+                "assignment_source": source,
+                "line_count": int(line_count),
+                "available": bool(
+                    voice_id
+                    and (
+                        voice_catalog is None
+                        or voice_id in voice_catalog.selectable_ids
+                    )
+                ),
+            }
+        )
+    summary.sort(key=lambda item: (item["speaker_key"], item["voice_name"]))
+    return summary
+
+
+def _safe_effective_voice_summary(
+    db: Database,
+    store: ContentStore,
+    plan_id: int | None,
+    voice_catalog: EffectiveVoiceCatalog | None,
+) -> list[dict[str, Any]]:
+    try:
+        return _effective_voice_summary(db, store, plan_id, voice_catalog)
+    except (LookupError, ValueError, json.JSONDecodeError):
+        return []
+
+
+def _voice_map_diff(
+    previous: list[dict[str, Any]],
+    current: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    previous_by_speaker = {item["speaker_key"]: item for item in previous}
+    current_by_speaker = {item["speaker_key"]: item for item in current}
+    result = []
+    for speaker_key in sorted(set(previous_by_speaker) | set(current_by_speaker)):
+        before = previous_by_speaker.get(speaker_key)
+        after = current_by_speaker.get(speaker_key)
+        if before == after:
+            continue
+        result.append(
+            {
+                "speaker_name": (after or before or {}).get("speaker_name"),
+                "before_voice_name": (before or {}).get("voice_name"),
+                "after_voice_name": (after or {}).get("voice_name"),
+                "before_line_count": (before or {}).get("line_count", 0),
+                "after_line_count": (after or {}).get("line_count", 0),
+            }
+        )
+    return result
 
 
 def _action(key: str | None, label: str, target: str) -> dict[str, str] | None:
@@ -104,6 +218,18 @@ def _chapter_task(item: dict[str, Any]) -> dict[str, Any] | None:
             "action": None,
             "blocker": blocker,
             "next": "Sau khi duy\u1ec7t, ph\u1ea1m vi s\u1eb5n s\u00e0ng cho ch\u1eb7ng ti\u1ebfp theo.",
+            "stage_key": "qa",
+        }
+
+    if state == "REPAIR_REQUIRED":
+        return {
+            "task_type": "REPAIR_REQUIRED",
+            "user_stage": 5,
+            "title": "Bản audio này cần sửa",
+            "summary": f"{chapter} đã được đánh dấu Cần sửa. Chọn cách xử lý trước khi tạo bản audio mới.",
+            "action": None,
+            "blocker": blocker,
+            "next": "Chọn một hướng sửa; bản audio cũ vẫn được giữ làm bằng chứng lịch sử.",
             "stage_key": "qa",
         }
 
@@ -250,6 +376,7 @@ def _typed_task_sections(
         "range_prepare": None,
         "render": None,
         "qa": None,
+        "repair": None,
     }
     source = payload or {}
     if task_type in _SPEAKER_TASKS:
@@ -313,6 +440,10 @@ def _typed_task_sections(
         sections["render"] = {
             "job_id": source.get("id") or source.get("job_id"),
             "job_status": source.get("status"),
+            "replacement_for_artifact_id": source.get(
+                "replacement_for_artifact_id"
+            ),
+            "replacement": bool(source.get("replacement_for_artifact_id")),
         }
     elif task_type == "HUMAN_QA":
         sections["qa"] = {
@@ -322,6 +453,36 @@ def _typed_task_sections(
             "human_qa_status": source.get("human_qa_status"),
             "duration_ms": source.get("artifact_duration_ms"),
             "size_bytes": source.get("artifact_size_bytes"),
+        }
+    elif task_type == "REPAIR_REQUIRED":
+        sections["repair"] = {
+            "chapter_id": affected["id"] if affected else None,
+            "artifact_id": source.get("active_artifact_id"),
+            "job_id": source.get("active_output_job_id"),
+            "duration_ms": source.get("artifact_duration_ms"),
+            "size_bytes": source.get("artifact_size_bytes"),
+            "created_at": source.get("artifact_created_at"),
+            "qa_note": source.get("human_qa_note"),
+            "qa_recorded_at": source.get("human_qa_recorded_at"),
+            "active_text_revision_id": source.get("active_text_revision_id"),
+            "active_output_text_revision_id": source.get(
+                "active_output_text_revision_id"
+            ),
+            "current_casting_plan_id": source.get("latest_casting_plan_id"),
+            "current_casting_plan_revision": source.get(
+                "latest_casting_plan_revision"
+            ),
+            "current_casting_plan_status": source.get("latest_casting_plan_status"),
+            "rejected_casting_plan_id": source.get(
+                "active_output_casting_plan_id"
+            ),
+            "rejected_casting_plan_revision": source.get(
+                "active_output_casting_plan_revision"
+            ),
+            "prepare_ready": bool(source.get("repair_prepare_ready")),
+            "input_blockers": list(source.get("repair_input_blockers") or []),
+            "effective_voice_map": list(source.get("effective_voice_map") or []),
+            "voice_map_diff": list(source.get("voice_map_diff") or []),
         }
     return sections
 
@@ -808,11 +969,36 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
     if exact_job:
         job_id = int(exact_job.get("id") or exact_job.get("job_id"))
         status = str(exact_job.get("status") or "").lower()
+        repair_row = next(
+            (
+                row
+                for row in rows
+                if row.get("state") == "REPAIR_REQUIRED"
+                and row.get("replacement_for_artifact_id")
+            ),
+            None,
+        )
+        if repair_row:
+            exact_job["replacement_for_artifact_id"] = int(
+                repair_row["replacement_for_artifact_id"]
+            )
         if status == JOB_PREPARED_STATUS:
-            action = _action("START_RENDER_RANGE", "B\u1eaft \u0111\u1ea7u render", "render")
+            action = _action(
+                "START_RENDER_RANGE",
+                (
+                    f"Bắt đầu render lại Chương {int(repair_row['chapter_number'])}"
+                    if repair_row
+                    else "B\u1eaft \u0111\u1ea7u render"
+                ),
+                "render",
+            )
             task_type = "START_RENDER_RANGE"
-            title = "B\u1eaft \u0111\u1ea7u render"
-            summary = "Ph\u1ea1m vi \u0111\u00e3 \u0111\u01b0\u1ee3c chu\u1ea9n b\u1ecb; render l\u00e0 thao t\u00e1c ri\u00eang."
+            title = "Bắt đầu render lại" if repair_row else "B\u1eaft \u0111\u1ea7u render"
+            summary = (
+                "Job replacement đã ghim đúng văn bản và bản đồ giọng; bản audio cũ vẫn được giữ trong lịch sử."
+                if repair_row
+                else "Ph\u1ea1m vi \u0111\u00e3 \u0111\u01b0\u1ee3c chu\u1ea9n b\u1ecb; render l\u00e0 thao t\u00e1c ri\u00eang."
+            )
             stage = 4
         elif status in {"paused", "interrupted", "failed", "completed_with_errors"}:
             action = _action("RECOVER_RENDER", "X\u1eed l\u00fd render", "render")
@@ -842,6 +1028,48 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
             technical=[f"job:{job_id}", f"job_status:{status}", "range_gate:exact_job"],
             range_task=True,
             task_payload=exact_job,
+        ))
+
+    repair_candidates = [
+        (row, task)
+        for row in rows
+        if (task := _chapter_task(row)) and task["task_type"] == "REPAIR_REQUIRED"
+    ]
+    if repair_candidates:
+        row, task = min(
+            repair_candidates,
+            key=lambda item: int(item[0]["chapter_number"]),
+        )
+        ref = _chapter_ref(row)
+        for queue_item in queue:
+            if int(queue_item["chapter_id"]) == ref["id"]:
+                queue_item["status"] = "current"
+            elif queue_item["status"] == "pending":
+                queue_item["status"] = "blocked"
+        return finish(_base_projection(
+            readiness=readiness,
+            task_scope="chapter",
+            task_type=task["task_type"],
+            task_key=(
+                f"chapter:{ref['id']}:REPAIR_REQUIRED:"
+                f"artifact:{int(row.get('active_artifact_id') or 0)}:"
+                f"plan:{int(row.get('latest_casting_plan_id') or 0)}"
+            ),
+            user_stage=task["user_stage"],
+            title=task["title"],
+            summary=task["summary"],
+            affected=ref,
+            action=task["action"],
+            blocker=task["blocker"],
+            next_hint=task["next"],
+            queue=queue,
+            technical=[
+                f"chapter_state:{row.get('state')}",
+                f"artifact_id:{int(row.get('active_artifact_id') or 0)}",
+                f"current_casting_plan_id:{int(row.get('latest_casting_plan_id') or 0)}",
+            ],
+            range_task=False,
+            task_payload=row,
         ))
 
     eligible = all(row.get("state") in _COMPLETE_STATES | _READY_STATES for row in rows)
@@ -1002,12 +1230,52 @@ def get_production_task_projection(
         artifact_id = item.get("active_artifact_id")
         if artifact_id:
             artifact = db.fetch_one(
-                "SELECT duration_ms,size_bytes FROM artifacts WHERE id=?",
+                "SELECT duration_ms,size_bytes,created_at FROM artifacts WHERE id=?",
                 (int(artifact_id),),
             )
             if artifact:
                 item["artifact_duration_ms"] = artifact["duration_ms"]
                 item["artifact_size_bytes"] = artifact["size_bytes"]
+                item["artifact_created_at"] = artifact["created_at"]
+        if item.get("human_qa_status") == "needs_fixes":
+            chapter = db.fetch_one(
+                "SELECT human_approval_json FROM chapters WHERE id=?",
+                (int(item["chapter_id"]),),
+            )
+            try:
+                approval = json.loads(chapter["human_approval_json"] or "{}")
+            except (TypeError, ValueError):
+                approval = {}
+            if isinstance(approval, dict) and int(
+                approval.get("artifact_id") or 0
+            ) == int(artifact_id or 0):
+                item["human_qa_note"] = str(approval.get("notes") or "")
+                item["human_qa_recorded_at"] = approval.get("recorded_at")
+            if store is not None:
+                current_summary = _safe_effective_voice_summary(
+                    db,
+                    store,
+                    item.get("latest_casting_plan_id"),
+                    voice_catalog,
+                )
+                rejected_summary = _safe_effective_voice_summary(
+                    db,
+                    store,
+                    item.get("active_output_casting_plan_id"),
+                    voice_catalog,
+                )
+                item["effective_voice_map"] = [
+                    {
+                        key: value
+                        for key, value in row.items()
+                        if key != "speaker_key"
+                    }
+                    for row in current_summary
+                ]
+                item["voice_map_diff"] = _voice_map_diff(
+                    rejected_summary,
+                    current_summary,
+                )
     range_jobs = _exact_range_jobs(
         db,
         book_id=book_id,

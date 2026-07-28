@@ -104,6 +104,7 @@ class BatchPrepareTransactionRevalidator:
     def _chapter_allows_prepare(
         connection: sqlite3.Connection,
         chapter: sqlite3.Row,
+        eligibility_evidence: Sequence[str] = (),
     ) -> bool:
         active_artifact_id = int(chapter["active_audio_artifact_id"] or 0)
         if not active_artifact_id:
@@ -112,10 +113,22 @@ class BatchPrepareTransactionRevalidator:
             approval = json.loads(chapter["human_approval_json"] or "{}")
         except (TypeError, json.JSONDecodeError):
             return False
+        repair_artifact_id = 0
+        evidence = {str(item) for item in eligibility_evidence}
+        for item in evidence:
+            if item.startswith("REJECTED_ARTIFACT:"):
+                try:
+                    repair_artifact_id = int(item.split(":", 1)[1])
+                except ValueError:
+                    return False
+        if "REPAIR_REQUIRED" in evidence and repair_artifact_id <= 0:
+            return False
+        explicit_repair = "REPAIR_REQUIRED" in evidence and repair_artifact_id > 0
         if (
             not isinstance(approval, dict)
             or str(approval.get("status") or "").lower() != "needs_fixes"
             or int(approval.get("artifact_id") or 0) != active_artifact_id
+            or (explicit_repair and repair_artifact_id != active_artifact_id)
         ):
             return False
         artifact = connection.execute(
@@ -123,12 +136,17 @@ class BatchPrepareTransactionRevalidator:
                FROM artifacts WHERE id=? AND chapter_id=?""",
             (active_artifact_id, int(chapter["id"])),
         ).fetchone()
-        return bool(
+        valid_rejected_artifact = bool(
             artifact
             and artifact["deleted_at"] is None
             and str(artifact["status"] or "") == "active"
-            and int(artifact["text_revision_id"] or 0)
-            != int(chapter["active_text_revision_id"] or 0)
+        )
+        if not valid_rejected_artifact:
+            return False
+        if explicit_repair:
+            return True
+        return int(artifact["text_revision_id"] or 0) != int(
+            chapter["active_text_revision_id"] or 0
         )
 
     def validate(
@@ -188,18 +206,26 @@ class BatchPrepareTransactionRevalidator:
             _reject("SNAPSHOT_DIGEST_CHANGED", "chapter snapshot digest does not match")
 
         ready_ids: list[int] = []
+        snapshots_by_chapter = {int(item.chapter_id): item for item in chapters}
         scope_rows = connection.execute(
             "SELECT * FROM chapters WHERE book_id=? AND chapter_number BETWEEN ? AND ? ORDER BY chapter_number,id",
             (int(snapshot.book_id), int(snapshot.from_chapter), int(snapshot.to_chapter)),
         ).fetchall()
         for chapter in scope_rows:
+            chapter_snapshot = snapshots_by_chapter.get(int(chapter["id"]))
             latest_plan = connection.execute(
                 "SELECT * FROM casting_plans WHERE chapter_id=? ORDER BY plan_revision DESC,id DESC LIMIT 1",
                 (int(chapter["id"]),),
             ).fetchone()
             conflict = self.find_conflict(connection, (int(chapter["id"]),))
             if (
-                self._chapter_allows_prepare(connection, chapter)
+                self._chapter_allows_prepare(
+                    connection,
+                    chapter,
+                    chapter_snapshot.eligibility_evidence
+                    if chapter_snapshot is not None
+                    else (),
+                )
                 and chapter["active_text_revision_id"] is not None
                 and latest_plan is not None
                 and latest_plan["status"] == "approved"

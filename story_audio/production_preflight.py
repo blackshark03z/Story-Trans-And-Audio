@@ -22,6 +22,7 @@ _LOCKED_INPUT_STATES = {
     "PREPARED",
     "RENDERING_OR_PAUSED",
     "RENDERED_NOT_QA",
+    "REPAIR_REQUIRED",
 }
 _LIFECYCLE_ACTIONS = {
     "START_RENDER_RANGE": (
@@ -42,6 +43,11 @@ _LIFECYCLE_ACTIONS = {
     "HUMAN_QA": (
         "HUMAN_QA",
         "Nghe v\u00e0 duy\u1ec7t audio",
+        "qa",
+    ),
+    "REPAIR_REQUIRED": (
+        "CHOOSE_REPAIR_PATH",
+        "Chọn cách sửa audio",
         "qa",
     ),
     "COMPLETE": (
@@ -140,7 +146,14 @@ def _blockers(
     result: list[dict[str, Any]] = []
     for row in rows:
         state = str(row.get("state") or "")
-        if state in {"READY_TO_PREPARE", "COMPLETE", "PREPARED", "RENDERING_OR_PAUSED", "RENDERED_NOT_QA"}:
+        if state in {
+            "READY_TO_PREPARE",
+            "COMPLETE",
+            "PREPARED",
+            "RENDERING_OR_PAUSED",
+            "RENDERED_NOT_QA",
+            "REPAIR_REQUIRED",
+        }:
             continue
         queue = queue_by_chapter.get(int(row["chapter_id"]), {})
         is_canonical = bool(queue.get("canonical_task"))
@@ -404,6 +417,7 @@ def project_production_preflight(snapshot: Mapping[str, Any]) -> dict[str, Any]:
         "MONITOR_RENDER",
         "RECOVER_RENDER",
         "HUMAN_QA",
+        "REPAIR_REQUIRED",
     }
     preview_chapter_count = len(target_rows) if lifecycle_review else len(included)
     prepare_effect = (

@@ -369,7 +369,7 @@ class RangeReadinessApiTests(IsolatedTestCase):
         self.assertEqual(item["next_action"], "QA")
         self.assertTrue(item["requires_operator_action"])
 
-    def test_rejected_artifact_requires_new_valid_revision_and_matching_plan(self) -> None:
+    def test_needs_fixes_artifact_enters_repair_required_and_can_reuse_current_pins(self) -> None:
         chapter_id = self.chapters[1]
         artifact_id = self.db.fetch_one(
             "SELECT active_audio_artifact_id FROM chapters WHERE id=?",
@@ -380,25 +380,18 @@ class RangeReadinessApiTests(IsolatedTestCase):
             "UPDATE chapters SET human_approval_json=? WHERE id=?",
             (json.dumps(approval), chapter_id),
         )
-        same_revision = self._readiness(1, 1)["chapters"][0]
-        self.assertEqual(same_revision["state"], "RENDERED_NOT_QA")
+        blocked = self._readiness(1, 1)["chapters"][0]
+        self.assertEqual(blocked["state"], "REPAIR_REQUIRED")
+        self.assertEqual(blocked["next_action"], "CHOOSE_REPAIR_PATH")
+        self.assertEqual(blocked["replacement_for_artifact_id"], artifact_id)
+        self.assertFalse(blocked["repair_prepare_ready"])
+        self.assertIn("Latest Speaker Draft is not approved.", blocked["repair_input_blockers"])
 
-        new_revision_id = self._approve_text(
-            chapter_id,
-            "Corrected replacement source text.",
-        )
-        stale_plan = self._readiness(1, 1)["chapters"][0]
-        self.assertEqual(stale_plan["state"], "CASTING_REVIEW")
-        self.assertEqual(stale_plan["replacement_for_artifact_id"], artifact_id)
-        self.assertNotEqual(
-            stale_plan["active_output_text_revision_id"],
-            new_revision_id,
-        )
-
-        self._approved_plan(1)
+        self._speaker_draft(1, "approved")
         ready = self._readiness(1, 1)["chapters"][0]
-        self.assertEqual(ready["state"], "READY_TO_PREPARE")
+        self.assertEqual(ready["state"], "REPAIR_REQUIRED")
         self.assertEqual(ready["replacement_for_artifact_id"], artifact_id)
+        self.assertTrue(ready["repair_prepare_ready"])
         with self.db.connect() as connection:
             chapter = connection.execute(
                 "SELECT * FROM chapters WHERE id=?",
@@ -408,6 +401,10 @@ class RangeReadinessApiTests(IsolatedTestCase):
                 BatchPrepareTransactionRevalidator._chapter_allows_prepare(
                     connection,
                     chapter,
+                    eligibility_evidence=(
+                        "REPAIR_REQUIRED",
+                        f"REJECTED_ARTIFACT:{artifact_id}",
+                    ),
                 )
             )
 
@@ -427,8 +424,10 @@ class RangeReadinessApiTests(IsolatedTestCase):
             ),
         )
         item = self._readiness(1, 1)["chapters"][0]
-        self.assertEqual(item["state"], "TEXT_BLOCKED")
+        self.assertEqual(item["state"], "REPAIR_REQUIRED")
+        self.assertFalse(item["repair_prepare_ready"])
         self.assertIn("TEXT_ENCODING_INVALID", item["blockers"][0])
+        self.assertIn("TEXT_ENCODING_INVALID", item["repair_input_blockers"][0])
 
     def test_active_audio_accepted_is_complete(self) -> None:
         item = self._readiness(2, 2)["chapters"][0]
@@ -500,7 +499,7 @@ class RangeReadinessApiTests(IsolatedTestCase):
         self.assertEqual(data[1]["human_qa_status"], "pending")
         self.assertEqual(data[2]["human_qa_status"], "accepted")
 
-    def test_unknown_qa_status_fails_closed_to_pending_review(self) -> None:
+    def test_unknown_qa_status_fails_closed_without_reopening_pending_review(self) -> None:
         artifact_id = self.db.fetch_one(
             "SELECT active_audio_artifact_id FROM chapters WHERE id=?",
             (self.chapters[2],),
@@ -511,8 +510,9 @@ class RangeReadinessApiTests(IsolatedTestCase):
             (json.dumps(approval), self.chapters[2]),
         )
         item = self._readiness(2, 2)["chapters"][0]
-        self.assertEqual(item["human_qa_status"], "pending")
-        self.assertEqual(item["state"], "RENDERED_NOT_QA")
+        self.assertEqual(item["human_qa_status"], "invalid")
+        self.assertEqual(item["state"], "STATE_UNRESOLVED")
+        self.assertIn("malformed", item["blockers"][0].lower())
 
     def test_rejection_for_historical_artifact_is_pending_for_active_output(self) -> None:
         artifact_id = int(

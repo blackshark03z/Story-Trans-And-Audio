@@ -1308,9 +1308,61 @@ def _production_command_executor(
                 },),
                 operator_message="Đã duyệt bản đồ giọng cuối.",
             )
-        if command_type == "PREPARE":
+        if command_type in {"PREPARE", "PREPARE_REPLACEMENT"}:
+            replacement_artifact_id = None
+            if command_type == "PREPARE_REPLACEMENT":
+                artifact_scope = request.scope.get("artifact")
+                replacement_artifact_id = (
+                    int(artifact_scope["id"])
+                    if isinstance(artifact_scope, dict)
+                    else int(artifact_scope)
+                    if artifact_scope is not None
+                    else None
+                )
+                if replacement_artifact_id is None:
+                    raise ProductionCommandError(
+                        "Replacement PREPARE requires the rejected Artifact scope."
+                    )
+                replacement = db.fetch_one(
+                    """SELECT c.id AS chapter_id,c.chapter_number,c.book_id,
+                              c.active_audio_artifact_id,c.human_approval_json
+                       FROM artifacts a
+                       JOIN chapters c ON c.id=a.chapter_id
+                       WHERE a.id=? AND a.deleted_at IS NULL""",
+                    (replacement_artifact_id,),
+                )
+                if (
+                    not replacement
+                    or int(replacement["active_audio_artifact_id"] or 0)
+                    != replacement_artifact_id
+                ):
+                    raise ProductionCommandError(
+                        "Replacement Artifact is not the active chapter output."
+                    )
+                approval = _parse_human_approval(
+                    replacement["human_approval_json"]
+                )
+                if (
+                    not approval
+                    or str(approval.get("status") or "").lower() != "needs_fixes"
+                    or int(approval.get("artifact_id") or 0)
+                    != replacement_artifact_id
+                ):
+                    raise ProductionCommandError(
+                        "Replacement PREPARE requires a durable needs_fixes verdict."
+                    )
             if "plan_fingerprint" in payload:
                 parsed = BatchPrepareApiRequest.model_validate(payload)
+                if command_type == "PREPARE_REPLACEMENT" and (
+                    int(parsed.book_id) != int(replacement["book_id"])
+                    or int(parsed.from_chapter)
+                    != int(replacement["chapter_number"])
+                    or int(parsed.to_chapter)
+                    != int(replacement["chapter_number"])
+                ):
+                    raise ProductionCommandError(
+                        "Replacement PREPARE must target exactly the rejected chapter."
+                    )
                 result = _prepare_service().prepare(
                     parsed.model_dump(),
                     authorization_header=authorization_header,
@@ -1362,7 +1414,11 @@ def _production_command_executor(
                     }
                     for row in prepared_rows
                 ),
-                operator_message="Đã chuẩn bị phạm vi. Chưa bắt đầu render.",
+                operator_message=(
+                    "Đã chuẩn bị bản render lại. Bản audio bị từ chối vẫn được giữ trong lịch sử."
+                    if command_type == "PREPARE_REPLACEMENT"
+                    else "Đã chuẩn bị phạm vi. Chưa bắt đầu render."
+                ),
             )
         if command_type == "START_RENDER":
             job_id = int(payload["job_id"])
@@ -1679,6 +1735,7 @@ def _production_command_executor(
                 HumanApprovalRequest(status=status, notes=payload.get("notes")),
             )
             artifact_id = result.get("human_approval", {}).get("artifact_id")
+            chapter_number = result.get("chapter", {}).get("chapter_number") or chapter_id
             return ProductionCommandMutation(
                 outcome="APPLIED",
                 submitted_count=1,
@@ -1689,9 +1746,9 @@ def _production_command_executor(
                     "reused": bool(result.get("idempotent_reused")),
                 },),
                 operator_message=(
-                    "Đã chấp nhận audio."
+                    f"Đã ghi Chấp nhận cho Chương {chapter_number}."
                     if status == "approved"
-                    else "Đã ghi nhận audio cần sửa."
+                    else f"Đã ghi Cần sửa cho Chương {chapter_number}."
                 ),
             )
         raise ProductionCommandError("Unsupported Production command type")

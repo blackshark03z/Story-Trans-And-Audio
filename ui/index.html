@@ -438,13 +438,16 @@
       <section class="panel assignment-page">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Voice Assignment</p>
-            <h2 id="assignmentHeading">Gan giong theo ngu canh chuong</h2>
+            <p class="eyebrow">Gán giọng theo ngữ cảnh</p>
+            <h2 id="assignmentHeading">Giọng cho chương đang làm</h2>
           </div>
-          <button id="openAssignmentWorkspace" class="primary" type="button">Mo workspace gan giong</button>
+          <div class="assignment-page-actions">
+            <button id="assignmentReturnToRepair" class="ghost hidden" type="button">Quay lại bản audio cần sửa</button>
+            <button id="openAssignmentWorkspace" class="primary" type="button">Chọn sách và chương</button>
+          </div>
         </div>
-        <p class="section-guide">Trang nay tom tat role, voice, tinh kha dung va trang thai duyet cua chuong dang chon. Moi thay doi van duoc thuc hien trong Production Flow de giu dung chapter context.</p>
-        <div id="assignmentScope" class="assignment-scope muted">Chua chon chuong trong Production.</div>
+        <p class="section-guide">Xem người kể chuyện, nhân vật và giọng hiệu lực trong đúng chương. Khi chưa có ngữ cảnh, nút chọn sẽ mở bộ chọn sách/chương của Sản xuất.</p>
+        <div id="assignmentScope" class="assignment-scope muted">Chưa chọn sách và chương.</div>
         <div id="assignmentSummary" class="flow-summary-grid"></div>
         <div id="assignmentRows" class="flow-speaker-list"></div>
         <div id="assignmentBlockedReason" class="issue warning hidden"></div>

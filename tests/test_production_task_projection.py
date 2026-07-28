@@ -36,7 +36,7 @@ def _readiness(*rows: dict) -> dict:
 class ProductionTaskProjectionTests(unittest.TestCase):
     def assert_typed_section(self, projection: dict, expected: str | None) -> None:
         task = projection["canonical_task"]
-        sections = ("speaker", "casting", "range_prepare", "render", "qa")
+        sections = ("speaker", "casting", "range_prepare", "render", "qa", "repair")
         self.assertEqual(task["task_type"], projection["task_type"])
         self.assertEqual(task["task_key"], projection["task_key"])
         for section in sections:
@@ -71,6 +71,10 @@ class ProductionTaskProjectionTests(unittest.TestCase):
                 ),
                 "APPROVE_SPEAKER_DRAFT",
             ),
+            (
+                _row(1, "REPAIR_REQUIRED", blockers=["needs fixes"], active_artifact_id=39),
+                "REPAIR_REQUIRED",
+            ),
             (_row(1, "VOICE_BLOCKED", blockers=["missing voice"]), "ASSIGN_VOICE"),
             (_row(1, "CASTING_REVIEW", blockers=["plan draft"]), "REVIEW_CASTING_PLAN"),
         )
@@ -89,6 +93,8 @@ class ProductionTaskProjectionTests(unittest.TestCase):
                     }
                     else "casting" if expected in {"ASSIGN_VOICE", "REVIEW_CASTING_PLAN"} else None
                 )
+                if expected == "REPAIR_REQUIRED":
+                    expected_section = "repair"
                 self.assert_typed_section(projection, expected_section)
 
     def test_mixed_range_uses_workflow_priority_before_chapter_order(self) -> None:
@@ -415,6 +421,14 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertIsNone(projection["primary_action"])
         self.assertEqual(projection["chapter_queue"][0]["status"], "current")
         self.assert_typed_section(projection, "qa")
+
+        repair = _row(1, "REPAIR_REQUIRED", blockers=["needs fixes"], active_artifact_id=39)
+        projection = project_production_task({"readiness": _readiness(repair)})
+        self.assertEqual(projection["task_type"], "REPAIR_REQUIRED")
+        self.assertEqual(projection["user_stage"], 5)
+        self.assertIsNone(projection["primary_action"])
+        self.assertEqual(projection["chapter_queue"][0]["status"], "current")
+        self.assert_typed_section(projection, "repair")
 
         complete = _row(1, "COMPLETE")
         projection = project_production_task({"readiness": _readiness(complete)})

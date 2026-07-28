@@ -275,6 +275,9 @@ class DatabaseAuthoritativeSnapshotProvider:
                         casting_plan_sha256=str(plan_row["plan_sha256"]),
                         narrator_voice_id=str(plan_row["narrator_voice_id"]),
                         deterministic_order=order,
+                        eligibility_evidence=tuple(
+                            str(code) for code in item.get("reason_codes") or ("READY_TO_PREPARE",)
+                        ),
                         casting_snapshot_json=encoded_pin,
                         voice_snapshot_json=encoded_pin,
                     )

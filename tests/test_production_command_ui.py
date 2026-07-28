@@ -118,6 +118,21 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertIn("status-only", self.js)
         self.assertIn("Quay lại việc tiếp theo", self.html)
 
+    def test_repair_workflow_labels_and_context_hooks_are_present(self) -> None:
+        for text in (
+            "REPAIR_REQUIRED",
+            "Bản audio này cần sửa",
+            "Render lại cùng dữ liệu",
+            "Đổi hoặc gán lại giọng",
+            "Sửa nội dung hoặc người nói",
+            "assignmentContextLoading",
+            "assignmentReturnToRepair",
+            "Đang mở đúng chương để gán giọng.",
+        ):
+            self.assertIn(text, self.js)
+        self.assertIn("Quay lại bản audio cần sửa", self.html)
+        self.assertIn("assignment-page-actions", self.css)
+
 
 if __name__ == "__main__":
     unittest.main()

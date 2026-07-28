@@ -157,7 +157,7 @@ def _intent_row(row: dict[str, Any], plan_fingerprint: str) -> dict[str, Any]:
         "eligibility": row.get("eligibility"),
         "plan_fingerprint": plan_fingerprint,
         "intended_mutation": "PREPARE_DURABLE_JOB",
-        "expected_existing_state": "READY_TO_PREPARE",
+        "expected_existing_state": row.get("readiness_state"),
         "idempotency_basis": {
             "active_text_revision_id": row.get("active_text_revision_id"),
             "latest_casting_plan_id": row.get("latest_casting_plan_id"),
@@ -167,6 +167,7 @@ def _intent_row(row: dict[str, Any], plan_fingerprint: str) -> dict[str, Any]:
             "live_job_status": row.get("live_job_status"),
             "active_artifact_id": row.get("active_artifact_id"),
             "human_qa_status": row.get("human_qa_status"),
+            "replacement_for_artifact_id": row.get("replacement_for_artifact_id"),
         },
         "contract_status": "PREPARE_PLANNED_ONLY",
         "reason_codes": list(row.get("reason_codes") or []),
