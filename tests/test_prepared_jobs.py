@@ -206,6 +206,39 @@ class PreparedJobLifecycleTests(IsolatedTestCase):
                 store=self.store,
             )
 
+    def test_start_command_replays_same_durable_job_without_second_transition(self) -> None:
+        prepared = prepare_job(self.db, self.config, store=self.store, **self._payload())
+        command_key = "start-command-response-loss-0001"
+        first = start_prepared_job(
+            self.db,
+            self.config,
+            job_id=int(prepared["job_id"]),
+            voice_catalog=self.voice_catalog,
+            store=self.store,
+            command_idempotency_key=command_key,
+        )
+        second = start_prepared_job(
+            self.db,
+            self.config,
+            job_id=int(prepared["job_id"]),
+            voice_catalog=self.voice_catalog,
+            store=self.store,
+            command_idempotency_key=command_key,
+        )
+        self.assertFalse(first["idempotent_reused"])
+        self.assertTrue(second["idempotent_reused"])
+        self.assertEqual(second["job_id"], first["job_id"])
+        self.assertEqual(second["status"], "scheduled")
+        self.assertEqual(
+            self.db.fetch_one(
+                """SELECT COUNT(*) AS n
+                   FROM audit_events
+                   WHERE event_code='production_command_start_render' AND job_id=?""",
+                (prepared["job_id"],),
+            )["n"],
+            1,
+        )
+
     def test_duplicate_prepare_fails_without_creating_second_job(self) -> None:
         prepare_job(self.db, self.config, store=self.store, **self._payload())
         with self.assertRaises(JobPreparationConflict):
@@ -353,6 +386,40 @@ class PreparedJobApiTests(IsolatedTestCase):
         )
         self.api_module.worker.wake.assert_not_called()
 
+    def test_prepare_command_returns_exact_pinned_chapter_without_waking_worker(self) -> None:
+        command = {
+            "command_type": "PREPARE",
+            "idempotency_key": "prepare-command-chapter-0365",
+            "scope": {
+                "range": {
+                    "book_id": self.book_id,
+                    "from_chapter": 365,
+                    "to_chapter": 365,
+                    "skip_completed": False,
+                }
+            },
+            "payload": self.payload,
+        }
+        projection = (
+            {"canonical_task": {"task_key": "chapter:365:prepared"}},
+            {"execution_readiness": {"ready": True}},
+        )
+        with patch(
+            "story_audio.api._project_production_command",
+            return_value=projection,
+        ):
+            response = self.client.post("/api/production/commands", json=command)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result["outcome"], "APPLIED")
+        self.assertEqual(result["submitted_count"], 1)
+        self.assertEqual(result["applied_count"], 1)
+        self.assertEqual(result["applied_items"][0]["chapter_id"], self.chapter_id)
+        self.assertEqual(result["applied_items"][0]["chapter_number"], 365)
+        self.assertEqual(result["applied_items"][0]["status"], JOB_PREPARED_STATUS)
+        self.api_module.worker.wake.assert_not_called()
+
     def test_start_route_wakes_once_and_legacy_route_reuses_one_job(self) -> None:
         prepared = self.client.post("/api/jobs/prepare", json=self.payload)
         self.assertEqual(prepared.status_code, 200)
@@ -361,6 +428,40 @@ class PreparedJobApiTests(IsolatedTestCase):
 
         started = self.client.post(f"/api/jobs/{job_id}/start", json={})
         self.assertEqual(started.status_code, 200)
+        self.api_module.worker.wake.assert_called_once()
+
+    def test_start_command_response_loss_reuses_job_and_wakes_once(self) -> None:
+        prepared = self.client.post("/api/jobs/prepare", json=self.payload)
+        self.assertEqual(prepared.status_code, 200)
+        job_id = int(prepared.json()["job_id"])
+        self.api_module.worker.wake.reset_mock()
+        command = {
+            "command_type": "START_RENDER",
+            "idempotency_key": "start-command-response-loss-0002",
+            "scope": {"job": {"id": job_id}},
+            "payload": {"job_id": job_id},
+        }
+        projection = (
+            {"canonical_task": {"task_key": f"job:{job_id}"}},
+            {"execution_readiness": {"prepared_job": None}},
+        )
+        with patch(
+            "story_audio.api._project_production_command",
+            return_value=projection,
+        ):
+            first = self.client.post("/api/production/commands", json=command)
+            second = self.client.post("/api/production/commands", json=command)
+
+        self.assertEqual(first.status_code, 200, first.text)
+        self.assertEqual(second.status_code, 200, second.text)
+        self.assertEqual(first.json()["outcome"], "ACCEPTED")
+        self.assertEqual(second.json()["outcome"], "ACCEPTED")
+        self.assertFalse(first.json()["applied_items"][0]["reused"])
+        self.assertTrue(second.json()["applied_items"][0]["reused"])
+        self.assertEqual(
+            second.json()["asynchronous_reference"]["id"],
+            job_id,
+        )
         self.api_module.worker.wake.assert_called_once()
 
     def test_legacy_submit_route_creates_one_job_and_wakes_once(self) -> None:

@@ -413,6 +413,7 @@ def start_prepared_job(
     job_id: int,
     voice_catalog: EffectiveVoiceCatalog,
     store: ContentStore,
+    command_idempotency_key: str | None = None,
 ) -> dict[str, Any]:
     _validate_prepared_job_text_inputs(db, store, job_id=job_id)
     require_prepared_job_eligible(db, job_id=job_id, catalog=voice_catalog)
@@ -422,6 +423,26 @@ def start_prepared_job(
         job = connection.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
         if not job:
             raise LookupError("Không tìm thấy prepared job.")
+        if command_idempotency_key:
+            command_events = connection.execute(
+                """SELECT details_json
+                   FROM audit_events
+                   WHERE event_code='production_command_start_render' AND job_id=?
+                   ORDER BY id DESC""",
+                (job_id,),
+            ).fetchall()
+            for event in command_events:
+                try:
+                    details = json.loads(str(event["details_json"] or "{}"))
+                except (TypeError, ValueError):
+                    continue
+                if details.get("idempotency_key") == command_idempotency_key:
+                    return {
+                        "job_id": job_id,
+                        "status": str(job["status"]),
+                        "undo_until": job["scheduled_at"],
+                        "idempotent_reused": True,
+                    }
         if str(job["status"]) != JOB_PREPARED_STATUS:
             raise JobStartConflict(f"Job #{job_id} is not in '{JOB_PREPARED_STATUS}' status")
         chapters = connection.execute(
@@ -448,8 +469,30 @@ def start_prepared_job(
         )
         if updated.rowcount != 1:
             raise JobStartConflict(f"Prepared job #{job_id} could not be started safely")
+        if command_idempotency_key:
+            connection.execute(
+                """INSERT INTO audit_events(
+                       event_code,job_id,chapter_id,details_json,created_at
+                   ) VALUES(?,?,?,?,?)""",
+                (
+                    "production_command_start_render",
+                    job_id,
+                    None,
+                    json.dumps(
+                        {"idempotency_key": command_idempotency_key},
+                        ensure_ascii=False,
+                        sort_keys=True,
+                    ),
+                    utcnow(),
+                ),
+            )
     db.audit("job_start_requested", job_id=job_id, details={"undo_until": scheduled.isoformat()})
-    return {"job_id": job_id, "status": "scheduled", "undo_until": scheduled.isoformat()}
+    return {
+        "job_id": job_id,
+        "status": "scheduled",
+        "undo_until": scheduled.isoformat(),
+        "idempotent_reused": False,
+    }
 
 
 def _effective_synthesis_settings(settings_snapshot: dict) -> str:

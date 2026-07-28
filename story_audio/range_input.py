@@ -72,6 +72,73 @@ def _validate_scope(readiness: dict[str, Any]) -> None:
         )
 
 
+def _casting_voice_evidence(
+    db: Database,
+    *,
+    plan: dict[str, Any],
+    voice_catalog: EffectiveVoiceCatalog,
+    chapter_number: int,
+) -> list[dict[str, Any]]:
+    voice_names = {
+        str(item["assignment_key"]): str(
+            item.get("display_name") or item["assignment_key"]
+        )
+        for item in voice_catalog.items
+    }
+    character_ids = sorted({
+        int(item["character_id"])
+        for item in plan.get("utterances") or []
+        if item.get("character_id") is not None
+    })
+    character_names: dict[int, str] = {}
+    if character_ids:
+        placeholders = ",".join("?" for _ in character_ids)
+        rows = db.fetch_all(
+            f"SELECT id,display_name FROM characters WHERE id IN ({placeholders})",
+            tuple(character_ids),
+        )
+        character_names = {
+            int(row["id"]): str(row["display_name"]) for row in rows
+        }
+    grouped: dict[tuple[str, str, str], dict[str, Any]] = {}
+    for utterance in plan.get("utterances") or []:
+        role = str(utterance.get("role") or "unknown")
+        character_id = utterance.get("character_id")
+        if role == "narrator":
+            speaker_name = "Người kể chuyện"
+        elif character_id is not None:
+            speaker_name = character_names.get(
+                int(character_id), f"Nhân vật {character_id}"
+            )
+        else:
+            speaker_name = "Người nói chưa rõ"
+        voice_id = str(utterance.get("resolved_voice_id") or "")
+        raw_source = str(utterance.get("resolution_source") or "")
+        if "override" in raw_source:
+            source = "override"
+        elif raw_source.startswith("book_") or role == "narrator":
+            source = "book_default"
+        else:
+            source = "inherited"
+        key = (speaker_name, voice_id, source)
+        row = grouped.setdefault(
+            key,
+            {
+                "speaker_name": speaker_name,
+                "effective_voice_name": voice_names.get(voice_id, voice_id),
+                "assignment_source": source,
+                "line_count": 0,
+                "affected_chapters": [chapter_number],
+                "available": voice_id in voice_catalog.selectable_ids,
+            },
+        )
+        row["line_count"] += 1
+    return sorted(
+        grouped.values(),
+        key=lambda item: (item["speaker_name"], item["effective_voice_name"]),
+    )
+
+
 def _is_speaker_exception(row: dict[str, Any]) -> bool:
     suggestion = row.get("suggestion")
     if row.get("invalid_item") or not isinstance(suggestion, dict):
@@ -381,6 +448,7 @@ def get_range_input_snapshot(
                     "text_revision_id": int(detail["text_revision_id"]),
                     "draft_fingerprint": detail["input_fingerprint"],
                     "draft_revision": int(detail["id"]),
+                    "stale": False,
                     "unresolved_count": len(unresolved),
                     "proposal_source": "Gemini speaker proposal",
                 })
@@ -403,6 +471,14 @@ def get_range_input_snapshot(
                 plan_eligible = False
                 replacement_plan_id = int(plan_row["id"])
             if plan_row["status"] == "draft" and plan_eligible:
+                previous_approved = db.fetch_one(
+                    """
+                    SELECT id FROM casting_plans
+                    WHERE chapter_id=? AND status='approved' AND id<>?
+                    ORDER BY plan_revision DESC LIMIT 1
+                    """,
+                    (ref["chapter_id"], int(plan_row["id"])),
+                )
                 casting_approvals.append({
                     **ref,
                     "plan_id": int(plan_row["id"]),
@@ -422,6 +498,13 @@ def get_range_input_snapshot(
                         for item in plan["plan"].get("utterances") or []
                         if not str(item.get("resolved_voice_id") or "").strip()
                     ),
+                    "effective_voice_map": _casting_voice_evidence(
+                        db,
+                        plan=plan["plan"],
+                        voice_catalog=voice_catalog,
+                        chapter_number=ref["chapter_number"],
+                    ),
+                    "changed_mapping_warning": previous_approved is not None,
                 })
                 continue
             if plan_row["status"] == "approved" and plan_eligible:

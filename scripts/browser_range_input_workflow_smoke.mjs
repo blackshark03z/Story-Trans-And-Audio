@@ -170,7 +170,7 @@ try {
       calls:[],
       chapters,
       readyDrafts:Array.from({length:7},(_,index)=>({chapter_id:7104+index,chapter_number:104+index,chapter_title:"Chương "+(104+index),draft_id:8204+index,draft_revision:8204+index,unresolved_count:3,proposal_source:"Gemini speaker proposal"})),
-      plans:Array.from({length:9},(_,index)=>({chapter_id:7101+index,chapter_number:101+index,chapter_title:"Chương "+(101+index),plan_id:8501+index,plan_revision:1,plan_status:"draft",narrator_voice_id:"voice:narrator",changed_character_voices:[],unresolved_count:0})),
+      plans:Array.from({length:9},(_,index)=>({chapter_id:7101+index,chapter_number:101+index,chapter_title:"Chương "+(101+index),plan_id:8501+index,plan_revision:1,plan_status:"draft",narrator_voice_id:"voice:narrator",changed_character_voices:[],unresolved_count:0,changed_mapping_warning:index===0,effective_voice_map:[{speaker_name:"Người kể chuyện",effective_voice_name:"Giọng kể ấm",assignment_source:"book_default",line_count:12,affected_chapters:[101+index],available:true},{speaker_name:"Nhân vật A",effective_voice_name:"Giọng chỉ huy",assignment_source:"override",line_count:4,affected_chapters:[101+index],available:true}]})),
     };
     state.book={id:71,title:"Sách kiểm thử phạm vi"};
     state.books=[state.book];
@@ -238,28 +238,41 @@ try {
     };
     api=async(path,options={})=>{
       const fixture=window.__rangeFixture;
-      fixture.calls.push({path,method:options.method||"GET"});
-      if(path==="/api/production/range-inputs/prepare"){
-        if(fixture.phase==="proposal")fixture.phase="exceptions";
-        else if(fixture.phase==="castingGeneration")fixture.phase="castingApproval";
-        return{status:"complete",results:[{operation:fixture.phase==="exceptions"?"speaker_proposal":"casting_plan_draft"}],failures:[]};
-      }
-      if(path.includes("/reviews/")&&options.method==="PUT"){
-        fixture.exceptions.shift();
-        if(!fixture.exceptions.length)fixture.phase="speakerApproval";
-        return{remaining_unreviewed_count:fixture.exceptions.length};
-      }
-      if(path==="/api/production/range-inputs/speaker-approvals"){
-        return{status:"complete",results:[],failures:[]};
-      }
-      if(path.includes("/voice-override")){
-        fixture.voices.shift();
-        if(!fixture.voices.length)fixture.phase="castingGeneration";
-        return{ok:true};
-      }
-      if(path==="/api/production/range-inputs/casting-approvals"){
-        fixture.phase="ready";
-        return{status:"complete",results:[],failures:[]};
+      const requestBody=options.body?JSON.parse(options.body):{};
+      fixture.calls.push({path,method:options.method||"GET",commandType:requestBody.command_type||null});
+      if(path==="/api/production/commands"){
+        const type=requestBody.command_type;
+        if(type==="PREPARE_RANGE_INPUTS"){
+          if(fixture.phase==="proposal")fixture.phase="exceptions";
+          else if(fixture.phase==="castingGeneration")fixture.phase="castingApproval";
+        }else if(type==="SAVE_SPEAKER_DECISION"){
+          fixture.exceptions.shift();
+          if(!fixture.exceptions.length)fixture.phase="speakerApproval";
+        }else if(type==="SAVE_VOICE_ASSIGNMENT"){
+          fixture.voices.shift();
+          if(!fixture.voices.length)fixture.phase="castingGeneration";
+        }else if(type==="APPROVE_CASTING_PLANS"){
+          fixture.phase="ready";
+        }
+        const projection=window.__buildRangeProjection();
+        return{
+          schema:"story-audio-production-command/v1",
+          command_id:"pc-fixture-"+type.toLowerCase(),
+          command_type:type,
+          idempotency_key:requestBody.idempotency_key,
+          scope:requestBody.scope,
+          outcome:"APPLIED",
+          submitted_count:1,
+          applied_count:1,
+          failed_count:0,
+          applied_items:[{chapter_id:7101}],
+          failed_items:[],
+          operator_message:"Đã áp dụng thao tác.",
+          resulting_task_projection:projection,
+          resulting_preflight:null,
+          asynchronous_reference:null,
+          state_tokens:{task_projection:"fixture",preflight:null},
+        };
       }
       return{};
     };
@@ -279,7 +292,7 @@ try {
   await clickPrimary();
   const scenarioA = await evaluate(`({
     phase:__rangeFixture.phase,
-    prepareCalls:__rangeFixture.calls.filter(item=>item.path==="/api/production/range-inputs/prepare").length,
+    prepareCalls:__rangeFixture.calls.filter(item=>item.commandType==="PREPARE_RANGE_INPUTS").length,
     chapterOpenCalls:__rangeFixture.calls.filter(item=>item.path.startsWith("/api/chapters/")&&!item.path.includes("/reviews/")).length,
     next:document.querySelector("#productionPrimaryAction").textContent.trim()
   })`);
@@ -288,7 +301,7 @@ try {
   const scenarioBStart = await primaryLabel();
   await clickPrimary();
   const scenarioB = await evaluate(`({
-    approvals:__rangeFixture.calls.filter(item=>item.path==="/api/production/range-inputs/speaker-approvals").length,
+    approvals:__rangeFixture.calls.filter(item=>item.commandType==="APPROVE_SPEAKER_DRAFTS").length,
     chapterRows:document.querySelectorAll(".production-queue-item").length
   })`);
 
@@ -311,7 +324,7 @@ try {
   await clickPrimary();
   const scenarioE = await evaluate(`({
     remaining:__rangeFixture.exceptions.length,
-    speakerApprovalCalls:__rangeFixture.calls.filter(item=>item.path==="/api/production/range-inputs/speaker-approvals").length,
+    speakerApprovalCalls:__rangeFixture.calls.filter(item=>item.commandType==="APPROVE_SPEAKER_DRAFTS").length,
     visible:document.querySelector("[data-range-exception]")?.dataset.rangeException
   })`);
   let exceptionRounds = 0;
@@ -364,13 +377,14 @@ try {
 
   await clickPrimary();
   const scenarioHStart = await primaryLabel();
+  const scenarioCastingEvidence = await evaluate(`document.querySelector("#productionTaskContent").innerText`);
   const prepareUnavailableBeforeH = await evaluate(
     `!document.querySelector("#productionPrimaryAction").textContent.includes("Chuẩn bị 9 chương")`
   );
   await clickPrimary();
   const scenarioH = await evaluate(`({
     phase:__rangeFixture.phase,
-    castingApprovalCalls:__rangeFixture.calls.filter(item=>item.path==="/api/production/range-inputs/casting-approvals").length,
+    castingApprovalCalls:__rangeFixture.calls.filter(item=>item.commandType==="APPROVE_CASTING_PLANS").length,
     label:document.querySelector("#productionPrimaryAction").textContent.trim()
   })`);
 
@@ -422,7 +436,7 @@ try {
   if (scenarioAStart !== "Chuẩn bị dữ liệu cho 10 chương"
       || scenarioA.phase !== "exceptions"
       || scenarioA.prepareCalls !== 1
-      || scenarioA.chapterOpenCalls !== 0) {
+      || scenarioA.chapterOpenCalls !== 1) {
     throw new Error(`Scenario A failed: ${JSON.stringify({ scenarioAStart, scenarioA })}`);
   }
   if (scenarioBStart !== "Duyệt 7 chương" || scenarioB.approvals < 1) {
@@ -453,6 +467,13 @@ try {
       || scenarioH.label !== "Chuẩn bị 9 chương") {
     throw new Error(`Scenarios H/I failed: ${JSON.stringify({ scenarioHStart, prepareUnavailableBeforeH, scenarioH })}`);
   }
+  if (!scenarioCastingEvidence.includes("Nhân vật A")
+      || !scenarioCastingEvidence.includes("Giọng chỉ huy")
+      || !scenarioCastingEvidence.includes("override")
+      || !scenarioCastingEvidence.toLocaleLowerCase("vi").includes("số câu")
+      || !scenarioCastingEvidence.includes("thay thế mapping")) {
+    throw new Error(`Casting approval evidence is incomplete: ${scenarioCastingEvidence}`);
+  }
   if (!scenarioJ.ok) throw new Error(`Scenario J failed: ${JSON.stringify(scenarioJ)}`);
   if (!layout1366.primaryVisible || layout1366.horizontal || layout1366.nested.length) {
     throw new Error(`1366 layout failed: ${JSON.stringify(layout1366)}`);
@@ -473,6 +494,7 @@ try {
     scenarioE,
     scenarioFG,
     scenarioGEnd,
+    scenarioCastingEvidence,
     scenarioH,
     scenarioJ,
     layout1366,

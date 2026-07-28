@@ -53,10 +53,12 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
 
     def test_profile_save_boundary_and_payload_stay_explicit(self) -> None:
         save_section = self.js[self.js.index("async function saveVoiceProfile"): self.js.index("async function openCasting")]
-        self.assertIn("method:'PUT'", save_section)
+        self.assertIn("runProductionCommand", save_section)
+        self.assertIn("commandType:'SAVE_VOICE_ASSIGNMENTS'", save_section)
         self.assertIn("narrator_voice_id:$('#profileNarratorVoice').value", save_section)
         self.assertIn("male_dialogue_voice_id:$('#profileMaleVoice').value", save_section)
         self.assertIn("female_dialogue_voice_id:$('#profileFemaleVoice').value", save_section)
+        self.assertNotIn("method:'PUT'", save_section)
         self.assertNotIn("/api/casting", save_section)
         self.assertNotIn("/api/jobs", save_section)
 

@@ -142,8 +142,11 @@ class AudioLibraryUiTests(unittest.TestCase):
         )
         for value in forbidden:
             self.assertNotIn(value, audio_related)
-        self.assertIn("/human-approval", audio_related)
-        self.assertIn("method:'PUT'", audio_related)
+        self.assertNotIn("/human-approval", audio_related)
+        self.assertIn("HUMAN_QA_ACCEPT", self.js)
+        self.assertIn("HUMAN_QA_NEEDS_FIXES", self.js)
+        self.assertIn("/api/production/commands", self.js)
+        self.assertIn("runProductionCommand", audio_related)
         self.assertIn("window.confirm", audio_related)
         self.assertIn("notes", audio_related)
         self.assertNotIn("Chapter 369", self.html + self.js + self.css)

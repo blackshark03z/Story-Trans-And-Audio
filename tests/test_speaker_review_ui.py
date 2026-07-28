@@ -54,9 +54,10 @@ class SpeakerReviewUiContractTests(IsolatedTestCase):
         self.assertIn("speaker-review/casting-plan-draft", self.api)
         self.assertIn("approve-only", self.api)
         self.assertIn("review_speaker_assignment_target", self.api)
-        self.assertIn("/reviews/${encodeURIComponent(utteranceId)}", self.js)
-        self.assertIn("/approve-only", self.js)
-        self.assertIn("/speaker-review/casting-plan-draft", self.js)
+        self.assertIn("commandType:'SAVE_SPEAKER_DECISION'", self.js)
+        self.assertIn("commandType:'APPROVE_SPEAKER_DRAFT'", self.js)
+        self.assertIn("commandType:'CREATE_CASTING_PLAN_DRAFT'", self.js)
+        self.assertIn("/api/production/commands", self.js)
         self.assertIn("createSpeakerReviewCastingPlan", self.html + self.js)
         self.assertIn("speaker_draft_id", self.js)
         self.assertIn("expected_draft_fingerprint", self.js)
@@ -165,10 +166,10 @@ console.log(JSON.stringify({
             "$('#speakerReviewPanel').classList.toggle('has-existing-plan',existingPlan)",
             "$('#approveSpeakerReview').textContent=speakerDraftApprovalLabel()",
             "review.lastApproval",
-            "Đã xác nhận người nói.",
-            "Đã tạo bản nháp gán giọng.",
-            "/approve-only",
-            "/speaker-review/casting-plan-draft",
+            "Đang duyệt người nói…",
+            "Đang tạo bản nháp gán giọng…",
+            "APPROVE_SPEAKER_DRAFT",
+            "CREATE_CASTING_PLAN_DRAFT",
         ):
             self.assertIn(value, self.html + self.js + self.css)
 
@@ -190,8 +191,8 @@ console.log(JSON.stringify({
 
     def test_render_stage_supports_prepare_then_start(self) -> None:
         for value in (
-            "/api/jobs/prepare",
-            "/api/jobs/${preparedJob.id}/start",
+            "commandType=preparedJob?'START_RENDER':'PREPARE'",
+            "runProductionCommand({commandType,scope,payload",
             "Hệ thống sẽ cố định văn bản và giọng cho phạm vi đã chọn. Chưa gọi TTS.",
             "Bắt đầu render",
             "preparedJob=preparedCastingJob",

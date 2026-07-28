@@ -133,6 +133,54 @@ class CastingTests(unittest.TestCase):
         self.assertTrue(all(item["role"] == "narrator" for item in first))
         self.assertTrue(all(item["end_offset"] - item["start_offset"] <= 256 for item in first))
 
+    def test_identical_latest_draft_is_reused_without_new_revision(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            (
+                _config,
+                db,
+                store,
+                _book_id,
+                chapter_id,
+                revision_id,
+                _character_a,
+                _character_b,
+                approved,
+            ) = seed_casting(Path(temp))
+            assignments = [
+                {
+                    "utterance_id": item["utterance_id"],
+                    "role": item["role"],
+                    "character_id": item.get("character_id"),
+                }
+                for item in approved["plan"]["utterances"]
+            ]
+            first = create_casting_draft(
+                db,
+                store,
+                chapter_id=chapter_id,
+                text_revision_id=revision_id,
+                narrator_voice_id="narrator",
+                assignments=assignments,
+                allowed_voice_ids=VOICES,
+            )
+            second = create_casting_draft(
+                db,
+                store,
+                chapter_id=chapter_id,
+                text_revision_id=revision_id,
+                narrator_voice_id="narrator",
+                assignments=assignments,
+                allowed_voice_ids=VOICES,
+            )
+            self.assertFalse(first["idempotent_reused"])
+            self.assertTrue(second["idempotent_reused"])
+            self.assertEqual(first["id"], second["id"])
+            count = db.fetch_one(
+                "SELECT COUNT(*) AS total FROM casting_plans WHERE chapter_id=?",
+                (chapter_id,),
+            )
+            self.assertEqual(int(count["total"]), 2)
+
     def test_splitter_avoids_one_word_orphan_tail(self) -> None:
         text = (
             "- Ch\u1ee7 t\u1eed, v\u1eeba n\u00e3y ta c\u00f3 ch\u00fat kh\u00f4ng kh\u1ed1ng ch\u1ebf \u0111\u01b0\u1ee3c, "

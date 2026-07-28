@@ -90,6 +90,11 @@ from .pipeline import (
 )
 from .production_task_projection import get_production_task_projection
 from .production_preflight import get_production_preflight
+from .production_commands import (
+    ProductionCommandError,
+    ProductionCommandMutation,
+    ProductionCommandService,
+)
 from .range_input import (
     RangeInputError,
     approve_ready_casting_plans,
@@ -428,6 +433,23 @@ class RangeCastingPlanRef(BaseModel):
 
 class RangeCastingApprovalRequest(RangeInputScopeRequest):
     chapters: list[RangeCastingPlanRef] = Field(min_length=1, max_length=50)
+
+
+class ProductionCommandRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    command_type: str = Field(
+        min_length=3,
+        max_length=80,
+        pattern=r"^[A-Za-z][A-Za-z0-9_]{2,79}$",
+    )
+    idempotency_key: str = Field(
+        min_length=8,
+        max_length=200,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{7,199}$",
+    )
+    scope: dict[str, Any]
+    payload: dict[str, Any] = Field(default_factory=dict)
 
 
 @asynccontextmanager
@@ -933,6 +955,801 @@ def production_preflight(
         raise HTTPException(400, str(exc)) from exc
 
 
+def _production_command_range(scope: dict[str, Any]) -> dict[str, Any]:
+    range_scope = scope.get("range")
+    if isinstance(range_scope, dict):
+        return {
+            "book_id": int(range_scope["book_id"]),
+            "from_chapter": int(range_scope["from_chapter"]),
+            "to_chapter": int(range_scope["to_chapter"]),
+            "skip_completed": bool(range_scope.get("skip_completed", True)),
+        }
+    chapter_scope = scope.get("chapter")
+    chapter_id = (
+        int(chapter_scope["id"])
+        if isinstance(chapter_scope, dict)
+        else int(chapter_scope)
+        if chapter_scope is not None
+        else None
+    )
+    job_scope = scope.get("job")
+    job_id = (
+        int(job_scope["id"])
+        if isinstance(job_scope, dict)
+        else int(job_scope)
+        if job_scope is not None
+        else None
+    )
+    artifact_scope = scope.get("artifact")
+    artifact_id = (
+        int(artifact_scope["id"])
+        if isinstance(artifact_scope, dict)
+        else int(artifact_scope)
+        if artifact_scope is not None
+        else None
+    )
+    if artifact_id is not None:
+        row = db.fetch_one(
+            """SELECT c.id AS chapter_id,c.book_id,c.chapter_number
+               FROM artifacts a
+               JOIN chapters c ON c.id=a.chapter_id
+               WHERE a.id=?""",
+            (artifact_id,),
+        )
+    elif job_id is not None:
+        row = db.fetch_one(
+            """SELECT NULL AS chapter_id,book_id,from_chapter AS chapter_number,
+                      to_chapter
+               FROM jobs WHERE id=?""",
+            (job_id,),
+        )
+        if row:
+            return {
+                "book_id": int(row["book_id"]),
+                "from_chapter": int(row["chapter_number"]),
+                "to_chapter": int(row["to_chapter"]),
+                "skip_completed": False,
+            }
+    elif chapter_id is not None:
+        row = db.fetch_one(
+            "SELECT id AS chapter_id,book_id,chapter_number FROM chapters WHERE id=?",
+            (chapter_id,),
+        )
+    else:
+        row = None
+    if not row:
+        raise LookupError("Production command scope was not found")
+    return {
+        "book_id": int(row["book_id"]),
+        "from_chapter": int(row["chapter_number"]),
+        "to_chapter": int(row["chapter_number"]),
+        "skip_completed": False,
+    }
+
+
+def _project_production_command(
+    scope: dict[str, Any],
+) -> tuple[dict[str, Any], dict[str, Any] | None]:
+    command_range = _production_command_range(scope)
+    voice_catalog = _load_voice_catalog()
+    custom_context = _build_custom_voice_context()
+    task = get_production_task_projection(
+        db,
+        book_id=command_range["book_id"],
+        from_chapter=command_range["from_chapter"],
+        to_chapter=command_range["to_chapter"],
+        voice_catalog=voice_catalog,
+        store=store,
+        config=settings,
+        custom_voice_context=custom_context,
+    )
+    runtime_readiness = public_runtime_readiness(prepare_runtime_integration)
+    runtime_readiness["mutation_service_constructed"] = batch_prepare_api_service is not None
+    runtime_readiness["mutation_route_registered"] = batch_prepare_api_service is not None
+    try:
+        preflight = get_production_preflight(
+            db,
+            **command_range,
+            voice_catalog=voice_catalog,
+            store=store,
+            config=settings,
+            runtime_readiness=runtime_readiness,
+            custom_voice_context=custom_context,
+        )
+    except (LookupError, ValueError, VoiceCatalogUnavailable):
+        preflight = None
+    return task, preflight
+
+
+def _range_command_mutation(
+    result: dict[str, Any],
+    *,
+    submitted_count: int,
+    complete_message: str,
+) -> ProductionCommandMutation:
+    applied = tuple(dict(item) for item in result.get("results") or [])
+    failed = tuple(
+        {
+            **dict(item),
+            "reason": str(item.get("error") or item.get("reason") or "Cần kiểm tra lại."),
+        }
+        for item in result.get("failures") or []
+    )
+    if applied and failed:
+        outcome = "PARTIAL"
+        message = f"{complete_message} {len(applied)}/{submitted_count}; {len(failed)} mục cần kiểm tra."
+    elif failed:
+        outcome = "REJECTED"
+        message = f"Không thể hoàn tất thao tác; {len(failed)} mục cần kiểm tra."
+    else:
+        outcome = "APPLIED"
+        message = complete_message
+    return ProductionCommandMutation(
+        outcome=outcome,
+        submitted_count=submitted_count,
+        applied_items=applied,
+        failed_items=failed,
+        operator_message=message,
+    )
+
+
+def _production_command_executor(
+    request: ProductionCommandRequest,
+    *,
+    authorization_header: str | None,
+):
+    command_type = request.command_type.strip().upper()
+    payload = dict(request.payload)
+    scope = dict(request.scope)
+
+    def execute() -> ProductionCommandMutation:
+        if command_type == "PREPARE_RANGE_INPUTS":
+            result = production_prepare_range_inputs(
+                RangeInputScopeRequest.model_validate(payload)
+            )
+            submitted = len(result.get("results") or []) + len(result.get("failures") or [])
+            return _range_command_mutation(
+                result,
+                submitted_count=max(1, submitted),
+                complete_message="Đã chuẩn bị dữ liệu phạm vi.",
+            )
+        if command_type == "APPROVE_SPEAKER_DRAFTS":
+            parsed = RangeSpeakerApprovalRequest.model_validate(payload)
+            result = production_approve_range_speaker_drafts(parsed)
+            return _range_command_mutation(
+                result,
+                submitted_count=len(parsed.chapters),
+                complete_message=f"Đã duyệt {len(result.get('results') or [])}/{len(parsed.chapters)} chương.",
+            )
+        if command_type == "APPROVE_CASTING_PLANS":
+            parsed = RangeCastingApprovalRequest.model_validate(payload)
+            result = production_approve_range_casting_plans(parsed)
+            return _range_command_mutation(
+                result,
+                submitted_count=len(parsed.chapters),
+                complete_message=f"Đã duyệt {len(result.get('results') or [])}/{len(parsed.chapters)} bản đồ giọng.",
+            )
+        if command_type == "CREATE_SPEAKER_PROPOSAL":
+            chapter_id = int(payload.pop("chapter_id"))
+            result = create_speaker_assignment_draft(
+                chapter_id, SpeakerAssignmentDraftRequest.model_validate(payload)
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=({
+                    "chapter_id": chapter_id,
+                    "draft_id": result.get("id"),
+                    "reused": bool(result.get("reused")),
+                },),
+                operator_message="Đã tạo hoặc tái sử dụng đề xuất người nói.",
+            )
+        if command_type == "SAVE_SPEAKER_DECISION":
+            chapter_id = int(payload.pop("chapter_id"))
+            draft_id = int(payload.pop("draft_id"))
+            target_id = str(payload.pop("target_id"))
+            result = review_speaker_assignment_target(
+                chapter_id,
+                draft_id,
+                target_id,
+                SpeakerAssignmentRowReviewRequest.model_validate(payload),
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=({
+                    "chapter_id": chapter_id,
+                    "draft_id": draft_id,
+                    "target_id": target_id,
+                    "reused": bool(result.get("review", {}).get("idempotent_reused")),
+                },),
+                operator_message="Đã lưu quyết định người nói.",
+            )
+        if command_type == "APPROVE_SPEAKER_DRAFT":
+            chapter_id = int(payload["chapter_id"])
+            draft_id = int(payload["draft_id"])
+            result = approve_speaker_assignment_draft_without_casting(
+                chapter_id, draft_id
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=({
+                    "chapter_id": chapter_id,
+                    "draft_id": draft_id,
+                    "reused": bool(result.get("idempotent_reused")),
+                },),
+                operator_message="Đã duyệt Speaker Draft.",
+            )
+        if command_type == "CREATE_CASTING_PLAN_DRAFT":
+            chapter_id = int(payload.pop("chapter_id"))
+            result = create_speaker_review_casting_plan_draft(
+                chapter_id,
+                SpeakerReviewCastingPlanDraftRequest.model_validate(payload),
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=({
+                    "chapter_id": chapter_id,
+                    "casting_plan_id": result.get("casting_plan_id") or result.get("id"),
+                    "reused": bool(result.get("idempotent_reused")),
+                },),
+                operator_message="Đã tạo bản nháp bản đồ giọng.",
+            )
+        if command_type == "SAVE_CASTING_DRAFT":
+            chapter_id = int(payload.pop("chapter_id"))
+            result = save_casting_draft(
+                chapter_id, CastingDraftRequest.model_validate(payload)
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=({
+                    "chapter_id": chapter_id,
+                    "casting_plan_id": result.get("id"),
+                    "plan_revision": result.get("plan_revision"),
+                    "reused": bool(result.get("idempotent_reused")),
+                },),
+                operator_message="Đã lưu bản nháp bản đồ giọng.",
+            )
+        if command_type == "SAVE_VOICE_ASSIGNMENT":
+            character_id = int(payload.pop("character_id"))
+            result = write_character_voice_override(
+                character_id, CharacterOverrideRequest.model_validate(payload)
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=({
+                    "character_id": character_id,
+                    "voice_override_id": result.get("voice_override_id"),
+                },),
+                operator_message="Đã lưu giọng hiệu lực cho nhân vật.",
+            )
+        if command_type == "SAVE_VOICE_ASSIGNMENTS":
+            book_id = int(payload["book_id"])
+            profile_request = BookVoiceProfileRequest.model_validate(payload["profile"])
+            assignments = list(payload.get("assignments") or [])
+            submitted = 1 + len(assignments)
+            applied: list[dict[str, Any]] = []
+            failed: list[dict[str, Any]] = []
+            try:
+                profile = write_book_voice_profile(book_id, profile_request)
+                applied.append({
+                    "type": "book_voice_profile",
+                    "book_id": book_id,
+                    "config_version": profile.get("config_version"),
+                })
+            except HTTPException as exc:
+                failed.append({
+                    "type": "book_voice_profile",
+                    "book_id": book_id,
+                    "reason": str(exc.detail),
+                })
+            if failed:
+                for item in assignments:
+                    failed.append({
+                        "type": "character_voice",
+                        "character_id": int(item["character_id"]),
+                        "reason": "Book Voice Profile was not saved.",
+                    })
+            else:
+                for item in assignments:
+                    character_id = int(item["character_id"])
+                    try:
+                        result = write_character_voice_override(
+                            character_id,
+                            CharacterOverrideRequest.model_validate({
+                                key: value
+                                for key, value in item.items()
+                                if key != "character_id"
+                            }),
+                        )
+                        applied.append({
+                            "type": "character_voice",
+                            "character_id": character_id,
+                            "voice_override_id": result.get("voice_override_id"),
+                        })
+                    except (HTTPException, ValidationError, ValueError) as exc:
+                        failed.append({
+                            "type": "character_voice",
+                            "character_id": character_id,
+                            "reason": str(
+                                exc.detail if isinstance(exc, HTTPException) else exc
+                            ),
+                        })
+            outcome = (
+                "PARTIAL"
+                if applied and failed
+                else "REJECTED" if failed else "APPLIED"
+            )
+            return ProductionCommandMutation(
+                outcome=outcome,
+                submitted_count=submitted,
+                applied_items=tuple(applied),
+                failed_items=tuple(failed),
+                operator_message=(
+                    f"Đã lưu {len(applied)}/{submitted} cấu hình giọng."
+                    if failed
+                    else "Đã lưu cấu hình giọng và mở bước duyệt bản đồ giọng."
+                ),
+            )
+        if command_type == "APPROVE_CASTING_PLAN":
+            plan_id = int(payload["casting_plan_id"])
+            result = approve_casting(plan_id)
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=({
+                    "chapter_id": result.get("chapter_id"),
+                    "casting_plan_id": plan_id,
+                    "plan_revision": result.get("plan_revision"),
+                },),
+                operator_message="Đã duyệt bản đồ giọng cuối.",
+            )
+        if command_type == "PREPARE":
+            if "plan_fingerprint" in payload:
+                parsed = BatchPrepareApiRequest.model_validate(payload)
+                result = _prepare_service().prepare(
+                    parsed.model_dump(),
+                    authorization_header=authorization_header,
+                )
+                if result.http_status != 200:
+                    raise ProductionCommandError(
+                        str(
+                            result.payload.get("message")
+                            or result.payload.get("code")
+                            or "PREPARE bị từ chối."
+                        )
+                    )
+                body = dict(result.payload)
+                fallback_count = parsed.to_chapter - parsed.from_chapter + 1
+            else:
+                parsed_job = JobRequest.model_validate(payload)
+                body = prepare_job_route(parsed_job)
+                fallback_count = parsed_job.to_chapter - parsed_job.from_chapter + 1
+            job_id = body.get("job_id") or body.get("result", {}).get("job_id")
+            prepared_rows = (
+                db.fetch_all(
+                    """SELECT c.id AS chapter_id,c.chapter_number,jc.id AS job_chapter_id
+                       FROM job_chapters jc
+                       JOIN chapters c ON c.id=jc.chapter_id
+                       WHERE jc.job_id=?
+                       ORDER BY jc.sequence""",
+                    (int(job_id),),
+                )
+                if job_id is not None
+                else []
+            )
+            prepared_status = (
+                body.get("state")
+                or body.get("status")
+                or body.get("result", {}).get("state")
+                or body.get("result", {}).get("status")
+                or "prepared"
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=fallback_count,
+                applied_items=tuple(
+                    {
+                        "chapter_id": int(row["chapter_id"]),
+                        "chapter_number": int(row["chapter_number"]),
+                        "job_chapter_id": int(row["job_chapter_id"]),
+                        "job_id": job_id,
+                        "status": prepared_status,
+                    }
+                    for row in prepared_rows
+                ),
+                operator_message="Đã chuẩn bị phạm vi. Chưa bắt đầu render.",
+            )
+        if command_type == "START_RENDER":
+            job_id = int(payload["job_id"])
+            if (
+                prepare_runtime_integration.runtime_mode == PRODUCTION
+                and not getattr(
+                    prepare_runtime_integration,
+                    "production_render_enabled",
+                    False,
+                )
+            ):
+                raise HTTPException(409, {"code": "START_RENDER_UNAVAILABLE"})
+            result = start_prepared_job(
+                db,
+                settings,
+                job_id=job_id,
+                voice_catalog=_load_voice_catalog(),
+                store=store,
+                command_idempotency_key=request.idempotency_key,
+            )
+            if not result.get("idempotent_reused"):
+                worker.wake()
+            return ProductionCommandMutation(
+                outcome="ACCEPTED",
+                submitted_count=1,
+                applied_items=({
+                    "job_id": job_id,
+                    "status": result.get("status"),
+                    "reused": bool(result.get("idempotent_reused")),
+                },),
+                operator_message="Đã nhận lệnh bắt đầu render.",
+                asynchronous_reference={
+                    "type": "job",
+                    "id": job_id,
+                    "status": result.get("status"),
+                    "status_url": f"/api/jobs/{job_id}",
+                },
+            )
+        if command_type == "RETRY_RENDER":
+            job_id = int(payload["job_id"])
+            result = job_action(job_id, "retry")
+            return ProductionCommandMutation(
+                outcome="ACCEPTED",
+                submitted_count=1,
+                applied_items=({"job_id": job_id, "status": result.get("status")},),
+                operator_message="Đã nhận lệnh thử lại phần recoverable.",
+                asynchronous_reference={
+                    "type": "job",
+                    "id": job_id,
+                    "status": result.get("status") or "queued",
+                    "status_url": f"/api/jobs/{job_id}",
+                },
+            )
+        if command_type == "JOB_ACTION":
+            job_id = int(payload["job_id"])
+            action = str(payload["action"]).strip().lower()
+            if action not in {"pause", "resume", "cancel"}:
+                raise ProductionCommandError("Unsupported Job action")
+            result = job_action(job_id, action)
+            asynchronous = action == "resume"
+            return ProductionCommandMutation(
+                outcome="ACCEPTED" if asynchronous else "APPLIED",
+                submitted_count=1,
+                applied_items=({
+                    "job_id": job_id,
+                    "action": action,
+                    "status": result.get("status"),
+                },),
+                operator_message={
+                    "pause": "Đã ghi nhận yêu cầu tạm dừng.",
+                    "resume": "Đã nhận lệnh tiếp tục render.",
+                    "cancel": "Đã ghi nhận yêu cầu hủy.",
+                }[action],
+                asynchronous_reference=(
+                    {
+                        "type": "job",
+                        "id": job_id,
+                        "status": result.get("status") or "queued",
+                        "status_url": f"/api/jobs/{job_id}",
+                    }
+                    if asynchronous
+                    else None
+                ),
+            )
+        if command_type == "RETRY_JOB_CHAPTER":
+            job_id = int(payload["job_id"])
+            job_chapter_id = int(payload["job_chapter_id"])
+            row = db.fetch_one(
+                """SELECT jc.status,jc.job_id,j.status AS job_status
+                   FROM job_chapters jc
+                   JOIN jobs j ON j.id=jc.job_id
+                   WHERE jc.id=?""",
+                (job_chapter_id,),
+            )
+            if not row or int(row["job_id"]) != job_id:
+                raise LookupError("JobChapter does not belong to the requested Job")
+            reused = row["status"] == "pending" and row["job_status"] == "queued"
+            result = (
+                {"verified_segments_reused": None, "segments_reset": None}
+                if reused
+                else retry_chapter(job_chapter_id)
+            )
+            return ProductionCommandMutation(
+                outcome="ACCEPTED",
+                submitted_count=1,
+                applied_items=({
+                    "job_id": job_id,
+                    "job_chapter_id": job_chapter_id,
+                    "status": "queued",
+                    "reused": reused,
+                    "verified_segments_reused": result.get("verified_segments_reused"),
+                    "segments_reset": result.get("segments_reset"),
+                },),
+                operator_message="Đã xếp lại chương lỗi và giữ nguyên segment hợp lệ.",
+                asynchronous_reference={
+                    "type": "job",
+                    "id": job_id,
+                    "status": "queued",
+                    "status_url": f"/api/jobs/{job_id}",
+                },
+            )
+        if command_type == "RETRY_SEGMENT":
+            job_id = int(payload["job_id"])
+            segment_id = int(payload["segment_id"])
+            row = db.fetch_one(
+                """SELECT s.status,jc.job_id,j.status AS job_status
+                   FROM segments s
+                   JOIN job_chapters jc ON jc.id=s.job_chapter_id
+                   JOIN jobs j ON j.id=jc.job_id
+                   WHERE s.id=?""",
+                (segment_id,),
+            )
+            if not row or int(row["job_id"]) != job_id:
+                raise LookupError("Segment does not belong to the requested Job")
+            reused = row["status"] == "pending" and row["job_status"] == "queued"
+            if not reused:
+                retry_failed_segment(segment_id)
+            return ProductionCommandMutation(
+                outcome="ACCEPTED",
+                submitted_count=1,
+                applied_items=({
+                    "job_id": job_id,
+                    "segment_id": segment_id,
+                    "status": "queued",
+                    "reused": reused,
+                },),
+                operator_message="Đã xếp lại segment lỗi; segment hợp lệ được giữ nguyên.",
+                asynchronous_reference={
+                    "type": "job",
+                    "id": job_id,
+                    "status": "queued",
+                    "status_url": f"/api/jobs/{job_id}",
+                },
+            )
+        if command_type == "REGENERATE_SEGMENT":
+            job_id = int(payload["job_id"])
+            segment_id = int(payload["segment_id"])
+            segment_scope = db.fetch_one(
+                """SELECT jc.job_id
+                   FROM segments s
+                   JOIN job_chapters jc ON jc.id=s.job_chapter_id
+                   WHERE s.id=?""",
+                (segment_id,),
+            )
+            if not segment_scope or int(segment_scope["job_id"]) != job_id:
+                raise LookupError("Segment does not belong to the requested Job")
+            existing = db.fetch_one(
+                """SELECT sa.id AS attempt_id,sa.attempt_number,sa.duration_ms
+                   FROM segment_attempts sa
+                   WHERE sa.segment_id=? AND sa.status='candidate'
+                   ORDER BY sa.attempt_number DESC LIMIT 1""",
+                (segment_id,),
+            )
+            reused = existing is not None
+            result = (
+                {
+                    "attempt_id": int(existing["attempt_id"]),
+                    "attempt_number": int(existing["attempt_number"]),
+                    "duration_ms": int(existing["duration_ms"]),
+                }
+                if existing
+                else regenerate_segment(segment_id)
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=({
+                    "job_id": job_id,
+                    "segment_id": segment_id,
+                    "attempt_id": result.get("attempt_id"),
+                    "attempt_number": result.get("attempt_number"),
+                    "duration_ms": result.get("duration_ms"),
+                    "reused": reused,
+                },),
+                operator_message="Đã tạo candidate mới để nghe kiểm tra.",
+            )
+        if command_type == "CREATE_AUDIO_REPAIR_BLOCK":
+            job_id = int(payload["job_id"])
+            result = create_repair_block(
+                job_id,
+                {
+                    "first_segment_id": int(payload["first_segment_id"]),
+                    "last_segment_id": int(payload["last_segment_id"]),
+                },
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=({
+                    "job_id": job_id,
+                    "repair_block_id": result.get("id"),
+                    "job_chapter_id": result.get("job_chapter_id"),
+                    "candidate_duration_ms": result.get("candidate_duration_ms"),
+                },),
+                operator_message="Đã tạo repair-block candidate để nghe kiểm tra.",
+            )
+        if command_type in {
+            "ACCEPT_AUDIO_REPAIR_BLOCK",
+            "REJECT_AUDIO_REPAIR_BLOCK",
+        }:
+            job_id = int(payload["job_id"])
+            repair_block_id = int(payload["repair_block_id"])
+            row = db.fetch_one(
+                "SELECT job_id,status,job_chapter_id FROM audio_repair_blocks WHERE id=?",
+                (repair_block_id,),
+            )
+            if not row or int(row["job_id"]) != job_id:
+                raise LookupError("Repair block does not belong to the requested Job")
+            accepting = command_type == "ACCEPT_AUDIO_REPAIR_BLOCK"
+            terminal_status = "accepted" if accepting else "rejected"
+            reused = str(row["status"]) == terminal_status
+            result = (
+                {
+                    "repair_block": {
+                        "job_chapter_id": int(row["job_chapter_id"]),
+                    },
+                    "new_artifact_id": None,
+                }
+                if reused
+                else (
+                    accept_repair_block(repair_block_id)
+                    if accepting
+                    else reject_repair_block(repair_block_id)
+                )
+            )
+            repair = result.get("repair_block") or result
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=({
+                    "job_id": job_id,
+                    "repair_block_id": repair_block_id,
+                    "job_chapter_id": repair.get("job_chapter_id"),
+                    "status": terminal_status,
+                    "new_artifact_id": result.get("new_artifact_id"),
+                    "reused": reused,
+                },),
+                operator_message=(
+                    "Đã chấp nhận repair block và cập nhật artifact."
+                    if accepting
+                    else "Đã loại repair-block candidate."
+                ),
+            )
+        if command_type in {
+            "ACCEPT_SEGMENT_CANDIDATE",
+            "REJECT_SEGMENT_CANDIDATE",
+        }:
+            job_id = int(payload["job_id"])
+            segment_id = int(payload["segment_id"])
+            attempt_id = int(payload["attempt_id"])
+            row = db.fetch_one(
+                """SELECT sa.status,jc.job_id
+                   FROM segment_attempts sa
+                   JOIN segments s ON s.id=sa.segment_id
+                   JOIN job_chapters jc ON jc.id=s.job_chapter_id
+                   WHERE sa.id=? AND sa.segment_id=?""",
+                (attempt_id, segment_id),
+            )
+            if not row or int(row["job_id"]) != job_id:
+                raise LookupError("Candidate does not belong to the requested Job")
+            accepting = command_type == "ACCEPT_SEGMENT_CANDIDATE"
+            terminal_status = "active" if accepting else "rejected"
+            reused = str(row["status"]) == terminal_status
+            if not reused:
+                if accepting:
+                    accept_candidate(segment_id, {"attempt_id": attempt_id})
+                else:
+                    reject_candidate(segment_id, {"attempt_id": attempt_id})
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=({
+                    "job_id": job_id,
+                    "segment_id": segment_id,
+                    "attempt_id": attempt_id,
+                    "status": terminal_status,
+                    "reused": reused,
+                },),
+                operator_message=(
+                    "Đã chấp nhận candidate và cập nhật artifact."
+                    if accepting
+                    else "Đã loại candidate; audio hiện tại được giữ nguyên."
+                ),
+            )
+        if command_type in {"HUMAN_QA_ACCEPT", "HUMAN_QA_NEEDS_FIXES"}:
+            chapter_id = int(payload["chapter_id"])
+            status = (
+                "approved"
+                if command_type == "HUMAN_QA_ACCEPT"
+                else "needs_fixes"
+            )
+            result = set_human_approval(
+                chapter_id,
+                HumanApprovalRequest(status=status, notes=payload.get("notes")),
+            )
+            artifact_id = result.get("human_approval", {}).get("artifact_id")
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=({
+                    "chapter_id": chapter_id,
+                    "artifact_id": artifact_id,
+                    "qa_status": status,
+                    "reused": bool(result.get("idempotent_reused")),
+                },),
+                operator_message=(
+                    "Đã chấp nhận audio."
+                    if status == "approved"
+                    else "Đã ghi nhận audio cần sửa."
+                ),
+            )
+        raise ProductionCommandError("Unsupported Production command type")
+
+    return execute
+
+
+@app.post("/api/production/commands")
+@_serialized_production_mutation
+def execute_production_command(
+    command: ProductionCommandRequest,
+    request: Request,
+) -> dict[str, Any]:
+    service = ProductionCommandService(_project_production_command)
+    try:
+        return service.execute(
+            command_type=command.command_type,
+            idempotency_key=command.idempotency_key,
+            scope=command.scope,
+            executor=_production_command_executor(
+                command,
+                authorization_header=request.headers.get("authorization"),
+            ),
+        )
+    except HTTPException as exc:
+        detail = exc.detail
+        message = (
+            str(detail.get("message") or detail.get("code"))
+            if isinstance(detail, dict)
+            else str(detail)
+        )
+    except ClonePrepareApiError as exc:
+        message = str(exc)
+    except (
+        CastingError,
+        JobPreparationConflict,
+        JobStartConflict,
+        LookupError,
+        ProductionCommandError,
+        RangeInputError,
+        RetryConflict,
+        SpeakerAssignmentError,
+        SpeakerReviewError,
+        ValueError,
+        ValidationError,
+        VoiceEligibilityBlocked,
+        VoiceCatalogUnavailable,
+        VoiceProfileError,
+    ) as exc:
+        message = str(exc)
+    return service.rejected(
+        command_type=command.command_type.strip().upper(),
+        idempotency_key=command.idempotency_key,
+        scope=command.scope,
+        message=message or "Thao tác bị từ chối an toàn.",
+    )
+
+
 def _range_input_state(
     *,
     book_id: int,
@@ -1200,6 +2017,24 @@ def set_human_approval(chapter_id: int, request: HumanApprovalRequest) -> dict[s
                 "message": "Please describe the issue before marking this audio as needing fixes.",
             },
         )
+    existing_approval = _parse_human_approval(chapter_data["human_approval_json"])
+    if (
+        existing_approval
+        and existing_approval.get("status") == request.status
+        and (existing_approval.get("notes") or "") == notes
+        and int(existing_approval.get("artifact_id") or 0)
+        == int(snapshot["artifact_id"])
+    ):
+        active_output = get_active_output_bindings(db, [chapter_id]).get(chapter_id, {})
+        chapter_view, human_approval = _decorate_human_approval(
+            chapter_data, existing_approval, active_output
+        )
+        return {
+            "chapter": chapter_view,
+            "human_approval": human_approval,
+            "active_output": active_output,
+            "idempotent_reused": True,
+        }
     recorded_at = utcnow()
     approval = {
         "status": request.status,
@@ -1250,6 +2085,7 @@ def set_human_approval(chapter_id: int, request: HumanApprovalRequest) -> dict[s
         "chapter": chapter_view,
         "human_approval": human_approval,
         "active_output": active_output,
+        "idempotent_reused": False,
     }
 
 

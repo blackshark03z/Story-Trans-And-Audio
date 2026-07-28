@@ -33,9 +33,11 @@ class ProductionPrepareUiTests(IsolatedTestCase):
         self.assertNotIn("/start", panel)
 
     def test_prepare_payload_has_no_client_execution_authority(self):
-        marker = "body:JSON.stringify({client_request_id:clientRequestId"
+        marker = "const plan=currentProductionPreparePlanState().result"
         start = self.js.index(marker)
-        payload = self.js[start : self.js.index("})", start) + 2]
+        payload = self.js[start : self.js.index(
+            "state.productionPrepare.submitting=true", start
+        )]
         for forbidden in (
             "chapter_id",
             "owner_token",
@@ -54,6 +56,7 @@ class ProductionPrepareUiTests(IsolatedTestCase):
             "confirmation:true",
         ):
             self.assertIn(required, payload)
+        self.assertIn("runProductionCommand", self.js[start:])
 
     def test_ui_gates_start_separately_from_legacy_prepare(self):
         self.assertIn("/api/production/prepare-readiness", self.js)

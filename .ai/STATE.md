@@ -1294,3 +1294,52 @@ Updated: 2026-07-23
   provider/Gemini/TTS, and START_RENDER remain `NOT_AUTHORIZED`.
 - Recommended next bounded task, not yet authorized:
   `DAILY-PROD-5B Phase 15 - Production PREPARE Activation Readiness And Security Design Review`.
+
+## Unified Production Command Lifecycle
+
+Updated: 2026-07-28
+
+- Baseline: `main` at `0bc0a0574eee82dc9a25626e0691261eb79b1490`;
+  canonical schema `15`.
+- User-triggered Production mutations now use
+  `POST /api/production/commands` and the
+  `story-audio-production-command/v1` result envelope.
+- The envelope carries command identity, idempotency key, typed scope,
+  APPLIED/PARTIAL/REJECTED/ACCEPTED/UNKNOWN outcome, exact item counts,
+  safe failures, operator message, fresh Task Projection, fresh Preflight
+  Projection when relevant, asynchronous durable reference, and deterministic
+  projection state tokens.
+- Synchronous speaker, voice/Casting, PREPARE, repair-candidate decision, and
+  Human QA commands return their authoritative projections immediately after
+  the existing domain boundary commits. Batch commands preserve exact applied
+  and failed items.
+- START_RENDER remains a separate asynchronous command backed by the existing
+  Job. Its idempotency key is recorded atomically with the prepared-to-scheduled
+  transition in `audit_events`; response-loss replay reuses the same Job and
+  does not wake the worker a second time.
+- The frontend has one `runProductionCommand` coordinator for command-key
+  reuse, double-submit prevention, visible lifecycle state, response-envelope
+  validation, partial failures, unknown-outcome verification, authoritative
+  projection application, stable navigation, and polling restart.
+- Production Task/Preflight polling is guarded by an interaction epoch and
+  `AbortController`; responses from an older epoch cannot overwrite a committed
+  command result.
+- Approval surfaces expose Speaker Draft source/revision/stale/unresolved
+  evidence and human-readable effective voice names, sources, line counts,
+  affected chapters, availability, and changed-mapping warnings. Technical IDs
+  remain in expandable details.
+- Recovery actions currently exposed by Production diagnostics, including
+  JobChapter/segment retry, segment candidate decisions, and adjacent repair
+  blocks, use the same frontend coordinator. Existing direct API routes remain
+  compatibility domain boundaries.
+- Mutation acceptance uses isolated fixtures only. Browser scenarios A-K cover
+  double submission, partial batches, approval evidence, PREPARE/START,
+  Human QA, stale-poll rejection, response-loss replay, restart durability, and
+  1366x768/1920x1080 layouts.
+- Validation: focused and affected `164` tests PASS; full offline `1776` tests
+  PASS with `1` established skip; JavaScript syntax, PowerShell AST, Doctor,
+  restart smoke, `quick_check`, foreign keys, and canonical byte/logical
+  invariants PASS.
+- Canonical data was not used for command acceptance; no production Job,
+  Artifact, QA verdict, provider/Gemini/TTS call, or Chapter 369 change was
+  created by this work.

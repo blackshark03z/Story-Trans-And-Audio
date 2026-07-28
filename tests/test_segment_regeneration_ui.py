@@ -65,34 +65,33 @@ class SegmentRegenerationUiTests(IsolatedTestCase):
         self.assertIn("acceptCandidate", script)
         self.assertIn("rejectCandidate", script)
 
-    def test_ui_contract_regenerate_calls_correct_api_endpoint(self) -> None:
-        """Regenerate calls POST /api/segments/{id}/regenerate."""
+    def test_ui_contract_regenerate_uses_production_command_coordinator(self) -> None:
+        """Regenerate uses the shared Production command lifecycle."""
         script = (self.ui_root / "app.js").read_text(encoding="utf-8")
-        
-        # Regenerate API call
+
         self.assertIn("async function regenerateSegment", script)
-        self.assertIn("/api/segments/", script)
-        self.assertIn("/regenerate", script)
-        self.assertIn("method: 'POST'", script)
+        self.assertIn("commandType:'REGENERATE_SEGMENT'", script)
+        self.assertIn("runProductionCommand", script)
+        self.assertNotIn("/api/segments/${segmentId}/regenerate", script)
 
-    def test_ui_contract_accept_calls_correct_api_endpoint(self) -> None:
-        """Accept calls POST /api/segments/{id}/accept-candidate."""
+    def test_ui_contract_accept_uses_production_command_coordinator(self) -> None:
+        """Accept uses the shared Production command lifecycle."""
         script = (self.ui_root / "app.js").read_text(encoding="utf-8")
-        
-        # Accept API call
+
         self.assertIn("async function acceptCandidate", script)
-        self.assertIn("/accept-candidate", script)
-        self.assertIn("method: 'POST'", script)
+        self.assertIn("commandType:'ACCEPT_SEGMENT_CANDIDATE'", script)
+        self.assertIn("runProductionCommand", script)
         self.assertIn("attempt_id", script)
+        self.assertNotIn("/api/segments/${segmentId}/accept-candidate", script)
 
-    def test_ui_contract_reject_calls_correct_api_endpoint(self) -> None:
-        """Reject calls POST /api/segments/{id}/reject-candidate."""
+    def test_ui_contract_reject_uses_production_command_coordinator(self) -> None:
+        """Reject uses the shared Production command lifecycle."""
         script = (self.ui_root / "app.js").read_text(encoding="utf-8")
-        
-        # Reject API call
+
         self.assertIn("async function rejectCandidate", script)
-        self.assertIn("/reject-candidate", script)
-        self.assertIn("method: 'POST'", script)
+        self.assertIn("commandType:'REJECT_SEGMENT_CANDIDATE'", script)
+        self.assertIn("runProductionCommand", script)
+        self.assertNotIn("/api/segments/${segmentId}/reject-candidate", script)
 
     def test_ui_contract_existing_retry_action_remains_unchanged(self) -> None:
         """Existing failed-segment Retry action remains unchanged."""

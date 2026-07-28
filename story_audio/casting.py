@@ -726,6 +726,19 @@ def create_casting_draft(
     if source_metadata is not None:
         payload["source_metadata"] = source_metadata
     content_path, plan_sha = store.put_json(payload, namespace="casting")
+    existing = db.fetch_one(
+        """
+        SELECT id FROM casting_plans
+        WHERE chapter_id=? AND text_revision_id=? AND status='draft'
+          AND plan_sha256=? AND narrator_voice_id=?
+        ORDER BY plan_revision DESC LIMIT 1
+        """,
+        (chapter_id, text_revision_id, plan_sha, narrator_voice_id),
+    )
+    if existing:
+        result = get_plan(db, store, int(existing["id"]), include_text=True)
+        result["idempotent_reused"] = True
+        return result
     now = utcnow()
     with db.transaction() as connection:
         next_revision = int(
@@ -748,7 +761,9 @@ def create_casting_draft(
                 "INSERT INTO casting_plan_characters(casting_plan_id,character_id) VALUES(?,?)",
                 (plan_id, character_id),
             )
-    return get_plan(db, store, plan_id, include_text=True)
+    result = get_plan(db, store, plan_id, include_text=True)
+    result["idempotent_reused"] = False
+    return result
 
 def get_plan(db: Database, store: ContentStore, plan_id: int, include_text: bool = False) -> dict[str, Any]:
     row = db.fetch_one("SELECT * FROM casting_plans WHERE id=?", (plan_id,))

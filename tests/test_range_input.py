@@ -82,6 +82,10 @@ class RangeInputWorkflowTests(IsolatedTestCase):
         )
 
         ready = review_snapshot["ready_speaker_drafts"][0]
+        self.assertEqual(ready["proposal_source"], "Gemini speaker proposal")
+        self.assertGreaterEqual(ready["draft_revision"], 1)
+        self.assertFalse(ready["stale"])
+        self.assertEqual(ready["unresolved_count"], 2)
         approved = approve_ready_speaker_drafts(
             self.db,
             self.store,
@@ -126,6 +130,18 @@ class RangeInputWorkflowTests(IsolatedTestCase):
             plan_snapshot["summary"]["chapters_awaiting_casting_approval"], 1
         )
         plan = plan_snapshot["casting_approvals"][0]
+        voice_evidence = plan["effective_voice_map"]
+        self.assertTrue(voice_evidence)
+        self.assertTrue(all(item["speaker_name"] for item in voice_evidence))
+        self.assertTrue(all(item["effective_voice_name"] for item in voice_evidence))
+        self.assertTrue(all(item["line_count"] > 0 for item in voice_evidence))
+        self.assertTrue(all(item["affected_chapters"] == [1] for item in voice_evidence))
+        self.assertTrue(all(item["available"] for item in voice_evidence))
+        self.assertTrue(
+            {item["assignment_source"] for item in voice_evidence}
+            <= {"book_default", "inherited", "override"}
+        )
+        self.assertFalse(plan["changed_mapping_warning"])
         casting_result = approve_ready_casting_plans(
             self.db,
             self.store,

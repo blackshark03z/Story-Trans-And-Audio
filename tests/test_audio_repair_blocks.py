@@ -608,5 +608,7 @@ class AudioRepairBlockUiTests(IsolatedTestCase):
         self.assertIn("/api/audio-repair-blocks/${block.id}/active-audio", ui_source)
         self.assertIn("Repair-block candidate", ui_source)
         self.assertIn("acceptRepairBlock", ui_source)
-        self.assertIn("/api/audio-repair-blocks/${repairBlockId}/accept", ui_source)
+        self.assertIn("commandType:'ACCEPT_AUDIO_REPAIR_BLOCK'", ui_source)
+        self.assertNotIn("/api/audio-repair-blocks/${repairBlockId}/accept", ui_source)
         self.assertIn("rejectRepairBlock", ui_source)
+        self.assertIn("commandType:'REJECT_AUDIO_REPAIR_BLOCK'", ui_source)
