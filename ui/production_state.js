@@ -15,6 +15,7 @@
     {key:'voice',number:3,label:'Gán và duyệt giọng',summary:'Chọn giọng, lưu nháp rồi duyệt'},
     {key:'render',number:4,label:'Chuẩn bị và render',summary:'Cố định đầu vào rồi tạo audio'},
     {key:'qa',number:5,label:'Nghe và duyệt',summary:'Nghe bản cuối và ghi kết luận'},
+    {key:'done',number:6,label:'Hoàn tất và tải xuống',summary:'Mở audio đã duyệt và tải xuống'},
   ];
   const STATE_PHASE={
     NO_SCOPE:'scope',
@@ -26,7 +27,7 @@
     PREPARED:'render',
     RENDERING_OR_PAUSED:'render',
     RENDERED_NOT_QA:'qa',
-    COMPLETE:'qa',
+    COMPLETE:'done',
     STATE_UNRESOLVED:'scope',
   };
   const STAGE_INDEX=new Map(STAGES.map((stage,index)=>[stage.key,index]));
@@ -62,7 +63,7 @@
     PREPARED:{stage:'render',action:'START_RENDER',label:'Bắt đầu render',title:'Sẵn sàng bắt đầu render',target:'render',explanation:'Đầu vào đã được ghim an toàn. Audio chỉ được tạo khi bạn bấm bắt đầu render.'},
     RENDERING_OR_PAUSED:{stage:'render',action:'MONITOR_OR_RESUME',label:'Theo dõi tiến độ',title:'Đang tạo audio',target:'render',explanation:'Audio đang được tạo hoặc đang chờ bạn tiếp tục.'},
     RENDERED_NOT_QA:{stage:'qa',action:'QA',label:'Cần nghe và duyệt',title:'Cần nghe và duyệt',target:'qa',explanation:'Audio đã tạo xong; hãy nghe trước khi hoàn tất chương.'},
-    COMPLETE:{stage:'qa',action:'VIEW_OUTPUTS_OR_SELECT_NEXT_SCOPE',label:'Xem audio đã tạo',title:'Chương đã hoàn tất',target:'qa',explanation:'Audio đã được nghe và chấp nhận.'},
+    COMPLETE:{stage:'qa',action:'VIEW_OUTPUTS_OR_SELECT_NEXT_SCOPE',label:'Xem audio đã tạo',title:'Chương đã hoàn tất',target:'done',explanation:'Audio đã được nghe và chấp nhận.'},
     STATE_UNRESOLVED:{stage:'scope',action:'RELOAD_READ_ONLY',label:'Tải lại trạng thái',title:'Không xác định được trạng thái an toàn',target:'diagnostics',explanation:'Dữ liệu đọc được đang thiếu hoặc mâu thuẫn; chỉ hiển thị chẩn đoán/read-only.'},
   };
   const TASK_META={
@@ -75,7 +76,7 @@
     PREPARED:{type:'START_RENDER',title:'Sẵn sàng render',summary:'Đầu vào đã được cố định và đang chờ lệnh bắt đầu riêng.',action:'START_RENDER',label:'Bắt đầu render',target:'render',next:'Theo dõi tiến độ tạo audio.'},
     RENDERING_OR_PAUSED:{type:'MONITOR_RENDER',title:'Đang tạo audio',summary:'Theo dõi tiến độ hoặc tiếp tục đúng phần bị lỗi.',action:'MONITOR_RENDER',label:'Xem tiến độ',target:'render',next:'Nghe và duyệt khi audio hoàn tất.'},
     RENDERED_NOT_QA:{type:'HUMAN_QA',title:'Nghe và duyệt',summary:'Nghe toàn bộ bản audio rồi chọn Cần sửa hoặc Chấp nhận.',action:null,label:'',target:'qa',next:'Mở output tiếp theo đang chờ duyệt.'},
-    COMPLETE:{type:'COMPLETE',title:'Chương đã hoàn tất',summary:'Audio đã được nghe và chấp nhận.',action:'SELECT_NEXT_SCOPE',label:'Chọn phạm vi tiếp theo',target:'scope',next:'Bắt đầu phạm vi sản xuất tiếp theo.'},
+    COMPLETE:{type:'COMPLETE',title:'Chương đã hoàn tất',summary:'Audio đã được nghe và chấp nhận.',action:'SELECT_NEXT_SCOPE',label:'Chọn phạm vi tiếp theo',target:'done',next:'Tải audio đã duyệt hoặc bắt đầu phạm vi sản xuất tiếp theo.'},
     STATE_UNRESOLVED:{type:'READ_ONLY_DIAGNOSTIC',title:'Cần kiểm tra trạng thái',summary:'Dữ liệu đọc được đang thiếu hoặc mâu thuẫn; chưa mở hành động thay đổi dữ liệu.',action:'RELOAD_READ_ONLY',label:'Tải lại trạng thái',target:'diagnostics',next:'Tiếp tục khi trạng thái đã rõ ràng.'},
   };
   function n(value){const num=Number(value);return Number.isFinite(num)?num:0}

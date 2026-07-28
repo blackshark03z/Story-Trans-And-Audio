@@ -88,13 +88,14 @@ console.log(JSON.stringify({
         self.assertIsNotNone(match)
         stage_html = match.group(0)
         expected = [
-            "Chọn chương",
-            "Xác nhận nội dung và người nói",
-            "Gán và duyệt giọng",
-            "Chuẩn bị và render",
-            "Nghe và duyệt",
+            "Ch\u1ecdn ph\u1ea1m vi",
+            "Ki\u1ec3m tra n\u1ed9i dung v\u00e0 ng\u01b0\u1eddi n\u00f3i",
+            "Ki\u1ec3m tra nh\u00e2n v\u1eadt v\u00e0 gi\u1ecdng",
+            "Chu\u1ea9n b\u1ecb v\u00e0 render",
+            "Nghe v\u00e0 duy\u1ec7t",
+            "Ho\u00e0n t\u1ea5t v\u00e0 t\u1ea3i xu\u1ed1ng",
         ]
-        self.assertEqual(stage_html.count("<li"), 5)
+        self.assertEqual(stage_html.count("<li"), 6)
         for label in expected:
             self.assertIn(f"<strong>{label}</strong>", stage_html)
 

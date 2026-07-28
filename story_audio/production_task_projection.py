@@ -342,11 +342,12 @@ def _chapter_task(item: dict[str, Any]) -> dict[str, Any] | None:
 
 def _phases(user_stage: int, completed: bool = False) -> list[dict[str, Any]]:
     labels = [
-        "\u0110\u1ecdc ph\u1ea1m vi",
-        "Duy\u1ec7t v\u0103n b\u1ea3n v\u00e0 ng\u01b0\u1eddi n\u00f3i",
-        "G\u00e1n v\u00e0 duy\u1ec7t gi\u1ecdng",
+        "Ch\u1ecdn ph\u1ea1m vi",
+        "Ki\u1ec3m tra n\u1ed9i dung v\u00e0 ng\u01b0\u1eddi n\u00f3i",
+        "Ki\u1ec3m tra nh\u00e2n v\u1eadt v\u00e0 gi\u1ecdng",
         "Chu\u1ea9n b\u1ecb v\u00e0 render",
         "Nghe v\u00e0 duy\u1ec7t",
+        "Ho\u00e0n t\u1ea5t v\u00e0 t\u1ea3i xu\u1ed1ng",
     ]
     return [
         {
@@ -537,6 +538,7 @@ def _base_projection(
             3: "voice_map",
             4: "prepare",
             5: "qa",
+            6: "done",
         }[user_stage],
         "input_summary": dict((task_payload or {}).get("summary") or {}),
         **sections,
@@ -931,7 +933,7 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
             task_scope="range",
             task_type="COMPLETE",
             task_key=f"{scope_key}:COMPLETE",
-            user_stage=5,
+            user_stage=6,
             title="Ph\u1ea1m vi \u0111\u00e3 ho\u00e0n t\u1ea5t",
             summary="T\u1ea5t c\u1ea3 ch\u01b0\u01a1ng trong ph\u1ea1m vi \u0111\u00e3 c\u00f3 audio \u0111\u01b0\u1ee3c duy\u1ec7t.",
             affected=None,

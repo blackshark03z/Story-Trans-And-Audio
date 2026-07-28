@@ -54,6 +54,7 @@ from .batch_prepare_runtime_integration import (
     require_clone_runtime,
 )
 from .batch_prepare_schema import PREPARE_SCHEMA_VERSION, prepare_migration_runner
+from .book_voice_registry import BookVoiceRegistryError, get_book_voice_registry
 from .custom_voice import CustomVoiceRepository
 from .custom_voice_api import (
     build_voice_catalog_handler,
@@ -952,6 +953,33 @@ def production_preflight(
     except LookupError as exc:
         raise HTTPException(404, str(exc)) from exc
     except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
+@app.get("/api/production/book-voice-registry")
+def production_book_voice_registry(
+    book_id: int = Query(..., gt=0),
+    from_chapter: int = Query(..., ge=0),
+    to_chapter: int = Query(..., ge=0),
+) -> dict[str, Any]:
+    """Return the book-scoped voice assignment read model for a selected range."""
+
+    try:
+        return get_book_voice_registry(
+            db,
+            store,
+            settings,
+            book_id=book_id,
+            from_chapter=from_chapter,
+            to_chapter=to_chapter,
+            voice_catalog=_load_voice_catalog(),
+            custom_voice_context=_build_custom_voice_context(),
+        )
+    except VoiceCatalogUnavailable as exc:
+        raise _job_http_error(exc) from exc
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except (BookVoiceRegistryError, ValueError) as exc:
         raise HTTPException(400, str(exc)) from exc
 
 

@@ -125,11 +125,11 @@ class ProductionStateResolverTests(unittest.TestCase):
             "PREPARED": "render",
             "RENDERING_OR_PAUSED": "render",
             "RENDERED_NOT_QA": "qa",
-            "COMPLETE": "qa",
+            "COMPLETE": "done",
             "STATE_UNRESOLVED": "scope",
         }[state]
         self.assertEqual(vm["currentPhaseKey"], expected_phase)
-        self.assertEqual(vm["phaseCount"], 5)
+        self.assertEqual(vm["phaseCount"], 6)
         self.assertEqual(vm["currentPhaseCount"], 1)
         for field in (
             "user_stage",

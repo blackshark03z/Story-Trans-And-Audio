@@ -2,6 +2,21 @@
 
 Updated: 2026-07-28
 
+## Book-Centric Golden Journey
+
+- Shared Production Working Context is authoritative in the URL, mirrored in
+  application state, and restored from local/session storage only as a
+  fallback.
+- The Book Voice Registry is the current book/range read model for narrator,
+  discovered characters, saved book-default voices, overrides, availability,
+  provenance, and last-reviewed state.
+- The visible operator journey is now six stages: select scope, inspect
+  content/speakers, inspect characters/voices, prepare/render, listen/review,
+  and finish/download.
+- Human acceptance rule: isolated fixture validation proves implementation
+  readiness, but Daily-use PASS requires the operator to complete the same
+  journey in the real runtime.
+
 ## Current Phase
 
 ### Lean Production Preflight Review
@@ -69,7 +84,7 @@ Updated: 2026-07-28
   with `Thử lại` and sanitized technical code. QA rendering no longer calls
   the legacy casting renderer and remains safe when casting detail is absent.
 
-`Daily-Use V1 now uses a five-stage task-oriented Production workbench over the unchanged canonical backend states. A compact range bar, chapter queue, current-task workspace, and collapsed technical drawer replace the visible all-in-one Production stack. The backend read-only task projection is now the workbench source of truth for canonical ordering, range gates, task keys, and primary actions. The two-chapter pilot remains on Job 26; Artifacts 93 and 96 are available for operator playback and both remain Human QA pending.`
+`Daily-Use V1 now uses a six-stage task-oriented Production workbench over the unchanged canonical backend states. A compact range bar, chapter queue, current-task workspace, and collapsed technical drawer replace the visible all-in-one Production stack. The backend read-only task projection is now the workbench source of truth for canonical ordering, range gates, task keys, and primary actions. The two-chapter pilot remains on Job 26; Artifacts 93 and 96 are available for operator playback and both remain Human QA pending.`
 
 ## Canonical Task Projection
 
@@ -95,8 +110,9 @@ Updated: 2026-07-28
 
 ## Task-Oriented Production Workbench
 
-- The five user stages are `Chọn chương`, `Xác nhận nội dung và người nói`,
-  `Gán và duyệt giọng`, `Chuẩn bị và render`, and `Nghe và duyệt`.
+- The six user stages are `Chọn phạm vi`, `Kiểm tra nội dung và người nói`,
+  `Kiểm tra nhân vật và giọng`, `Chuẩn bị và render`, `Nghe và duyệt`, and
+  `Hoàn tất và tải xuống`.
 - A pure view-model exposes the user stage, task type/title/summary, affected
   chapter, primary action, secondary links, blocker, technical details, and
   next task. Backend enum names and Draft/Plan/Job identities remain outside

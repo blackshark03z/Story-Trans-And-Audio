@@ -99,12 +99,13 @@
           <button id="productionChangeScope" class="text-action hidden" type="button">Đổi phạm vi</button>
         </div>
 
-        <ol id="productionStageShell" class="production-stage-shell production-stage-strip" aria-label="Năm giai đoạn sản xuất">
-          <li class="current"><span>1</span><strong>Chọn chương</strong><small>Chọn sách và phạm vi</small></li>
-          <li><span>2</span><strong>Xác nhận nội dung và người nói</strong><small>Duyệt nội dung và từng người nói</small></li>
-          <li><span>3</span><strong>Gán và duyệt giọng</strong><small>Lưu nháp rồi duyệt riêng</small></li>
+        <ol id="productionStageShell" class="production-stage-shell production-stage-strip" aria-label="Sáu giai đoạn sản xuất">
+          <li class="current"><span>1</span><strong>Chọn phạm vi</strong><small>Chọn sách và phạm vi</small></li>
+          <li><span>2</span><strong>Kiểm tra nội dung và người nói</strong><small>Duyệt nội dung và từng người nói</small></li>
+          <li><span>3</span><strong>Kiểm tra nhân vật và giọng</strong><small>Lưu nháp rồi duyệt riêng</small></li>
           <li><span>4</span><strong>Chuẩn bị và render</strong><small>Cố định đầu vào rồi tạo audio</small></li>
           <li><span>5</span><strong>Nghe và duyệt</strong><small>Nghe bản cuối và ghi kết luận</small></li>
+          <li><span>6</span><strong>Hoàn tất và tải xuống</strong><small>Mở audio đã duyệt và tải xuống</small></li>
         </ol>
 
         <div id="productionWorkbench" class="production-workbench">
@@ -128,7 +129,7 @@
             <div id="productionStateCard" class="production-task-card" role="status" aria-live="polite">
               <div class="production-task-heading">
                 <div>
-                  <p id="productionStateBadge" class="eyebrow">Giai đoạn 1 / 5</p>
+                  <p id="productionStateBadge" class="eyebrow">Giai đoạn 1 / 6</p>
                   <h2 id="productionCurrentStepHeading">Chọn sách và chương</h2>
                 </div>
                 <span id="productionAffectedChapter" class="production-chapter-chip hidden"></span>
@@ -601,7 +602,7 @@
   <dialog id="productionScopeDialog" class="scope-dialog" aria-labelledby="productionScopeDialogTitle">
     <div class="dialog-head">
       <div>
-        <p class="eyebrow">Giai đoạn 1 / 5</p>
+        <p class="eyebrow">Giai đoạn 1 / 6</p>
         <h2 id="productionScopeDialogTitle">Chọn sách và chương</h2>
       </div>
       <button id="cancelProductionScopeTop" class="ghost" type="button">Hủy</button>

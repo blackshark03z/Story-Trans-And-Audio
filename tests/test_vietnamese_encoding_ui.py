@@ -53,5 +53,5 @@ console.log(JSON.stringify(resolver.PHASES.map(item => item.label)));
         )
         self.assertEqual(
             json.loads(result.stdout),
-            ["Chọn chương", "Xác nhận nội dung và người nói", "Gán và duyệt giọng", "Chuẩn bị và render", "Nghe và duyệt"],
+            ["Ch\u1ecdn ch\u01b0\u01a1ng", "X\u00e1c nh\u1eadn n\u1ed9i dung v\u00e0 ng\u01b0\u1eddi n\u00f3i", "G\u00e1n v\u00e0 duy\u1ec7t gi\u1ecdng", "Chu\u1ea9n b\u1ecb v\u00e0 render", "Nghe v\u00e0 duy\u1ec7t", "Ho\u00e0n t\u1ea5t v\u00e0 t\u1ea3i xu\u1ed1ng"],
         )
