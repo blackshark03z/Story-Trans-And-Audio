@@ -67,6 +67,24 @@ class ProductionPrepareUiTests(IsolatedTestCase):
         self.assertIn('button[onclick^="startPreparedJob"]', self.js)
         self.assertNotIn("start_render:", self.js)
 
+    def test_prepare_dialog_reconciles_scoped_token_after_preflight_refresh(self):
+        update_start = self.js.index("function updateProductionPrepareDialog()")
+        update_end = self.js.index("function openProductionPrepareDialog()", update_start)
+        update_source = self.js[update_start:update_end]
+        self.assertIn(
+            "dialog?.querySelector('#productionTaskOperatorToken')",
+            update_source,
+        )
+        self.assertNotIn("token=$('#productionTaskOperatorToken')", update_source)
+
+        task_start = self.js.index("async function loadProductionTaskProjection")
+        task_end = self.js.index("function stableProductionCommandValue", task_start)
+        task_source = self.js[task_start:task_end]
+        self.assertIn(
+            "if($('#productionPrepareAuthDialog')?.open)updateProductionPrepareDialog()",
+            task_source,
+        )
+
     def test_prepared_batch_job_resumes_from_each_covered_chapter(self):
         start = self.js.index("function preparedCastingJob(")
         end = self.js.index("function recommendedChapterAction(", start)
