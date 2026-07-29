@@ -453,9 +453,11 @@ class ProductionTaskProjectionTests(unittest.TestCase):
                 self.assertEqual(projection["task_type"], expected)
 
     def test_human_qa_precedes_prepare_and_complete_is_quiet(self) -> None:
-        qa = _row(1, "RENDERED_NOT_QA", blockers=["audio awaits QA"])
+        qa = _row(1, "RENDERED_NOT_QA", blockers=["audio awaits QA"], active_artifact_id=99)
         projection = project_production_task({"readiness": _readiness(qa)})
         self.assertEqual(projection["task_type"], "HUMAN_QA")
+        self.assertIn("artifact:99", projection["task_key"])
+        self.assertEqual(projection["canonical_task"]["qa"]["artifact_id"], 99)
         self.assertEqual(projection["user_stage"], 5)
         self.assertIsNone(projection["primary_action"])
         self.assertEqual(projection["chapter_queue"][0]["status"], "current")

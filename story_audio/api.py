@@ -1785,12 +1785,46 @@ def _production_command_executor(
     return execute
 
 
+def _production_command_from_body(command_body: Any) -> ProductionCommandRequest:
+    if isinstance(command_body, str):
+        try:
+            command_body = json.loads(command_body)
+        except json.JSONDecodeError as exc:
+            raise HTTPException(
+                400,
+                {
+                    "code": "PRODUCTION_COMMAND_BODY_INVALID",
+                    "message": "Production command body must be a JSON object.",
+                },
+            ) from exc
+    if not isinstance(command_body, dict):
+        raise HTTPException(
+            400,
+            {
+                "code": "PRODUCTION_COMMAND_BODY_INVALID",
+                "message": "Production command body must be a JSON object.",
+            },
+        )
+    try:
+        return ProductionCommandRequest.model_validate(command_body)
+    except ValidationError as exc:
+        raise HTTPException(
+            400,
+            {
+                "code": "PRODUCTION_COMMAND_CONTRACT_INVALID",
+                "message": "Production command request is incomplete or invalid.",
+                "errors": exc.errors(),
+            },
+        ) from exc
+
+
 @app.post("/api/production/commands")
 @_serialized_production_mutation
 def execute_production_command(
-    command: ProductionCommandRequest,
     request: Request,
+    command_body: Any = Body(...),
 ) -> dict[str, Any]:
+    command = _production_command_from_body(command_body)
     service = ProductionCommandService(_project_production_command)
     try:
         return service.execute(

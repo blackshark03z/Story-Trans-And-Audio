@@ -93,6 +93,7 @@ async function loadProductionTaskProjection({silent=false}={}){
     if(projectionResult.status!=='fulfilled')throw projectionResult.reason;
     const projection=parseProductionProjection(projectionResult.value);
     if(requestId!==state.productionProjectionRequestId||epoch!==state.productionInteractionEpoch||controller.signal.aborted)return null;
+    syncProductionRangeReadinessFromProjection(projection);
     state.productionProjection=projection;state.productionProjectionKey=projection.canonical_task.task_key;
     if(preflightResult.status==='fulfilled'){try{state.productionPreflight=parseProductionPreflight(preflightResult.value);state.productionPreflightError=null}catch(error){state.productionPreflight=null;state.productionPreflightError=error.message}}
     else{state.productionPreflight=null;state.productionPreflightError='PREFLIGHT_UNAVAILABLE'}
@@ -113,9 +114,23 @@ function parseProductionCommandEnvelope(payload,commandType,idempotencyKey){
   if(!payload||payload.schema!=='story-audio-production-command/v1'||payload.command_type!==commandType||payload.idempotency_key!==idempotencyKey||!outcomes.has(payload.outcome)||!payload.resulting_task_projection||!Array.isArray(payload.applied_items)||!Array.isArray(payload.failed_items))throw new Error('PRODUCTION_COMMAND_CONTRACT_INVALID');
   return payload;
 }
+function syncProductionRangeReadinessFromProjection(projection){
+  const readiness=projection?.range_readiness,identity=projection?.range_identity,range=state.productionRange;
+  if(!readiness||!identity||!range)return;
+  if(Number(identity.book_id)!==Number(range.bookId)||Number(identity.from_chapter)!==Number(range.fromChapter)||Number(identity.to_chapter)!==Number(range.toChapter))return;
+  state.productionRange={...range,readiness};
+}
 function productionCommandUiStatus(outcome){return{APPLIED:'APPLIED',PARTIAL:'PARTIAL',REJECTED:'FAILED',ACCEPTED:'ACCEPTED_ASYNC',UNKNOWN:'VERIFYING_UNKNOWN'}[outcome]||'FAILED'}
 function productionCommandBusy(){return !!state.productionCommand.active||state.productionCommand.status==='VERIFYING_UNKNOWN'}
 function productionCommandClientFailure(error){const status=Number(error?.status);return Number.isFinite(status)&&status>=400&&status<500}
+async function postProductionCommand(commandRequest,authorizationToken=null){
+  const body=JSON.stringify(commandRequest);
+  if(!body||body==='{}')throw new Error('Production command request is empty.');
+  const response=await fetch('/api/production/commands',{method:'POST',headers:{'Content-Type':'application/json',...(authorizationToken?{'Authorization':`Bearer ${authorizationToken}`}:{})},body});
+  let payload;try{payload=await response.json()}catch{payload={detail:'Response error'}}
+  if(!response.ok){const error=new Error(friendlyApiError(payload,response.status));error.details=payload;error.status=response.status;throw error}
+  return payload;
+}
 function failProductionCommand(error,fallback='Không thể xác nhận thao tác. Có thể thử lại an toàn với cùng lệnh.'){
   const message=error?.message||fallback;
   state.productionCommand={...state.productionCommand,status:'FAILED',active:false,message,failedItems:[{reason:message}]};
@@ -132,6 +147,7 @@ function renderProductionCommandStatus(){
 async function applyProductionCommandEnvelope(envelope,epoch){
   if(epoch!==state.productionInteractionEpoch)return false;
   const projection=parseProductionProjection(envelope.resulting_task_projection),preflight=envelope.resulting_preflight?parseProductionPreflight(envelope.resulting_preflight):null;
+  syncProductionRangeReadinessFromProjection(projection);
   state.productionProjection=projection;state.productionProjectionKey=projection.canonical_task.task_key;state.productionPreflight=preflight;state.productionPreflightError=preflight?null:'PREFLIGHT_NOT_RELEVANT';state.productionCommand={...state.productionCommand,status:productionCommandUiStatus(envelope.outcome),active:false,commandId:envelope.command_id,message:envelope.operator_message||'',appliedItems:envelope.applied_items,failedItems:envelope.failed_items,stateTokens:envelope.state_tokens||null};
   renderProductionShell();renderProductionCommandStatus();
   if(typeof syncCanonicalProductionContext==='function')await syncCanonicalProductionContext(projection);
@@ -144,8 +160,8 @@ async function runProductionCommand({commandType,scope,payload={},label='Đang x
   const normalizedType=String(commandType||'').toUpperCase(),identity=productionCommandIdentity(normalizedType,scope,payload),idempotencyKey=productionCommandKey(identity),epoch=++state.productionInteractionEpoch;
   state.productionProjectionAbortController?.abort();state.productionProjectionAbortController=null;state.productionCommand={...state.productionCommand,status:'SUBMITTING',active:true,commandType:normalizedType,commandId:null,idempotencyKey,message:label,appliedItems:[],failedItems:[],stateTokens:null};renderProductionShell();renderProductionCommandStatus();
   const commandPayload={...payload};if(['PREPARE','PREPARE_REPLACEMENT'].includes(normalizedType)&&!commandPayload.client_request_id)commandPayload.client_request_id=idempotencyKey;
-  const options={method:'POST',headers:authorizationToken?{'Authorization':`Bearer ${authorizationToken}`}:{},body:JSON.stringify({command_type:normalizedType,idempotency_key:idempotencyKey,scope,payload:commandPayload})};
-  const submit=async()=>parseProductionCommandEnvelope(await api('/api/production/commands',options),normalizedType,idempotencyKey);
+  const commandRequest={command_type:normalizedType,idempotency_key:idempotencyKey,scope,payload:commandPayload};
+  const submit=async()=>parseProductionCommandEnvelope(await postProductionCommand(commandRequest,authorizationToken),normalizedType,idempotencyKey);
   try{return await applyProductionCommandEnvelope(await submit(),epoch)}
   catch(error){
     if(epoch!==state.productionInteractionEpoch)return null;
@@ -711,6 +727,11 @@ function selectAudioLibraryItem(item,{play=false}={}){
   if(player)player.classList.remove('hidden');
   if(play&&audio)audio.play().catch(()=>{});
 }
+function audioLibraryContextSelection(items){
+  const context=currentProductionWorkingContext();
+  if(!context||Number(context.fromChapter)!==Number(context.toChapter))return null;
+  return (items||[]).find(item=>Number(item.book_id)===Number(context.bookId)&&Number(item.chapter_number)===Number(context.fromChapter))||null;
+}
 async function loadAudioLibrary({force=false}={}){
   if(state.audioLibrary.loading)return;
   if(state.audioLibrary.loaded&&!force){renderAudioLibrary();return}
@@ -718,7 +739,8 @@ async function loadAudioLibrary({force=false}={}){
   renderAudioLibrary();
   try{
     const data=await api('/api/audio-library');
-    state.audioLibrary={items:Array.isArray(data.items)?data.items:[],status:'ready',error:null,selectedArtifactId:null,loaded:true,loading:false};
+    const items=Array.isArray(data.items)?data.items:[],contextItem=audioLibraryContextSelection(items);
+    state.audioLibrary={items,status:'ready',error:null,selectedArtifactId:contextItem?Number(contextItem.artifact_id):null,loaded:true,loading:false};
   }catch(e){
     state.audioLibrary={items:[],status:'error',error:e.message,selectedArtifactId:null,loaded:false,loading:false};
   }
@@ -738,7 +760,7 @@ function syncMutationControls(){const disable=!runtimeAllowsMutation();document.
 async function loadRuntimeIdentity(){try{const payload=await api('/api/runtime');const kind=runtimeIdentityState(payload);state.runtimeIdentityResolved=kind!=='unknown';state.runtimeIdentity={state:kind,label:kind==='canonical'?'Dữ liệu sản xuất':kind==='isolated'?'Dữ liệu thử nghiệm':'Chưa xác định dữ liệu',data_root:payload?.data_root||null,short_data_root:payload?.data_root?shortDataRoot(payload.data_root):'Chưa có đường dẫn dữ liệu',title:payload?.data_root?`Thư mục dữ liệu: ${payload.data_root}`:'Chưa đọc được môi trường dữ liệu'};renderRuntimeIdentity();syncMutationControls()}catch(e){setRuntimeUnknown('Chưa đọc được môi trường dữ liệu');toast(e.message,true)}}
 function renderGlobalStatus(){const runtime=state.runtimeStatus||{},readiness=state.productionPrepare?.readiness||{};const set=(id,value,ready)=>{const el=$('#'+id);if(!el)return;el.textContent=value;el.classList.toggle('status-ready',!!ready);el.classList.toggle('status-blocked',ready===false)};const schemaReady=Number(runtime.schema_version)===Number(runtime.latest_schema_version||readiness.required_schema_version),authReady=readiness.authentication_state==='AUTH_CONFIGURED',workerReady=!!(readiness.start_render_available&&runtime.worker_available),prepareReady=!!readiness.mutation_authorized,killSafe=!readiness.kill_switch_active,systemReady=!!state.runtimeIdentityResolved&&schemaReady&&authReady&&workerReady&&killSafe;set('globalRuntimeState',state.runtimeIdentity?.label||'Chưa xác định dữ liệu',state.runtimeIdentityResolved);set('globalSchemaState',runtime.schema_version?`Phiên bản ${runtime.schema_version}`:'Chưa đọc được',schemaReady);set('globalPrepareState',prepareReady?'Có thể chuẩn bị':'Đang khóa',prepareReady);set('globalWorkerState',workerReady?'Sẵn sàng':'Chưa sẵn sàng',workerReady);set('globalAuthState',authReady?'Đã xác thực':'Chưa xác thực',authReady);set('globalKillSwitchState',readiness.kill_switch_active?'Đang bật':'Đang tắt',killSafe);const label=$('#systemHealthLabel'),dot=$('#systemHealthDot');if(label)label.textContent=systemReady?'Hệ thống sẵn sàng':'Hệ thống cần kiểm tra';if(dot){dot.classList.toggle('ready',systemReady);dot.classList.toggle('blocked',!systemReady)}const button=$('#restartRuntime'),reason=$('#restartRuntimeReason'),available=!!runtime.supervised_restart_available;if(button)button.disabled=!available;if(reason)reason.textContent=available?'Có thể khởi động lại an toàn mà vẫn giữ trạng thái đã lưu.':'Chỉ có thể khởi động lại khi ứng dụng chạy bằng launcher chính.'}
 loadRuntimeIdentity=async function(){try{const payload=await api('/api/runtime'),kind=runtimeIdentityState(payload);state.runtimeStatus=payload;state.runtimeIdentityResolved=kind!=='unknown';state.runtimeIdentity={state:kind,label:kind==='canonical'?'Dữ liệu sản xuất':kind==='isolated'?'Dữ liệu thử nghiệm':'Chưa xác định dữ liệu',data_root:payload?.data_root||null,short_data_root:payload?.data_root?shortDataRoot(payload.data_root):'Chưa có đường dẫn dữ liệu',title:payload?.data_root?`Thư mục dữ liệu: ${payload.data_root}`:'Chưa đọc được môi trường dữ liệu'};renderRuntimeIdentity();renderGlobalStatus();syncMutationControls()}catch(e){setRuntimeUnknown('Chưa đọc được môi trường dữ liệu');renderGlobalStatus();toast(e.message,true)}};
-function guardQaVerdictControls(){const approvalStatus=String(humanApprovalRecord(state.dialog)?.status||'').toLowerCase(),taskType=String(currentProductionViewModel()?.task_type||''),hideVerdicts=approvalStatus==='approved'||approvalStatus==='needs_fixes'||taskType==='REPAIR_REQUIRED',qaBusy=productionCommandBusy();['productionQaAccept','productionQaNeedsFixes','flowFinalizeOutput','flowNeedsFixes'].forEach(id=>{const el=$('#'+id);if(!el)return;el.classList.toggle('hidden',hideVerdicts);if(hideVerdicts||qaBusy)el.disabled=true})}
+function guardQaVerdictControls(){const approval=humanApprovalRecord(state.dialog),approvalStatus=String(approval?.status||'').toLowerCase(),approvalConcludesActive=humanApprovalMatchesActive(state.dialog)&&(approvalStatus==='approved'||approvalStatus==='needs_fixes'),taskType=String(currentProductionViewModel()?.task_type||''),hideVerdicts=approvalConcludesActive||taskType==='REPAIR_REQUIRED',qaBusy=productionCommandBusy();['productionQaAccept','productionQaNeedsFixes','flowFinalizeOutput','flowNeedsFixes'].forEach(id=>{const el=$('#'+id);if(!el)return;el.classList.toggle('hidden',hideVerdicts);if(hideVerdicts||qaBusy)el.disabled=true})}
 const loadProductionPrepareReadinessCore=loadProductionPrepareReadiness;
 loadProductionPrepareReadiness=async function(){await loadProductionPrepareReadinessCore();renderGlobalStatus()};
 async function restartRuntimeFromUi(){if(!state.runtimeStatus?.supervised_restart_available)return;if(!window.confirm('Khoi dong lai Story Audio ngay bay gio? Job va state da luu se duoc giu nguyen.'))return;const button=$('#restartRuntime'),reason=$('#restartRuntimeReason');button.disabled=true;reason.textContent='Dang khoi dong lai...';try{await api('/api/runtime/restart',{method:'POST',body:JSON.stringify({confirmation:'RESTART_STORY_AUDIO'})});let offlineSeen=false;for(let attempt=0;attempt<40;attempt+=1){await new Promise(resolve=>setTimeout(resolve,500));try{const response=await fetch('/api/runtime',{cache:'no-store'});if(response.ok&&(offlineSeen||attempt>=4)){await loadRuntimeIdentity();await loadProductionPrepareReadiness();await loadJobs();reason.textContent='Khoi dong lai thanh cong.';return}}catch{offlineSeen=true}}throw new Error('Runtime chua quay lai trong thoi gian cho.')}catch(e){reason.textContent=e.message;toast(e.message,true)}finally{renderGlobalStatus()}}
@@ -755,6 +777,7 @@ function castingStatusSummary(chapter){if(chapter.latest_casting_plan_status==='
 const runningAudioStatuses=new Set(['scheduled','queued','running','repairing','synthesizing','assembling','paused']);
 function chapterHasApprovedText(detail){const approved=detail?.revisions?.filter(r=>r.status==='approved')||[];if(!approved.length)return false;const activeId=Number(detail?.chapter?.active_text_revision_id||0);return approved.some(item=>Number(item.id)===activeId)}
 function humanApprovalRecord(detail){return detail?.human_approval||null}
+function humanApprovalMatchesActive(detail){const approval=humanApprovalRecord(detail),activeArtifact=Number(detail?.active_output?.active_output_artifact_id||detail?.audio_artifact?.id||detail?.chapter?.active_audio_artifact_id||0),storedArtifact=Number(approval?.artifact_id||0);return !!(approval&&activeArtifact&&storedArtifact&&activeArtifact===storedArtifact)}
 function humanApprovalMismatch(detail){const approval=humanApprovalRecord(detail),activeArtifact=Number(detail?.active_output?.active_output_artifact_id||detail?.audio_artifact?.id||detail?.chapter?.active_audio_artifact_id||0),storedArtifact=Number(approval?.artifact_id||0);return !!(approval&&String(approval.status||'').toLowerCase()==='approved'&&activeArtifact&&storedArtifact&&activeArtifact!==storedArtifact)}
 function humanQaAccepted(detail){const approvalStatus=String(humanApprovalRecord(detail)?.status||'').toLowerCase();if(approvalStatus)return approvalStatus==='approved'&&!humanApprovalMismatch(detail);const value=String(detail?.chapter?.human_qa_status||'').toLowerCase();return (value==='accepted'||value==='pass'||value==='human_qa_pass_with_minor_pronunciation_notes')&&!humanApprovalMismatch(detail)}
 function humanApprovalStatusLabel(detail){const approval=humanApprovalRecord(detail),status=String(approval?.status||detail?.chapter?.human_approval_status||'pending').toLowerCase();if(status==='approved')return 'Đã chốt';if(status==='needs_fixes')return 'Cần sửa';return 'Chưa chốt'}
@@ -1403,7 +1426,7 @@ function applyCastingOperatorSummary(){
     $('#flowFinalApprovalStatus').textContent=accepted?'Đã chấp nhận':'Chờ kết luận';
     $('#flowFinalApprovalDetail').textContent=accepted?'Bản audio này đã hoàn tất kiểm tra.':'Chưa có kết luận cho bản audio hiện tại.';
   }
-  const approvalRecord=humanApprovalRecord(state.dialog),approvalStatus=String(approvalRecord?.status||'').toLowerCase(),qaConcluded=approvalStatus==='approved'||approvalStatus==='needs_fixes'||humanQaAccepted(state.dialog)||displayState==='REPAIR_REQUIRED',qaBusy=productionCommandBusy(),hasQaAudio=!!(state.dialog?.audio_artifact||state.dialog?.active_output?.active_output_job_id);
+const approvalRecord=humanApprovalRecord(state.dialog),approvalStatus=String(approvalRecord?.status||'').toLowerCase(),approvalConcludesActive=humanApprovalMatchesActive(state.dialog)&&(approvalStatus==='approved'||approvalStatus==='needs_fixes'),qaConcluded=approvalConcludesActive||humanQaAccepted(state.dialog)||displayState==='REPAIR_REQUIRED',qaBusy=productionCommandBusy(),hasQaAudio=!!(state.dialog?.audio_artifact||state.dialog?.active_output?.active_output_job_id);
   const finalButton=$('#flowFinalizeOutput');
   if(finalButton){finalButton.textContent=humanQaAccepted(state.dialog)?'Đã chấp nhận':'Chấp nhận';finalButton.disabled=!runtimeAllowsMutation()||!hasQaAudio||qaConcluded||qaBusy;finalButton.classList.toggle('hidden',qaConcluded)}
   const fixesButton=$('#flowNeedsFixes');
@@ -1520,13 +1543,18 @@ restoreProductionRangeScope=async function(scope){
   const projection=await loadProductionTaskProjection();
   if(projection)await syncCanonicalProductionContext(projection);
 }
+function currentProductionQaCommandTarget(){
+  const task=currentProductionViewModel(),qa=task?.qa||{},chapterId=Number(qa.chapter_id||task?.affected_chapter?.id||state.dialog?.chapter?.id||0),artifactId=Number(qa.artifact_id||state.dialog?.audio_artifact?.id||state.dialog?.active_output?.active_output_artifact_id||0);
+  return{chapterId,artifactId};
+}
 async function updateHumanApproval(status){
   if(!runtimeAllowsMutation()){toast('Runtime identity must be resolved before mutating actions.',true);return}
-  if(!state.dialog?.chapter?.id)return;
+  const target=currentProductionQaCommandTarget();
+  if(!target.chapterId)return;
   const notes=$('#flowFinalApprovalNotes')?.value||'';
-  const artifactId=Number(state.dialog?.audio_artifact?.id||state.dialog?.active_output?.active_output_artifact_id||0);
+  const artifactId=target.artifactId;
   if(!artifactId){toast('Không tìm thấy Artifact active để ghi kết quả QA.',true);return}
-  const commandType=status==='approved'?'HUMAN_QA_ACCEPT':'HUMAN_QA_NEEDS_FIXES',envelope=await runProductionCommand({commandType,scope:artifactProductionCommandScope(artifactId),payload:{chapter_id:Number(state.dialog.chapter.id),notes},label:'Đang ghi kết quả QA…'});
+  const commandType=status==='approved'?'HUMAN_QA_ACCEPT':'HUMAN_QA_NEEDS_FIXES',envelope=await runProductionCommand({commandType,scope:artifactProductionCommandScope(artifactId),payload:{chapter_id:target.chapterId,notes},label:'Đang ghi kết quả QA…'});
   if(envelope?.outcome==='APPLIED')await syncCanonicalProductionContext(envelope.resulting_task_projection);
 }
 function productionPreflightVisible(vm){return !!state.productionPreflight&&vm?.task_scope==='range'&&['PREPARE_RANGE','START_RENDER_RANGE','MONITOR_RENDER','RECOVER_RENDER'].includes(vm.task_type)}
@@ -1540,8 +1568,12 @@ function productionPreflightBody(vm){
   return `<section class="production-preflight-review" data-production-preflight><header class="production-preflight-verdict ${readiness.ready?'ready':'blocked'}"><div><p class="eyebrow">Kiểm tra trước khi sản xuất</p><h3>${verdict}</h3><p>${summary}</p></div><span class="production-auth-status ${execution.authorization_ready?'ready':'blocked'}">${authorization}</span></header><section><h3>Điều kiện dữ liệu</h3><div class="production-preflight-checklist">${checklist}</div></section><section><div class="production-preflight-section-head"><h3>Bản đồ giọng thực tế</h3><span>${Number(preview.voice_count)||0} giọng</span></div>${voices}</section>${progress}<section class="production-execution-preview"><div><p class="eyebrow">Bước tiếp theo</p><h3>${esc(preview.next_action?.label||'Chưa xác định')}</h3><p>${executionCopy}</p></div><dl><div><dt>Phạm vi</dt><dd>Chương ${range.from_chapter}–${range.to_chapter}</dd></div><div><dt>Số chương</dt><dd>${Number(preview.chapter_count)||0}</dd></div><div><dt>Ước tính đoạn</dt><dd>${Number(preview.estimated_segment_count)||0}</dd></div><div><dt>Gọi TTS</dt><dd>${actionKey==='START_RENDER_RANGE'?'Khi bạn xác nhận bắt đầu':'Không'}</dd></div></dl>${excludedCopy}</section></section>`;
 }
 async function navigateProductionPreflightBlocker(index){const blocker=state.productionPreflight?.data_readiness?.ordered_blockers?.[Number(index)];if(!blocker)return;if(blocker.chapter_id)await inspectProductionChapter(Number(blocker.chapter_id));if(blocker.target)await focusProductionTarget(blocker.target)}
+function productionCompleteTaskContent(vm){
+  const rows=vm?.range_readiness?.chapters||state.productionRange?.readiness?.chapters||[],completeRows=rows.filter(row=>String(row.state)==='COMPLETE'),artifactIds=[...new Set(completeRows.map(row=>Number(row.active_artifact_id||row.active_output_artifact_id||0)).filter(Boolean))],total=Number(vm?.range_readiness?.summary?.total||rows.length||state.productionRange?.readiness?.summary?.total||0),complete=Number(vm?.range_readiness?.summary?.complete||completeRows.length||0),audioHref=esc(routeHashForWorkingContext('audio')),download=artifactIds.length===1?`<a id="productionCompleteDownload" class="secondary app-secondary-link" href="/api/artifacts/${artifactIds[0]}/file" download>Tải audio</a>`:'';
+  return `<div class="production-result-note"><strong>Đã hoàn tất</strong><span>${complete||total||'Các'} chương trong phạm vi đã có audio được duyệt.</span></div><div class="production-complete-actions"><a id="productionCompleteOpenAudio" class="primary app-primary-link" href="${audioHref}">Mở Audio</a>${download}</div>`;
+}
 const legacyProductionTaskBody=productionTaskBody;
-productionTaskBody=function(vm){if(productionPreflightVisible(vm))return productionPreflightBody(vm);if(vm?.task_type==='PREPARE_RANGE')return '<p class="issue warning">Không tải được kiểm tra trước khi sản xuất. PREPARE đang bị chặn an toàn; hãy làm mới trạng thái.</p>';return legacyProductionTaskBody(vm)};
+productionTaskBody=function(vm){if(productionPreflightVisible(vm))return productionPreflightBody(vm);if(vm?.task_type==='PREPARE_RANGE')return '<p class="issue warning">Không tải được kiểm tra trước khi sản xuất. PREPARE đang bị chặn an toàn; hãy làm mới trạng thái.</p>';if(vm?.task_type==='COMPLETE')return productionCompleteTaskContent(vm);return legacyProductionTaskBody(vm)};
 const legacyCurrentProductionViewModel=currentProductionViewModel;
 currentProductionViewModel=function(extra={}){
   const vm=legacyCurrentProductionViewModel(extra);if(!productionPreflightVisible(vm))return vm;

@@ -104,6 +104,15 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertNotIn("play:true", render_block)
         self.assertIn("selectAudioLibraryItem(selected,{play:false})", render_block)
 
+    def test_audio_route_selects_current_one_chapter_context_without_autoplay(self) -> None:
+        self.assertIn("function audioLibraryContextSelection(items)", self.js)
+        self.assertIn("currentProductionWorkingContext()", self.js)
+        self.assertIn("Number(context.fromChapter)!==Number(context.toChapter)", self.js)
+        load_block = self._function_block("loadAudioLibrary")
+        self.assertIn("contextItem=audioLibraryContextSelection(items)", load_block)
+        self.assertIn("selectedArtifactId:contextItem?Number(contextItem.artifact_id):null", load_block)
+        self.assertNotIn("play:true", load_block)
+
     def test_empty_loading_error_and_retry_are_explicit(self) -> None:
         render_block = self._function_block("renderAudioLibrary")
         for value in (

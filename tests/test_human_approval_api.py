@@ -69,6 +69,35 @@ class HumanApprovalApiTests(IsolatedTestCase):
         self.assertEqual(data["chapter"]["human_qa_status"], "accepted")
         self.assertEqual(data["chapter"]["human_approval_label"], "Đã chốt")
 
+    def test_production_command_accept_normalizes_json_string_body(self) -> None:
+        command = {
+            "command_type": "HUMAN_QA_ACCEPT",
+            "idempotency_key": "qa-json-string-0001",
+            "scope": {"artifact": {"id": self.old_artifact_id}},
+            "payload": {"chapter_id": self.chapter_id, "notes": "QA accepted."},
+        }
+        response = self.client.post(
+            "/api/production/commands",
+            content=json.dumps(json.dumps(command)),
+            headers={"Content-Type": "application/json"},
+        )
+        self.assertEqual(response.status_code, 200)
+        payload = response.json()
+        self.assertEqual(payload["outcome"], "APPLIED")
+        self.assertEqual(payload["applied_items"][0]["artifact_id"], self.old_artifact_id)
+        history = self.client.get(
+            f"/api/chapters/{self.chapter_id}/human-approval-history"
+        ).json()
+        self.assertEqual(len(history["items"]), 1)
+
+    def test_production_command_rejects_non_object_body(self) -> None:
+        response = self.client.post("/api/production/commands", json=["not", "object"])
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.json()["detail"]["code"],
+            "PRODUCTION_COMMAND_BODY_INVALID",
+        )
+
     def test_put_human_approval_can_mark_needs_fixes(self) -> None:
         response = self.client.put(
             f"/api/chapters/{self.chapter_id}/human-approval",

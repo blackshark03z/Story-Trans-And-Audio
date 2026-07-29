@@ -116,7 +116,7 @@ class ProductionCommandApiTests(IsolatedTestCase):
                     "scope": {},
                 },
             )
-            self.assertEqual(response.status_code, 422)
+            self.assertEqual(response.status_code, 400)
 
     def test_voice_assignment_batch_reports_partial_result_in_common_envelope(self) -> None:
         command = {

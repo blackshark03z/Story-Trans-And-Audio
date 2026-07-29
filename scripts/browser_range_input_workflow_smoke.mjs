@@ -236,44 +236,49 @@ try {
       renderProductionShell();
       return state.productionProjection;
     };
+    const handleRangeCommand=async(requestBody)=>{
+      const fixture=window.__rangeFixture;
+      const type=requestBody.command_type;
+      fixture.calls.push({path:"/api/production/commands",method:"POST",commandType:type});
+      if(type==="PREPARE_RANGE_INPUTS"){
+        if(fixture.phase==="proposal")fixture.phase="exceptions";
+        else if(fixture.phase==="castingGeneration")fixture.phase="castingApproval";
+      }else if(type==="SAVE_SPEAKER_DECISION"){
+        fixture.exceptions.shift();
+        if(!fixture.exceptions.length)fixture.phase="speakerApproval";
+      }else if(type==="APPROVE_SPEAKER_DRAFTS"){
+        if(fixture.phase==="speakerApproval")fixture.phase="voices";
+      }else if(type==="SAVE_VOICE_ASSIGNMENT"){
+        fixture.voices.shift();
+        if(!fixture.voices.length)fixture.phase="castingGeneration";
+      }else if(type==="APPROVE_CASTING_PLANS"){
+        fixture.phase="ready";
+      }
+      const projection=window.__buildRangeProjection();
+      return{
+        schema:"story-audio-production-command/v1",
+        command_id:"pc-fixture-"+type.toLowerCase(),
+        command_type:type,
+        idempotency_key:requestBody.idempotency_key,
+        scope:requestBody.scope,
+        outcome:"APPLIED",
+        submitted_count:1,
+        applied_count:1,
+        failed_count:0,
+        applied_items:[{chapter_id:7101}],
+        failed_items:[],
+        operator_message:"Đã áp dụng thao tác.",
+        resulting_task_projection:projection,
+        resulting_preflight:null,
+        asynchronous_reference:null,
+        state_tokens:{task_projection:"fixture",preflight:null},
+      };
+    };
+    postProductionCommand=handleRangeCommand;
     api=async(path,options={})=>{
       const fixture=window.__rangeFixture;
       const requestBody=options.body?JSON.parse(options.body):{};
       fixture.calls.push({path,method:options.method||"GET",commandType:requestBody.command_type||null});
-      if(path==="/api/production/commands"){
-        const type=requestBody.command_type;
-        if(type==="PREPARE_RANGE_INPUTS"){
-          if(fixture.phase==="proposal")fixture.phase="exceptions";
-          else if(fixture.phase==="castingGeneration")fixture.phase="castingApproval";
-        }else if(type==="SAVE_SPEAKER_DECISION"){
-          fixture.exceptions.shift();
-          if(!fixture.exceptions.length)fixture.phase="speakerApproval";
-        }else if(type==="SAVE_VOICE_ASSIGNMENT"){
-          fixture.voices.shift();
-          if(!fixture.voices.length)fixture.phase="castingGeneration";
-        }else if(type==="APPROVE_CASTING_PLANS"){
-          fixture.phase="ready";
-        }
-        const projection=window.__buildRangeProjection();
-        return{
-          schema:"story-audio-production-command/v1",
-          command_id:"pc-fixture-"+type.toLowerCase(),
-          command_type:type,
-          idempotency_key:requestBody.idempotency_key,
-          scope:requestBody.scope,
-          outcome:"APPLIED",
-          submitted_count:1,
-          applied_count:1,
-          failed_count:0,
-          applied_items:[{chapter_id:7101}],
-          failed_items:[],
-          operator_message:"Đã áp dụng thao tác.",
-          resulting_task_projection:projection,
-          resulting_preflight:null,
-          asynchronous_reference:null,
-          state_tokens:{task_projection:"fixture",preflight:null},
-        };
-      }
       return{};
     };
     loadProductionTaskProjection();
@@ -450,7 +455,7 @@ try {
   if (scenarioE.remaining !== 3 || scenarioE.speakerApprovalCalls < 2) {
     throw new Error(`Scenario E failed: ${JSON.stringify(scenarioE)}`);
   }
-  if (scenarioC.remaining !== 0 || scenarioC.phase !== "speakerApproval") {
+  if (scenarioC.remaining !== 0 || scenarioC.phase !== "voices") {
     throw new Error(`Scenario C failed: ${JSON.stringify(scenarioC)}`);
   }
   if (!scenarioFG.body.includes("16")

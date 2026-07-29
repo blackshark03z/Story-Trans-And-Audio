@@ -31,8 +31,9 @@ class ProductionCommandUiTests(unittest.TestCase):
 
     def test_shared_coordinator_owns_command_lifecycle(self) -> None:
         coordinator = self._function_source("runProductionCommand")
-        self.assertIn("/api/production/commands", coordinator)
+        self.assertIn("/api/production/commands", self.js)
         self.assertIn("idempotencyKey", coordinator)
+        self.assertIn("postProductionCommand(commandRequest,authorizationToken)", coordinator)
         self.assertIn("productionInteractionEpoch", coordinator)
         self.assertIn("VERIFYING_UNKNOWN", coordinator)
         self.assertIn("productionCommandClientFailure", coordinator)
@@ -53,6 +54,22 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertIn("sameChapter", sync)
         self.assertIn("await openChapter(chapterId", sync)
         self.assertNotIn("===chapterId)return", sync)
+        self.assertIn("syncProductionRangeReadinessFromProjection(projection)", self.js)
+
+    def test_complete_stage_offers_audio_actions(self) -> None:
+        self.assertIn("function productionCompleteTaskContent(vm)", self.js)
+        self.assertIn("productionCompleteOpenAudio", self.js)
+        self.assertIn("productionCompleteDownload", self.js)
+        self.assertIn("/api/artifacts/${artifactIds[0]}/file", self.js)
+        self.assertIn("vm?.task_type==='COMPLETE'", self.js)
+
+    def test_production_qa_accept_uses_projected_artifact_target(self) -> None:
+        self.assertIn("function currentProductionQaCommandTarget()", self.js)
+        self.assertIn("qa.artifact_id||state.dialog?.audio_artifact", self.js)
+        approval = self._function_source("updateHumanApproval")
+        self.assertIn("currentProductionQaCommandTarget()", approval)
+        self.assertIn("artifactProductionCommandScope(artifactId)", approval)
+        self.assertIn("payload:{chapter_id:target.chapterId,notes}", approval)
 
     def test_production_handlers_do_not_post_directly(self) -> None:
         handlers = (
@@ -149,7 +166,8 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertIn("assignment-page-actions", self.css)
 
     def test_repair_required_hides_legacy_qa_verdict_controls(self) -> None:
-        self.assertIn("approvalStatus==='needs_fixes'", self.js)
+        self.assertIn("humanApprovalMatchesActive(state.dialog)", self.js)
+        self.assertIn("approvalConcludesActive", self.js)
         self.assertIn("displayState==='REPAIR_REQUIRED'", self.js)
         self.assertIn("hideVerdicts", self.js)
         self.assertIn("flowFinalizeOutput", self.js)

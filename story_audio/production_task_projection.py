@@ -771,7 +771,12 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
                 readiness=readiness,
                 task_scope="chapter",
                 task_type=task["task_type"],
-                task_key=f"chapter:{ref['id']}:{task['task_type']}",
+                task_key=(
+                    f"chapter:{ref['id']}:{task['task_type']}:"
+                    f"artifact:{int(row.get('active_artifact_id') or 0)}"
+                    if task["task_type"] == "HUMAN_QA"
+                    else f"chapter:{ref['id']}:{task['task_type']}"
+                ),
                 user_stage=task["user_stage"],
                 title=task["title"],
                 summary=task["summary"],
@@ -962,7 +967,12 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
             readiness=readiness,
             task_scope="chapter",
             task_type=task["task_type"],
-            task_key=f"chapter:{ref['id']}:{task['task_type']}",
+            task_key=(
+                f"chapter:{ref['id']}:{task['task_type']}:"
+                f"artifact:{int(row.get('active_artifact_id') or 0)}"
+                if task["task_type"] == "HUMAN_QA"
+                else f"chapter:{ref['id']}:{task['task_type']}"
+            ),
             user_stage=task["user_stage"],
             title=task["title"],
             summary=task["summary"],
@@ -1129,7 +1139,12 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
             readiness=readiness,
             task_scope="chapter",
             task_type=task["task_type"],
-            task_key=f"chapter:{ref['id']}:{task['task_type']}",
+            task_key=(
+                f"chapter:{ref['id']}:{task['task_type']}:"
+                f"artifact:{int(row.get('active_artifact_id') or 0)}"
+                if task["task_type"] == "HUMAN_QA"
+                else f"chapter:{ref['id']}:{task['task_type']}"
+            ),
             user_stage=task["user_stage"],
             title=task["title"],
             summary=task["summary"],
