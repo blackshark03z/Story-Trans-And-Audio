@@ -532,11 +532,16 @@ def validate_speaker_review_response(
         if resolution not in RESOLUTIONS:
             raise SpeakerReviewSuggestionError("Suggestion resolution is invalid")
         existing_character_id = item.get("existing_character_id")
+        warnings = _string_list(item.get("warnings"), field="warnings", maximum=8)
         if resolution == "EXISTING_CHARACTER":
-            if isinstance(existing_character_id, bool) or not isinstance(existing_character_id, int):
-                raise SpeakerReviewSuggestionError("existing_character_id is required")
-            if existing_character_id not in allowed_character_ids:
-                raise SpeakerReviewSuggestionError("existing_character_id is not in this book")
+            if existing_character_id is None:
+                warnings.append("existing_character_id is missing; human decision required.")
+                resolution = "NEEDS_HUMAN_DECISION"
+            else:
+                if isinstance(existing_character_id, bool) or not isinstance(existing_character_id, int):
+                    raise SpeakerReviewSuggestionError("existing_character_id is required")
+                if existing_character_id not in allowed_character_ids:
+                    raise SpeakerReviewSuggestionError("existing_character_id is not in this book")
         elif existing_character_id is not None:
             raise SpeakerReviewSuggestionError("existing_character_id must be null")
         character_name = _optional_string(item.get("proposed_character_name"), maximum=120)
@@ -594,7 +599,7 @@ def validate_speaker_review_response(
                 "proposed_voice_handling": voice_handling,
                 "suggested_voice_id": suggested_voice_id,
                 "voice_rationale": _optional_string(item.get("voice_rationale"), maximum=400) or "",
-                "warnings": _string_list(item.get("warnings"), field="warnings", maximum=8),
+                "warnings": warnings,
             }
         )
         seen.add(unresolved_key)
@@ -1216,11 +1221,10 @@ def accept_speaker_review_suggestion(
     ]
     applied: dict[str, Any]
     if resolution == "EXISTING_CHARACTER":
-        character_id = int(
-            reviewer_payload.get("existing_character_id")
-            or suggestion.get("existing_character_id")
-            or 0
-        )
+        character_id = reviewer_payload.get("existing_character_id") or suggestion.get("existing_character_id")
+        if isinstance(character_id, bool) or not isinstance(character_id, int) or int(character_id) <= 0:
+            raise SpeakerReviewSuggestionError("existing_character_id is required")
+        character_id = int(character_id)
         applied = apply_speaker_character_mapping(
             db,
             store,

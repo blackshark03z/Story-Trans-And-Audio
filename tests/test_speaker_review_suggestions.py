@@ -342,6 +342,39 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
             0,
         )
 
+    def test_existing_character_without_id_downgrades_to_human_decision(self) -> None:
+        registry = self._registry()
+        unresolved_keys = [
+            row["speaker_key"]
+            for row in registry["rows"]
+            if row["status"] == "UNRESOLVED_DIALOGUE"
+        ]
+
+        def missing_id_provider(**kwargs: Any) -> dict[str, Any]:
+            response = self._provider(**kwargs)
+            response["response"]["suggestions"][0]["existing_character_id"] = None
+            return response
+
+        run = generate_speaker_review_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            skip_completed=False,
+            registry=registry,
+            voice_catalog=_catalog(),
+            unresolved_keys=unresolved_keys,
+            provider=missing_id_provider,
+            idempotency_key="speaker-review-test-missing-existing-id",
+        )
+
+        first = next(item for item in run["suggestions"] if item["unresolved_key"] == unresolved_keys[0])
+        self.assertEqual(first["proposed_resolution"], "NEEDS_HUMAN_DECISION")
+        self.assertFalse(first["approval_eligible"])
+        self.assertIn("existing_character_id is missing", " ".join(first["warnings"]))
+
     def test_deferred_suggestion_can_later_be_replaced_by_review_decision(self) -> None:
         registry = self._registry()
         unresolved_keys = [
@@ -395,4 +428,3 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
         )
         reviewed = next(item for item in queue["suggestions"] if item["unresolved_key"] == key)
         self.assertEqual(reviewed["review_state"], "ACCEPTED")
-
