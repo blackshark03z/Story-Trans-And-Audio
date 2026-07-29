@@ -48,12 +48,20 @@ class CharacterAssignmentFixtureHandler(ScopeFixtureHandler):
             "sequence": 2,
             "text": "- Break the red formation now.",
         },
+        "unresolved-dialogue:1004:u0002-cafebabe0000": {
+            "chapter_id": 1004,
+            "chapter_number": 4,
+            "utterance_id": "u0002-cafebabe0000",
+            "sequence": 2,
+            "text": "- Keep the outer scouts moving.",
+        },
     }
     characters: dict[int, dict] = {}
     mapped: dict[str, int] = {}
     overrides: dict[tuple[int, str], str] = {}
     command_responses: dict[str, dict] = {}
     commands: list[dict] = []
+    suggestions: dict | None = None
     next_character_id = 31
 
     @classmethod
@@ -73,6 +81,7 @@ class CharacterAssignmentFixtureHandler(ScopeFixtureHandler):
         cls.overrides = {}
         cls.command_responses = {}
         cls.commands = []
+        cls.suggestions = None
         cls.next_character_id = 31
 
     @classmethod
@@ -374,6 +383,41 @@ class CharacterAssignmentFixtureHandler(ScopeFixtureHandler):
                     int(query["to_chapter"][0]),
                 )
             )
+        if parsed.path == "/api/production/speaker-review-suggestions":
+            start = int(query["from_chapter"][0])
+            end = int(query["to_chapter"][0])
+            targets = [
+                {
+                    "unresolved_key": key,
+                    "chapter_id": target["chapter_id"],
+                    "chapter_number": target["chapter_number"],
+                    "utterance_id": target["utterance_id"],
+                    "sequence": target["sequence"],
+                    "dialogue_text": target["text"],
+                }
+                for key, target in self.unresolved_targets.items()
+                if start <= int(target["chapter_number"]) <= end and key not in self.mapped
+            ]
+            if self.suggestions is None:
+                return self._json(
+                    {
+                        "schema": "story-audio-gemini-speaker-review-queue/v1",
+                        "status": "not_analyzed",
+                        "analysis_run_id": None,
+                        "input_fingerprint": "fixture-speaker-review",
+                        "scope": {
+                            "book_id": int(query["book_id"][0]),
+                            "from_chapter": start,
+                            "to_chapter": end,
+                            "skip_completed": query.get("skip_completed", ["true"])[0] == "true",
+                        },
+                        "target_count": len(targets),
+                        "targets": targets,
+                        "suggestions": [],
+                        "summary": {"total": 0, "analyzed": 0, "pending_review": len(targets)},
+                    }
+                )
+            return self._json(self.suggestions)
         if parsed.path == "/api/production/task-projection":
             return self._json(
                 self.projection(
@@ -491,6 +535,75 @@ class CharacterAssignmentFixtureHandler(ScopeFixtureHandler):
             for chapter in range(start, end + 1):
                 self.overrides.pop((chapter, speaker_key), None)
                 applied.append({"chapter_number": chapter, "speaker_key": speaker_key, "operation": "clear"})
+        elif command_type == "GENERATE_SPEAKER_SUGGESTIONS":
+            suggestions = []
+            for key in payload.get("unresolved_keys") or []:
+                target = self.unresolved_targets.get(str(key))
+                if not target or key in self.mapped:
+                    continue
+                suggestions.append(
+                    {
+                        "unresolved_key": key,
+                        "chapter_number": target["chapter_number"],
+                        "target": {
+                            "chapter_id": target["chapter_id"],
+                            "chapter_number": target["chapter_number"],
+                            "utterance_id": target["utterance_id"],
+                            "sequence": target["sequence"],
+                            "dialogue_text": target["text"],
+                        },
+                        "proposed_resolution": "EXISTING_CHARACTER",
+                        "existing_character_id": 25,
+                        "proposed_character_name": None,
+                        "proposed_aliases": ["fixture alias"],
+                        "confidence": "HIGH",
+                        "confidence_score": 0.91,
+                        "evidence_summary": "Fixture evidence points to Existing Commander.",
+                        "context_evidence": [target["text"]],
+                        "alternative_candidates": [],
+                        "continuity_notes": "Fixture continuity.",
+                        "proposed_voice_handling": "INHERIT_EXISTING_CONFIGURATION",
+                        "suggested_voice_id": None,
+                        "voice_rationale": "Use inherited voice.",
+                        "warnings": [],
+                        "matched_character": self.characters[25],
+                        "effective_inherited_voice": _voice("male"),
+                        "effective_voice_source": "book default",
+                        "suggested_voice": None,
+                        "possible_duplicates": [],
+                        "review_state": "PENDING_REVIEW",
+                        "approval_eligible": True,
+                    }
+                )
+            type(self).suggestions = {
+                "schema": "story-audio-gemini-speaker-review-queue/v1",
+                "status": "ready_for_human_review",
+                "analysis_run_id": "fixture-gsr-1",
+                "input_fingerprint": "fixture-speaker-review",
+                "target_count": len(suggestions),
+                "chunk_count": 1,
+                "request_count": 1,
+                "cache_hit_count": 0,
+                "cache_miss_count": 1,
+                "suggestions": suggestions,
+                "summary": {
+                    "total": len(suggestions),
+                    "analyzed": len(suggestions),
+                    "pending_review": len(suggestions),
+                    "existing_character_matches": len(suggestions),
+                    "proposed_new_characters": 0,
+                    "low_confidence": 0,
+                    "approved": 0,
+                    "deferred": 0,
+                },
+            }
+            applied.append(
+                {
+                    "type": "speaker_review_analysis",
+                    "analysis_run_id": "fixture-gsr-1",
+                    "request_count": 1,
+                }
+            )
         else:
             return self._json({"detail": f"Unsupported command {command_type}"}, 400)
 
@@ -547,6 +660,12 @@ class CharacterAssignmentBrowserTests(unittest.TestCase):
         self.assertTrue(evidence["ok"])
         self.assertTrue(evidence["exactUrlHasRealRows"])
         self.assertTrue(evidence["sampleVisible"])
+        self.assertTrue(evidence["openBeforeRefresh"]["newRow"])
+        self.assertTrue(evidence["openBeforeRefresh"]["existingRow"])
+        self.assertTrue(evidence["openBeforeRefresh"]["thirdRow"])
+        self.assertEqual(evidence["draftsBeforeRefresh"], evidence["draftsAfterRefresh"])
+        self.assertTrue(evidence["suggestionVisible"])
+        self.assertTrue(evidence["thirdRowRemoved"])
         self.assertTrue(evidence["newCharacterMapped"])
         self.assertTrue(evidence["existingCharacterMapped"])
         self.assertTrue(evidence["voiceAssigned"])

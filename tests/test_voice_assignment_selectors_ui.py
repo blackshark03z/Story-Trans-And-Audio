@@ -166,6 +166,41 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIn("loadBookVoiceRegistry", self.js)
         self.assertIn("renderRegistryTableRow(row,context)", self.js)
 
+    def test_assignment_registry_preserves_details_focus_scroll_and_drafts(self) -> None:
+        self.assertIn("emptyBookVoiceRegistryState", self.js)
+        self.assertIn("speakerSuggestions:emptySpeakerSuggestionState()", self.js)
+        self.assertIn("openDetails:{}", self.js)
+        self.assertIn("mergeBookVoiceRegistryState", self.js)
+        self.assertIn("captureRegistryUiSnapshot", self.js)
+        self.assertIn("restoreRegistryUiSnapshot", self.js)
+        self.assertIn("pruneRegistryLocalState", self.js)
+        self.assertIn("data-registry-detail", self.js)
+        self.assertIn("rememberRegistryDetailState", self.js)
+        self.assertIn("state.bookVoiceRegistry=mergeBookVoiceRegistryState", self.js)
+        self.assertNotIn(
+            "state.bookVoiceRegistry={status:'ready',loading:false,error:null,result,scopeKey,requestId}",
+            self.js,
+        )
+
+    def test_gemini_speaker_review_workspace_is_draft_only(self) -> None:
+        section = self.js[
+            self.js.index("function speakerSuggestionScopeKey"):
+            self.js.index("function clearRegistryDraft")
+        ]
+        self.assertIn("/api/production/speaker-review-suggestions", section)
+        self.assertIn("GENERATE_SPEAKER_SUGGESTIONS", section)
+        self.assertIn("DEFER_SPEAKER_SUGGESTION", section)
+        self.assertIn("EDIT_AND_ACCEPT_SPEAKER_SUGGESTION", section)
+        self.assertIn("APPROVE_SPEAKER_REVIEW_BATCH", section)
+        self.assertIn("data-speaker-suggestion-filter", section)
+        self.assertIn("data-speaker-suggestion-resolution", section)
+        self.assertIn("data-speaker-suggestion-character", section)
+        self.assertIn("data-speaker-suggestion-voice", section)
+        self.assertIn("Phân tích người nói bằng Gemini", section)
+        self.assertIn("Gemini chỉ tạo đề xuất", section)
+        self.assertNotIn("commandType:'PREPARE'", section)
+        self.assertNotIn("commandType:'START_RENDER'", section)
+
 
 if __name__ == "__main__":
     unittest.main()

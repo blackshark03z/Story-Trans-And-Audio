@@ -152,6 +152,7 @@ try {
 
   const unresolvedNew = "unresolved-dialogue:1002:u0002-deadbeef0000";
   const unresolvedExisting = "unresolved-dialogue:1003:u0002-feedface0000";
+  const unresolvedThird = "unresolved-dialogue:1004:u0002-cafebabe0000";
 
   await send("Runtime.enable");
   await send("Page.enable");
@@ -160,6 +161,62 @@ try {
   await waitFor(`window.storyAudioAppState && document.querySelector("#assignmentRows")`);
   await waitMapReady(unresolvedNew);
   await installCommandRecorder([]);
+
+  const detailSelectors = [unresolvedNew, unresolvedExisting, unresolvedThird].map(key => attr("data-registry-detail", key));
+  for (const selector of detailSelectors) {
+    await click(`${selector} > summary`);
+  }
+  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedNew))})?.open && document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedExisting))})?.open && document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedThird))})?.open`);
+
+  const openBeforeRefresh = await evaluate(`(() => ({
+    newRow: document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedNew))})?.open || false,
+    existingRow: document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedExisting))})?.open || false,
+    thirdRow: document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedThird))})?.open || false,
+  }))()`);
+  await evaluate(`loadBookVoiceRegistry({force:true})`);
+  await waitFor(`window.storyAudioAppState.bookVoiceRegistry?.status === "ready"`);
+  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedNew))})?.open && document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedExisting))})?.open && document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedThird))})?.open`);
+
+  await setInput(attr("data-registry-new-character", unresolvedNew), "Gate Captain");
+  await setInput(attr("data-registry-alias-key", unresolvedNew), "front gate voice");
+  await setInput(attr("data-registry-new-character", unresolvedExisting), "Existing Commander");
+  await setInput(attr("data-registry-alias-key", unresolvedExisting), "red command voice");
+  await setInput(attr("data-registry-new-character", unresolvedThird), "Scout Caller");
+  await setInput(attr("data-registry-alias-key", unresolvedThird), "outer scout voice");
+  await setSelect(attr("data-registry-character-key", unresolvedThird), "25");
+
+  const draftsBeforeRefresh = await evaluate(`(() => ({
+    newRow: document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedNew))})?.value || "",
+    existingRow: document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedExisting))})?.value || "",
+    thirdRow: document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedThird))})?.value || "",
+  }))()`);
+  await evaluate(`loadBookVoiceRegistry({force:true})`);
+  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedNew))})?.value === "Gate Captain"`);
+  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedExisting))})?.value === "Existing Commander"`);
+  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedThird))})?.value === "Scout Caller"`);
+  const draftsAfterRefresh = await evaluate(`(() => ({
+    newRow: document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedNew))})?.value || "",
+    existingRow: document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedExisting))})?.value || "",
+    thirdRow: document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedThird))})?.value || "",
+  }))()`);
+
+  const generateButtonEnabled = await evaluate(`!document.querySelector('[data-generate-speaker-suggestions]')?.disabled`);
+  if (generateButtonEnabled) {
+    await click('[data-generate-speaker-suggestions]');
+  } else {
+    await evaluate(`generateSpeakerSuggestions(false)`);
+  }
+  await waitFor(`document.querySelector('[data-speaker-suggestion-card]') && document.querySelector('[data-speaker-suggestion-card]').innerText.includes("Existing Commander")`, 15000);
+  const suggestionVisible = await evaluate(`(() => {
+    const card = document.querySelector('[data-speaker-suggestion-card]');
+    return !!card && card.innerText.includes('Existing Commander') && card.innerText.includes('Giọng kế thừa');
+  })()`);
+  await click(`${attr("data-registry-map", unresolvedThird)}`);
+  await waitFor(`!document.querySelector(${JSON.stringify(attr("data-registry-map", unresolvedThird))})`);
+  const thirdRowRemoved = await evaluate(`(() => {
+    const third = document.querySelector(${JSON.stringify(attr("data-registry-editor", unresolvedThird))});
+    return !third && !!document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedNew))})?.open && !!document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedExisting))})?.open;
+  })()`);
 
   const exactState = await evaluate(`(() => {
     const body = document.querySelector("#assignmentRows")?.innerText || "";
@@ -231,6 +288,11 @@ try {
     ok: true,
     exactUrlHasRealRows,
     sampleVisible,
+    openBeforeRefresh,
+    draftsBeforeRefresh,
+    draftsAfterRefresh,
+    suggestionVisible,
+    thirdRowRemoved,
     newCharacterMapped,
     existingCharacterMapped,
     voiceAssigned,

@@ -6,6 +6,7 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from story_audio.production_commands import ProductionCommandMutation
+from story_audio.speaker_review_suggestions import SpeakerReviewSuggestionError
 from tests.base import IsolatedTestCase
 
 
@@ -294,6 +295,127 @@ class ProductionCommandApiTests(IsolatedTestCase):
         self.assertEqual(map_speaker.call_args.kwargs["from_chapter"], 2)
         self.assertEqual(map_speaker.call_args.kwargs["to_chapter"], 4)
         self.assertEqual(map_speaker.call_args.kwargs["idempotency_key"], "map-speaker-character-0001")
+
+    def test_generate_speaker_suggestions_uses_common_command_envelope(self) -> None:
+        command = {
+            "command_type": "GENERATE_SPEAKER_SUGGESTIONS",
+            "idempotency_key": "speaker-review-analysis-0001",
+            "scope": {
+                "range": {
+                    "book_id": 1,
+                    "from_chapter": 2,
+                    "to_chapter": 10,
+                    "skip_completed": True,
+                }
+            },
+            "payload": {
+                "book_id": 1,
+                "from_chapter": 2,
+                "to_chapter": 10,
+                "skip_completed": True,
+                "unresolved_keys": ["unresolved-dialogue:1:u0002-a"],
+                "expected_input_fingerprint": "abc123",
+            },
+        }
+        analysis = {
+            "analysis_run_id": "gsr-abc",
+            "input_fingerprint": "abc123",
+            "target_count": 1,
+            "chunk_count": 1,
+            "request_count": 1,
+            "cache_hit_count": 0,
+            "cache_miss_count": 1,
+            "reused": False,
+            "summary": {"high_confidence": 1},
+        }
+
+        with (
+            patch("story_audio.api._project_production_command", self.projection),
+            patch(
+                "story_audio.api._speaker_review_command_context",
+                return_value=(
+                    {
+                        "book_id": 1,
+                        "from_chapter": 2,
+                        "to_chapter": 10,
+                        "skip_completed": True,
+                    },
+                    object(),
+                    None,
+                    {"rows": []},
+                ),
+            ) as context,
+            patch(
+                "story_audio.api.generate_speaker_review_suggestions",
+                return_value=analysis,
+            ) as generate,
+        ):
+            response = self.client.post("/api/production/commands", json=command)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result["outcome"], "APPLIED")
+        self.assertEqual(result["applied_items"][0]["analysis_run_id"], "gsr-abc")
+        self.assertEqual(result["applied_items"][0]["request_count"], 1)
+        context.assert_called_once()
+        generate.assert_called_once()
+        self.assertEqual(
+            generate.call_args.kwargs["unresolved_keys"],
+            ["unresolved-dialogue:1:u0002-a"],
+        )
+        self.assertEqual(generate.call_args.kwargs["expected_input_fingerprint"], "abc123")
+
+    def test_speaker_suggestion_stale_scope_returns_rejected_envelope(self) -> None:
+        command = {
+            "command_type": "GENERATE_SPEAKER_SUGGESTIONS",
+            "idempotency_key": "speaker-review-stale-0001",
+            "scope": {
+                "range": {
+                    "book_id": 1,
+                    "from_chapter": 2,
+                    "to_chapter": 10,
+                    "skip_completed": True,
+                }
+            },
+            "payload": {
+                "book_id": 1,
+                "from_chapter": 2,
+                "to_chapter": 10,
+                "skip_completed": True,
+                "unresolved_keys": ["unresolved-dialogue:1:u0002-a"],
+                "expected_input_fingerprint": "old",
+            },
+        }
+
+        with (
+            patch("story_audio.api._project_production_command", self.projection),
+            patch(
+                "story_audio.api._speaker_review_command_context",
+                return_value=(
+                    {
+                        "book_id": 1,
+                        "from_chapter": 2,
+                        "to_chapter": 10,
+                        "skip_completed": True,
+                    },
+                    object(),
+                    None,
+                    {"rows": []},
+                ),
+            ),
+            patch(
+                "story_audio.api.generate_speaker_review_suggestions",
+                side_effect=SpeakerReviewSuggestionError(
+                    "Speaker suggestion input is stale"
+                ),
+            ),
+        ):
+            response = self.client.post("/api/production/commands", json=command)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result["outcome"], "REJECTED")
+        self.assertIn("stale", result["operator_message"])
 
 
 if __name__ == "__main__":

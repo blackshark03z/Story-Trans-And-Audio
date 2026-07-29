@@ -91,7 +91,7 @@ from .diagnostics import (
 )
 from .human_approval import resolve_authoritative_human_approval
 from .epub import import_epub
-from .gemini import GeminiSpeakerAssignmentError
+from .gemini import GeminiSpeakerAssignmentError, GeminiSpeakerReviewSuggestionError
 from .pipeline import (
     JOB_PREPARED_STATUS,
     JobPreparationConflict,
@@ -138,6 +138,14 @@ from .speaker_review import (
     get_speaker_review_draft,
     list_speaker_review_drafts,
     review_speaker_assignment_row,
+)
+from .speaker_review_suggestions import (
+    SpeakerReviewSuggestionError,
+    accept_speaker_review_suggestion,
+    approve_high_confidence_suggestions,
+    generate_speaker_review_suggestions,
+    get_speaker_review_queue,
+    record_speaker_suggestion_decision,
 )
 from .tts import tts_service
 from .text_correction import (
@@ -1033,6 +1041,49 @@ def production_book_voice_registry(
         raise HTTPException(400, str(exc)) from exc
 
 
+@app.get("/api/production/speaker-review-suggestions")
+def production_speaker_review_suggestions(
+    book_id: int = Query(..., gt=0),
+    from_chapter: int = Query(..., ge=0),
+    to_chapter: int = Query(..., ge=0),
+    skip_completed: bool = Query(True),
+) -> dict[str, Any]:
+    """Return the AI speaker-suggestion queue for the selected range."""
+
+    try:
+        voice_catalog = _load_voice_catalog()
+        custom_voice_context = _build_custom_voice_context()
+        registry = get_book_voice_registry(
+            db,
+            store,
+            settings,
+            book_id=book_id,
+            from_chapter=from_chapter,
+            to_chapter=to_chapter,
+            skip_completed=skip_completed,
+            voice_catalog=voice_catalog,
+            custom_voice_context=custom_voice_context,
+        )
+        return get_speaker_review_queue(
+            db,
+            store,
+            settings,
+            book_id=book_id,
+            from_chapter=from_chapter,
+            to_chapter=to_chapter,
+            skip_completed=skip_completed,
+            registry=registry,
+            voice_catalog=voice_catalog,
+            custom_voice_context=custom_voice_context,
+        )
+    except VoiceCatalogUnavailable as exc:
+        raise _job_http_error(exc) from exc
+    except LookupError as exc:
+        raise HTTPException(404, str(exc)) from exc
+    except (BookVoiceRegistryError, SpeakerReviewSuggestionError, ValueError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+
 def _production_command_range(scope: dict[str, Any]) -> dict[str, Any]:
     range_scope = scope.get("range")
     if isinstance(range_scope, dict):
@@ -1103,6 +1154,62 @@ def _production_command_range(scope: dict[str, Any]) -> dict[str, Any]:
         "to_chapter": int(row["chapter_number"]),
         "skip_completed": False,
     }
+
+
+def _speaker_review_unresolved_keys(
+    payload: dict[str, Any],
+    *,
+    required: bool = False,
+    single: bool = False,
+) -> list[str]:
+    raw = payload.get("unresolved_keys")
+    if single:
+        key = str(payload.get("unresolved_key") or "").strip()
+        if not key:
+            raise ProductionCommandError("unresolved_key is required")
+        return [key]
+    if not isinstance(raw, list):
+        if required:
+            raise ProductionCommandError("unresolved_keys is required")
+        return []
+    keys = [str(item).strip() for item in raw if str(item).strip()]
+    if required and not keys:
+        raise ProductionCommandError("unresolved_keys is required")
+    if len(keys) != len(set(keys)):
+        raise ProductionCommandError("unresolved_keys contains duplicates")
+    return keys
+
+
+def _speaker_review_command_context(
+    payload: dict[str, Any],
+    scope: dict[str, Any],
+) -> tuple[dict[str, Any], Any, Any, dict[str, Any]]:
+    command_range = _production_command_range(scope)
+    expected = {
+        "book_id": int(command_range["book_id"]),
+        "from_chapter": int(command_range["from_chapter"]),
+        "to_chapter": int(command_range["to_chapter"]),
+        "skip_completed": bool(command_range.get("skip_completed", True)),
+    }
+    for field in ("book_id", "from_chapter", "to_chapter"):
+        if field in payload and int(payload[field]) != expected[field]:
+            raise ProductionCommandError("Speaker review payload does not match command scope")
+    if "skip_completed" in payload and bool(payload["skip_completed"]) != expected["skip_completed"]:
+        raise ProductionCommandError("Speaker review skip_completed does not match command scope")
+    voice_catalog = _load_voice_catalog()
+    custom_voice_context = _build_custom_voice_context()
+    registry = get_book_voice_registry(
+        db,
+        store,
+        settings,
+        book_id=expected["book_id"],
+        from_chapter=expected["from_chapter"],
+        to_chapter=expected["to_chapter"],
+        skip_completed=expected["skip_completed"],
+        voice_catalog=voice_catalog,
+        custom_voice_context=custom_voice_context,
+    )
+    return expected, voice_catalog, custom_voice_context, registry
 
 
 def _project_production_command(
@@ -1206,6 +1313,161 @@ def _production_command_executor(
                 result,
                 submitted_count=len(parsed.chapters),
                 complete_message=f"Đã duyệt {len(result.get('results') or [])}/{len(parsed.chapters)} bản đồ giọng.",
+            )
+        if command_type in {"GENERATE_SPEAKER_SUGGESTIONS", "REGENERATE_SPEAKER_SUGGESTION"}:
+            command_range, voice_catalog, custom_context, registry = _speaker_review_command_context(
+                payload,
+                scope,
+            )
+            unresolved_keys = _speaker_review_unresolved_keys(
+                payload,
+                required=True,
+                single=command_type == "REGENERATE_SPEAKER_SUGGESTION",
+            )
+            result = generate_speaker_review_suggestions(
+                db,
+                store,
+                settings,
+                **command_range,
+                registry=registry,
+                voice_catalog=voice_catalog,
+                custom_voice_context=custom_context,
+                unresolved_keys=unresolved_keys,
+                force_refresh=(
+                    command_type == "REGENERATE_SPEAKER_SUGGESTION"
+                    or bool(payload.get("force_refresh", False))
+                ),
+                expected_input_fingerprint=payload.get("expected_input_fingerprint"),
+                idempotency_key=request.idempotency_key,
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=max(1, int(result.get("target_count") or 0)),
+                applied_items=(
+                    {
+                        "type": "speaker_review_analysis",
+                        "analysis_run_id": result.get("analysis_run_id"),
+                        "input_fingerprint": result.get("input_fingerprint"),
+                        "target_count": int(result.get("target_count") or 0),
+                        "chunk_count": int(result.get("chunk_count") or 0),
+                        "request_count": int(result.get("request_count") or 0),
+                        "cache_hit_count": int(result.get("cache_hit_count") or 0),
+                        "cache_miss_count": int(result.get("cache_miss_count") or 0),
+                        "reused": bool(result.get("reused")),
+                        "summary": dict(result.get("summary") or {}),
+                    },
+                ),
+                operator_message=(
+                    "Đã tạo đề xuất Gemini để con người duyệt; chưa áp dụng mapping, "
+                    "chưa tạo job và chưa render."
+                ),
+            )
+        if command_type == "DEFER_SPEAKER_SUGGESTION":
+            command_range, _voice_catalog, _custom_context, _registry = _speaker_review_command_context(
+                payload,
+                scope,
+            )
+            del command_range
+            analysis_run_id = str(payload.get("analysis_run_id") or "").strip()
+            unresolved_key = _speaker_review_unresolved_keys(payload, single=True)[0]
+            if not analysis_run_id:
+                raise ProductionCommandError("analysis_run_id is required")
+            result = record_speaker_suggestion_decision(
+                db,
+                store,
+                analysis_run_id=analysis_run_id,
+                unresolved_key=unresolved_key,
+                decision="DEFERRED",
+                reviewer_payload=dict(payload.get("reviewer_payload") or {}),
+                idempotency_key=request.idempotency_key,
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=(
+                    {
+                        "type": "speaker_review_decision",
+                        "analysis_run_id": analysis_run_id,
+                        "unresolved_key": unresolved_key,
+                        "decision": result.get("decision", {}).get("decision", "DEFERRED"),
+                        "reused": bool(result.get("reused")),
+                    },
+                ),
+                operator_message="Đã đánh dấu đề xuất này để xử lý sau.",
+            )
+        if command_type in {"ACCEPT_SPEAKER_SUGGESTION", "EDIT_AND_ACCEPT_SPEAKER_SUGGESTION"}:
+            command_range, voice_catalog, custom_context, _registry = _speaker_review_command_context(
+                payload,
+                scope,
+            )
+            analysis_run_id = str(payload.get("analysis_run_id") or "").strip()
+            unresolved_key = _speaker_review_unresolved_keys(payload, single=True)[0]
+            if not analysis_run_id:
+                raise ProductionCommandError("analysis_run_id is required")
+            result = accept_speaker_review_suggestion(
+                db,
+                store,
+                settings,
+                **command_range,
+                analysis_run_id=analysis_run_id,
+                unresolved_key=unresolved_key,
+                reviewer_payload=dict(payload.get("reviewer_payload") or {}),
+                voice_catalog=voice_catalog,
+                custom_voice_context=custom_context,
+                idempotency_key=request.idempotency_key,
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=(
+                    {
+                        "type": "speaker_review_acceptance",
+                        "analysis_run_id": analysis_run_id,
+                        "unresolved_key": unresolved_key,
+                        "applied": result.get("applied"),
+                        "review": result.get("review"),
+                    },
+                ),
+                operator_message=(
+                    "Đã áp dụng quyết định người nói cho lần PREPARE/render tiếp theo. "
+                    "Audio hiện tại không bị thay đổi."
+                ),
+            )
+        if command_type == "APPROVE_SPEAKER_REVIEW_BATCH":
+            command_range, voice_catalog, custom_context, _registry = _speaker_review_command_context(
+                payload,
+                scope,
+            )
+            analysis_run_id = str(payload.get("analysis_run_id") or "").strip()
+            if not analysis_run_id:
+                raise ProductionCommandError("analysis_run_id is required")
+            unresolved_keys = _speaker_review_unresolved_keys(payload, required=True)
+            result = approve_high_confidence_suggestions(
+                db,
+                store,
+                settings,
+                **command_range,
+                analysis_run_id=analysis_run_id,
+                unresolved_keys=unresolved_keys,
+                voice_catalog=voice_catalog,
+                custom_voice_context=custom_context,
+                idempotency_key=request.idempotency_key,
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=int(result.get("submitted_count") or len(unresolved_keys)),
+                applied_items=tuple(
+                    {
+                        "type": "speaker_review_batch_acceptance",
+                        "analysis_run_id": analysis_run_id,
+                        "unresolved_key": key,
+                    }
+                    for key in unresolved_keys
+                ),
+                operator_message=(
+                    "Đã duyệt các đề xuất tin cậy cao được chọn. "
+                    "Không có PREPARE hoặc render tự động."
+                ),
             )
         if command_type == "CREATE_SPEAKER_PROPOSAL":
             chapter_id = int(payload.pop("chapter_id"))
@@ -2136,7 +2398,9 @@ def execute_production_command(
         RangeInputError,
         RetryConflict,
         SpeakerAssignmentError,
+        GeminiSpeakerReviewSuggestionError,
         SpeakerReviewError,
+        SpeakerReviewSuggestionError,
         ValueError,
         ValidationError,
         VoiceEligibilityBlocked,
