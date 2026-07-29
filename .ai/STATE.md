@@ -1,6 +1,6 @@
 # DAILY-PROD Checkpoint State
 
-Updated: 2026-07-28
+Updated: 2026-07-29
 
 ## Book-Centric Golden Journey
 
@@ -18,6 +18,31 @@ Updated: 2026-07-28
   journey in the real runtime.
 
 ## Current Phase
+
+### Chapter/Range Voice Overrides
+
+- Assignment registry rows are editable for narrator, named characters, and
+  stable unknown speakers. Operators can save a book default, apply one-chapter
+  overrides, apply exact selected-range overrides, or clear chapter/range
+  overrides without leaving the current URL working context.
+- Durable chapter/range overrides reuse existing Casting Plan revision
+  semantics instead of adding schema `16`: each affected chapter receives a new
+  approved immutable plan revision, while the previous approved plan is archived
+  and remains historical evidence for existing Jobs/Artifacts/audio.
+- Effective voice precedence is chapter Casting Plan override, then
+  book/character saved default, then existing supported fallback, then
+  unresolved blocker. Clearing an override restores inheritance only for the
+  selected speaker and selected chapters.
+- The frontend keeps row-level draft selections and errors on failed saves,
+  disables duplicate submission, refreshes the Book Voice Registry and
+  Production projection after success, and includes the current registry
+  fingerprint in command identity to prevent stale idempotency replay after
+  state changes.
+- Feature-specific certification uses isolated data only. It covers the
+  reproduced `#/assignment?book=1&from=1&to=10&skip_completed=1` URL,
+  one-chapter narrator override, range narrator override, character range
+  override, clear, mixed state, unknown speaker, unavailable voice blocking,
+  refresh persistence, and no PREPARE/START_RENDER command.
 
 ### Lean Production Preflight Review
 

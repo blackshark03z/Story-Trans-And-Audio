@@ -37,6 +37,10 @@ from .character_bible import (
     parse_character_bible,
     plan_character_bible_import,
 )
+from .chapter_voice_overrides import (
+    ChapterVoiceOverrideError,
+    apply_chapter_voice_override,
+)
 from .active_output import annotate_chapter_rows, annotate_job_rows, get_active_output_bindings
 from .batch_plan import build_batch_plan
 from .batch_prepare_clone_api import (
@@ -1256,6 +1260,116 @@ def _production_command_executor(
                 },),
                 operator_message="Đã lưu giọng hiệu lực cho nhân vật.",
             )
+        if command_type == "SET_BOOK_VOICE_DEFAULT":
+            command_range = _production_command_range(scope)
+            book_id = int(payload.get("book_id") or command_range["book_id"])
+            speaker_key = str(payload["speaker_key"]).strip()
+            voice_id = str(payload["voice_id"]).strip()
+            if not voice_id:
+                raise ProductionCommandError("A selectable voice is required")
+            if speaker_key in {"narrator", "unknown"}:
+                profile = get_book_voice_profile(db, book_id)
+                if not profile:
+                    raise ProductionCommandError("Book Voice Profile is missing")
+                profile_payload = {
+                    "narrator_voice_id": (
+                        voice_id if speaker_key == "narrator" else profile["narrator_voice_id"]
+                    ),
+                    "male_dialogue_voice_id": profile["male_dialogue_voice_id"],
+                    "female_dialogue_voice_id": profile["female_dialogue_voice_id"],
+                    "unknown_fallback": (
+                        "explicit_voice" if speaker_key == "unknown" else profile["unknown_fallback"]
+                    ),
+                    "unknown_voice_id": (
+                        voice_id if speaker_key == "unknown" else profile["unknown_voice_id"]
+                    ),
+                }
+                result = write_book_voice_profile(
+                    book_id,
+                    BookVoiceProfileRequest.model_validate(profile_payload),
+                )
+                applied = {
+                    "type": "book_voice_profile",
+                    "book_id": book_id,
+                    "speaker_key": speaker_key,
+                    "voice_id": voice_id,
+                    "config_version": result.get("config_version"),
+                }
+            elif speaker_key.startswith("character:"):
+                character_id = int(payload.get("character_id") or speaker_key.split(":", 1)[1])
+                result = write_character_voice_override(
+                    character_id,
+                    CharacterOverrideRequest.model_validate(
+                        {
+                            "gender": payload.get("gender"),
+                            "voice_override_id": voice_id,
+                        }
+                    ),
+                )
+                applied = {
+                    "type": "character_voice",
+                    "book_id": book_id,
+                    "character_id": character_id,
+                    "speaker_key": speaker_key,
+                    "voice_id": result.get("voice_override_id"),
+                }
+            else:
+                raise ProductionCommandError("Unsupported speaker key")
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=(applied,),
+                operator_message=(
+                    "Da luu mac dinh giong cho sach. "
+                    "Audio va Job da co khong bi thay doi."
+                ),
+            )
+        if command_type in {
+            "SET_CHAPTER_VOICE_OVERRIDE",
+            "SET_RANGE_VOICE_OVERRIDE",
+            "CLEAR_CHAPTER_VOICE_OVERRIDE",
+            "CLEAR_RANGE_VOICE_OVERRIDE",
+        }:
+            command_range = _production_command_range(scope)
+            is_clear = command_type.startswith("CLEAR_")
+            is_chapter = "_CHAPTER_" in command_type
+            if is_chapter and command_range["from_chapter"] != command_range["to_chapter"]:
+                raise ProductionCommandError("Chapter voice override requires a one-chapter scope")
+            voice_id = None if is_clear else str(payload.get("voice_id") or "").strip()
+            if not is_clear and not voice_id:
+                raise ProductionCommandError("A selectable voice is required")
+            result = apply_chapter_voice_override(
+                db,
+                store,
+                book_id=int(payload.get("book_id") or command_range["book_id"]),
+                from_chapter=int(command_range["from_chapter"]),
+                to_chapter=int(command_range["to_chapter"]),
+                speaker_key=str(payload["speaker_key"]).strip(),
+                operation="clear" if is_clear else "set",
+                voice_id=voice_id,
+                voice_catalog=_load_voice_catalog(),
+                idempotency_key=request.idempotency_key,
+                custom_voice_context=_build_custom_voice_context(),
+            )
+            applied_items = tuple(
+                {
+                    **dict(item),
+                    "speaker_key": result["speaker_key"],
+                    "voice_id": result.get("voice_id"),
+                    "operation": result["operation"],
+                }
+                for item in result.get("applied") or []
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=max(1, int(result.get("chapter_count") or 0)),
+                applied_items=applied_items,
+                operator_message=(
+                    "Da go ghi de giong cho pham vi da chon."
+                    if is_clear
+                    else "Da ap dung giong cho pham vi da chon."
+                ),
+            )
         if command_type == "SAVE_VOICE_ASSIGNMENTS":
             book_id = int(payload["book_id"])
             profile_request = BookVoiceProfileRequest.model_validate(payload["profile"])
@@ -1847,6 +1961,7 @@ def execute_production_command(
         message = str(exc)
     except (
         CastingError,
+        ChapterVoiceOverrideError,
         JobPreparationConflict,
         JobStartConflict,
         LookupError,

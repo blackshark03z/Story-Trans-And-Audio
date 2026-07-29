@@ -4,6 +4,31 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Chapter and Range Voice Overrides
+
+- Added Assignment-page controls for narrator, named character, and stable
+  unknown-speaker voice changes at book-default, one-chapter, or exact selected
+  range scope.
+- Represent chapter/range overrides as new immutable approved
+  `CastingPlanRevision` rows for each exact chapter, archiving the previous
+  approved plan while preserving historical Jobs, Artifacts, accepted audio,
+  Text Revisions, and existing plan/job snapshots.
+- Added `SET_BOOK_VOICE_DEFAULT`, `SET_CHAPTER_VOICE_OVERRIDE`,
+  `SET_RANGE_VOICE_OVERRIDE`, `CLEAR_CHAPTER_VOICE_OVERRIDE`, and
+  `CLEAR_RANGE_VOICE_OVERRIDE` through the shared Production command
+  coordinator. Range writes are transactional and replay-safe; the frontend
+  includes the current registry fingerprint so a later apply after a clear does
+  not reuse a stale idempotency key.
+- The effective voice order is now explicit: deliberate chapter Casting Plan
+  override, then book/character saved default, then supported fallback, then
+  unresolved blocker. Clearing an override creates a new plan revision that
+  restores inheritance for only the selected chapters/speaker.
+- Added focused registry/command tests plus a real-browser Assignment smoke for
+  the reproduced `#/assignment?book=1&from=1&to=10&skip_completed=1` URL,
+  one-chapter narrator override, range narrator override, character range
+  override, clear, mixed state, unknown speaker, unavailable voice blocking,
+  refresh persistence, and no PREPARE/START_RENDER command.
+
 ### Lean Production Preflight Review
 
 - Added deterministic read-only `GET /api/production/preflight` projection for

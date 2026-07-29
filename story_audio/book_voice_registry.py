@@ -427,10 +427,13 @@ def _row_to_payload(
         saved_voice_id = str(profile.get("narrator_voice_id") or "") or None
     elif row.character:
         saved_voice_id = str(row.character.get("voice_override_id") or "") or None
+    elif row.role == "unknown":
+        saved_voice_id = base_voice_id
 
     effective_voice = _voice_payload(effective_voice_id, catalog=catalog, index=index)
     saved_voice = _voice_payload(saved_voice_id, catalog=catalog, index=index)
     base_voice = _voice_payload(base_voice_id, catalog=catalog, index=index)
+    book_default_voice = saved_voice or base_voice
     status = _row_status(
         row,
         base_voice_id=base_voice_id,
@@ -460,6 +463,28 @@ def _row_to_payload(
         effective_voice_id=base_voice_id,
         range_size=range_size,
     )
+    chapter_voice_details = []
+    for voice in sorted(row.plan_voice_chapters):
+        for chapter_number in sorted(row.plan_voice_chapters.get(voice) or []):
+            voice_payload = _voice_payload(voice, catalog=catalog, index=index)
+            override_voice = (
+                voice_payload
+                if base_voice_id and voice != base_voice_id
+                else None
+            )
+            chapter_voice_details.append(
+                {
+                    "chapter_number": chapter_number,
+                    "inherited_voice": base_voice,
+                    "chapter_override_voice": override_voice,
+                    "effective_voice": voice_payload or base_voice,
+                    "assignment_source": (
+                        "chapter override"
+                        if override_voice
+                        else "book default" if row.role == "narrator" else "inherited"
+                    ),
+                }
+            )
     return {
         "speaker_key": row.speaker_key,
         "character_id": row.character_id,
@@ -474,12 +499,13 @@ def _row_to_payload(
         "chapter_range_label": _chapter_range_label(sorted(row.chapter_numbers)),
         "line_count": int(row.line_count),
         "first_appearance": row.first_appearance,
-        "current_book_default_voice": saved_voice,
+        "current_book_default_voice": book_default_voice,
         "saved_voice": saved_voice,
         "base_resolved_voice": base_voice,
         "range_override_voice": plan_override_voice if range_size > 1 else None,
         "chapter_override_voice": plan_override_voice if range_size == 1 else None,
         "conflict_voices": conflict_voices,
+        "chapter_voice_details": chapter_voice_details,
         "effective_voice": effective_voice,
         "effective_voice_display_name": _voice_name(effective_voice),
         "voice_available": bool(effective_voice and effective_voice["available"]),
@@ -494,8 +520,8 @@ def _row_to_payload(
             "reviewed_at": row.last_reviewed_at,
         },
         "actions": {
-            "can_save_book_default": row.character_id is not None,
-            "can_create_range_or_chapter_override": row.character_id is not None,
+            "can_save_book_default": row.role in {"narrator", "unknown"} or row.character_id is not None,
+            "can_create_range_or_chapter_override": row.role in {"narrator", "unknown"} or row.character_id is not None,
             "can_remove_override": bool(plan_override_voice),
             "can_preview_effective_voice": bool(effective_voice and effective_voice.get("preview_url")),
         },
@@ -631,7 +657,7 @@ def get_book_voice_registry(
         "persistence": {
             "migration_required": False,
             "uses_existing_model": True,
-            "model": "book_voice_profiles + characters.voice_override_id",
+            "model": "book_voice_profiles + characters.voice_override_id + casting_plan_revisions",
             "book_profile_config_version": int(profile["config_version"]) if profile else None,
         },
         "voice_catalog": {

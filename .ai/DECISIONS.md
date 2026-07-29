@@ -1,6 +1,23 @@
 # Continuity Decisions
 
-Updated: 2026-07-23
+Updated: 2026-07-29
+
+## CONT-024 - Chapter/range voice overrides use approved Casting Plan revisions
+
+Chapter/range voice overrides are durable future-render inputs, not UI-only
+state and not a new hidden range rule. The system represents each selected
+chapter override by creating a new immutable approved `CastingPlanRevision`,
+archiving the prior approved plan for that chapter, and preserving every
+existing Job, Artifact, accepted audio output, Text Revision, and historical
+snapshot.
+
+Effective voice precedence for newly prepared/rendered work is:
+chapter Casting Plan override, then book/character saved default, then existing
+supported fallback, then unresolved blocker. Clearing an override creates a new
+approved plan revision that removes only the selected speaker override and
+restores inheritance. Range writes must be exact, transactional, idempotent, and
+must include current registry state in the command identity so a later apply
+after a clear cannot replay a stale success response.
 
 ## CONT-023 - Bounded production tasks have standing Gemini and TTS cost approval
 

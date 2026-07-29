@@ -1,13 +1,13 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-28 (Asia/Saigon)
-**Milestone:** DAILY-PROD-6 Lean Production Preflight Accepted - Human Audio QA Pending
-**Strategic state:** `DAILY_USE_V1_PREFLIGHT_ACCEPTED`
-**Trạng thái hiện tại:** The routine workflow now combines the canonical Task Projection with one read-only Production Preflight review. The operator can see range readiness, exact blockers, effective display-name voice routing, PREPARE contents, authorization state, and one valid next action on one screen. Legacy batch panels are hidden and inert; technical IDs remain collapsed. Job `26` and active Artifacts `93/96` remain intact and both outputs remain Human QA `pending`.
+**Cập nhật:** 2026-07-29 (Asia/Saigon)
+**Milestone:** DAILY-PROD-6 Lean Production Preflight Accepted - Voice Override Editing Implemented
+**Strategic state:** `DAILY_USE_V1_VOICE_OVERRIDE_READY`
+**Trạng thái hiện tại:** The routine workflow combines canonical Task Projection, read-only Production Preflight, and editable Assignment registry rows. Operators can change narrator, character, or stable unknown-speaker voices for a book default, one chapter, or an exact selected range without losing scope. Chapter/range changes create immutable approved Casting Plan revisions for the selected chapters only; historical Jobs, Artifacts, accepted audio, Text Revisions, and rendered snapshots remain unchanged.
 
-**Last verified implementation starting baseline:** `cb6b4e20d0e4775b835502a11f4484e8450b9467`
+**Last verified implementation starting baseline:** `d61df876c18c82083b28f5aa66923338ed311971`
 **Last verified branch:** `main`
-**Last verified date:** 2026-07-28
+**Last verified date:** 2026-07-29
 **Canonical runtime:** `http://127.0.0.1:8772`
 **Runtime schema:** canonical `15`
 **Default/latest schema:** `15`
@@ -15,7 +15,7 @@
 **DAILY-PROD-5A:** complete
 **DAILY-PROD-5B:** complete and production-proven
 **DAILY-PROD-5:** complete
-**DAILY-PROD-6:** task projection accepted; Human Audio QA pending
+**DAILY-PROD-6:** task projection and preflight accepted; voice override editing implemented
 **Task projection:** read-only backend projection implemented and fully validated
 **Production preflight:** read-only range review implemented and browser accepted
 **Production authorization:** `AUTHENTICATED_LOCAL_PREPARE_AND_EXPLICIT_START`
@@ -25,6 +25,25 @@
 **DAILY-PROD-4:** complete
 **DAILY-PROD-3A:** complete
 **DAILY-PROD-3:** complete
+
+**Chapter and range voice overrides:**
+- Effective voice precedence for future PREPARE/render is deliberate chapter
+  Casting Plan override, then book/character saved default, then existing
+  supported fallback, then unresolved blocker.
+- `POST /api/production/commands` now supports `SET_BOOK_VOICE_DEFAULT`,
+  `SET_CHAPTER_VOICE_OVERRIDE`, `SET_RANGE_VOICE_OVERRIDE`,
+  `CLEAR_CHAPTER_VOICE_OVERRIDE`, and `CLEAR_RANGE_VOICE_OVERRIDE` through the
+  common command envelope.
+- Range writes are exact and transactional. Clearing an override restores
+  inheritance for only the selected speaker/chapter scope and preserves other
+  chapter speaker overrides.
+- The Assignment UI keeps unsaved row selections on failure, shows row-level
+  errors, disables duplicate submission, and warns that accepted audio is not
+  changed until a later explicit PREPARE/render.
+- Isolated real-browser certification covers the reproduced
+  `#/assignment?book=1&from=1&to=10&skip_completed=1` gap plus one-chapter,
+  range, character, unknown, clear, mixed, unavailable-voice, refresh, and
+  no-render command safety paths.
 
 **Lean Production Preflight:**
 - `GET /api/production/preflight` composes existing range readiness, task

@@ -174,6 +174,46 @@ class ProductionCommandApiTests(IsolatedTestCase):
         self.assertEqual(result["failed_items"][0]["character_id"], 12)
         self.assertIn("unavailable", result["failed_items"][0]["reason"])
 
+    def test_range_voice_override_uses_common_command_envelope(self) -> None:
+        command = {
+            "command_type": "SET_RANGE_VOICE_OVERRIDE",
+            "idempotency_key": "range-voice-override-0001",
+            "scope": {"range": {"book_id": 1, "from_chapter": 5, "to_chapter": 7}},
+            "payload": {
+                "book_id": 1,
+                "speaker_key": "narrator",
+                "voice_id": "male",
+            },
+        }
+        applied = {
+            "operation": "set",
+            "speaker_key": "narrator",
+            "voice_id": "male",
+            "chapter_count": 3,
+            "reused_count": 0,
+            "applied": [
+                {"chapter_id": 5, "chapter_number": 5, "casting_plan_id": 51, "plan_revision": 2, "reused": False},
+                {"chapter_id": 6, "chapter_number": 6, "casting_plan_id": 61, "plan_revision": 2, "reused": False},
+                {"chapter_id": 7, "chapter_number": 7, "casting_plan_id": 71, "plan_revision": 2, "reused": False},
+            ],
+        }
+
+        with (
+            patch("story_audio.api._project_production_command", self.projection),
+            patch("story_audio.api._load_voice_catalog", return_value=object()),
+            patch("story_audio.api.apply_chapter_voice_override", return_value=applied) as save,
+        ):
+            response = self.client.post("/api/production/commands", json=command)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result["outcome"], "APPLIED")
+        self.assertEqual(result["submitted_count"], 3)
+        self.assertEqual(result["applied_count"], 3)
+        self.assertEqual(result["applied_items"][0]["speaker_key"], "narrator")
+        save.assert_called_once()
+        self.assertEqual(save.call_args.kwargs["idempotency_key"], "range-voice-override-0001")
+
 
 if __name__ == "__main__":
     import unittest

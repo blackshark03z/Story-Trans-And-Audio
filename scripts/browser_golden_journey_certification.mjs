@@ -134,17 +134,28 @@ try {
   // Stage B: visible book-centric voice assignment and blocker clearance.
   await evaluate(`location.hash=${JSON.stringify(`#/assignment?book=${fixture.book_id}&from=${fixture.chapter_number}&to=${fixture.chapter_number}`)}`);
   await waitFor(`window.storyAudioAppState.currentRoute==="assignment"`);
-  await waitFor(`document.querySelector(${JSON.stringify(`#assignmentVoice-${fixture.character_id}`)})`);
+  const fixtureSpeakerKey = `character:${fixture.character_id}`;
+  const fixtureVoiceSelector = `[data-registry-voice-key="${fixtureSpeakerKey}"]`;
+  const fixtureScopeSelector = `[data-registry-scope-key="${fixtureSpeakerKey}"]`;
+  const fixtureApplySelector = `[data-registry-apply="${fixtureSpeakerKey}"]`;
+  await waitFor(`document.querySelector(${JSON.stringify(fixtureVoiceSelector)})`);
   const assignmentBefore = await evaluate(`document.querySelector("#assignmentRows")?.innerText || ""`);
-  await evaluate(`(() => { const select=document.querySelector(${JSON.stringify(`#assignmentVoice-${fixture.character_id}`)}); select.value="fixture_character"; select.dispatchEvent(new Event("change",{bubbles:true})); return true; })()`);
-  const saveSelector = `[data-book-registry-save="${fixture.character_id}"]`;
-  await click(saveSelector);
-  await click(saveSelector);
+  await evaluate(`(() => {
+    const scope=document.querySelector(${JSON.stringify(fixtureScopeSelector)});
+    const select=document.querySelector(${JSON.stringify(fixtureVoiceSelector)});
+    scope.value="book";
+    scope.dispatchEvent(new Event("change",{bubbles:true}));
+    select.value="fixture_character";
+    select.dispatchEvent(new Event("change",{bubbles:true}));
+    return true;
+  })()`);
+  await click(fixtureApplySelector);
+  await click(fixtureApplySelector);
   await waitFor(`!window.storyAudioAppState.productionCommand.active`, 20000);
-  await waitFor(`window.storyAudioAppState.bookVoiceRegistry?.loading===false&&document.querySelector(${JSON.stringify(`#assignmentVoice-${fixture.character_id}`)})`, 20000);
+  await waitFor(`window.storyAudioAppState.bookVoiceRegistry?.loading===false&&document.querySelector(${JSON.stringify(fixtureVoiceSelector)})`, 20000);
   await waitFor(`!document.querySelector("#assignmentRows")?.innerText.includes("fixture_missing")`, 20000);
   const assignmentAfter = await evaluate(`document.querySelector("#assignmentRows")?.innerText || ""`);
-  if (!await evaluate(`!!document.querySelector(${JSON.stringify(`#assignmentVoice-${fixture.character_id}`)})`)) {
+  if (!await evaluate(`!!document.querySelector(${JSON.stringify(fixtureVoiceSelector)})`)) {
     throw new Error(`Assignment registry lost the character selector. Before=${assignmentBefore} After=${assignmentAfter}`);
   }
   evidence.assignment = { before: assignmentBefore, after: assignmentAfter };
@@ -181,13 +192,19 @@ try {
     const cases={};
     for (const code of [400,409,422,500]) {
       window.storyAudioAppState.productionCommand.keys={};
-      api=async()=>{const error=new Error("HTTP "+code); error.status=code; throw error};
+      api=async(path,options={})=>{
+        if(path!=="/api/production/commands") return savedApi(path,options);
+        const error=new Error("HTTP "+code); error.status=code; throw error;
+      };
       const result=await runProductionCommand({commandType:"SAVE_VOICE_ASSIGNMENT",scope,payload:{character_id:${fixture.character_id},voice_override_id:"fixture_character"},label:"fixture"});
       cases["http_"+code]={result:result===null,status:window.storyAudioAppState.productionCommand.status,active:window.storyAudioAppState.productionCommand.active};
     }
     let calls=[],release;
     window.storyAudioAppState.productionCommand.keys={};
-    api=async(_path,options)=>{calls.push(JSON.parse(options.body)); await new Promise(resolve=>release=resolve); return reply(calls[0]);};
+    api=async(path,options={})=>{
+      if(path!=="/api/production/commands") return savedApi(path,options);
+      calls.push(JSON.parse(options.body)); await new Promise(resolve=>release=resolve); return reply(calls[0]);
+    };
     const first=runProductionCommand({commandType:"SAVE_VOICE_ASSIGNMENT",scope,payload:{character_id:${fixture.character_id},voice_override_id:"fixture_character"},label:"fixture delayed"});
     const second=runProductionCommand({commandType:"SAVE_VOICE_ASSIGNMENT",scope,payload:{character_id:${fixture.character_id},voice_override_id:"fixture_character"},label:"fixture delayed"});
     const busy=window.storyAudioAppState.productionCommand.active;
@@ -198,7 +215,10 @@ try {
     cases.duplicate_delayed={calls:calls.length,busy,status:window.storyAudioAppState.productionCommand.status};
     window.storyAudioAppState.productionCommand.keys={};
     let lost=true; calls=[];
-    api=async(_path,options)=>{const body=JSON.parse(options.body); calls.push(body); if(lost){lost=false; throw new Error("connection closed after apply")} return reply(body)};
+    api=async(path,options={})=>{
+      if(path!=="/api/production/commands") return savedApi(path,options);
+      const body=JSON.parse(options.body); calls.push(body); if(lost){lost=false; throw new Error("connection closed after apply")} return reply(body);
+    };
     const verified=await runProductionCommand({commandType:"HUMAN_QA_ACCEPT",scope:{artifact:{id:999}},payload:{chapter_id:${fixture.chapter_id},notes:"fixture"},label:"fixture lost"});
     cases.response_lost={outcome:verified?.outcome,calls:calls.length,sameKey:calls.length===2&&calls[0].idempotency_key===calls[1].idempotency_key};
     api=savedApi; postProductionCommand=savedPost; syncCanonicalProductionContext=savedSync; return cases;

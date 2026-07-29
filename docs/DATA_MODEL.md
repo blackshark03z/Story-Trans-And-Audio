@@ -101,19 +101,44 @@ Profile được sửa in-place và tăng `config_version`, nhưng chỉ ảnh h
 ### Voice resolution đã triển khai
 
 ```text
-utterance override (nếu tương lai có)
-→ character voice override
-→ narrator profile voice
-→ male/female dialogue profile voice
-→ unknown fallback
+deliberate chapter CastingPlan override
+→ book-level saved/default assignment
+→ existing supported fallback
+→ unresolved blocker
 ```
 
 - `character_id=null, gender=male` → male dialogue voice.
 - Character đã biết, gender unknown, không override → unknown fallback.
 - Không biết character và gender → unknown fallback + `needs_review=true`.
-- Hệ thống hiện chưa có utterance-level voice override; không được giả định field này tồn tại.
+- Chapter/range voice overrides are represented by approved Casting Plan
+  revisions as documented below; do not assume a separate utterance-level
+  override table exists.
 
-Resolver tạo resolved voice trước khi tạo casting/job và ghi vào immutable snapshot. Profile/override thay đổi không invalidates hoặc resolve lại plan/job cũ. Utterance-level override chưa tồn tại; priority hiện bắt đầu từ character override.
+Resolver tạo resolved voice trước khi tạo casting/job và ghi vào immutable snapshot. Profile/override thay đổi không invalidates hoặc resolve lại plan/job cũ.
+
+### Chapter/range voice overrides
+
+The Assignment page supports future voice changes for narrator, named
+characters, and stable unknown speakers at one-chapter or exact selected-range
+scope without a new schema table. The durable representation is an immutable
+approved `CastingPlanRevision` per selected chapter; the previous approved plan
+is archived and remains available for existing Job, Artifact, accepted audio,
+Text Revision, and rendered snapshot history.
+
+Effective voice precedence for newly prepared/rendered work is:
+
+```text
+deliberate chapter CastingPlan override
+-> book-level saved/default assignment
+-> existing supported fallback
+-> unresolved blocker
+```
+
+A range operation writes only the selected chapters in one transaction. It does
+not create a hidden range-wide rule and cannot affect later chapters outside the
+selected scope. Clearing an override creates another approved plan revision that
+removes only that speaker override and restores book/character inheritance while
+preserving unrelated speaker overrides in the same chapter.
 
 ### Book-level Character Bible — schema v4
 

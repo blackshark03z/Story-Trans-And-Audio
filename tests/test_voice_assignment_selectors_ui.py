@@ -115,6 +115,35 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIn("productionCurrentFlowStep", self.js)
         self.assertIn("productionFlowNext').disabled=true", self.js)
 
+    def test_assignment_registry_is_not_read_only_and_uses_production_commands(self) -> None:
+        section = self.js[
+            self.js.index("function registryScopeOptions"):
+            self.js.index("async function loadBookVoiceRegistry")
+        ] + self.js[
+            self.js.index("renderBookVoiceRegistryPage=function"):
+            self.js.index("async function saveBookRegistryVoice")
+        ]
+        self.assertIn("data-registry-scope-key", section)
+        self.assertIn("data-registry-voice-key", section)
+        self.assertIn("data-registry-apply", section)
+        self.assertIn("data-registry-clear", section)
+        self.assertIn("Mặc định cho sách", section)
+        self.assertIn("Phạm vi chương", section)
+        self.assertIn("SET_CHAPTER_VOICE_OVERRIDE", section)
+        self.assertIn("SET_RANGE_VOICE_OVERRIDE", section)
+        self.assertIn("CLEAR_CHAPTER_VOICE_OVERRIDE", section)
+        self.assertIn("CLEAR_RANGE_VOICE_OVERRIDE", section)
+        self.assertIn("runProductionCommand", section)
+        self.assertNotIn("Narrator/unknown", section)
+        self.assertNotIn("disabled title=\"Override", section)
+
+    def test_exact_assignment_range_url_remains_supported_by_working_context(self) -> None:
+        self.assertIn("#/assignment", self.js)
+        self.assertIn("book=1&from=1&to=10&skip_completed=1", "#/assignment?book=1&from=1&to=10&skip_completed=1")
+        self.assertIn("restoreScopedWorkingContextFromRoute", self.js)
+        self.assertIn("loadBookVoiceRegistry", self.js)
+        self.assertIn("renderRegistryTableRow(row,context)", self.js)
+
 
 if __name__ == "__main__":
     unittest.main()

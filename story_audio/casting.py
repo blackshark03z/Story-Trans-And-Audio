@@ -3,14 +3,14 @@ from __future__ import annotations
 import hashlib
 import json
 import sqlite3
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping, NamedTuple
 
 from .db import Database, utcnow
 from .files import sha256_text
 from .storage import ContentStore
 from .text_encoding import CanonicalTextValidationError, load_validated_text_revision
 from .voice_profile import get_book_voice_profile, preset_ref, profile_validation, resolve_voice
-from .voice_ref import CustomVoiceContext, is_custom_ref
+from .voice_ref import CustomVoiceContext, is_custom_ref, resolve_custom_ref
 
 CASTING_SCHEMA_VERSION = 1
 CHUNKER_VERSION = "utterance-v3"
@@ -20,6 +20,12 @@ CLOSE_QUOTES = {'"', "”"}
 
 class CastingError(ValueError):
     pass
+
+
+class CastingPlanBuild(NamedTuple):
+    payload: dict[str, Any]
+    narrator_voice_id: str
+    used_characters: set[int]
 
 
 def _load_casting_text_revision(
@@ -387,6 +393,39 @@ def _is_allowed_voice(voice_ref: str, allowed_voice_ids: set[str], custom_voice_
         return True
     return False
 
+
+def speaker_key_for(role: str, character_id: int | None = None) -> str:
+    normalized = str(role or "narrator").strip()
+    if normalized == "character" and character_id is not None:
+        return f"character:{int(character_id)}"
+    if normalized == "unknown":
+        return "unknown"
+    return "narrator"
+
+
+def _override_resolution(
+    *,
+    voice_id: str,
+    character_id: int | None,
+    gender: str | None,
+    profile: Mapping[str, Any] | None,
+    custom_voice_context: CustomVoiceContext | None,
+) -> dict[str, Any]:
+    if is_custom_ref(voice_id) and custom_voice_context is not None:
+        voice = resolve_custom_ref(voice_id, custom_voice_context)
+    else:
+        voice = preset_ref(voice_id)
+    return {
+        "voice": voice,
+        "resolved_voice_id": voice_id,
+        "resolution_source": "chapter_override",
+        "character_id": character_id,
+        "gender": gender or "unknown",
+        "profile_id": int(profile["id"]) if profile and profile.get("id") is not None else None,
+        "profile_version": int(profile.get("config_version") or 1) if profile else None,
+        "needs_review": False,
+    }
+
 def _apply_assignment_to_utterance(
     utterance: dict[str, Any],
     role: str,
@@ -399,6 +438,7 @@ def _apply_assignment_to_utterance(
     allowed_voice_ids: set[str],
     custom_voice_context: CustomVoiceContext | None,
     used_characters: set[int],
+    speaker_voice_overrides: Mapping[str, str] | None = None,
 ) -> None:
     """Apply a role/character assignment to a single utterance.
 
@@ -437,6 +477,18 @@ def _apply_assignment_to_utterance(
             resolved_voice_id = narrator_voice_id
         if not _is_allowed_voice(resolved_voice_id, allowed_voice_ids, custom_voice_context):
             raise CastingError("Unknown fallback is not available")
+        override = (speaker_voice_overrides or {}).get("unknown")
+        if override:
+            if not _is_allowed_voice(override, allowed_voice_ids, custom_voice_context):
+                raise CastingError("Chapter voice override is not available")
+            resolved_voice_id = override
+            resolution = _override_resolution(
+                voice_id=override,
+                character_id=None,
+                gender="unknown",
+                profile=profile,
+                custom_voice_context=custom_voice_context,
+            )
         utterance.update(
             role="unknown",
             character_id=None,
@@ -449,7 +501,7 @@ def _apply_assignment_to_utterance(
                 resolved_gender=resolution["gender"],
                 voice_profile_id=resolution["profile_id"],
                 voice_profile_version=resolution["profile_version"],
-                needs_review=True,
+                needs_review=resolution["needs_review"],
             )
         return
 
@@ -475,6 +527,18 @@ def _apply_assignment_to_utterance(
             )
     if not _is_allowed_voice(resolved_voice_id, allowed_voice_ids, custom_voice_context):
         raise CastingError("Character voice is not available")
+    override = (speaker_voice_overrides or {}).get(speaker_key_for("character", character_id))
+    if override:
+        if not _is_allowed_voice(override, allowed_voice_ids, custom_voice_context):
+            raise CastingError("Chapter voice override is not available")
+        resolved_voice_id = override
+        resolution = _override_resolution(
+            voice_id=override,
+            character_id=int(character_id) if character_id is not None else None,
+            gender=character["gender"] or "unknown",
+            profile=profile,
+            custom_voice_context=custom_voice_context,
+        )
     utterance.update(
         role="character",
         character_id=character_id,
@@ -579,7 +643,7 @@ def _validate_and_categorize_assignments(
 
     return offset_assignments, utterance_assignments
 
-def create_casting_draft(
+def build_casting_plan_payload(
     db: Database,
     store: ContentStore,
     *,
@@ -592,7 +656,13 @@ def create_casting_draft(
     source_metadata: dict[str, Any] | None = None,
     base_utterances: Iterable[dict[str, Any]] | None = None,
     custom_voice_context: CustomVoiceContext | None = None,
-) -> dict[str, Any]:
+    speaker_voice_overrides: Mapping[str, str] | None = None,
+) -> CastingPlanBuild:
+    speaker_voice_overrides = {
+        str(key): str(value).strip()
+        for key, value in (speaker_voice_overrides or {}).items()
+        if str(value or "").strip()
+    }
     narrator_voice_id = narrator_voice_id.strip()
     revision = _revision(db, chapter_id, text_revision_id)
     chapter = db.fetch_one("SELECT id,book_id FROM chapters WHERE id=?", (chapter_id,))
@@ -608,6 +678,18 @@ def create_casting_draft(
         narrator_voice_id = narrator_result["resolved_voice_id"]
     else:
         narrator_result = None
+    narrator_override = speaker_voice_overrides.get("narrator")
+    if narrator_override:
+        if not _is_allowed_voice(narrator_override, allowed_voice_ids, custom_voice_context):
+            raise CastingError("Chapter narrator override is not available")
+        narrator_voice_id = narrator_override
+        narrator_result = _override_resolution(
+            voice_id=narrator_override,
+            character_id=None,
+            gender="unknown",
+            profile=profile,
+            custom_voice_context=custom_voice_context,
+        )
     if not _is_allowed_voice(narrator_voice_id, allowed_voice_ids, custom_voice_context):
         raise CastingError("Narrator voice is not available")
     text = _load_casting_text_revision(store, revision)
@@ -671,7 +753,7 @@ def create_casting_draft(
             _apply_assignment_to_utterance(
                 utterance, role, character_id, chapter, db, profile,
                 narrator_voice_id, narrator_result, allowed_voice_ids,
-                custom_voice_context, used_characters
+                custom_voice_context, used_characters, speaker_voice_overrides
             )
 
     # Process utterance-ID-based assignments (existing flow)
@@ -687,7 +769,7 @@ def create_casting_draft(
         _apply_assignment_to_utterance(
             target, role, character_id, chapter, db, profile,
             narrator_voice_id, narrator_result, allowed_voice_ids,
-            custom_voice_context, used_characters
+            custom_voice_context, used_characters, speaker_voice_overrides
         )
     for utterance in utterances:
         if not utterance["resolved_voice_id"]:
@@ -725,6 +807,41 @@ def create_casting_draft(
     }
     if source_metadata is not None:
         payload["source_metadata"] = source_metadata
+    return CastingPlanBuild(payload, narrator_voice_id, used_characters)
+
+
+def create_casting_draft(
+    db: Database,
+    store: ContentStore,
+    *,
+    chapter_id: int,
+    text_revision_id: int,
+    narrator_voice_id: str,
+    assignments: Iterable[dict[str, Any]],
+    allowed_voice_ids: set[str],
+    maximum: int = 256,
+    source_metadata: dict[str, Any] | None = None,
+    base_utterances: Iterable[dict[str, Any]] | None = None,
+    custom_voice_context: CustomVoiceContext | None = None,
+    speaker_voice_overrides: Mapping[str, str] | None = None,
+) -> dict[str, Any]:
+    built = build_casting_plan_payload(
+        db,
+        store,
+        chapter_id=chapter_id,
+        text_revision_id=text_revision_id,
+        narrator_voice_id=narrator_voice_id,
+        assignments=assignments,
+        allowed_voice_ids=allowed_voice_ids,
+        maximum=maximum,
+        source_metadata=source_metadata,
+        base_utterances=base_utterances,
+        custom_voice_context=custom_voice_context,
+        speaker_voice_overrides=speaker_voice_overrides,
+    )
+    payload = built.payload
+    narrator_voice_id = built.narrator_voice_id
+    used_characters = built.used_characters
     content_path, plan_sha = store.put_json(payload, namespace="casting")
     existing = db.fetch_one(
         """
