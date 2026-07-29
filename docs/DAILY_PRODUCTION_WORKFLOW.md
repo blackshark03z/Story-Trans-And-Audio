@@ -58,6 +58,45 @@ exception queue. Casting Plan drafts are still immutable per chapter and are
 created only after all speaker and voice exceptions are clear. Their exact
 chapter/plan revisions are shown before one explicit range approval.
 
+## Assignment And Character Mapping
+
+The Assignment registry is the operator-facing range view for voice and
+speaker identity memory. It must include every narrator, named character,
+stable unknown speaker, and unresolved dialogue row found in the exact selected
+scope. `skip_completed=1` may remove completed chapters from the working set,
+but it must not hide unresolved dialogue that remains in included chapters.
+
+When approved plan data still assigns dash-led dialogue to narrator, the row is
+shown as `UNRESOLVED_DIALOGUE` instead of being counted under narrator. The row
+includes the exact chapter, utterance ID, sample line, provenance, and
+future-render-only warning. The operator can leave it unresolved, create a new
+character, select an existing character, add/reuse aliases, and map that exact
+speaker target to the character.
+
+Character management uses the existing schema: `characters`,
+`character_aliases`, and immutable `casting_plans`. It does not create a new
+schema version. Mapping creates a new approved Casting Plan revision for each
+affected selected chapter whose plan content changes, archives the previous
+approved revision, and preserves historical Jobs, Artifacts, accepted audio,
+Text Revisions, and rendered voice snapshots. Alias rows for mapping are
+committed in the same transaction as the plan revisions so stale or concurrent
+plan changes fail without partial alias persistence.
+
+The supported commands are routed through the shared Production command
+coordinator:
+
+- `CREATE_CHARACTER`;
+- `ADD_CHARACTER_ALIAS`;
+- `MAP_SPEAKER_TO_CHARACTER`;
+- `MAP_RANGE_SPEAKER_TO_CHARACTER`;
+- `CLEAR_SPEAKER_CHARACTER_MAPPING`;
+- the existing book, chapter, and range voice override commands after identity
+  exists.
+
+None of these Assignment commands may PREPARE, START_RENDER, wake the worker,
+call Gemini, call TTS, or mutate existing completed audio. Changes affect only
+future explicit PREPARE/render work.
+
 The corresponding canonical task types are:
 
 - `PREPARE_RANGE_INPUTS`;

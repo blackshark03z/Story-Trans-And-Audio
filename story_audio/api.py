@@ -41,6 +41,13 @@ from .chapter_voice_overrides import (
     ChapterVoiceOverrideError,
     apply_chapter_voice_override,
 )
+from .character_assignment import (
+    CharacterAssignmentError,
+    add_character_aliases,
+    apply_speaker_character_mapping,
+    clear_speaker_character_mapping,
+    create_assignment_character,
+)
 from .active_output import annotate_chapter_rows, annotate_job_rows, get_active_output_bindings
 from .batch_plan import build_batch_plan
 from .batch_prepare_clone_api import (
@@ -283,6 +290,42 @@ class CharacterCreateRequest(BaseModel):
     default_voice_id: str | None = Field(default=None, max_length=200)
     voice_override_id: str | None = Field(default=None, max_length=200)
     gender: str | None = None
+
+
+class AssignmentCharacterCreatePayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    book_id: int = Field(gt=0)
+    display_name: str = Field(min_length=1, max_length=120)
+    aliases: list[str] = Field(default_factory=list, max_length=20)
+    gender: str | None = None
+    role: str = "unknown"
+
+
+class AssignmentAliasPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    book_id: int = Field(gt=0)
+    character_id: int = Field(gt=0)
+    aliases: list[str] = Field(min_length=1, max_length=20)
+
+
+class SpeakerCharacterMappingPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    book_id: int = Field(gt=0)
+    speaker_key: str = Field(min_length=1, max_length=200)
+    character_id: int = Field(gt=0)
+    aliases: list[str] = Field(default_factory=list, max_length=20)
+    expected_registry_fingerprint: str | None = Field(default=None, max_length=4000)
+
+
+class SpeakerCharacterClearPayload(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    book_id: int = Field(gt=0)
+    speaker_key: str = Field(min_length=1, max_length=200)
+    expected_registry_fingerprint: str | None = Field(default=None, max_length=4000)
 
 
 class CharacterUpdateRequest(BaseModel):
@@ -966,6 +1009,7 @@ def production_book_voice_registry(
     book_id: int = Query(..., gt=0),
     from_chapter: int = Query(..., ge=0),
     to_chapter: int = Query(..., ge=0),
+    skip_completed: bool = Query(False),
 ) -> dict[str, Any]:
     """Return the book-scoped voice assignment read model for a selected range."""
 
@@ -977,6 +1021,7 @@ def production_book_voice_registry(
             book_id=book_id,
             from_chapter=from_chapter,
             to_chapter=to_chapter,
+            skip_completed=skip_completed,
             voice_catalog=_load_voice_catalog(),
             custom_voice_context=_build_custom_voice_context(),
         )
@@ -1259,6 +1304,127 @@ def _production_command_executor(
                     "voice_override_id": result.get("voice_override_id"),
                 },),
                 operator_message="Đã lưu giọng hiệu lực cho nhân vật.",
+            )
+        if command_type == "CREATE_CHARACTER":
+            parsed = AssignmentCharacterCreatePayload.model_validate(payload)
+            result = create_assignment_character(
+                db,
+                book_id=parsed.book_id,
+                display_name=parsed.display_name,
+                aliases=parsed.aliases,
+                gender=parsed.gender,
+                role=parsed.role,
+                idempotency_key=request.idempotency_key,
+            )
+            character = dict(result["character"])
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=(
+                    {
+                        "type": "character",
+                        "book_id": parsed.book_id,
+                        "character_id": int(character["id"]),
+                        "display_name": character["display_name"],
+                        "created": bool(result.get("created")),
+                        "reused": bool(result.get("reused")),
+                        "aliases": list(result.get("aliases") or []),
+                    },
+                ),
+                operator_message=(
+                    "Đã tạo nhân vật mới. Nhân vật chỉ ảnh hưởng audio sau khi được gán với dòng thoại."
+                    if result.get("created")
+                    else "Đã tái sử dụng nhân vật sẵn có; không tạo bản trùng."
+                ),
+            )
+        if command_type == "ADD_CHARACTER_ALIAS":
+            parsed = AssignmentAliasPayload.model_validate(payload)
+            result = add_character_aliases(
+                db,
+                book_id=parsed.book_id,
+                character_id=parsed.character_id,
+                aliases=parsed.aliases,
+                idempotency_key=request.idempotency_key,
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=max(1, len(parsed.aliases)),
+                applied_items=(
+                    {
+                        "type": "character_aliases",
+                        "book_id": parsed.book_id,
+                        "character_id": parsed.character_id,
+                        "aliases": list(result.get("aliases") or []),
+                        "added_count": int(result.get("added_count") or 0),
+                        "reused_count": int(result.get("reused_count") or 0),
+                    },
+                ),
+                operator_message="Đã lưu tên gọi khác cho nhân vật.",
+            )
+        if command_type in {"MAP_SPEAKER_TO_CHARACTER", "MAP_RANGE_SPEAKER_TO_CHARACTER"}:
+            command_range = _production_command_range(scope)
+            parsed = SpeakerCharacterMappingPayload.model_validate(payload)
+            result = apply_speaker_character_mapping(
+                db,
+                store,
+                book_id=parsed.book_id,
+                from_chapter=int(command_range["from_chapter"]),
+                to_chapter=int(command_range["to_chapter"]),
+                speaker_key=parsed.speaker_key,
+                character_id=parsed.character_id,
+                aliases=parsed.aliases,
+                voice_catalog=_load_voice_catalog(),
+                idempotency_key=request.idempotency_key,
+                custom_voice_context=_build_custom_voice_context(),
+            )
+            applied_items = tuple(
+                {
+                    **dict(item),
+                    "speaker_key": result["speaker_key"],
+                    "character_id": result.get("character_id"),
+                    "operation": result["operation"],
+                }
+                for item in result.get("applied") or []
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=max(1, int(result.get("utterance_count") or 0)),
+                applied_items=applied_items,
+                operator_message=(
+                    "Đã gán người nói với nhân vật. Audio đã có không bị thay đổi; "
+                    "lần PREPARE/render sau sẽ dùng mapping mới."
+                ),
+            )
+        if command_type == "CLEAR_SPEAKER_CHARACTER_MAPPING":
+            command_range = _production_command_range(scope)
+            parsed = SpeakerCharacterClearPayload.model_validate(payload)
+            result = clear_speaker_character_mapping(
+                db,
+                store,
+                book_id=parsed.book_id,
+                from_chapter=int(command_range["from_chapter"]),
+                to_chapter=int(command_range["to_chapter"]),
+                speaker_key=parsed.speaker_key,
+                voice_catalog=_load_voice_catalog(),
+                idempotency_key=request.idempotency_key,
+                custom_voice_context=_build_custom_voice_context(),
+            )
+            applied_items = tuple(
+                {
+                    **dict(item),
+                    "speaker_key": result["speaker_key"],
+                    "operation": result["operation"],
+                }
+                for item in result.get("applied") or []
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=max(1, int(result.get("utterance_count") or 0)),
+                applied_items=applied_items,
+                operator_message=(
+                    "Đã bỏ mapping nhân vật cho người nói này. Dòng thoại quay về trạng thái "
+                    "chưa xác định cho lần PREPARE/render sau."
+                ),
             )
         if command_type == "SET_BOOK_VOICE_DEFAULT":
             command_range = _production_command_range(scope)
@@ -1962,6 +2128,7 @@ def execute_production_command(
     except (
         CastingError,
         ChapterVoiceOverrideError,
+        CharacterAssignmentError,
         JobPreparationConflict,
         JobStartConflict,
         LookupError,

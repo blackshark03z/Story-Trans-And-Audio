@@ -214,6 +214,87 @@ class ProductionCommandApiTests(IsolatedTestCase):
         save.assert_called_once()
         self.assertEqual(save.call_args.kwargs["idempotency_key"], "range-voice-override-0001")
 
+    def test_create_character_uses_common_command_envelope(self) -> None:
+        command = {
+            "command_type": "CREATE_CHARACTER",
+            "idempotency_key": "create-character-0001",
+            "scope": {"range": {"book_id": 1, "from_chapter": 1, "to_chapter": 10}},
+            "payload": {
+                "book_id": 1,
+                "display_name": "Gate Commander",
+                "aliases": ["gate chief"],
+                "gender": "unknown",
+                "role": "unknown",
+            },
+        }
+        created = {
+            "character": {"id": 31, "display_name": "Gate Commander"},
+            "created": True,
+            "reused": False,
+            "aliases": [{"alias": "gate chief", "alias_id": 9}],
+        }
+
+        with (
+            patch("story_audio.api._project_production_command", self.projection),
+            patch("story_audio.api.create_assignment_character", return_value=created) as create,
+        ):
+            response = self.client.post("/api/production/commands", json=command)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result["outcome"], "APPLIED")
+        self.assertEqual(result["applied_items"][0]["type"], "character")
+        self.assertEqual(result["applied_items"][0]["character_id"], 31)
+        create.assert_called_once()
+        self.assertEqual(create.call_args.kwargs["idempotency_key"], "create-character-0001")
+
+    def test_map_speaker_to_character_uses_common_command_envelope(self) -> None:
+        command = {
+            "command_type": "MAP_SPEAKER_TO_CHARACTER",
+            "idempotency_key": "map-speaker-character-0001",
+            "scope": {"range": {"book_id": 1, "from_chapter": 2, "to_chapter": 4}},
+            "payload": {
+                "book_id": 1,
+                "speaker_key": "unresolved-dialogue:1002:u0002-deadbeef0000",
+                "character_id": 31,
+                "aliases": ["gate chief"],
+            },
+        }
+        mapped = {
+            "operation": "map",
+            "speaker_key": "unresolved-dialogue:1002:u0002-deadbeef0000",
+            "character_id": 31,
+            "utterance_count": 1,
+            "applied": [
+                {
+                    "chapter_id": 1002,
+                    "chapter_number": 2,
+                    "casting_plan_id": 42,
+                    "plan_revision": 2,
+                    "utterance_ids": ["u0002-deadbeef0000"],
+                    "reused": False,
+                }
+            ],
+        }
+
+        with (
+            patch("story_audio.api._project_production_command", self.projection),
+            patch("story_audio.api._load_voice_catalog", return_value=object()),
+            patch("story_audio.api.apply_speaker_character_mapping", return_value=mapped) as map_speaker,
+        ):
+            response = self.client.post("/api/production/commands", json=command)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result["outcome"], "APPLIED")
+        self.assertEqual(result["submitted_count"], 1)
+        self.assertEqual(result["applied_items"][0]["operation"], "map")
+        self.assertEqual(result["applied_items"][0]["character_id"], 31)
+        map_speaker.assert_called_once()
+        self.assertEqual(map_speaker.call_args.kwargs["from_chapter"], 2)
+        self.assertEqual(map_speaker.call_args.kwargs["to_chapter"], 4)
+        self.assertEqual(map_speaker.call_args.kwargs["idempotency_key"], "map-speaker-character-0001")
+
 
 if __name__ == "__main__":
     import unittest

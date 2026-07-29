@@ -1,11 +1,11 @@
 ﻿# Trạng thái dự án
 
 **Cập nhật:** 2026-07-29 (Asia/Saigon)
-**Milestone:** DAILY-PROD-6 Lean Production Preflight Accepted - Voice Override Editing Implemented
-**Strategic state:** `DAILY_USE_V1_VOICE_OVERRIDE_READY`
-**Trạng thái hiện tại:** The routine workflow combines canonical Task Projection, read-only Production Preflight, and editable Assignment registry rows. Operators can change narrator, character, or stable unknown-speaker voices for a book default, one chapter, or an exact selected range without losing scope. Chapter/range changes create immutable approved Casting Plan revisions for the selected chapters only; historical Jobs, Artifacts, accepted audio, Text Revisions, and rendered snapshots remain unchanged.
+**Milestone:** DAILY-PROD-6 Lean Production Preflight Accepted - Real Character Assignment Implemented
+**Strategic state:** `DAILY_USE_V1_REAL_ASSIGNMENT_READY`
+**Trạng thái hiện tại:** The routine workflow combines canonical Task Projection, read-only Production Preflight, and editable Assignment registry rows. Operators can now see narrator, named characters, stable unknown speakers, and unresolved dialogue rows for the selected range; create or reuse missing characters; add aliases; map unresolved speaker lines to characters through the shared Production command coordinator; and then change voices for a book default, one chapter, or an exact selected range without losing scope. Character mapping and chapter/range voice changes create immutable approved Casting Plan revisions for selected chapters only; historical Jobs, Artifacts, accepted audio, Text Revisions, and rendered snapshots remain unchanged.
 
-**Last verified implementation starting baseline:** `d61df876c18c82083b28f5aa66923338ed311971`
+**Last verified implementation starting baseline:** `4287d771ac72a5ae5388e56a4ca9590a2cf26e27`
 **Last verified branch:** `main`
 **Last verified date:** 2026-07-29
 **Canonical runtime:** `http://127.0.0.1:8772`
@@ -15,7 +15,7 @@
 **DAILY-PROD-5A:** complete
 **DAILY-PROD-5B:** complete and production-proven
 **DAILY-PROD-5:** complete
-**DAILY-PROD-6:** task projection and preflight accepted; voice override editing implemented
+**DAILY-PROD-6:** task projection and preflight accepted; real character assignment and voice override editing implemented
 **Task projection:** read-only backend projection implemented and fully validated
 **Production preflight:** read-only range review implemented and browser accepted
 **Production authorization:** `AUTHENTICATED_LOCAL_PREPARE_AND_EXPLICIT_START`
@@ -25,6 +25,31 @@
 **DAILY-PROD-4:** complete
 **DAILY-PROD-3A:** complete
 **DAILY-PROD-3:** complete
+
+**Real character discovery and speaker assignment:**
+- Root cause of the reproduced Assignment gap was real data, not a frontend
+  filter: Book `1` Chapters `2-10` contain dash-led dialogue utterances in
+  approved plan/text state that were still assigned to narrator, so the old
+  registry collapsed them into the narrator row.
+- `GET /api/production/book-voice-registry` now treats narrator-assigned
+  dash-led dialogue as actionable `UNRESOLVED_DIALOGUE` rows with sample
+  lines, exact chapter/utterance provenance, target utterances, content
+  evidence, and future-render-only actions. `skip_completed=1` still filters
+  completed chapters but no longer hides unresolved dialogue in the remaining
+  scope.
+- New shared Production commands support character creation, alias reuse, and
+  speaker-to-character mapping. Mapping creates new immutable approved Casting
+  Plan revisions and archives the prior approved revision; alias writes for
+  mapping commit in the same transaction as the plan changes.
+- Assignment UI exposes `Thêm nhân vật`, `Xác định nhân vật / người nói`,
+  create/reuse character, alias entry, sample-line review, and the existing
+  voice assignment controls after mapping. No ad-hoc mutation endpoint,
+  PREPARE, START_RENDER, worker wake, provider, Gemini, or TTS path is used.
+- Read-only canonical regression for
+  `#/assignment?book=1&from=1&to=10&skip_completed=1` returned `31` rows:
+  `30` unresolved dialogue blockers and `1` narrator row. Canonical data,
+  Chapter `369`, Jobs, Artifacts, QA, output audio, and protected paths were
+  not mutated.
 
 **Chapter and range voice overrides:**
 - Effective voice precedence for future PREPARE/render is deliberate chapter

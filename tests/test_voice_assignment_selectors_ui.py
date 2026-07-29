@@ -137,6 +137,28 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertNotIn("Narrator/unknown", section)
         self.assertNotIn("disabled title=\"Override", section)
 
+    def test_assignment_registry_exposes_character_mapping_flow(self) -> None:
+        section = self.js[
+            self.js.index("function registryStatusLabel"):
+            self.js.index("async function saveBookRegistryVoice")
+        ]
+        self.assertIn("UNRESOLVED_DIALOGUE", section)
+        self.assertIn("unresolved_dialogue", section)
+        self.assertIn("data-registry-map", section)
+        self.assertIn("data-registry-new-character", section)
+        self.assertIn("data-registry-character-key", section)
+        self.assertIn("data-registry-alias-key", section)
+        self.assertIn("data-create-character-top", section)
+        self.assertIn("CREATE_CHARACTER", section)
+        self.assertIn("MAP_SPEAKER_TO_CHARACTER", section)
+        self.assertIn("expected_registry_fingerprint:registryRowFingerprint(row)", section)
+        mapping_function = self.js[
+            self.js.index("async function saveRegistrySpeakerMapping"):
+            self.js.index("async function createTopLevelAssignmentCharacter")
+        ]
+        self.assertNotIn("commandType:'PREPARE'", mapping_function)
+        self.assertNotIn("commandType:'START_RENDER'", mapping_function)
+
     def test_exact_assignment_range_url_remains_supported_by_working_context(self) -> None:
         self.assertIn("#/assignment", self.js)
         self.assertIn("book=1&from=1&to=10&skip_completed=1", "#/assignment?book=1&from=1&to=10&skip_completed=1")

@@ -19,6 +19,36 @@ Updated: 2026-07-29
 
 ## Current Phase
 
+### Real Character Discovery And Speaker Mapping
+
+- Assignment now exposes unresolved dash-led dialogue rows from the exact
+  selected book/range instead of silently counting those narrator-assigned
+  utterances under narrator. The reproduced
+  `#/assignment?book=1&from=1&to=10&skip_completed=1` scope reads Book `1`
+  Chapters `2-10` after completed-chapter filtering and returns `31` rows:
+  `30` `UNRESOLVED_DIALOGUE` blockers plus the narrator row.
+- Missing character work uses existing schema `15`: character records,
+  aliases, and immutable Casting Plan revisions. Mapping an unresolved or
+  unknown speaker creates a new approved Casting Plan revision for only the
+  selected affected chapter(s), archives the previous approved revision, and
+  preserves historical Jobs, Artifacts, accepted audio, Text Revisions, and
+  snapshots.
+- Character/alias writes and plan mapping are fail-closed through the shared
+  Production command coordinator (`CREATE_CHARACTER`, `ADD_CHARACTER_ALIAS`,
+  `MAP_SPEAKER_TO_CHARACTER`, `MAP_RANGE_SPEAKER_TO_CHARACTER`,
+  `CLEAR_SPEAKER_CHARACTER_MAPPING`). Alias rows for a mapping are committed
+  in the same transaction as plan revision changes, so a stale/concurrent
+  plan blocks the whole write without partial alias persistence.
+- Assignment UI now shows sample lines, affected chapters, top-level
+  `Thêm nhân vật`, row-level `Xác định nhân vật / người nói`, create/reuse
+  character, alias, map, and the existing book/chapter/range voice controls
+  after identity exists. These actions remain future-render-only and never
+  PREPARE, START_RENDER, wake the worker, or call providers.
+- Certification uses isolated SQLite/browser fixtures plus read-only canonical
+  inspection. No canonical Character, alias, Casting Plan, Job, Artifact, QA,
+  Chapter `369`, provider/Gemini/TTS, `experiment_b_transcript/`, or `runs/`
+  mutation was performed.
+
 ### Chapter/Range Voice Overrides
 
 - Assignment registry rows are editable for narrator, named characters, and

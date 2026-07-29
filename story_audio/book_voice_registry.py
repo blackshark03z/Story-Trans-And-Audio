@@ -4,7 +4,13 @@ from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping
 
-from .casting import CastingError, get_plan, list_characters
+from .casting import CastingError, get_plan, list_characters, split_utterances
+from .character_assignment import (
+    UNRESOLVED_DIALOGUE_ROLE,
+    UNRESOLVED_DIALOGUE_STATUS,
+    UnresolvedDialogueReference,
+    is_unresolved_dialogue_text,
+)
 from .config import Settings
 from .db import Database
 from .speaker_assignment import SpeakerAssignmentError
@@ -23,8 +29,15 @@ REGISTRY_STATUSES = {
     "CONFLICT",
     "VOICE_UNAVAILABLE",
     "OVERRIDDEN",
+    UNRESOLVED_DIALOGUE_STATUS,
 }
-UNRESOLVED_STATUSES = {"NEW_CHARACTER", "UNASSIGNED", "CONFLICT", "VOICE_UNAVAILABLE"}
+UNRESOLVED_STATUSES = {
+    "NEW_CHARACTER",
+    "UNASSIGNED",
+    "CONFLICT",
+    "VOICE_UNAVAILABLE",
+    UNRESOLVED_DIALOGUE_STATUS,
+}
 
 
 class BookVoiceRegistryError(ValueError):
@@ -52,6 +65,9 @@ class _RegistryRow:
     last_plan_revision: int | None = None
     last_plan_status: str | None = None
     last_reviewed_at: str | None = None
+    sample_lines: list[dict[str, Any]] = field(default_factory=list)
+    target_utterances: list[dict[str, Any]] = field(default_factory=list)
+    provenance: list[dict[str, Any]] = field(default_factory=list)
 
     def touch(self, chapter: Mapping[str, Any], *, voice_id: str | None = None) -> None:
         chapter_id = int(chapter["id"])
@@ -66,6 +82,42 @@ class _RegistryRow:
             if normalized:
                 self.plan_voice_ids.add(normalized)
                 self.plan_voice_chapters[normalized].add(chapter_number)
+
+    def touch_reference(
+        self,
+        chapter: Mapping[str, Any],
+        reference: UnresolvedDialogueReference,
+        *,
+        voice_id: str | None = None,
+        plan: Mapping[str, Any] | None = None,
+    ) -> None:
+        self.touch(chapter, voice_id=voice_id)
+        payload = reference.public_payload()
+        self.target_utterances.append(payload)
+        if len(self.sample_lines) < 5:
+            self.sample_lines.append(payload)
+        if plan:
+            self.plan_touch(plan)
+            self.provenance.append(
+                {
+                    "source": "casting_plan_dialogue_detection",
+                    "chapter_id": int(chapter["id"]),
+                    "chapter_number": int(chapter["chapter_number"]),
+                    "casting_plan_id": int(plan["id"]) if plan.get("id") is not None else None,
+                    "plan_revision": int(plan["plan_revision"]) if plan.get("plan_revision") is not None else None,
+                    "status": plan.get("status"),
+                    "utterance_id": reference.utterance_id,
+                }
+            )
+        else:
+            self.provenance.append(
+                {
+                    "source": "text_dialogue_detection",
+                    "chapter_id": int(chapter["id"]),
+                    "chapter_number": int(chapter["chapter_number"]),
+                    "utterance_id": reference.utterance_id,
+                }
+            )
 
     def plan_touch(self, plan: Mapping[str, Any]) -> None:
         self.plan_statuses.add(str(plan.get("status") or ""))
@@ -130,6 +182,7 @@ def _range_chapters(
     book_id: int,
     from_chapter: int | None,
     to_chapter: int | None,
+    skip_completed: bool = False,
 ) -> list[dict[str, Any]]:
     start = int(from_chapter or 0)
     end = int(to_chapter if to_chapter is not None else start)
@@ -156,6 +209,11 @@ def _range_chapters(
             (book_id, start, end),
         )
     chapters = [dict(row) for row in rows]
+    if skip_completed:
+        chapters = [
+            chapter for chapter in chapters
+            if str(chapter.get("audio_status") or "") != "completed"
+        ]
     if not chapters:
         raise LookupError("No chapters found for the selected range")
     return chapters
@@ -232,6 +290,23 @@ def _ensure_unknown(rows: dict[str, _RegistryRow]) -> _RegistryRow:
     return row
 
 
+def _ensure_unresolved_dialogue(
+    rows: dict[str, _RegistryRow],
+    reference: UnresolvedDialogueReference,
+) -> _RegistryRow:
+    row = rows.get(reference.speaker_key)
+    if row is not None:
+        return row
+    row = _RegistryRow(
+        speaker_key=reference.speaker_key,
+        display_name="Chưa xác định nhân vật",
+        role=UNRESOLVED_DIALOGUE_ROLE,
+        role_label="Chưa xác định nhân vật / người nói",
+    )
+    rows[reference.speaker_key] = row
+    return row
+
+
 def _ensure_character(
     rows: dict[str, _RegistryRow],
     characters: Mapping[int, Mapping[str, Any]],
@@ -263,10 +338,25 @@ def _collect_from_plan(
     plan: Mapping[str, Any],
     chapter: Mapping[str, Any],
     characters: Mapping[int, Mapping[str, Any]],
+    text: str,
 ) -> None:
     for utterance in plan.get("plan", {}).get("utterances") or []:
         role = str(utterance.get("role") or "narrator")
         voice_id = str(utterance.get("resolved_voice_id") or "").strip() or None
+        segment = text[int(utterance["start_offset"]) : int(utterance["end_offset"])].strip()
+        if role == "narrator" and is_unresolved_dialogue_text(segment):
+            reference = UnresolvedDialogueReference(
+                chapter_id=int(chapter["id"]),
+                chapter_number=int(chapter["chapter_number"]),
+                utterance_id=str(utterance["utterance_id"]),
+                sequence=int(utterance["sequence"]),
+                text=segment,
+                role=role,
+                character_id=None,
+            )
+            row = _ensure_unresolved_dialogue(rows, reference)
+            row.touch_reference(chapter, reference, plan=plan)
+            continue
         if role == "character" and utterance.get("character_id") is not None:
             row = _ensure_character(rows, characters, int(utterance["character_id"]))
         elif role == "unknown":
@@ -300,6 +390,20 @@ def _collect_from_speaker_draft(
         if not decision:
             continue
         speaker_type = str(decision.get("speaker_type") or "")
+        review_text = str(review_row.get("text") or "")
+        if speaker_type == "narrator" and is_unresolved_dialogue_text(review_text):
+            reference = UnresolvedDialogueReference(
+                chapter_id=int(chapter["id"]),
+                chapter_number=int(chapter["chapter_number"]),
+                utterance_id=str(review_row["utterance_id"]),
+                sequence=int(review_row.get("sequence") or 0),
+                text=review_text,
+                role="narrator",
+                character_id=None,
+            )
+            row = _ensure_unresolved_dialogue(rows, reference)
+            row.touch_reference(chapter, reference)
+            continue
         if speaker_type == "character" and decision.get("character_id") is not None:
             row = _ensure_character(rows, characters, int(decision["character_id"]))
         elif speaker_type == "unknown":
@@ -307,6 +411,30 @@ def _collect_from_speaker_draft(
         else:
             row = _ensure_narrator(rows)
         row.touch(chapter)
+
+
+def _collect_from_text(
+    rows: dict[str, _RegistryRow],
+    *,
+    chapter: Mapping[str, Any],
+    text: str,
+) -> None:
+    for utterance in split_utterances(text):
+        segment = text[int(utterance["start_offset"]) : int(utterance["end_offset"])].strip()
+        if is_unresolved_dialogue_text(segment):
+            reference = UnresolvedDialogueReference(
+                chapter_id=int(chapter["id"]),
+                chapter_number=int(chapter["chapter_number"]),
+                utterance_id=str(utterance["utterance_id"]),
+                sequence=int(utterance["sequence"]),
+                text=segment,
+                role="narrator",
+                character_id=None,
+            )
+            row = _ensure_unresolved_dialogue(rows, reference)
+            row.touch_reference(chapter, reference)
+        else:
+            _ensure_narrator(rows).touch(chapter)
 
 
 def _assignment_source(
@@ -317,6 +445,8 @@ def _assignment_source(
     effective_voice_id: str | None,
     range_size: int,
 ) -> str:
+    if role == UNRESOLVED_DIALOGUE_ROLE:
+        return "unresolved dialogue"
     if plan_voices and effective_voice_id and (
         len(plan_voices) > 1
         or any(voice != effective_voice_id for voice in plan_voices)
@@ -354,6 +484,8 @@ def _resolve_row_voice(
             book_voice_profile=profile,
             custom_voice_context=custom_voice_context,
         )
+    elif row.role == UNRESOLVED_DIALOGUE_ROLE:
+        return None, None
     elif row.role == "unknown":
         resolution = resolve_voice(
             speaker_type="dialogue",
@@ -381,6 +513,8 @@ def _row_status(
     resolution: Mapping[str, Any] | None,
     prior_character_ids: set[int],
 ) -> str:
+    if row.role == UNRESOLVED_DIALOGUE_ROLE:
+        return UNRESOLVED_DIALOGUE_STATUS
     if len(row.plan_voice_ids) > 1:
         return "CONFLICT"
     if not effective_voice_id:
@@ -519,11 +653,17 @@ def _row_to_payload(
             "status": row.last_plan_status,
             "reviewed_at": row.last_reviewed_at,
         },
+        "sample_lines": list(row.sample_lines),
+        "target_utterances": list(row.target_utterances),
+        "provenance": list(row.provenance),
         "actions": {
             "can_save_book_default": row.role in {"narrator", "unknown"} or row.character_id is not None,
             "can_create_range_or_chapter_override": row.role in {"narrator", "unknown"} or row.character_id is not None,
             "can_remove_override": bool(plan_override_voice),
             "can_preview_effective_voice": bool(effective_voice and effective_voice.get("preview_url")),
+            "can_map_to_character": row.role in {UNRESOLVED_DIALOGUE_ROLE, "unknown"},
+            "can_create_character": row.role == UNRESOLVED_DIALOGUE_ROLE,
+            "future_render_only": True,
         },
     }
 
@@ -553,6 +693,7 @@ def _sort_rows(item: dict[str, Any]) -> tuple[int, int, int, str]:
     priority = {
         "CONFLICT": 0,
         "VOICE_UNAVAILABLE": 1,
+        UNRESOLVED_DIALOGUE_STATUS: 2,
         "NEW_CHARACTER": 2,
         "UNASSIGNED": 3,
         "OVERRIDDEN": 4,
@@ -571,6 +712,7 @@ def get_book_voice_registry(
     book_id: int,
     from_chapter: int | None = None,
     to_chapter: int | None = None,
+    skip_completed: bool = False,
     voice_catalog: EffectiveVoiceCatalog,
     custom_voice_context: CustomVoiceContext | None = None,
 ) -> dict[str, Any]:
@@ -580,6 +722,7 @@ def get_book_voice_registry(
         book_id=book_id,
         from_chapter=from_chapter,
         to_chapter=to_chapter,
+        skip_completed=skip_completed,
     )
     first_chapter = int(chapters[0]["chapter_number"])
     range_size = max(1, len(chapters))
@@ -588,14 +731,38 @@ def get_book_voice_registry(
     catalog_index = _voice_index(voice_catalog)
     rows: dict[str, _RegistryRow] = {}
     _ensure_narrator(rows)
+    checked_revisions: list[dict[str, Any]] = []
 
     for chapter in chapters:
+        revision = db.fetch_one(
+            "SELECT id,content_path FROM text_revisions WHERE id=?",
+            (int(chapter.get("active_text_revision_id") or 0),),
+        )
+        text = ""
+        if revision:
+            try:
+                text = store.read_text(str(revision["content_path"]))
+                checked_revisions.append(
+                    {
+                        "chapter_id": int(chapter["id"]),
+                        "chapter_number": int(chapter["chapter_number"]),
+                        "text_revision_id": int(revision["id"]),
+                    }
+                )
+            except OSError:
+                text = ""
         plan_row = _latest_plan_row(db, int(chapter["id"]))
         plan_collected = False
         if plan_row and int(plan_row["text_revision_id"]) == int(chapter.get("active_text_revision_id") or 0):
             try:
                 plan = get_plan(db, store, int(plan_row["id"]))
-                _collect_from_plan(rows, plan=plan, chapter=chapter, characters=characters)
+                _collect_from_plan(
+                    rows,
+                    plan=plan,
+                    chapter=chapter,
+                    characters=characters,
+                    text=text,
+                )
                 plan_collected = True
             except (CastingError, OSError, ValueError):
                 plan_collected = False
@@ -603,6 +770,8 @@ def get_book_voice_registry(
             continue
         draft = _latest_approved_speaker_draft_row(db, int(chapter["id"]))
         if not draft:
+            if text:
+                _collect_from_text(rows, chapter=chapter, text=text)
             continue
         try:
             _collect_from_speaker_draft(
@@ -615,6 +784,8 @@ def get_book_voice_registry(
                 characters=characters,
             )
         except (SpeakerReviewError, SpeakerAssignmentError, OSError, ValueError):
+            if text:
+                _collect_from_text(rows, chapter=chapter, text=text)
             continue
 
     prior_ids = _prior_character_ids(db, book_id=book_id, before_chapter=first_chapter)
@@ -657,13 +828,25 @@ def get_book_voice_registry(
         "persistence": {
             "migration_required": False,
             "uses_existing_model": True,
-            "model": "book_voice_profiles + characters.voice_override_id + casting_plan_revisions",
+            "model": "book_voice_profiles + characters/aliases + casting_plan_revisions",
             "book_profile_config_version": int(profile["config_version"]) if profile else None,
         },
         "voice_catalog": {
             "selectable_count": len(voice_catalog.selectable_ids),
             "narrator_voice_id": profile.get("narrator_voice_id") if profile else None,
         },
+        "characters": [
+            {
+                "id": int(character["id"]),
+                "display_name": character.get("display_name"),
+                "canonical_name": character.get("canonical_name"),
+                "role": character.get("role"),
+                "gender": character.get("gender"),
+                "aliases": list(character.get("aliases") or []),
+                "active": bool(character.get("active", 1)),
+            }
+            for character in sorted(characters.values(), key=lambda item: str(item.get("display_name") or ""))
+        ],
         "rows": payload_rows,
         "summary": {
             "total_rows": len(payload_rows),
@@ -675,5 +858,11 @@ def get_book_voice_registry(
             "voice_unavailable": status_counts.get("VOICE_UNAVAILABLE", 0),
             "overridden": status_counts.get("OVERRIDDEN", 0),
             "ready": status_counts.get("READY", 0),
+            "unresolved_dialogue": status_counts.get(UNRESOLVED_DIALOGUE_STATUS, 0),
+        },
+        "content_evidence": {
+            "checked_revisions": checked_revisions,
+            "dialogue_detection": "dash-led dialogue utterances marked unresolved when still assigned narrator",
+            "unresolved_dialogue_count": status_counts.get(UNRESOLVED_DIALOGUE_STATUS, 0),
         },
     }

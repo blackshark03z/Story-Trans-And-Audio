@@ -4,6 +4,34 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Real Character Discovery And Speaker Assignment
+
+- Fixed the Assignment registry gap where dash-led dialogue assigned to
+  narrator was collapsed into the narrator row, leaving the real
+  `#/assignment?book=1&from=1&to=10&skip_completed=1` scope with no actionable
+  non-narrator rows.
+- Added unresolved dialogue registry rows with sample lines, exact
+  chapter/utterance targets, provenance, checked revision evidence, blocking
+  status, and future-render-only actions.
+- Added existing-schema character management through the shared Production
+  command coordinator: `CREATE_CHARACTER`, `ADD_CHARACTER_ALIAS`,
+  `MAP_SPEAKER_TO_CHARACTER`, `MAP_RANGE_SPEAKER_TO_CHARACTER`, and
+  `CLEAR_SPEAKER_CHARACTER_MAPPING`.
+- Speaker-to-character mapping now creates immutable approved Casting Plan
+  revisions for the selected affected chapters and archives the previous
+  approved revisions. Alias persistence for a mapping is transactional with
+  the plan revision write to prevent partial range state.
+- Extended Assignment UI with top-level `Thêm nhân vật`, row-level
+  `Xác định nhân vật / người nói`, create/reuse character controls, alias
+  capture, sample-line review, and immediate registry/projection refresh
+  after success.
+- Added service, command API, UI contract, and isolated real-browser
+  character-assignment coverage. Read-only canonical regression confirmed
+  Book `1` Chapters `2-10` expose `30` unresolved dialogue blockers plus
+  narrator after `skip_completed=1`, with no PREPARE, START_RENDER,
+  provider/Gemini/TTS, Job, Artifact, QA, audio, Chapter `369`, or protected
+  path mutation.
+
 ### Chapter and Range Voice Overrides
 
 - Added Assignment-page controls for narrator, named character, and stable

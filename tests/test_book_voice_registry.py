@@ -238,7 +238,7 @@ class BookVoiceRegistryTests(IsolatedTestCase):
         self.assertFalse(registry["persistence"]["migration_required"])
         self.assertEqual(
             registry["persistence"]["model"],
-            "book_voice_profiles + characters.voice_override_id + casting_plan_revisions",
+            "book_voice_profiles + characters/aliases + casting_plan_revisions",
         )
 
         rows = registry["rows"]
