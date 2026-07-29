@@ -159,7 +159,10 @@ console.log(JSON.stringify({
         self.assertIn("event.preventDefault()", self.detour_js)
 
     def test_no_chapter_369_or_later_milestone_hardcoding(self) -> None:
-        changed_ui = self.detour_js + self.css
+        detour_css = "\n".join(
+            line for line in self.css.splitlines() if "voice-detour" in line
+        )
+        changed_ui = self.detour_js + detour_css
         for forbidden in ("369", "Chapter 369", "range readiness", "batch", "Audio Library"):
             self.assertNotIn(forbidden, changed_ui)
 

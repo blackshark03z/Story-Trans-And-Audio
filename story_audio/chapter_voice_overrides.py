@@ -183,7 +183,8 @@ def _prepare_plan(
     allowed_voice_ids: set[str],
     source_metadata: Mapping[str, Any],
     custom_voice_context: CustomVoiceContext | None,
-) -> _PreparedPlan:
+    skip_missing: bool = False,
+) -> _PreparedPlan | None:
     plan_row = _latest_plan_row(db, int(chapter["id"]))
     if int(plan_row["text_revision_id"]) != int(chapter["active_text_revision_id"] or 0):
         raise ChapterVoiceOverrideError(
@@ -197,6 +198,8 @@ def _prepare_plan(
         | _book_configured_voice_ids(db, int(chapter["book_id"]))
     )
     if not _speaker_present(current_payload, speaker_key):
+        if skip_missing:
+            return None
         raise ChapterVoiceOverrideError(
             f"Speaker {speaker_key} does not appear in Chapter {int(chapter['chapter_number'])}"
         )
@@ -270,6 +273,8 @@ def apply_chapter_voice_override(
     voice_catalog: EffectiveVoiceCatalog,
     idempotency_key: str,
     custom_voice_context: CustomVoiceContext | None = None,
+    connection: Any | None = None,
+    skip_missing: bool = False,
 ) -> dict[str, Any]:
     normalized_speaker = str(speaker_key or "").strip()
     if normalized_speaker not in {"narrator", "unknown"} and not normalized_speaker.startswith("character:"):
@@ -295,24 +300,30 @@ def apply_chapter_voice_override(
     }
     allowed_voice_ids = set(voice_catalog.selectable_ids)
     prepared = [
-        _prepare_plan(
-            db,
-            store,
-            chapter=chapter,
-            speaker_key=normalized_speaker,
-            operation=operation,
-            voice_id=voice_id,
-            allowed_voice_ids=allowed_voice_ids,
-            source_metadata=source_metadata,
-            custom_voice_context=custom_voice_context,
+        item
+        for item in (
+            _prepare_plan(
+                db,
+                store,
+                chapter=chapter,
+                speaker_key=normalized_speaker,
+                operation=operation,
+                voice_id=voice_id,
+                allowed_voice_ids=allowed_voice_ids,
+                source_metadata=source_metadata,
+                custom_voice_context=custom_voice_context,
+                skip_missing=skip_missing,
+            )
+            for chapter in chapters
         )
-        for chapter in chapters
+        if item is not None
     ]
     applied: list[dict[str, Any]] = []
     now = utcnow()
-    with db.transaction() as connection:
+
+    def commit_with(transaction):
         for item in prepared:
-            latest = connection.execute(
+            latest = transaction.execute(
                 """
                 SELECT id,status,plan_revision,plan_sha256
                 FROM casting_plans
@@ -343,12 +354,12 @@ def apply_chapter_voice_override(
                 )
                 continue
             next_revision = int(latest["plan_revision"]) + 1
-            connection.execute(
+            transaction.execute(
                 "UPDATE casting_plans SET status='archived',archived_at=? WHERE id=? AND status='approved'",
                 (now, item.previous_plan_id),
             )
             plan_id = int(
-                connection.execute(
+                transaction.execute(
                     """INSERT INTO casting_plans(
                         chapter_id,text_revision_id,plan_revision,status,content_path,
                         plan_sha256,narrator_voice_id,created_at,approved_at
@@ -366,7 +377,7 @@ def apply_chapter_voice_override(
                 ).lastrowid
             )
             for character_id in item.character_ids:
-                connection.execute(
+                transaction.execute(
                     "INSERT INTO casting_plan_characters(casting_plan_id,character_id) VALUES(?,?)",
                     (plan_id, character_id),
                 )
@@ -379,6 +390,11 @@ def apply_chapter_voice_override(
                     "reused": False,
                 }
             )
+    if connection is None:
+        with db.transaction() as transaction:
+            commit_with(transaction)
+    else:
+        commit_with(connection)
     return {
         "operation": operation,
         "speaker_key": normalized_speaker,

@@ -26,6 +26,14 @@
 **DAILY-PROD-3A:** complete
 **DAILY-PROD-3:** complete
 
+### Speaker Review Workspace And Reversible Decisions
+
+- Speaker review now has a dedicated workspace with explicit queue views, row-level evidence, history, and revision provenance. Approved rows expose human-friendly actions for notes and safe restoration, while downstream immutable work keeps the historical state intact.
+- `ADD_SPEAKER_REVIEW_NOTE` writes a durable audit event without changing the effective review decision. `RESTORE_SPEAKER_SUGGESTION_PENDING` can move an approved row back to `PENDING_REVIEW` only when no downstream Job/Artifact evidence exists; otherwise the operator is guided to a replacement decision.
+- The UI now shows `Để lại ghi chú`, `Khôi phục về chưa duyệt`, and `Đã khôi phục về chờ duyệt` with no PREPARE, START_RENDER, provider, or TTS side effects. Isolated browser certification and focused regression tests passed.
+- Canonical data, Chapter `369`, Jobs, Artifacts, and protected paths were not mutated by this workspace package.
+- The next required milestone after this workspace package is `REAL_USER_MEDIA_GOLDEN_JOURNEY`.
+
 **Real character discovery and speaker assignment:**
 - Root cause of the reproduced Assignment gap was real data, not a frontend
   filter: Book `1` Chapters `2-10` contain dash-led dialogue utterances in

@@ -188,6 +188,19 @@ staging → verified → active
 
 Hiện implementation tạo record sau verify nên `staging` chưa được persist đầy đủ; đây là điểm cần hoàn thiện trong M1.
 
+### Speaker review decisions
+
+- Speaker-review notes are durable audit events only. `speaker_review_suggestion_noted`
+  records operator context without changing the effective review decision or
+  touching text, casting, jobs, or artifacts.
+- A review can move from `PENDING_REVIEW` to `RESTORED_PENDING` only when no
+  downstream `JobChapter` or `Artifact` exists for that chapter. If downstream
+  work exists, the restore path is blocked and the operator should use the
+  replacement-decision flow instead.
+- The visible review history may therefore contain note-only events, approved
+  decisions, and reversible restore events while the canonical chapter output
+  remains unchanged.
+
 ## Invalidation matrix
 
 | Thay đổi | Invalidates |

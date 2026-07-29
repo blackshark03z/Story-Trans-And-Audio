@@ -143,9 +143,12 @@ from .speaker_review_suggestions import (
     SpeakerReviewSuggestionError,
     accept_speaker_review_suggestion,
     approve_high_confidence_suggestions,
+    approve_speaker_review_batch_items,
     generate_speaker_review_suggestions,
     get_speaker_review_queue,
     record_speaker_suggestion_decision,
+    record_speaker_suggestion_note,
+    restore_speaker_suggestion_pending,
 )
 from .tts import tts_service
 from .text_correction import (
@@ -1395,6 +1398,132 @@ def _production_command_executor(
                 ),
                 operator_message="Đã đánh dấu đề xuất này để xử lý sau.",
             )
+        if command_type == "ADD_SPEAKER_REVIEW_NOTE":
+            command_range, _voice_catalog, _custom_context, _registry = _speaker_review_command_context(
+                payload,
+                scope,
+            )
+            del command_range
+            analysis_run_id = str(payload.get("analysis_run_id") or "").strip()
+            unresolved_key = _speaker_review_unresolved_keys(payload, single=True)[0]
+            if not analysis_run_id:
+                raise ProductionCommandError("analysis_run_id is required")
+            result = record_speaker_suggestion_note(
+                db,
+                store,
+                analysis_run_id=analysis_run_id,
+                unresolved_key=unresolved_key,
+                note=str((payload.get("reviewer_payload") or {}).get("note") or ""),
+                idempotency_key=request.idempotency_key,
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=(
+                    {
+                        "type": "speaker_review_note",
+                        "analysis_run_id": analysis_run_id,
+                        "unresolved_key": unresolved_key,
+                        "reused": bool(result.get("reused")),
+                    },
+                ),
+                operator_message="Đã lưu ghi chú; quyết định hiệu lực không thay đổi.",
+            )
+        if command_type == "RESTORE_SPEAKER_SUGGESTION_PENDING":
+            command_range, _voice_catalog, _custom_context, _registry = _speaker_review_command_context(
+                payload,
+                scope,
+            )
+            del command_range
+            analysis_run_id = str(payload.get("analysis_run_id") or "").strip()
+            unresolved_key = _speaker_review_unresolved_keys(payload, single=True)[0]
+            if not analysis_run_id:
+                raise ProductionCommandError("analysis_run_id is required")
+            result = restore_speaker_suggestion_pending(
+                db,
+                store,
+                analysis_run_id=analysis_run_id,
+                unresolved_key=unresolved_key,
+                reviewer_payload=dict(payload.get("reviewer_payload") or {}),
+                idempotency_key=request.idempotency_key,
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=(
+                    {
+                        "type": "speaker_review_restored_pending",
+                        "analysis_run_id": analysis_run_id,
+                        "unresolved_key": unresolved_key,
+                        "reused": bool(result.get("reused")),
+                    },
+                ),
+                operator_message="Đã khôi phục mục về hàng Cần duyệt và giữ nguyên lịch sử.",
+            )
+        if command_type == "CREATE_SPEAKER_REPLACEMENT_DECISION":
+            command_range, _voice_catalog, _custom_context, _registry = _speaker_review_command_context(
+                payload,
+                scope,
+            )
+            del command_range
+            analysis_run_id = str(payload.get("analysis_run_id") or "").strip()
+            unresolved_key = _speaker_review_unresolved_keys(payload, single=True)[0]
+            if not analysis_run_id:
+                raise ProductionCommandError("analysis_run_id is required")
+            result = record_speaker_suggestion_decision(
+                db,
+                store,
+                analysis_run_id=analysis_run_id,
+                unresolved_key=unresolved_key,
+                decision="REPLACEMENT_DRAFT",
+                reviewer_payload=dict(payload.get("reviewer_payload") or {}),
+                idempotency_key=request.idempotency_key,
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=(
+                    {
+                        "type": "speaker_review_replacement_draft",
+                        "analysis_run_id": analysis_run_id,
+                        "unresolved_key": unresolved_key,
+                        "reused": bool(result.get("reused")),
+                    },
+                ),
+                operator_message="Đã tạo quyết định thay thế; bản cũ vẫn được giữ trong lịch sử.",
+            )
+        if command_type == "MARK_SPEAKER_SUGGESTION_UNCERTAIN":
+            command_range, _voice_catalog, _custom_context, _registry = _speaker_review_command_context(
+                payload,
+                scope,
+            )
+            del command_range
+            analysis_run_id = str(payload.get("analysis_run_id") or "").strip()
+            unresolved_key = _speaker_review_unresolved_keys(payload, single=True)[0]
+            if not analysis_run_id:
+                raise ProductionCommandError("analysis_run_id is required")
+            result = record_speaker_suggestion_decision(
+                db,
+                store,
+                analysis_run_id=analysis_run_id,
+                unresolved_key=unresolved_key,
+                decision="MARKED_UNCERTAIN",
+                reviewer_payload=dict(payload.get("reviewer_payload") or {}),
+                idempotency_key=request.idempotency_key,
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=(
+                    {
+                        "type": "speaker_review_uncertain",
+                        "analysis_run_id": analysis_run_id,
+                        "unresolved_key": unresolved_key,
+                        "reused": bool(result.get("reused")),
+                    },
+                ),
+                operator_message="Đã chuyển đề xuất sang hàng Cần quyết định.",
+            )
         if command_type in {"ACCEPT_SPEAKER_SUGGESTION", "EDIT_AND_ACCEPT_SPEAKER_SUGGESTION"}:
             command_range, voice_catalog, custom_context, _registry = _speaker_review_command_context(
                 payload,
@@ -1415,6 +1544,11 @@ def _production_command_executor(
                 voice_catalog=voice_catalog,
                 custom_voice_context=custom_context,
                 idempotency_key=request.idempotency_key,
+                decision_override=(
+                    "ACCEPTED"
+                    if command_type == "ACCEPT_SPEAKER_SUGGESTION"
+                    else "EDITED_AND_ACCEPTED"
+                ),
             )
             return ProductionCommandMutation(
                 outcome="APPLIED",
@@ -1433,37 +1567,103 @@ def _production_command_executor(
                     "Audio hiện tại không bị thay đổi."
                 ),
             )
-        if command_type == "APPROVE_SPEAKER_REVIEW_BATCH":
+        if command_type == "CORRECT_APPROVED_SPEAKER_SUGGESTION":
             command_range, voice_catalog, custom_context, _registry = _speaker_review_command_context(
                 payload,
                 scope,
             )
             analysis_run_id = str(payload.get("analysis_run_id") or "").strip()
+            unresolved_key = _speaker_review_unresolved_keys(payload, single=True)[0]
             if not analysis_run_id:
                 raise ProductionCommandError("analysis_run_id is required")
-            unresolved_keys = _speaker_review_unresolved_keys(payload, required=True)
-            result = approve_high_confidence_suggestions(
+            result = accept_speaker_review_suggestion(
                 db,
                 store,
                 settings,
                 **command_range,
                 analysis_run_id=analysis_run_id,
-                unresolved_keys=unresolved_keys,
+                unresolved_key=unresolved_key,
+                reviewer_payload=dict(payload.get("reviewer_payload") or {}),
                 voice_catalog=voice_catalog,
                 custom_voice_context=custom_context,
                 idempotency_key=request.idempotency_key,
+                decision_override="CORRECTED",
+                require_approved=True,
             )
             return ProductionCommandMutation(
                 outcome="APPLIED",
-                submitted_count=int(result.get("submitted_count") or len(unresolved_keys)),
-                applied_items=tuple(
+                submitted_count=1,
+                applied_items=(
+                    {
+                        "type": "speaker_review_correction",
+                        "analysis_run_id": analysis_run_id,
+                        "unresolved_key": unresolved_key,
+                        "applied": result.get("applied"),
+                        "review": result.get("review"),
+                    },
+                ),
+                operator_message=(
+                    "Đã lưu quyết định thay thế cho lần PREPARE/render tiếp theo. "
+                    "Audio đã chấp nhận hiện tại không bị thay đổi."
+                ),
+            )
+        if command_type == "APPROVE_SPEAKER_REVIEW_BATCH":
+            command_range, voice_catalog, custom_context, _registry = _speaker_review_command_context(
+                payload,
+                scope,
+            )
+            submitted_items = payload.get("items")
+            if isinstance(submitted_items, list) and submitted_items:
+                result = approve_speaker_review_batch_items(
+                    db,
+                    store,
+                    settings,
+                    **command_range,
+                    items=[
+                        dict(item)
+                        for item in submitted_items
+                        if isinstance(item, dict)
+                    ],
+                    voice_catalog=voice_catalog,
+                    custom_voice_context=custom_context,
+                    idempotency_key=request.idempotency_key,
+                )
+                applied_items = tuple(
+                    {
+                        "type": "speaker_review_batch_acceptance",
+                        "analysis_run_id": item["analysis_run_id"],
+                        "unresolved_key": item["unresolved_key"],
+                    }
+                    for item in result.get("items") or []
+                )
+            else:
+                analysis_run_id = str(payload.get("analysis_run_id") or "").strip()
+                if not analysis_run_id:
+                    raise ProductionCommandError("analysis_run_id is required")
+                unresolved_keys = _speaker_review_unresolved_keys(payload, required=True)
+                result = approve_high_confidence_suggestions(
+                    db,
+                    store,
+                    settings,
+                    **command_range,
+                    analysis_run_id=analysis_run_id,
+                    unresolved_keys=unresolved_keys,
+                    voice_catalog=voice_catalog,
+                    custom_voice_context=custom_context,
+                    idempotency_key=request.idempotency_key,
+                )
+                applied_items = tuple(
                     {
                         "type": "speaker_review_batch_acceptance",
                         "analysis_run_id": analysis_run_id,
                         "unresolved_key": key,
                     }
                     for key in unresolved_keys
-                ),
+                )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=int(result.get("submitted_count") or len(applied_items)),
+                applied_items=applied_items,
                 operator_message=(
                     "Đã duyệt các đề xuất tin cậy cao được chọn. "
                     "Không có PREPARE hoặc render tự động."

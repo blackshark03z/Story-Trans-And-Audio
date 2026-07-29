@@ -17,6 +17,22 @@ Updated: 2026-07-29
   readiness, but Daily-use PASS requires the operator to complete the same
   journey in the real runtime.
 
+### Speaker Review Workspace And Reversible Decisions
+
+- The speaker-review workspace now exposes queue views, row evidence, history,
+  and safe reversible decisions. Approved rows can receive a note-only audit
+  event or be restored to `PENDING_REVIEW` only while no downstream Job or
+  Artifact exists for that chapter.
+- `ADD_SPEAKER_REVIEW_NOTE` and `RESTORE_SPEAKER_SUGGESTION_PENDING` are
+  supported through the shared Production command coordinator. `RESTORED_PENDING`
+  is a reversible review state, not a PREPARE or render mutation.
+- The UI shows `Để lại ghi chú`, `Khôi phục về chưa duyệt`, and
+  `Đã khôi phục về chờ duyệt` without provider, TTS, PREPARE, or START_RENDER
+  side effects.
+- Isolated browser certification and focused regression tests passed; canonical
+  data, Chapter `369`, and protected paths were not mutated.
+- Next required milestone: `REAL_USER_MEDIA_GOLDEN_JOURNEY`.
+
 ## Current Phase
 
 ### Real Character Discovery And Speaker Mapping

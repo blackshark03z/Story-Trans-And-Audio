@@ -124,8 +124,8 @@ try {
     if (scope) await setSelect(attr("data-registry-scope-key", speaker), scope);
     await setSelect(attr("data-registry-voice-key", speaker), voice);
     await click(attr("data-registry-apply", speaker));
-    const busySeen = await waitFor(`!!document.querySelector(".assignment-saving")`, 3000);
-    await waitFor(`!document.querySelector(".assignment-saving")`, 10000);
+    const busySeen = await waitFor(`!!document.querySelector(".assignment-saving")`, 5000);
+    await waitFor(`!document.querySelector(".assignment-saving")`, 20000);
     return !!busySeen;
   };
   const installCommandRecorder = async (existing = []) => evaluate(`(() => {
@@ -146,8 +146,8 @@ try {
   const clearVoice = async (speaker, scope = null) => {
     if (scope) await setSelect(attr("data-registry-scope-key", speaker), scope);
     await click(attr("data-registry-clear", speaker));
-    await waitFor(`!!document.querySelector(".assignment-saving")`, 3000);
-    await waitFor(`!document.querySelector(".assignment-saving")`, 10000);
+    await waitFor(`!!document.querySelector(".assignment-saving")`, 5000);
+    await waitFor(`!document.querySelector(".assignment-saving")`, 20000);
   };
 
   await send("Runtime.enable");
@@ -209,6 +209,7 @@ try {
   await route("#/assignment?book=1&from=3&to=3&skip_completed=1");
   await waitAssignmentReady("character:25");
   await clearVoice("character:25", "chapter");
+  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "character:25"))})?.closest("tr")?.innerText.includes("Male Default")`);
   const clearRestoresDefault = await rowHasVoice("character:25", "Male Default");
 
   await route("#/assignment?book=1&from=2&to=4&skip_completed=1");

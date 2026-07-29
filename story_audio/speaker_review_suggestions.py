@@ -5,6 +5,7 @@ from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 from .casting import CHUNKER_VERSION, split_utterances
+from .chapter_voice_overrides import apply_chapter_voice_override
 from .character_assignment import (
     UNRESOLVED_DIALOGUE_STATUS,
     apply_speaker_character_mapping,
@@ -19,8 +20,13 @@ from .gemini import suggest_speaker_review
 from .gemini_cache import GeminiRepairCache, canonical_json
 from .storage import ContentStore
 from .voice_eligibility import EffectiveVoiceCatalog
-from .voice_profile import get_book_voice_profile, resolve_voice, set_character_voice_override
+from .voice_profile import get_book_voice_profile, resolve_voice
 from .voice_ref import CustomVoiceContext
+from .speaker_review_workspace import (
+    APPROVED_STATES,
+    batch_exclusion_reasons,
+    queue_view_counts,
+)
 
 
 REQUEST_SCHEMA = "story-audio-gemini-speaker-review-request/v1"
@@ -30,6 +36,7 @@ QUEUE_SCHEMA = "story-audio-gemini-speaker-review-queue/v1"
 ANALYSIS_EVENT = "speaker_review_analysis_generated"
 ANALYSIS_FAILED_EVENT = "speaker_review_analysis_failed"
 DECISION_EVENT = "speaker_review_suggestion_reviewed"
+NOTE_EVENT = "speaker_review_suggestion_noted"
 PROMPT_VERSION = "speaker-review-suggestions-v1"
 GENERATION_SETTINGS = {"temperature": 0, "response_mime_type": "application/json"}
 RESOLUTIONS = {
@@ -45,7 +52,16 @@ VOICE_HANDLING = {
     "SUGGEST_AVAILABLE_VOICE",
     "LEAVE_UNASSIGNED",
 }
-DECISIONS = {"ACCEPTED", "EDITED_AND_ACCEPTED", "DEFERRED"}
+DECISIONS = {
+    "ACCEPTED",
+    "EDITED_AND_ACCEPTED",
+    "CORRECTED",
+    "DEFERRED",
+    "ERROR",
+    "MARKED_UNCERTAIN",
+    "REPLACEMENT_DRAFT",
+    "RESTORED_PENDING",
+}
 
 
 class SpeakerReviewSuggestionError(ValueError):
@@ -859,6 +875,91 @@ def _decision_events(db: Database, *, analysis_run_id: str) -> list[dict[str, An
     return events
 
 
+def _note_events(db: Database, *, analysis_run_id: str) -> list[dict[str, Any]]:
+    rows = db.fetch_all(
+        """
+        SELECT *
+        FROM audit_events
+        WHERE event_code=?
+        ORDER BY id
+        """,
+        (NOTE_EVENT,),
+    )
+    events: list[dict[str, Any]] = []
+    for row in rows:
+        try:
+            details = json.loads(row["details_json"] or "{}")
+        except (TypeError, ValueError):
+            continue
+        if details.get("analysis_run_id") != analysis_run_id:
+            continue
+        events.append({**dict(row), "details": details})
+    return events
+
+
+def _latest_decision_for_item(
+    db: Database,
+    *,
+    analysis_run_id: str,
+    source_analysis_run_id: str | None,
+    unresolved_key: str,
+) -> dict[str, Any] | None:
+    """Resolve decisions for both direct and combined queue projections."""
+
+    run_ids = {
+        str(value).strip()
+        for value in (analysis_run_id, source_analysis_run_id)
+        if str(value or "").strip()
+    }
+    candidates: list[dict[str, Any]] = []
+    for run_id in run_ids:
+        candidates.extend(
+            event
+            for event in _decision_events(db, analysis_run_id=run_id)
+            if str(event["details"].get("unresolved_key") or "") == str(unresolved_key)
+        )
+    if not candidates:
+        return None
+    event = max(candidates, key=lambda item: int(item.get("id") or 0))
+    details = dict(event["details"])
+    details["audit_event_id"] = int(event["id"])
+    details["recorded_at"] = event.get("created_at")
+    return details
+
+
+def _decision_history_for_item(
+    db: Database,
+    *,
+    analysis_run_id: str,
+    source_analysis_run_id: str | None,
+    unresolved_key: str,
+) -> list[dict[str, Any]]:
+    run_ids = {
+        str(value).strip()
+        for value in (analysis_run_id, source_analysis_run_id)
+        if str(value or "").strip()
+    }
+    history: list[dict[str, Any]] = []
+    for run_id in run_ids:
+        events = [
+            *_decision_events(db, analysis_run_id=run_id),
+            *_note_events(db, analysis_run_id=run_id),
+        ]
+        for event in events:
+            if str(event["details"].get("unresolved_key") or "") != str(
+                unresolved_key
+            ):
+                continue
+            history.append(
+                {
+                    **dict(event["details"]),
+                    "audit_event_id": int(event["id"]),
+                    "recorded_at": event.get("created_at"),
+                }
+            )
+    return sorted(history, key=lambda item: int(item.get("audit_event_id") or 0))
+
+
 def _load_run_from_event(store: ContentStore, event: Mapping[str, Any]) -> dict[str, Any]:
     details = dict(event.get("details") or {})
     payload = store.read_json(str(details["content_path"]))
@@ -869,21 +970,35 @@ def _load_run_from_event(store: ContentStore, event: Mapping[str, Any]) -> dict[
 
 def _clean_queue_state(db: Database, payload: dict[str, Any]) -> dict[str, Any]:
     analysis_run_id = str(payload["analysis_run_id"])
-    decisions = {
-        str(event["details"].get("unresolved_key")): dict(event["details"])
-        for event in _decision_events(db, analysis_run_id=analysis_run_id)
-    }
     for item in payload.get("suggestions") or []:
         unresolved_key = str(item.get("unresolved_key") or "")
-        decision = decisions.get(str(item.get("unresolved_key")))
+        source_analysis_run_id = str(item.get("source_analysis_run_id") or analysis_run_id)
+        decision = _latest_decision_for_item(
+            db,
+            analysis_run_id=analysis_run_id,
+            source_analysis_run_id=source_analysis_run_id,
+            unresolved_key=unresolved_key,
+        )
+        history = _decision_history_for_item(
+            db,
+            analysis_run_id=analysis_run_id,
+            source_analysis_run_id=source_analysis_run_id,
+            unresolved_key=unresolved_key,
+        )
         item.setdefault("source_analysis_run_id", analysis_run_id)
         item["suggestion_id"] = f"{item['source_analysis_run_id']}:{unresolved_key}"
+        decision_state = str((decision or {}).get("decision") or "PENDING_REVIEW")
         item["review_state"] = (
-            str(decision.get("decision") or "PENDING_REVIEW")
-            if decision
-            else "PENDING_REVIEW"
+            "PENDING_REVIEW"
+            if decision_state == "RESTORED_PENDING"
+            else decision_state
         )
         item["human_review"] = decision or None
+        item["reviewed_at"] = decision.get("recorded_at") if decision else None
+        item["review_audit_event_id"] = (
+            decision.get("audit_event_id") if decision else None
+        )
+        item["review_history"] = history
     summary = _queue_summary(payload.get("suggestions") or [])
     payload["summary"] = {**dict(payload.get("summary") or {}), **summary}
     return payload
@@ -902,6 +1017,7 @@ def _queue_summary(suggestions: list[Mapping[str, Any]]) -> dict[str, Any]:
         "inherited_voice": 0,
         "suggested_new_voice": 0,
         "approved": 0,
+        "corrected": 0,
         "deferred": 0,
     }
     for item in suggestions:
@@ -927,10 +1043,37 @@ def _queue_summary(suggestions: list[Mapping[str, Any]]) -> dict[str, Any]:
         elif voice_handling == "SUGGEST_AVAILABLE_VOICE":
             counts["suggested_new_voice"] += 1
         review_state = str(item.get("review_state") or "")
-        if review_state in {"ACCEPTED", "EDITED_AND_ACCEPTED"}:
+        if review_state in APPROVED_STATES:
             counts["approved"] += 1
+            if review_state == "CORRECTED":
+                counts["corrected"] += 1
         elif review_state == "DEFERRED":
             counts["deferred"] += 1
+    counts["needs_human_decision"] = sum(
+        1
+        for item in suggestions
+        if (
+            str(item.get("proposed_resolution") or "").upper()
+            == "NEEDS_HUMAN_DECISION"
+            and str(item.get("review_state") or "PENDING_REVIEW").upper()
+            == "PENDING_REVIEW"
+        )
+        or str(item.get("review_state") or "").upper() == "MARKED_UNCERTAIN"
+    )
+    counts["pending_review"] = sum(
+        1
+        for item in suggestions
+        if str(item.get("review_state") or "PENDING_REVIEW").upper()
+        == "PENDING_REVIEW"
+    )
+    counts["error"] = sum(
+        1
+        for item in suggestions
+        if str(item.get("review_state") or "").upper() in {"ERROR", "FAILED", "REJECTED"}
+        or item.get("error")
+        or item.get("error_code")
+    )
+    counts["queue_views"] = queue_view_counts(suggestions)
     return counts
 
 
@@ -946,6 +1089,17 @@ def _augment_suggestions(
     book_profile = dict(request["voice_configuration"].get("book_voice_profile") or {})
     by_key = {item["unresolved_key"]: item for item in request["targets"]}
     characters = _characters_by_id(registry)
+    current_revision_by_chapter = {
+        int(item.get("chapter_number") or 0): int(item.get("text_revision_id") or 0)
+        for item in request.get("text_revisions") or []
+    }
+    proposed_name_keys: dict[str, list[str]] = {}
+    for item in suggestions:
+        if str(item.get("proposed_resolution") or "") != "NEW_CHARACTER":
+            continue
+        name = normalize_identity(str(item.get("proposed_character_name") or ""))
+        if name:
+            proposed_name_keys.setdefault(name, []).append(str(item.get("unresolved_key") or ""))
     augmented: list[dict[str, Any]] = []
     for item in suggestions:
         target = by_key.get(str(item["unresolved_key"])) or {}
@@ -975,11 +1129,55 @@ def _augment_suggestions(
             if resolution == "NEW_CHARACTER"
             else []
         )
+        proposal_warnings = list(proposal.get("warnings") or [])
+        name_key = normalize_identity(str(proposal.get("proposed_character_name") or ""))
+        if resolution == "NEW_CHARACTER" and name_key and len(proposed_name_keys.get(name_key, [])) > 1:
+            proposal_warnings.append(
+                "Đề xuất tên nhân vật lặp trong cùng phạm vi; cần gộp hoặc chọn nhân vật có sẵn."
+            )
         if duplicate_candidates:
-            proposal["warnings"] = [
-                *list(proposal.get("warnings") or []),
+            proposal_warnings = [
+                *proposal_warnings,
                 "Tên hoặc alias giống nhân vật đã có; cần duyệt thủ công.",
             ]
+        if proposal_warnings:
+            proposal["warnings"] = list(dict.fromkeys(proposal_warnings))
+        source_revision_current = (
+            int(target.get("chapter_number") or 0) in current_revision_by_chapter
+            and int(
+                (proposal.get("text_revision_id") or target.get("text_revision_id") or 0)
+            )
+            in {
+                0,
+                current_revision_by_chapter.get(int(target.get("chapter_number") or 0)),
+            }
+        )
+        chapter_id = int(target.get("chapter_id") or 0)
+        downstream = (
+            db.fetch_one(
+                """
+                SELECT
+                  EXISTS(
+                    SELECT 1 FROM job_chapters jc
+                    WHERE jc.chapter_id=?
+                  ) AS has_job_snapshot,
+                  EXISTS(
+                    SELECT 1 FROM artifacts a
+                    WHERE a.chapter_id=?
+                  ) AS has_artifact
+                """,
+                (chapter_id, chapter_id),
+            )
+            if chapter_id
+            else None
+        )
+        has_downstream = bool(
+            downstream
+            and (
+                int(downstream["has_job_snapshot"] or 0)
+                or int(downstream["has_artifact"] or 0)
+            )
+        )
         proposal.update(
             {
                 "target": target,
@@ -993,14 +1191,15 @@ def _augment_suggestions(
                 "suggested_voice": suggested_voice,
                 "possible_duplicates": duplicate_candidates,
                 "review_state": proposal.get("review_state") or "PENDING_REVIEW",
-                "approval_eligible": (
-                    proposal.get("confidence") == "HIGH"
-                    and resolution in {"EXISTING_CHARACTER", "NEW_CHARACTER", "NARRATOR"}
-                    and not duplicate_candidates
-                    and not proposal.get("warnings")
-                ),
+                "source_revision_current": source_revision_current,
+                "downstream_immutable_exists": has_downstream,
+                "downstream_stale": has_downstream
+                and str(proposal.get("review_state") or "").upper()
+                in {"CORRECTED", "REPLACEMENT_DRAFT"},
             }
         )
+        proposal["approval_exclusion_reasons"] = batch_exclusion_reasons(proposal)
+        proposal["approval_eligible"] = not proposal["approval_exclusion_reasons"]
         augmented.append(proposal)
     return augmented
 
@@ -1352,6 +1551,8 @@ def record_speaker_suggestion_decision(
     decision: str,
     reviewer_payload: Mapping[str, Any],
     idempotency_key: str,
+    connection: Any | None = None,
+    resulting_mapping: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     normalized_decision = str(decision or "").strip().upper()
     if normalized_decision not in DECISIONS:
@@ -1377,6 +1578,22 @@ def record_speaker_suggestion_decision(
     )
     if existing:
         return {"reused": True, "decision": existing["details"]}
+    if normalized_decision == "REPLACEMENT_DRAFT":
+        current = _latest_decision_for_item(
+            db,
+            analysis_run_id=analysis_run_id,
+            source_analysis_run_id=str(
+                suggestion.get("source_analysis_run_id") or analysis_run_id
+            ),
+            unresolved_key=unresolved_key,
+        )
+        if (
+            not current
+            or str(current.get("decision") or "").upper() not in APPROVED_STATES
+        ):
+            raise SpeakerReviewSuggestionError(
+                "A replacement decision can only be created from an approved decision"
+            )
     details = {
         "schema": QUEUE_SCHEMA,
         "analysis_run_id": analysis_run_id,
@@ -1384,14 +1601,148 @@ def record_speaker_suggestion_decision(
         "decision": normalized_decision,
         "reviewer_payload": dict(reviewer_payload),
         "source_suggestion": suggestion,
+        "resulting_mapping": dict(resulting_mapping or {}),
         "idempotency_key": idempotency_key,
     }
-    db.audit(
-        DECISION_EVENT,
-        chapter_id=int((suggestion.get("target") or {}).get("chapter_id") or 0) or None,
-        details=details,
-    )
+    chapter_id = int((suggestion.get("target") or {}).get("chapter_id") or 0) or None
+    if connection is None:
+        db.audit(DECISION_EVENT, chapter_id=chapter_id, details=details)
+    else:
+        connection.execute(
+            """
+            INSERT INTO audit_events(event_code,job_id,chapter_id,details_json,created_at)
+            VALUES(?,?,?,?,?)
+            """,
+            (
+                DECISION_EVENT,
+                None,
+                chapter_id,
+                json.dumps(details, ensure_ascii=False),
+                utcnow(),
+            ),
+        )
     return {"reused": False, "decision": details}
+
+
+def record_speaker_suggestion_note(
+    db: Database,
+    store: ContentStore,
+    *,
+    analysis_run_id: str,
+    unresolved_key: str,
+    note: str,
+    idempotency_key: str,
+) -> dict[str, Any]:
+    normalized_note = str(note or "").strip()
+    if not normalized_note:
+        raise SpeakerReviewSuggestionError("Review note is required")
+    payload = _latest_queue_for_run(db, store, analysis_run_id=analysis_run_id)
+    suggestion = next(
+        (
+            item
+            for item in payload.get("suggestions") or []
+            if str(item.get("unresolved_key")) == str(unresolved_key)
+        ),
+        None,
+    )
+    if not suggestion:
+        raise SpeakerReviewSuggestionError("Speaker suggestion target was not found")
+    existing = next(
+        (
+            event
+            for event in _note_events(db, analysis_run_id=analysis_run_id)
+            if event["details"].get("idempotency_key") == idempotency_key
+        ),
+        None,
+    )
+    if existing:
+        return {"reused": True, "note": existing["details"]}
+    details = {
+        "schema": QUEUE_SCHEMA,
+        "analysis_run_id": analysis_run_id,
+        "unresolved_key": unresolved_key,
+        "decision": "NOTE",
+        "reviewer_payload": {"note": normalized_note},
+        "source_suggestion": suggestion,
+        "resulting_mapping": {},
+        "idempotency_key": idempotency_key,
+    }
+    chapter_id = int((suggestion.get("target") or {}).get("chapter_id") or 0) or None
+    db.audit(NOTE_EVENT, chapter_id=chapter_id, details=details)
+    return {"reused": False, "note": details}
+
+
+def restore_speaker_suggestion_pending(
+    db: Database,
+    store: ContentStore,
+    *,
+    analysis_run_id: str,
+    unresolved_key: str,
+    reviewer_payload: Mapping[str, Any],
+    idempotency_key: str,
+) -> dict[str, Any]:
+    payload = _latest_queue_for_run(db, store, analysis_run_id=analysis_run_id)
+    suggestion = next(
+        (
+            item
+            for item in payload.get("suggestions") or []
+            if str(item.get("unresolved_key")) == str(unresolved_key)
+        ),
+        None,
+    )
+    if not suggestion:
+        raise SpeakerReviewSuggestionError("Speaker suggestion target was not found")
+    existing = next(
+        (
+            event
+            for event in _decision_events(db, analysis_run_id=analysis_run_id)
+            if event["details"].get("idempotency_key") == idempotency_key
+        ),
+        None,
+    )
+    if existing:
+        return {"reused": True, "decision": existing["details"]}
+    current = _latest_decision_for_item(
+        db,
+        analysis_run_id=analysis_run_id,
+        source_analysis_run_id=str(
+            suggestion.get("source_analysis_run_id") or analysis_run_id
+        ),
+        unresolved_key=unresolved_key,
+    )
+    if str((current or {}).get("decision") or "").upper() not in APPROVED_STATES:
+        raise SpeakerReviewSuggestionError(
+            "Only an approved speaker decision can be restored to pending"
+        )
+    chapter_id = int((suggestion.get("target") or {}).get("chapter_id") or 0)
+    downstream = (
+        db.fetch_one(
+            """
+            SELECT
+              EXISTS(SELECT 1 FROM job_chapters WHERE chapter_id=?) AS has_job_snapshot,
+              EXISTS(SELECT 1 FROM artifacts WHERE chapter_id=?) AS has_artifact
+            """,
+            (chapter_id, chapter_id),
+        )
+        if chapter_id
+        else None
+    )
+    if downstream and (
+        int(downstream["has_job_snapshot"] or 0)
+        or int(downstream["has_artifact"] or 0)
+    ):
+        raise SpeakerReviewSuggestionError(
+            "Downstream production history exists; create a replacement decision instead"
+        )
+    return record_speaker_suggestion_decision(
+        db,
+        store,
+        analysis_run_id=analysis_run_id,
+        unresolved_key=unresolved_key,
+        decision="RESTORED_PENDING",
+        reviewer_payload=reviewer_payload,
+        idempotency_key=idempotency_key,
+    )
 
 
 def accept_speaker_review_suggestion(
@@ -1408,7 +1759,29 @@ def accept_speaker_review_suggestion(
     voice_catalog: EffectiveVoiceCatalog,
     custom_voice_context: CustomVoiceContext | None = None,
     idempotency_key: str,
+    decision_override: str | None = None,
+    require_approved: bool = False,
+    connection: Any | None = None,
 ) -> dict[str, Any]:
+    if connection is None:
+        with db.transaction() as transaction:
+            return accept_speaker_review_suggestion(
+                db,
+                store,
+                config,
+                book_id=book_id,
+                from_chapter=from_chapter,
+                to_chapter=to_chapter,
+                analysis_run_id=analysis_run_id,
+                unresolved_key=unresolved_key,
+                reviewer_payload=reviewer_payload,
+                voice_catalog=voice_catalog,
+                custom_voice_context=custom_voice_context,
+                idempotency_key=idempotency_key,
+                decision_override=decision_override,
+                require_approved=require_approved,
+                connection=transaction,
+            )
     payload = _latest_queue_for_run(db, store, analysis_run_id=analysis_run_id)
     suggestion = next(
         (
@@ -1420,6 +1793,29 @@ def accept_speaker_review_suggestion(
     )
     if not suggestion:
         raise SpeakerReviewSuggestionError("Speaker suggestion target was not found")
+    current_review = _latest_decision_for_item(
+        db,
+        analysis_run_id=analysis_run_id,
+        source_analysis_run_id=str(suggestion.get("source_analysis_run_id") or analysis_run_id),
+        unresolved_key=unresolved_key,
+    )
+    if require_approved:
+        current_state = str(
+            (current_review or {}).get("decision") or ""
+        ).upper()
+        replacement_source_state = str(
+            ((current_review or {}).get("source_suggestion") or {}).get(
+                "review_state"
+            )
+            or ""
+        ).upper()
+        if current_state not in APPROVED_STATES and not (
+            current_state == "REPLACEMENT_DRAFT"
+            and replacement_source_state in APPROVED_STATES
+        ):
+            raise SpeakerReviewSuggestionError(
+                "Only an approved speaker decision can be corrected"
+            )
     resolution = str(
         reviewer_payload.get("proposed_resolution")
         or suggestion.get("proposed_resolution")
@@ -1434,12 +1830,37 @@ def accept_speaker_review_suggestion(
         )
         if str(item).strip()
     ]
+    voice_mode = str(reviewer_payload.get("voice_mode") or "").strip().lower()
+    voice_change_requested = voice_mode in {
+        "book_default",
+        "exact",
+        "inherit",
+        "override",
+        "set",
+    }
+    requested_voice = (
+        str(reviewer_payload.get("suggested_voice_id") or "").strip() or None
+        if voice_mode not in {"inherit", "book_default"}
+        else None
+    )
+    voice_scope = str(reviewer_payload.get("voice_scope") or "chapter").strip().lower()
+    if voice_scope not in {"chapter", "range"}:
+        raise SpeakerReviewSuggestionError("Unsupported voice correction scope")
+    voice_operation = (
+        "set"
+        if voice_mode in {"exact", "override", "set"}
+        else "clear"
+        if voice_mode in {"inherit", "book_default"}
+        else "preserve"
+    )
     applied: dict[str, Any]
+    final_speaker_key: str
     if resolution == "EXISTING_CHARACTER":
         character_id = reviewer_payload.get("existing_character_id") or suggestion.get("existing_character_id")
         if isinstance(character_id, bool) or not isinstance(character_id, int) or int(character_id) <= 0:
             raise SpeakerReviewSuggestionError("existing_character_id is required")
         character_id = int(character_id)
+        final_speaker_key = f"character:{character_id}"
         applied = apply_speaker_character_mapping(
             db,
             store,
@@ -1452,6 +1873,9 @@ def accept_speaker_review_suggestion(
             voice_catalog=voice_catalog,
             idempotency_key=idempotency_key,
             custom_voice_context=custom_voice_context,
+            connection=connection,
+            voice_operation=voice_operation,
+            voice_id=requested_voice,
         )
     elif resolution == "NEW_CHARACTER":
         name = str(
@@ -1467,17 +1891,10 @@ def accept_speaker_review_suggestion(
             gender=str(reviewer_payload.get("gender") or "unknown"),
             role=str(reviewer_payload.get("role") or "unknown"),
             idempotency_key=f"{idempotency_key}:character",
+            connection=connection,
         )
         character_id = int(created["character"]["id"])
-        voice_id = str(reviewer_payload.get("suggested_voice_id") or "").strip()
-        if voice_id:
-            set_character_voice_override(
-                db,
-                character_id,
-                voice_id,
-                allowed_voice_ids=set(voice_catalog.selectable_ids),
-                custom_voice_context=custom_voice_context,
-            )
+        final_speaker_key = f"character:{character_id}"
         applied = apply_speaker_character_mapping(
             db,
             store,
@@ -1490,9 +1907,13 @@ def accept_speaker_review_suggestion(
             voice_catalog=voice_catalog,
             idempotency_key=f"{idempotency_key}:mapping",
             custom_voice_context=custom_voice_context,
+            connection=connection,
+            voice_operation=voice_operation,
+            voice_id=requested_voice,
         )
         applied["created_character"] = created
     elif resolution == "NARRATOR":
+        final_speaker_key = "narrator"
         applied = clear_speaker_character_mapping(
             db,
             store,
@@ -1503,21 +1924,72 @@ def accept_speaker_review_suggestion(
             voice_catalog=voice_catalog,
             idempotency_key=idempotency_key,
             custom_voice_context=custom_voice_context,
+            connection=connection,
+            voice_operation=voice_operation,
+            voice_id=requested_voice,
         )
     else:
         raise SpeakerReviewSuggestionError("This suggestion requires manual deferral, not approval")
+    if voice_change_requested and voice_scope == "range":
+        target_chapter = int(
+            (suggestion.get("target") or {}).get("chapter_number")
+            or suggestion.get("chapter_number")
+            or 0
+        )
+        scoped_results: list[dict[str, Any]] = []
+        for range_start, range_end in (
+            (from_chapter, target_chapter - 1),
+            (target_chapter + 1, to_chapter),
+        ):
+            if range_start > range_end:
+                continue
+            scoped_results.append(
+                apply_chapter_voice_override(
+                    db,
+                    store,
+                    book_id=book_id,
+                    from_chapter=range_start,
+                    to_chapter=range_end,
+                    speaker_key=final_speaker_key,
+                    operation="set" if voice_operation == "set" else "clear",
+                    voice_id=requested_voice,
+                    voice_catalog=voice_catalog,
+                    idempotency_key=(
+                        f"{idempotency_key}:voice:{range_start}-{range_end}"
+                    ),
+                    custom_voice_context=custom_voice_context,
+                    connection=connection,
+                    skip_missing=True,
+                )
+            )
+        applied["voice_scope_results"] = scoped_results
+    editable_fields = (
+        "proposed_resolution",
+        "existing_character_id",
+        "proposed_character_name",
+        "proposed_aliases",
+        "suggested_voice_id",
+    )
+    human_edited = any(
+        field in reviewer_payload
+        and reviewer_payload.get(field) != suggestion.get(field)
+        for field in editable_fields
+    ) or voice_mode not in {"", "keep", "preserve"}
     review = record_speaker_suggestion_decision(
         db,
         store,
         analysis_run_id=analysis_run_id,
         unresolved_key=unresolved_key,
-        decision=(
+        decision=decision_override
+        or (
             "EDITED_AND_ACCEPTED"
-            if reviewer_payload and dict(reviewer_payload) != suggestion
+            if human_edited
             else "ACCEPTED"
         ),
         reviewer_payload=reviewer_payload,
         idempotency_key=idempotency_key,
+        connection=connection,
+        resulting_mapping=applied,
     )
     return {"applied": applied, "review": review}
 
@@ -1535,6 +2007,7 @@ def approve_high_confidence_suggestions(
     voice_catalog: EffectiveVoiceCatalog,
     custom_voice_context: CustomVoiceContext | None = None,
     idempotency_key: str,
+    connection: Any | None = None,
 ) -> dict[str, Any]:
     payload = _latest_queue_for_run(db, store, analysis_run_id=analysis_run_id)
     keys = [str(item).strip() for item in unresolved_keys if str(item).strip()]
@@ -1544,37 +2017,185 @@ def approve_high_confidence_suggestions(
         str(item.get("unresolved_key")): item
         for item in payload.get("suggestions") or []
     }
+    replayed: list[dict[str, Any]] = []
+    for key in keys:
+        decision_key = f"{idempotency_key}:{key}"
+        existing = next(
+            (
+                event
+                for event in _decision_events(
+                    db, analysis_run_id=analysis_run_id
+                )
+                if event["details"].get("idempotency_key") == decision_key
+                and str(event["details"].get("decision") or "").upper()
+                in APPROVED_STATES
+            ),
+            None,
+        )
+        if existing:
+            replayed.append(
+                {
+                    "applied": None,
+                    "review": {
+                        "reused": True,
+                        "decision": existing["details"],
+                    },
+                }
+            )
+    if replayed:
+        if len(replayed) != len(keys):
+            raise SpeakerReviewSuggestionError(
+                "Batch replay is inconsistent; no additional changes were applied"
+            )
+        return {
+            "applied": replayed,
+            "submitted_count": len(keys),
+            "reused": True,
+        }
     for key in keys:
         suggestion = suggestions.get(key)
         if not suggestion:
             raise SpeakerReviewSuggestionError(f"Suggestion not found: {key}")
-        if suggestion.get("confidence") != "HIGH":
-            raise SpeakerReviewSuggestionError("Only HIGH-confidence suggestions can be batch approved")
-        if not suggestion.get("approval_eligible", True):
-            raise SpeakerReviewSuggestionError("A selected suggestion requires individual review")
-        if suggestion.get("proposed_resolution") not in {"EXISTING_CHARACTER", "NARRATOR"}:
+        reasons = batch_exclusion_reasons(suggestion)
+        if reasons:
             raise SpeakerReviewSuggestionError(
-                "Batch approval is limited to existing-character or narrator suggestions"
+                f"Suggestion {key} is not safe for batch approval: {', '.join(reasons)}"
+            )
+        if suggestion.get("proposed_resolution") not in {
+            "EXISTING_CHARACTER",
+            "NEW_CHARACTER",
+            "NARRATOR",
+        }:
+            raise SpeakerReviewSuggestionError(
+                "Batch approval is limited to resolved safe suggestions"
             )
     applied = []
-    for key in keys:
-        applied.append(
-            accept_speaker_review_suggestion(
+    def apply_with(transaction: Any) -> None:
+        for key in keys:
+            applied.append(
+                accept_speaker_review_suggestion(
+                    db,
+                    store,
+                    config,
+                    book_id=book_id,
+                    from_chapter=from_chapter,
+                    to_chapter=to_chapter,
+                    analysis_run_id=analysis_run_id,
+                    unresolved_key=key,
+                    reviewer_payload=suggestions[key],
+                    voice_catalog=voice_catalog,
+                    custom_voice_context=custom_voice_context,
+                    idempotency_key=f"{idempotency_key}:{key}",
+                    connection=transaction,
+                )
+            )
+
+    try:
+        if connection is None:
+            with db.transaction() as transaction:
+                apply_with(transaction)
+        else:
+            apply_with(connection)
+    except Exception as exc:
+        if connection is not None:
+            raise
+        for key in keys:
+            record_speaker_suggestion_decision(
                 db,
                 store,
-                config,
-                book_id=book_id,
-                from_chapter=from_chapter,
-                to_chapter=to_chapter,
                 analysis_run_id=analysis_run_id,
                 unresolved_key=key,
-                reviewer_payload=suggestions[key],
-                voice_catalog=voice_catalog,
-                custom_voice_context=custom_voice_context,
-                idempotency_key=f"{idempotency_key}:{key}",
+                decision="ERROR",
+                reviewer_payload={
+                    "batch_idempotency_key": idempotency_key,
+                    "reason": str(exc),
+                },
+                idempotency_key=f"{idempotency_key}:{key}:error",
             )
-        )
+        raise
     return {"applied": applied, "submitted_count": len(keys)}
+
+
+def approve_speaker_review_batch_items(
+    db: Database,
+    store: ContentStore,
+    config: Settings,
+    *,
+    book_id: int,
+    from_chapter: int,
+    to_chapter: int,
+    items: Iterable[Mapping[str, Any]],
+    voice_catalog: EffectiveVoiceCatalog,
+    custom_voice_context: CustomVoiceContext | None = None,
+    idempotency_key: str,
+) -> dict[str, Any]:
+    """Apply a combined-run batch in one transaction across source runs."""
+
+    normalized: list[tuple[str, str]] = []
+    seen: set[tuple[str, str]] = set()
+    for item in items:
+        run_id = str(item.get("analysis_run_id") or "").strip()
+        unresolved_key = str(item.get("unresolved_key") or "").strip()
+        identity = (run_id, unresolved_key)
+        if not all(identity):
+            raise SpeakerReviewSuggestionError(
+                "Batch items require analysis_run_id and unresolved_key"
+            )
+        if identity in seen:
+            continue
+        seen.add(identity)
+        normalized.append(identity)
+    if not normalized:
+        raise SpeakerReviewSuggestionError("No suggestions selected for batch approval")
+
+    groups: dict[str, list[str]] = {}
+    for run_id, unresolved_key in normalized:
+        groups.setdefault(run_id, []).append(unresolved_key)
+    results: list[dict[str, Any]] = []
+    try:
+        with db.transaction() as connection:
+            for run_id, keys in groups.items():
+                results.append(
+                    approve_high_confidence_suggestions(
+                        db,
+                        store,
+                        config,
+                        book_id=book_id,
+                        from_chapter=from_chapter,
+                        to_chapter=to_chapter,
+                        analysis_run_id=run_id,
+                        unresolved_keys=keys,
+                        voice_catalog=voice_catalog,
+                        custom_voice_context=custom_voice_context,
+                        idempotency_key=f"{idempotency_key}:{run_id}",
+                        connection=connection,
+                    )
+                )
+    except Exception as exc:
+        for run_id, unresolved_key in normalized:
+            record_speaker_suggestion_decision(
+                db,
+                store,
+                analysis_run_id=run_id,
+                unresolved_key=unresolved_key,
+                decision="ERROR",
+                reviewer_payload={
+                    "batch_idempotency_key": idempotency_key,
+                    "reason": str(exc),
+                },
+                idempotency_key=(
+                    f"{idempotency_key}:{run_id}:{unresolved_key}:error"
+                ),
+            )
+        raise
+    return {
+        "groups": results,
+        "submitted_count": len(normalized),
+        "items": [
+            {"analysis_run_id": run_id, "unresolved_key": unresolved_key}
+            for run_id, unresolved_key in normalized
+        ],
+    }
 
 
 __all__ = [
@@ -1587,6 +2208,7 @@ __all__ = [
     "SpeakerReviewSuggestionError",
     "accept_speaker_review_suggestion",
     "approve_high_confidence_suggestions",
+    "approve_speaker_review_batch_items",
     "build_speaker_review_request",
     "generate_speaker_review_suggestions",
     "get_speaker_review_queue",

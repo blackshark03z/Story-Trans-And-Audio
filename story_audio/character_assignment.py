@@ -10,6 +10,7 @@ from .casting import (
     CastingError,
     build_casting_plan_payload,
     get_plan,
+    speaker_key_for,
     split_utterances,
 )
 from .character_bible import normalize_identity
@@ -27,6 +28,20 @@ UNRESOLVED_DIALOGUE_PREFIX = "unresolved-dialogue"
 
 class CharacterAssignmentError(ValueError):
     """Fail-closed error for durable character/speaker assignment changes."""
+
+
+class _ConnectionDatabaseView:
+    """Read through an existing transaction so uncommitted identities are visible."""
+
+    def __init__(self, database: Database, connection: sqlite3.Connection):
+        self.path = database.path
+        self._connection = connection
+
+    def fetch_one(self, sql: str, params: tuple[Any, ...] = ()):
+        return self._connection.execute(sql, params).fetchone()
+
+    def fetch_all(self, sql: str, params: tuple[Any, ...] = ()):
+        return list(self._connection.execute(sql, params).fetchall())
 
 
 @dataclass(frozen=True)
@@ -219,6 +234,37 @@ def _all_plan_voice_ids(payload: Mapping[str, Any]) -> set[str]:
     return {voice for voice in voices if voice}
 
 
+def _speaker_voices(payload: Mapping[str, Any]) -> dict[str, set[str]]:
+    result: dict[str, set[str]] = {}
+    for item in payload.get("utterances") or []:
+        if not isinstance(item, Mapping):
+            continue
+        character_id = (
+            int(item["character_id"])
+            if item.get("character_id") not in (None, "")
+            else None
+        )
+        key = speaker_key_for(str(item.get("role") or "narrator"), character_id)
+        voice_id = str(item.get("resolved_voice_id") or "").strip()
+        if voice_id:
+            result.setdefault(key, set()).add(voice_id)
+    return result
+
+
+def _existing_plan_overrides(
+    current_payload: Mapping[str, Any],
+    default_payload: Mapping[str, Any],
+) -> dict[str, str]:
+    current = _speaker_voices(current_payload)
+    defaults = _speaker_voices(default_payload)
+    overrides: dict[str, str] = {}
+    for key, voices in current.items():
+        default_voices = defaults.get(key) or set()
+        if len(voices) == 1 and len(default_voices) == 1 and voices != default_voices:
+            overrides[key] = next(iter(voices))
+    return overrides
+
+
 def _book_configured_voice_ids(db: Database, book_id: int) -> set[str]:
     voices: set[str] = set()
     profile = db.fetch_one("SELECT * FROM book_voice_profiles WHERE book_id=?", (book_id,))
@@ -395,77 +441,132 @@ def create_assignment_character(
     gender: str | None = None,
     role: str = "unknown",
     idempotency_key: str | None = None,
+    connection: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
     name = clean_display_name(display_name)
     if gender not in {"male", "female", "unknown", None}:
         raise CharacterAssignmentError("Character gender is invalid")
     if role not in {"main", "supporting", "minor", "unknown"}:
         raise CharacterAssignmentError("Character role is invalid")
-    if not db.fetch_one("SELECT id FROM books WHERE id=?", (book_id,)):
-        raise CharacterAssignmentError("Book not found")
-    existing = _find_character_by_identity(db, book_id=book_id, name=name)
     alias_pairs = _clean_alias_pairs(aliases)
-    if existing:
-        added = add_character_aliases(
-            db,
-            book_id=book_id,
-            character_id=int(existing["id"]),
-            aliases=[alias for alias, _normalized in alias_pairs],
-            idempotency_key=idempotency_key,
-        )
-        existing["aliases"] = _aliases_for_character(db, int(existing["id"]))
-        return {"character": existing, "created": False, "reused": True, "aliases": added["aliases"]}
+    if connection is None:
+        with db.transaction() as transaction:
+            return create_assignment_character(
+                db,
+                book_id=book_id,
+                display_name=name,
+                aliases=[alias for alias, _normalized in alias_pairs],
+                gender=gender,
+                role=role,
+                idempotency_key=idempotency_key,
+                connection=transaction,
+            )
 
+    if not connection.execute("SELECT id FROM books WHERE id=?", (book_id,)).fetchone():
+        raise CharacterAssignmentError("Book not found")
     identity = normalize_identity(name)
+    existing = connection.execute(
+        """
+        SELECT *
+        FROM characters
+        WHERE book_id=? AND active=1
+          AND (
+            lower(display_name)=lower(?)
+            OR canonical_name_normalized=?
+            OR external_key_normalized=?
+          )
+        ORDER BY id
+        LIMIT 1
+        """,
+        (book_id, name, identity, identity),
+    ).fetchone()
+    if not existing:
+        existing = connection.execute(
+            """
+            SELECT c.*
+            FROM character_aliases ca
+            JOIN characters c ON c.id=ca.character_id
+            WHERE ca.book_id=? AND c.active=1 AND ca.alias_normalized=?
+            ORDER BY c.id
+            LIMIT 1
+            """,
+            (book_id, identity),
+        ).fetchone()
+    if existing:
+        character_id = int(existing["id"])
+        added = _insert_alias_pairs(
+            connection,
+            book_id=book_id,
+            character_id=character_id,
+            alias_pairs=alias_pairs,
+            idempotency_key=idempotency_key,
+            now=utcnow(),
+        )
+        character = dict(existing)
+        character["aliases"] = [
+            str(row["alias"])
+            for row in connection.execute(
+                "SELECT alias FROM character_aliases WHERE character_id=? ORDER BY alias,id",
+                (character_id,),
+            ).fetchall()
+        ]
+        return {
+            "character": character,
+            "created": False,
+            "reused": True,
+            "aliases": added["aliases"],
+        }
+
     now = utcnow()
     try:
-        # Validate before opening the write transaction so duplicate aliases fail
-        # without leaving a newly created character behind.
-        _validate_aliases_available(
-            db,
-            book_id=book_id,
-            character_id=-1,
-            alias_pairs=alias_pairs,
+        character_id = int(
+            connection.execute(
+                """INSERT INTO characters(
+                    book_id,display_name,default_voice_id,active,created_at,updated_at,
+                    gender,voice_override_id,external_key,external_key_normalized,
+                    canonical_name,canonical_name_normalized,role,notes
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    book_id,
+                    name,
+                    "",
+                    1,
+                    now,
+                    now,
+                    gender or "unknown",
+                    None,
+                    f"assignment:{identity}",
+                    f"assignment:{identity}",
+                    name,
+                    identity,
+                    role,
+                    f"Created from Assignment command {idempotency_key or ''}".strip(),
+                ),
+            ).lastrowid
         )
-        with db.transaction() as connection:
-            character_id = int(
-                connection.execute(
-                    """INSERT INTO characters(
-                        book_id,display_name,default_voice_id,active,created_at,updated_at,
-                        gender,voice_override_id,external_key,external_key_normalized,
-                        canonical_name,canonical_name_normalized,role,notes
-                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
-                    (
-                        book_id,
-                        name,
-                        "",
-                        1,
-                        now,
-                        now,
-                        gender or "unknown",
-                        None,
-                        f"assignment:{identity}",
-                        f"assignment:{identity}",
-                        name,
-                        identity,
-                        role,
-                        f"Created from Assignment command {idempotency_key or ''}".strip(),
-                    ),
-                ).lastrowid
-            )
-            alias_result = _insert_alias_pairs(
-                connection,
-                book_id=book_id,
-                character_id=character_id,
-                alias_pairs=alias_pairs,
-                idempotency_key=idempotency_key,
-                now=now,
-            )
+        alias_result = _insert_alias_pairs(
+            connection,
+            book_id=book_id,
+            character_id=character_id,
+            alias_pairs=alias_pairs,
+            idempotency_key=idempotency_key,
+            now=now,
+        )
     except sqlite3.IntegrityError as exc:
         raise CharacterAssignmentError("Character name already exists in this book") from exc
 
-    character = _character_row(db, book_id=book_id, character_id=character_id)
-    character["aliases"] = _aliases_for_character(db, character_id)
+    character_row = connection.execute(
+        "SELECT * FROM characters WHERE id=? AND book_id=? AND active=1",
+        (character_id, book_id),
+    ).fetchone()
+    character = dict(character_row) if character_row else {"id": character_id}
+    character["aliases"] = [
+        str(row["alias"])
+        for row in connection.execute(
+            "SELECT alias FROM character_aliases WHERE character_id=? ORDER BY alias,id",
+            (character_id,),
+        ).fetchall()
+    ]
     return {
         "character": character,
         "created": True,
@@ -541,6 +642,8 @@ def _prepare_mapping_plan(
     voice_catalog: EffectiveVoiceCatalog,
     source_metadata: Mapping[str, Any],
     custom_voice_context: CustomVoiceContext | None,
+    voice_operation: str = "preserve",
+    voice_id: str | None = None,
 ) -> _PreparedMappingPlan | None:
     plan_row = _latest_approved_plan_row(db, int(chapter["id"]))
     if int(plan_row["text_revision_id"]) != int(chapter.get("active_text_revision_id") or 0):
@@ -576,7 +679,7 @@ def _prepare_mapping_plan(
         | _all_plan_voice_ids(current_payload)
         | _book_configured_voice_ids(db, int(chapter["book_id"]))
     )
-    built = build_casting_plan_payload(
+    default_build = build_casting_plan_payload(
         db,
         store,
         chapter_id=int(chapter["id"]),
@@ -587,6 +690,36 @@ def _prepare_mapping_plan(
         source_metadata=dict(source_metadata),
         base_utterances=current_payload.get("utterances") or [],
         custom_voice_context=custom_voice_context,
+    )
+    overrides = _existing_plan_overrides(current_payload, default_build.payload)
+    target_speaker_key = speaker_key_for(
+        target_role,
+        character_id if target_role == "character" else None,
+    )
+    if voice_operation == "set":
+        if not voice_id:
+            raise CharacterAssignmentError("voice_id is required for a scoped override")
+        if voice_id not in build_allowed_voice_ids and not (
+            custom_voice_context and custom_voice_context.is_available(voice_id)
+        ):
+            raise CharacterAssignmentError("Selected voice is not available")
+        overrides[target_speaker_key] = voice_id
+    elif voice_operation == "clear":
+        overrides.pop(target_speaker_key, None)
+    elif voice_operation != "preserve":
+        raise CharacterAssignmentError("Unsupported speaker voice operation")
+    built = build_casting_plan_payload(
+        db,
+        store,
+        chapter_id=int(chapter["id"]),
+        text_revision_id=int(plan_row["text_revision_id"]),
+        narrator_voice_id=str(current_payload.get("narrator_voice_id") or ""),
+        assignments=assignments,
+        allowed_voice_ids=build_allowed_voice_ids | ({voice_id} if voice_id else set()),
+        source_metadata=dict(source_metadata),
+        base_utterances=current_payload.get("utterances") or [],
+        custom_voice_context=custom_voice_context,
+        speaker_voice_overrides=overrides,
     )
     plan_sha = _canonical_plan_sha(built.payload)
     content_path, stored_sha = store.put_json(built.payload, namespace="casting")
@@ -621,12 +754,16 @@ def apply_speaker_character_mapping(
     voice_catalog: EffectiveVoiceCatalog,
     idempotency_key: str,
     custom_voice_context: CustomVoiceContext | None = None,
+    connection: Any | None = None,
+    voice_operation: str = "preserve",
+    voice_id: str | None = None,
 ) -> dict[str, Any]:
     normalized_speaker = str(speaker_key or "").strip()
-    _character_row(db, book_id=book_id, character_id=character_id)
+    read_db = _ConnectionDatabaseView(db, connection) if connection is not None else db
+    _character_row(read_db, book_id=book_id, character_id=character_id)
     alias_pairs = _clean_alias_pairs(aliases)
     _validate_aliases_available(
-        db,
+        read_db,
         book_id=book_id,
         character_id=character_id,
         alias_pairs=alias_pairs,
@@ -643,6 +780,8 @@ def apply_speaker_character_mapping(
         "speaker_key": normalized_speaker,
         "character_id": character_id,
         "aliases": [alias for alias, _normalized in alias_pairs],
+        "voice_operation": voice_operation,
+        "voice_id": voice_id,
         "scope": {
             "book_id": book_id,
             "from_chapter": from_chapter,
@@ -655,7 +794,7 @@ def apply_speaker_character_mapping(
         item
         for item in (
             _prepare_mapping_plan(
-                db,
+                read_db,
                 store,
                 chapter=chapter,
                 speaker_key=normalized_speaker,
@@ -664,6 +803,8 @@ def apply_speaker_character_mapping(
                 voice_catalog=voice_catalog,
                 source_metadata=source_metadata,
                 custom_voice_context=custom_voice_context,
+                voice_operation=voice_operation,
+                voice_id=voice_id,
             )
             for chapter in chapters
         )
@@ -680,6 +821,7 @@ def apply_speaker_character_mapping(
         alias_pairs,
         book_id=book_id,
         idempotency_key=idempotency_key,
+        connection=connection,
     )
 
 
@@ -694,10 +836,14 @@ def clear_speaker_character_mapping(
     voice_catalog: EffectiveVoiceCatalog,
     idempotency_key: str,
     custom_voice_context: CustomVoiceContext | None = None,
+    connection: Any | None = None,
+    voice_operation: str = "preserve",
+    voice_id: str | None = None,
 ) -> dict[str, Any]:
     normalized_speaker = str(speaker_key or "").strip()
+    read_db = _ConnectionDatabaseView(db, connection) if connection is not None else db
     chapters = _chapter_rows(
-        db,
+        read_db,
         book_id=book_id,
         from_chapter=from_chapter,
         to_chapter=to_chapter,
@@ -706,6 +852,8 @@ def clear_speaker_character_mapping(
         "source": "speaker_character_mapping",
         "operation": "clear",
         "speaker_key": normalized_speaker,
+        "voice_operation": voice_operation,
+        "voice_id": voice_id,
         "scope": {
             "book_id": book_id,
             "from_chapter": from_chapter,
@@ -718,7 +866,7 @@ def clear_speaker_character_mapping(
         item
         for item in (
             _prepare_mapping_plan(
-                db,
+                read_db,
                 store,
                 chapter=chapter,
                 speaker_key=normalized_speaker,
@@ -727,6 +875,8 @@ def clear_speaker_character_mapping(
                 voice_catalog=voice_catalog,
                 source_metadata=source_metadata,
                 custom_voice_context=custom_voice_context,
+                voice_operation=voice_operation,
+                voice_id=voice_id,
             )
             for chapter in chapters
         )
@@ -743,6 +893,7 @@ def clear_speaker_character_mapping(
         (),
         book_id=book_id,
         idempotency_key=idempotency_key,
+        connection=connection,
     )
 
 
@@ -756,6 +907,7 @@ def _commit_mapping_plans(
     *,
     book_id: int,
     idempotency_key: str,
+    connection: Any | None = None,
 ) -> dict[str, Any]:
     applied: list[dict[str, Any]] = []
     now = utcnow()
@@ -765,7 +917,9 @@ def _commit_mapping_plans(
         "added_count": 0,
         "reused_count": 0,
     }
-    with db.transaction() as connection:
+
+    def commit_with(connection):
+        nonlocal alias_result
         if character_id is not None:
             alias_result = _insert_alias_pairs(
                 connection,
@@ -845,6 +999,11 @@ def _commit_mapping_plans(
                     "reused": False,
                 }
             )
+    if connection is None:
+        with db.transaction() as transaction:
+            commit_with(transaction)
+    else:
+        commit_with(connection)
     return {
         "operation": operation,
         "speaker_key": speaker_key,

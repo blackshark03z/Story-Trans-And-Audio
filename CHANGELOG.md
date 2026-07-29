@@ -4,6 +4,22 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Speaker Review Workspace And Reversible Decisions
+
+- Added a dedicated speaker-review workspace with explicit queue views,
+  row-level evidence, history, and revision provenance for approved rows.
+- Added `ADD_SPEAKER_REVIEW_NOTE` as a durable audit-only command and
+  `RESTORE_SPEAKER_SUGGESTION_PENDING` as a bounded reversible decision that
+  returns approved review rows to `PENDING_REVIEW` only while no downstream
+  Job or Artifact exists.
+- Updated the UI to show `Để lại ghi chú`, `Khôi phục về chưa duyệt`, and
+  `Đã khôi phục về chờ duyệt` without PREPARE, START_RENDER, provider, or TTS
+  side effects. Downstream-immutable rows now stay historical and point to
+  replacement decisions instead of silently flipping state.
+- Added focused service/API/UI/browser coverage for note-only audit events,
+  safe restore-to-pending behavior, and downstream blocking. Canonical data,
+  Chapter `369`, and protected paths were not mutated.
+
 ### Real Character Discovery And Speaker Assignment
 
 - Fixed the Assignment registry gap where dash-led dialogue assigned to

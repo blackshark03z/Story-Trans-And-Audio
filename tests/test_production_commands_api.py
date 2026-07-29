@@ -365,6 +365,277 @@ class ProductionCommandApiTests(IsolatedTestCase):
         )
         self.assertEqual(generate.call_args.kwargs["expected_input_fingerprint"], "abc123")
 
+    def test_replacement_and_uncertain_commands_record_reversible_decisions(self) -> None:
+        context = (
+            {
+                "book_id": 1,
+                "from_chapter": 2,
+                "to_chapter": 10,
+                "skip_completed": True,
+            },
+            object(),
+            None,
+            {"rows": []},
+        )
+        cases = (
+            (
+                "CREATE_SPEAKER_REPLACEMENT_DECISION",
+                "speaker-review-replacement-0001",
+                "REPLACEMENT_DRAFT",
+                "speaker_review_replacement_draft",
+            ),
+            (
+                "MARK_SPEAKER_SUGGESTION_UNCERTAIN",
+                "speaker-review-uncertain-0001",
+                "MARKED_UNCERTAIN",
+                "speaker_review_uncertain",
+            ),
+        )
+        for command_type, idempotency_key, decision, item_type in cases:
+            with self.subTest(command_type=command_type):
+                with (
+                    patch("story_audio.api._project_production_command", self.projection),
+                    patch(
+                        "story_audio.api._speaker_review_command_context",
+                        return_value=context,
+                    ),
+                    patch(
+                        "story_audio.api.record_speaker_suggestion_decision",
+                        return_value={"decision": {"decision": decision}, "reused": False},
+                    ) as record,
+                ):
+                    response = self.client.post(
+                        "/api/production/commands",
+                        json={
+                            "command_type": command_type,
+                            "idempotency_key": idempotency_key,
+                            "scope": {
+                                "range": {
+                                    "book_id": 1,
+                                    "from_chapter": 2,
+                                    "to_chapter": 10,
+                                    "skip_completed": True,
+                                }
+                            },
+                            "payload": {
+                                "book_id": 1,
+                                "from_chapter": 2,
+                                "to_chapter": 10,
+                                "skip_completed": True,
+                                "analysis_run_id": "gsr-source-a",
+                                "unresolved_key": "unresolved-dialogue:1:u0002-a",
+                                "reviewer_payload": {"note": "operator decision"},
+                            },
+                        },
+                    )
+
+                self.assertEqual(response.status_code, 200, response.text)
+                result = response.json()
+                self.assertEqual(result["outcome"], "APPLIED")
+                self.assertEqual(result["applied_items"][0]["type"], item_type)
+                record.assert_called_once()
+                self.assertEqual(record.call_args.kwargs["decision"], decision)
+                self.assertEqual(
+                    record.call_args.kwargs["idempotency_key"],
+                    idempotency_key,
+                )
+
+    def test_approved_speaker_correction_requires_approved_source(self) -> None:
+        command = {
+            "command_type": "CORRECT_APPROVED_SPEAKER_SUGGESTION",
+            "idempotency_key": "speaker-review-correction-0001",
+            "scope": {
+                "range": {
+                    "book_id": 1,
+                    "from_chapter": 2,
+                    "to_chapter": 10,
+                    "skip_completed": True,
+                }
+            },
+            "payload": {
+                "book_id": 1,
+                "from_chapter": 2,
+                "to_chapter": 10,
+                "skip_completed": True,
+                "analysis_run_id": "gsr-source-a",
+                "unresolved_key": "unresolved-dialogue:1:u0002-a",
+                "reviewer_payload": {
+                    "proposed_resolution": "EXISTING_CHARACTER",
+                    "existing_character_id": 25,
+                    "voice_mode": "keep",
+                },
+            },
+        }
+        context = (
+            {
+                "book_id": 1,
+                "from_chapter": 2,
+                "to_chapter": 10,
+                "skip_completed": True,
+            },
+            object(),
+            None,
+            {"rows": []},
+        )
+        with (
+            patch("story_audio.api._project_production_command", self.projection),
+            patch(
+                "story_audio.api._speaker_review_command_context",
+                return_value=context,
+            ),
+            patch(
+                "story_audio.api.accept_speaker_review_suggestion",
+                return_value={"applied": {"chapter_count": 1}, "review": {"decision": "CORRECTED"}},
+            ) as correct,
+        ):
+            response = self.client.post("/api/production/commands", json=command)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result["outcome"], "APPLIED")
+        self.assertEqual(result["applied_items"][0]["type"], "speaker_review_correction")
+        self.assertEqual(correct.call_args.kwargs["decision_override"], "CORRECTED")
+        self.assertTrue(correct.call_args.kwargs["require_approved"])
+
+    def test_note_and_safe_restore_commands_use_durable_gateway(self) -> None:
+        context = (
+            {
+                "book_id": 1,
+                "from_chapter": 2,
+                "to_chapter": 10,
+                "skip_completed": True,
+            },
+            object(),
+            None,
+            {"rows": []},
+        )
+        common = {
+            "book_id": 1,
+            "from_chapter": 2,
+            "to_chapter": 10,
+            "skip_completed": True,
+            "analysis_run_id": "gsr-source-a",
+            "unresolved_key": "unresolved-dialogue:1:u0002-a",
+            "reviewer_payload": {"note": "operator note"},
+        }
+        for command_type, key, function_name, item_type in (
+            (
+                "ADD_SPEAKER_REVIEW_NOTE",
+                "speaker-review-note-0001",
+                "record_speaker_suggestion_note",
+                "speaker_review_note",
+            ),
+            (
+                "RESTORE_SPEAKER_SUGGESTION_PENDING",
+                "speaker-review-restore-0001",
+                "restore_speaker_suggestion_pending",
+                "speaker_review_restored_pending",
+            ),
+        ):
+            with self.subTest(command_type=command_type):
+                with (
+                    patch("story_audio.api._project_production_command", self.projection),
+                    patch(
+                        "story_audio.api._speaker_review_command_context",
+                        return_value=context,
+                    ),
+                    patch(
+                        f"story_audio.api.{function_name}",
+                        return_value={"reused": False},
+                    ) as action,
+                ):
+                    response = self.client.post(
+                        "/api/production/commands",
+                        json={
+                            "command_type": command_type,
+                            "idempotency_key": key,
+                            "scope": {
+                                "range": {
+                                    "book_id": 1,
+                                    "from_chapter": 2,
+                                    "to_chapter": 10,
+                                    "skip_completed": True,
+                                }
+                            },
+                            "payload": common,
+                        },
+                    )
+                self.assertEqual(response.status_code, 200, response.text)
+                result = response.json()
+                self.assertEqual(result["outcome"], "APPLIED")
+                self.assertEqual(result["applied_items"][0]["type"], item_type)
+                action.assert_called_once()
+                self.assertEqual(action.call_args.kwargs["idempotency_key"], key)
+
+    def test_multi_run_speaker_review_batch_uses_atomic_items_adapter(self) -> None:
+        items = [
+            {
+                "analysis_run_id": "gsr-source-a",
+                "unresolved_key": "unresolved-dialogue:1:u0002-a",
+            },
+            {
+                "analysis_run_id": "gsr-source-b",
+                "unresolved_key": "unresolved-dialogue:2:u0003-b",
+            },
+        ]
+        command = {
+            "command_type": "APPROVE_SPEAKER_REVIEW_BATCH",
+            "idempotency_key": "speaker-review-batch-items-0001",
+            "scope": {
+                "range": {
+                    "book_id": 1,
+                    "from_chapter": 2,
+                    "to_chapter": 10,
+                    "skip_completed": True,
+                }
+            },
+            "payload": {
+                "book_id": 1,
+                "from_chapter": 2,
+                "to_chapter": 10,
+                "skip_completed": True,
+                "items": items,
+            },
+        }
+        context = (
+            {
+                "book_id": 1,
+                "from_chapter": 2,
+                "to_chapter": 10,
+                "skip_completed": True,
+            },
+            object(),
+            None,
+            {"rows": []},
+        )
+        with (
+            patch("story_audio.api._project_production_command", self.projection),
+            patch(
+                "story_audio.api._speaker_review_command_context",
+                return_value=context,
+            ),
+            patch(
+                "story_audio.api.approve_speaker_review_batch_items",
+                return_value={"submitted_count": 2, "items": items},
+            ) as approve,
+        ):
+            response = self.client.post("/api/production/commands", json=command)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result["outcome"], "APPLIED")
+        self.assertEqual(result["submitted_count"], 2)
+        self.assertEqual(
+            {item["analysis_run_id"] for item in result["applied_items"]},
+            {"gsr-source-a", "gsr-source-b"},
+        )
+        approve.assert_called_once()
+        self.assertEqual(approve.call_args.kwargs["items"], items)
+        self.assertEqual(
+            approve.call_args.kwargs["idempotency_key"],
+            "speaker-review-batch-items-0001",
+        )
+
     def test_speaker_suggestion_stale_scope_returns_rejected_envelope(self) -> None:
         command = {
             "command_type": "GENERATE_SPEAKER_SUGGESTIONS",

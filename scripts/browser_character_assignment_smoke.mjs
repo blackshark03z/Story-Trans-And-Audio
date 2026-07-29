@@ -209,14 +209,13 @@ try {
   await waitFor(`document.querySelector('[data-speaker-suggestion-card]') && document.querySelector('[data-speaker-suggestion-card]').innerText.includes("Existing Commander")`, 15000);
   const suggestionVisible = await evaluate(`(() => {
     const card = document.querySelector('[data-speaker-suggestion-card]');
-    return !!card && card.innerText.includes('Existing Commander') && card.innerText.includes('Giọng kế thừa');
+    return !!card && card.innerText.includes('Existing Commander') && card.innerText.includes('Giọng hiệu lực');
   })()`);
   await click(`${attr("data-registry-map", unresolvedThird)}`);
-  await waitFor(`!document.querySelector(${JSON.stringify(attr("data-registry-map", unresolvedThird))})`);
-  const thirdRowRemoved = await evaluate(`(() => {
+  const thirdRowRemoved = await waitFor(`(() => {
     const third = document.querySelector(${JSON.stringify(attr("data-registry-editor", unresolvedThird))});
     return !third && !!document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedNew))})?.open && !!document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedExisting))})?.open;
-  })()`);
+  })()`, 15000);
 
   const exactState = await evaluate(`(() => {
     const body = document.querySelector("#assignmentRows")?.innerText || "";

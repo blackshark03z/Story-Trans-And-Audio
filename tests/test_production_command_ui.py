@@ -31,23 +31,26 @@ class ProductionCommandUiTests(unittest.TestCase):
 
     def test_shared_coordinator_owns_command_lifecycle(self) -> None:
         coordinator = self._function_source("runProductionCommand")
+        reconciliation = self._function_source("submitAndReconcileProductionCommand")
         self.assertIn("/api/production/commands", self.js)
         self.assertIn("idempotencyKey", coordinator)
-        self.assertIn("postProductionCommand(commandRequest,authorizationToken)", coordinator)
+        self.assertIn("postProductionCommand(commandRequest,authorizationToken)", reconciliation)
         self.assertIn("productionInteractionEpoch", coordinator)
-        self.assertIn("VERIFYING_UNKNOWN", coordinator)
-        self.assertIn("productionCommandClientFailure", coordinator)
-        self.assertIn("failProductionCommand", coordinator)
-        self.assertIn("await submit()", coordinator)
-        self.assertIn("applyProductionCommandEnvelope", coordinator)
+        self.assertIn("VERIFYING_UNKNOWN", reconciliation)
+        self.assertIn("productionCommandClientFailure", reconciliation)
+        self.assertIn("failProductionCommand", reconciliation)
+        self.assertIn("await submit()", reconciliation)
+        self.assertIn("applyProductionCommandEnvelope", reconciliation)
+        self.assertIn("retryRequest:commandRequest", coordinator)
         self.assertIn("AbortController", self.js)
 
     def test_command_verification_does_not_hide_validation_failures(self) -> None:
-        coordinator = self._function_source("runProductionCommand")
+        coordinator = self._function_source("submitAndReconcileProductionCommand")
         self.assertIn("productionCommandClientFailure(error)", coordinator)
         self.assertIn("status>=400&&status<500", self.js)
         self.assertIn("status:'FAILED'", self.js)
         self.assertIn("Có thể thử lại an toàn", self.js)
+        self.assertIn("delays=[300,700,1400]", coordinator)
 
     def test_same_chapter_command_sync_refreshes_context(self) -> None:
         sync = self._function_source("syncCanonicalProductionContext")
