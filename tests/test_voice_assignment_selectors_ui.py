@@ -202,5 +202,35 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertNotIn("commandType:'START_RENDER'", section)
 
 
+    def test_combined_gemini_review_queue_keeps_source_run_and_filters(self) -> None:
+        section = self.js[
+            self.js.index("function speakerSuggestionScopeKey"):
+            self.js.index("function clearRegistryDraft")
+        ]
+        self.assertIn("source_analysis_run_id", section)
+        self.assertIn("speakerSuggestionSourceRunId", section)
+        self.assertIn("speakerSuggestionFilterMatch", section)
+        self.assertIn("speakerSuggestionFilterOptions", section)
+        self.assertIn("CHAPTER:", section)
+        self.assertIn("PENDING_REVIEW", section)
+        self.assertIn("DEFERRED", section)
+        self.assertIn("analysis_run_id:analysisRunId", section)
+        self.assertIn("Ứng viên khác: Không có", section)
+
+    def test_speaker_suggestion_drafts_survive_polling_renders(self) -> None:
+        section = self.js[
+            self.js.index("function emptySpeakerSuggestionState"):
+            self.js.index("function clearRegistryDraft")
+        ]
+        self.assertIn("drafts:{}", section)
+        self.assertIn("selected:{}", section)
+        self.assertIn("speakerSuggestionDraftKey", section)
+        self.assertIn("suggestion_id", section)
+        self.assertIn("pruneSpeakerSuggestionLocalState(result)", section)
+        self.assertIn("rememberSpeakerSuggestionDraft", section)
+        self.assertIn("clearSpeakerSuggestionDraft(key)", section)
+        self.assertIn("data-speaker-suggestion-aliases", section)
+
+
 if __name__ == "__main__":
     unittest.main()

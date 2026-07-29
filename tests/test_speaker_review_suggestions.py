@@ -294,6 +294,80 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
         }
         self.assertEqual(after, before)
 
+    def test_queue_combines_valid_subset_runs_without_provider_call(self) -> None:
+        registry = self._registry()
+        unresolved_keys = [
+            row["speaker_key"]
+            for row in registry["rows"]
+            if row["status"] == "UNRESOLVED_DIALOGUE"
+        ]
+        chapter_1 = [key for key in unresolved_keys if ":1:" in key]
+        chapter_2 = [key for key in unresolved_keys if ":2:" in key]
+
+        first = generate_speaker_review_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            skip_completed=False,
+            registry=registry,
+            voice_catalog=_catalog(),
+            unresolved_keys=chapter_1,
+            provider=self._provider,
+            idempotency_key="speaker-review-combine-1",
+        )
+        second = generate_speaker_review_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            skip_completed=False,
+            registry=registry,
+            voice_catalog=_catalog(),
+            unresolved_keys=chapter_2,
+            provider=self._provider,
+            idempotency_key="speaker-review-combine-2",
+        )
+
+        queue = get_speaker_review_queue(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            skip_completed=False,
+            registry=registry,
+            voice_catalog=_catalog(),
+        )
+
+        self.assertEqual(queue["status"], "ready_for_human_review")
+        self.assertTrue(queue["combined_from_existing_runs"])
+        self.assertEqual(queue["target_count"], len(unresolved_keys))
+        self.assertEqual([item["unresolved_key"] for item in queue["suggestions"]], unresolved_keys)
+        self.assertEqual(queue["summary"]["analyzed"], len(unresolved_keys))
+        self.assertEqual(queue["summary"]["pending_review"], len(unresolved_keys))
+        source_ids = {item["source_analysis_run_id"] for item in queue["suggestions"]}
+        self.assertEqual(source_ids, {first["analysis_run_id"], second["analysis_run_id"]})
+        for item in queue["suggestions"]:
+            self.assertEqual(
+                item["suggestion_id"],
+                f"{item['source_analysis_run_id']}:{item['unresolved_key']}",
+            )
+        self.assertEqual(queue["request_count"], first["request_count"] + second["request_count"])
+        self.assertEqual(
+            int(self.db.fetch_one("SELECT COUNT(*) AS count FROM jobs")["count"]),
+            0,
+        )
+        self.assertEqual(
+            int(self.db.fetch_one("SELECT COUNT(*) AS count FROM artifacts")["count"]),
+            0,
+        )
+
     def test_malformed_provider_response_preserves_unresolved_state(self) -> None:
         registry = self._registry()
         unresolved_keys = [

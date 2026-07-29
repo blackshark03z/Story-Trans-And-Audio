@@ -653,6 +653,190 @@ def _latest_run_event(
     return None
 
 
+def _text_revision_signatures(payload: Mapping[str, Any]) -> dict[int, tuple[int, str]]:
+    signatures: dict[int, tuple[int, str]] = {}
+    for item in payload.get("text_revisions") or []:
+        if not isinstance(item, Mapping):
+            continue
+        chapter_number = int(item.get("chapter_number") or 0)
+        revision_id = int(item.get("text_revision_id") or 0)
+        revision_sha = str(item.get("text_revision_sha256") or "")
+        if chapter_number and revision_id and revision_sha:
+            signatures[chapter_number] = (revision_id, revision_sha)
+    return signatures
+
+
+def _run_payload_matches_request_contract(
+    payload: Mapping[str, Any],
+    *,
+    request: Mapping[str, Any],
+    config: Settings,
+) -> bool:
+    if str(payload.get("schema") or "") != RUN_SCHEMA:
+        return False
+    if str(payload.get("request_schema") or "") != REQUEST_SCHEMA:
+        return False
+    if str(payload.get("suggestion_schema") or "") != SUGGESTION_SCHEMA:
+        return False
+    if str(payload.get("prompt_version") or "") != PROMPT_VERSION:
+        return False
+    if str(payload.get("model_id") or "") != str(config.gemini_model):
+        return False
+    if int((payload.get("book") or {}).get("id") or 0) != int((request.get("book") or {}).get("id") or 0):
+        return False
+    return True
+
+
+def _suggestion_matches_current_target(
+    suggestion: Mapping[str, Any],
+    *,
+    target: Mapping[str, Any],
+    run_revisions: Mapping[int, tuple[int, str]],
+    request_revisions: Mapping[int, tuple[int, str]],
+) -> bool:
+    chapter_number = int(suggestion.get("chapter_number") or 0)
+    if chapter_number != int(target.get("chapter_number") or 0):
+        return False
+    if run_revisions.get(chapter_number) != request_revisions.get(chapter_number):
+        return False
+    source_target = suggestion.get("target") if isinstance(suggestion.get("target"), Mapping) else {}
+    if source_target:
+        if str(source_target.get("utterance_id") or "") != str(target.get("utterance_id") or ""):
+            return False
+        if int(source_target.get("chapter_id") or 0) != int(target.get("chapter_id") or 0):
+            return False
+        if str(source_target.get("dialogue_text_sha256") or "") != str(target.get("dialogue_text_sha256") or ""):
+            return False
+    return True
+
+
+def _strip_runtime_projection_fields(suggestion: Mapping[str, Any]) -> dict[str, Any]:
+    runtime_fields = {
+        "target",
+        "matched_character",
+        "effective_inherited_voice",
+        "effective_voice_source",
+        "suggested_voice",
+        "possible_duplicates",
+        "approval_eligible",
+    }
+    return {key: value for key, value in dict(suggestion).items() if key not in runtime_fields}
+
+
+def _combined_run_from_existing_events(
+    db: Database,
+    store: ContentStore,
+    config: Settings,
+    *,
+    request: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    targets = list(request.get("targets") or [])
+    if not targets:
+        return None
+    target_by_key = {str(item["unresolved_key"]): item for item in targets}
+    request_revisions = _text_revision_signatures(request)
+    suggestions_by_key: dict[str, dict[str, Any]] = {}
+    source_runs: dict[str, dict[str, Any]] = {}
+    rows = db.fetch_all(
+        """
+        SELECT *
+        FROM audit_events
+        WHERE event_code=?
+        ORDER BY id DESC
+        """,
+        (ANALYSIS_EVENT,),
+    )
+    for row in rows:
+        try:
+            details = json.loads(row["details_json"] or "{}")
+        except (TypeError, ValueError):
+            continue
+        try:
+            payload = _load_run_from_event(store, {"details": details})
+        except SpeakerReviewSuggestionError:
+            continue
+        if not _run_payload_matches_request_contract(payload, request=request, config=config):
+            continue
+        run_revisions = _text_revision_signatures(payload)
+        payload = _clean_queue_state(db, payload)
+        analysis_run_id = str(payload.get("analysis_run_id") or "")
+        for suggestion in payload.get("suggestions") or []:
+            key = str(suggestion.get("unresolved_key") or "")
+            target = target_by_key.get(key)
+            if not target or key in suggestions_by_key:
+                continue
+            if not _suggestion_matches_current_target(
+                suggestion,
+                target=target,
+                run_revisions=run_revisions,
+                request_revisions=request_revisions,
+            ):
+                continue
+            projected = _strip_runtime_projection_fields(suggestion)
+            projected.update(
+                {
+                    "source_analysis_run_id": analysis_run_id,
+                    "source_audit_event_id": int(row["id"]),
+                    "source_input_fingerprint": payload.get("input_fingerprint"),
+                    "source_content_sha256": details.get("content_sha256"),
+                    "source_request_count": int(payload.get("request_count") or 0),
+                    "source_cache_hit_count": int(payload.get("cache_hit_count") or 0),
+                    "source_cache_miss_count": int(payload.get("cache_miss_count") or 0),
+                }
+            )
+            suggestions_by_key[key] = projected
+            source_runs.setdefault(
+                analysis_run_id,
+                {
+                    "analysis_run_id": analysis_run_id,
+                    "audit_event_id": int(row["id"]),
+                    "input_fingerprint": payload.get("input_fingerprint"),
+                    "target_count": int(payload.get("target_count") or 0),
+                    "chunk_count": int(payload.get("chunk_count") or 0),
+                    "request_count": int(payload.get("request_count") or 0),
+                    "cache_hit_count": int(payload.get("cache_hit_count") or 0),
+                    "cache_miss_count": int(payload.get("cache_miss_count") or 0),
+                },
+            )
+    missing = [str(item["unresolved_key"]) for item in targets if str(item["unresolved_key"]) not in suggestions_by_key]
+    if missing:
+        return None
+    ordered_suggestions = [suggestions_by_key[str(item["unresolved_key"])] for item in targets]
+    source_list = sorted(source_runs.values(), key=lambda item: int(item["audit_event_id"]))
+    return {
+        "schema": RUN_SCHEMA,
+        "analysis_run_id": "combined-" + sha256_text(
+            canonical_json(
+                {
+                    "input_fingerprint": request["input_fingerprint"],
+                    "source_runs": source_list,
+                }
+            )
+        )[:24],
+        "status": "ready_for_human_review",
+        "input_fingerprint": request["input_fingerprint"],
+        "request_schema": REQUEST_SCHEMA,
+        "suggestion_schema": SUGGESTION_SCHEMA,
+        "prompt_version": PROMPT_VERSION,
+        "model_id": config.gemini_model,
+        "scope": request["scope"],
+        "book": request["book"],
+        "text_revisions": request["text_revisions"],
+        "target_count": len(targets),
+        "chunk_count": sum(int(item.get("chunk_count") or 0) for item in source_list),
+        "request_count": sum(int(item.get("request_count") or 0) for item in source_list),
+        "cache_hit_count": sum(int(item.get("cache_hit_count") or 0) for item in source_list),
+        "cache_miss_count": sum(int(item.get("cache_miss_count") or 0) for item in source_list),
+        "provider_errors": [],
+        "usage_metadata": [],
+        "suggestions": ordered_suggestions,
+        "created_at": utcnow(),
+        "idempotency_key": None,
+        "combined_from_existing_runs": True,
+        "source_runs": source_list,
+    }
+
+
 def _decision_events(db: Database, *, analysis_run_id: str) -> list[dict[str, Any]]:
     rows = db.fetch_all(
         """
@@ -684,12 +868,16 @@ def _load_run_from_event(store: ContentStore, event: Mapping[str, Any]) -> dict[
 
 
 def _clean_queue_state(db: Database, payload: dict[str, Any]) -> dict[str, Any]:
+    analysis_run_id = str(payload["analysis_run_id"])
     decisions = {
         str(event["details"].get("unresolved_key")): dict(event["details"])
-        for event in _decision_events(db, analysis_run_id=str(payload["analysis_run_id"]))
+        for event in _decision_events(db, analysis_run_id=analysis_run_id)
     }
     for item in payload.get("suggestions") or []:
+        unresolved_key = str(item.get("unresolved_key") or "")
         decision = decisions.get(str(item.get("unresolved_key")))
+        item.setdefault("source_analysis_run_id", analysis_run_id)
+        item["suggestion_id"] = f"{item['source_analysis_run_id']}:{unresolved_key}"
         item["review_state"] = (
             str(decision.get("decision") or "PENDING_REVIEW")
             if decision
@@ -1063,6 +1251,33 @@ def get_speaker_review_queue(
     )
     event = _latest_run_event(db, input_fingerprint=request["input_fingerprint"])
     if not event:
+        payload = _combined_run_from_existing_events(
+            db,
+            store,
+            config,
+            request=request,
+        )
+        if payload:
+            payload["schema"] = QUEUE_SCHEMA
+            payload["status"] = "ready_for_human_review"
+            payload["suggestions"] = _augment_suggestions(
+                [dict(item) for item in payload.get("suggestions") or []],
+                db=db,
+                request=request,
+                registry=registry,
+                voice_catalog=voice_catalog,
+                custom_voice_context=custom_voice_context,
+            )
+            payload["summary"] = {
+                **_queue_summary(payload["suggestions"]),
+                "analyzed": len(payload["suggestions"]),
+                "pending_review": sum(
+                    1
+                    for item in payload["suggestions"]
+                    if str(item.get("review_state")) == "PENDING_REVIEW"
+                ),
+            }
+            return payload
         return {
             "schema": QUEUE_SCHEMA,
             "status": "not_analyzed",
