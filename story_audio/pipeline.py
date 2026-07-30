@@ -259,6 +259,17 @@ def create_job(
         )
         selected = chapters
         voice_name = str(casting_plan["narrator_voice_id"])
+        character_ids = sorted(
+            {int(item["character_id"]) for item in casting_plan["utterances"] if item["role"] == "character" and item.get("character_id")}
+        )
+        character_labels: dict[str, str] = {}
+        if character_ids:
+            placeholders = ",".join("?" for _ in character_ids)
+            for character in db.fetch_all(
+                f"SELECT id, display_name FROM characters WHERE id IN ({placeholders})",
+                tuple(character_ids),
+            ):
+                character_labels[str(character["id"])] = str(character["display_name"])
         casting_snapshot = {
             "casting_plan_id": casting_plan_id,
             "casting_plan_sha256": casting_row["plan_sha256"],
@@ -271,6 +282,7 @@ def create_job(
                 for item in casting_plan["utterances"]
                 if item["role"] == "character"
             },
+            "character_labels": character_labels,
             "engine_version": settings_snapshot["engine_version"],
             "tts_settings": settings_snapshot,
             "chunker_version": CHUNKER_VERSION,

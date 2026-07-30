@@ -28,6 +28,13 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
             "sequence": 2,
             "text": "- Advance when the second signal appears.",
         },
+        "unresolved-dialogue:1007:u0002-171819202122": {
+            "chapter_id": 1007,
+            "chapter_number": 7,
+            "utterance_id": "u0002-171819202122",
+            "sequence": 2,
+            "text": "- Close ranks and wait for my signal.",
+        },
     }
     review_states: dict[str, str] = {}
     review_history: dict[str, list[dict]] = {}
@@ -62,6 +69,8 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
                 if index == 1
                 else "BACKGROUND_GROUP"
                 if index == 4
+                else "NEW_CHARACTER"
+                if index == 5
                 else "NEEDS_HUMAN_DECISION"
             )
             warnings = (
@@ -446,12 +455,13 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
             evidence["deferredAuthoritativeUpdate"]["draftAfterBlur"],
             "Draft survives polling",
         )
-        self.assertEqual(evidence["allCardCount"], 5)
+        self.assertEqual(evidence["allCardCount"], 6)
         self.assertTrue(evidence["busyVisible"])
         self.assertTrue(evidence["characterFocus"])
         self.assertTrue(evidence["newCharacterFocus"])
         self.assertTrue(evidence["voiceFocus"])
         self.assertTrue(evidence["editedDecisionSaved"])
+        self.assertTrue(evidence["editedBackgroundAccepted"])
         self.assertTrue(evidence["reanalysisApplied"])
         self.assertTrue(evidence["deferApplied"])
         self.assertTrue(evidence["draftsPreserved"])

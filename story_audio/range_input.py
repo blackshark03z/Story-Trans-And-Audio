@@ -404,6 +404,33 @@ def get_range_input_snapshot(
             })
             continue
 
+        # An approved eligible map is self-contained render authority. Do not
+        # require a historical speaker draft (or trigger Gemini) before using it.
+        approved_plan_row = _latest_plan_row(db, ref["chapter_id"])
+        if (
+            approved_plan_row
+            and approved_plan_row["status"] == "approved"
+            and int(approved_plan_row["text_revision_id"])
+            == int(chapter.get("active_text_revision_id") or 0)
+        ):
+            try:
+                approved_plan = get_plan(db, store, int(approved_plan_row["id"]))
+                require_casting_plan_eligible(
+                    approved_plan["plan"],
+                    voice_catalog,
+                    chapter_id=ref["chapter_id"],
+                    chapter_number=ref["chapter_number"],
+                )
+            except (CastingError, OSError, ValueError, VoiceEligibilityBlocked):
+                pass
+            else:
+                for item in approved_plan["plan"].get("utterances") or []:
+                    if item.get("role") == "character":
+                        inherited_voice_keys.add(
+                            f"character:{item.get('character_id')}:{item.get('resolved_voice_id')}"
+                        )
+                continue
+
         draft_id = chapter.get("latest_speaker_draft_id")
         if not draft_id:
             proposals.append({**ref, "reason": "missing", "draft_id": None})

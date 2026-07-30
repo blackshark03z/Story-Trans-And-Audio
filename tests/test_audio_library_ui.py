@@ -60,10 +60,20 @@ class AudioLibraryUiTests(unittest.TestCase):
             "book.textContent=item.book_title",
             "meta.textContent=pieces.join",
             "badge.textContent=qa.label",
-            "card.append(main,actions)",
+            "card.append(main,actions,configuration)",
         ):
             self.assertIn(value, block)
         self.assertNotIn("innerHTML", block)
+
+    def test_artifact_configuration_is_read_only_and_snapshot_scoped(self) -> None:
+        self.assertIn("function artifactConfigurationText", self.js)
+        self.assertIn("async function loadArtifactConfiguration", self.js)
+        self.assertIn("/api/artifacts/${Number(item.artifact_id)}/configuration", self.js)
+        block = self._function_block("renderAudioLibraryItem")
+        self.assertIn("Cấu hình đã dùng để tạo audio này", block)
+        self.assertIn("loadArtifactConfiguration(item,configurationBody)", block)
+        self.assertNotIn("method:'POST'", block)
+        self.assertIn(".audio-artifact-configuration", self.css)
 
     def test_qa_labels_preserve_api_semantics(self) -> None:
         block = self._function_block("audioLibraryQaLabel")

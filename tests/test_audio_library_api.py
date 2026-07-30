@@ -122,6 +122,42 @@ class AudioLibraryApiTests(IsolatedTestCase):
             )
         self.assertEqual(self._items(), [])
 
+    def test_artifact_configuration_uses_pinned_job_chapter_snapshot(self) -> None:
+        snapshot = {
+            "engine_version": "pinned-engine:v1",
+            "tts_settings": {"tts_mode": "pinned-mode"},
+            "character_labels": {"42": "Quần chúng nam"},
+            "utterances": [
+                {"role": "narrator", "resolved_voice_id": "custom:narrator", "resolution_source": "narrator"},
+                {"role": "character", "character_id": 42, "resolved_voice_id": "custom:commander", "resolution_source": "character"},
+            ],
+        }
+        with self.db.transaction() as connection:
+            connection.execute(
+                "UPDATE jobs SET settings_json=? WHERE id=1",
+                (json.dumps({"engine_version": "mutable-engine", "tts_mode": "mutable-mode"}),),
+            )
+            connection.execute(
+                "UPDATE job_chapters SET voice_snapshot_json=? WHERE id=(SELECT job_chapter_id FROM artifacts WHERE id=?)",
+                (json.dumps(snapshot), self.old_artifact_id),
+            )
+
+        response = self.client.get(f"/api/artifacts/{self.old_artifact_id}/configuration")
+        self.assertEqual(response.status_code, 200)
+        data = response.json()
+        self.assertEqual(data["schema"], "story-audio-artifact-configuration/v1")
+        self.assertTrue(data["artifact"]["active"])
+        self.assertEqual(data["provider"], {"engine": "pinned-engine:v1", "mode": "pinned-mode"})
+        self.assertEqual(data["casting_plan"], {"id": 1, "revision": 4})
+        self.assertEqual([actor["voice_id"] for actor in data["actors"]], ["custom:narrator", "custom:commander"])
+        self.assertEqual(data["actors"][1]["label"], "Quần chúng nam")
+        self.assertEqual(data["actors"][1]["provenance"], "casting_plan_snapshot")
+        self.assertEqual(data["synthesis"]["segment_count"], 0)
+
+    def test_unknown_artifact_configuration_returns_404(self) -> None:
+        response = self.client.get("/api/artifacts/999999/configuration")
+        self.assertEqual(response.status_code, 404)
+
     def test_items_are_ordered_by_book_title_then_chapter_number(self) -> None:
         now = utcnow()
         artifact_path = self.temp_root / "data" / "output" / "job_3" / "chapter_0011" / "chapter.m4a"

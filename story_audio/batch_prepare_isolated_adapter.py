@@ -255,6 +255,17 @@ class DatabaseAuthoritativeSnapshotProvider:
                     code.startswith("REJECTED_ARTIFACT:") for code in reason_codes
                 ):
                     tts_settings["tts_attempt_limit"] = 1
+                character_ids = sorted(
+                    {int(utterance["character_id"]) for utterance in approved_plan["utterances"] if utterance["role"] == "character" and utterance.get("character_id")}
+                )
+                character_labels: dict[str, str] = {}
+                if character_ids:
+                    placeholders = ",".join("?" for _ in character_ids)
+                    for character in self.db.fetch_all(
+                        f"SELECT id, display_name FROM characters WHERE id IN ({placeholders})",
+                        tuple(character_ids),
+                    ):
+                        character_labels[str(character["id"])] = str(character["display_name"])
                 pin = {
                     "casting_plan_id": int(plan_row["id"]),
                     "casting_plan_sha256": str(plan_row["plan_sha256"]),
@@ -267,6 +278,7 @@ class DatabaseAuthoritativeSnapshotProvider:
                         for utterance in approved_plan["utterances"]
                         if utterance["role"] == "character"
                     },
+                    "character_labels": character_labels,
                     "engine_version": tts_settings["engine_version"],
                     "tts_settings": tts_settings,
                     "chunker_version": CHUNKER_VERSION,

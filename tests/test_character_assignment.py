@@ -8,6 +8,7 @@ from story_audio.character_assignment import (
     apply_speaker_character_mapping,
     clear_speaker_character_mapping,
     create_assignment_character,
+    dash_dialogue_utterance_ids,
     unresolved_dialogue_speaker_key,
 )
 from story_audio.db import Database, utcnow
@@ -231,6 +232,73 @@ class CharacterAssignmentServiceTests(IsolatedTestCase):
         narrator = next(row for row in registry["rows"] if row["speaker_key"] == "narrator")
         self.assertEqual(narrator["line_count"], 4)
         self.assertEqual(len(registry["content_evidence"]["checked_revisions"]), 2)
+
+    def test_dash_dialogue_uses_raw_line_layout_for_continuation_utterances(self) -> None:
+        active = "Intro. - Stop? Give me the bag. He turned away."
+        source = "Intro.\n- Stop? Give me the bag.\nHe turned away."
+        utterances = split_utterances(active)
+        target_ids = dash_dialogue_utterance_ids(
+            active,
+            utterances,
+            source_layout_text=source,
+        )
+        self.assertEqual(
+            [item["sequence"] for item in utterances if item["utterance_id"] in target_ids],
+            [2, 3],
+        )
+
+    def test_registry_blocks_narrator_continuation_on_mapped_dash_dialogue_line(self) -> None:
+        character = create_assignment_character(
+            self.db,
+            book_id=self.book_id,
+            display_name="Gate Guard",
+            aliases=[],
+            idempotency_key="gate-guard-for-continuation",
+        )["character"]
+        active = "Intro. - Stop? Give me the bag. He turned away."
+        source = "Intro.\n- Stop? Give me the bag.\nHe turned away."
+        chapter = self._seed_chapter(
+            3,
+            text=active,
+            roles_by_sequence={2: ("character", int(character["id"]))},
+        )
+        source_path, source_sha = self.store.put_text(source)
+        now = utcnow()
+        with self.db.transaction() as connection:
+            raw_revision_id = int(
+                connection.execute(
+                    """
+                    INSERT INTO text_revisions(
+                        chapter_id,kind,content_path,content_sha256,lexical_sha256,
+                        char_count,processor_version,status,created_at
+                    )
+                    VALUES(?,?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        int(chapter["id"]),
+                        "raw",
+                        source_path,
+                        source_sha,
+                        "raw-layout-lexical",
+                        len(source),
+                        "test",
+                        "approved",
+                        now,
+                    ),
+                ).lastrowid
+            )
+            connection.execute(
+                "UPDATE text_revisions SET parent_revision_id=? WHERE id=?",
+                (raw_revision_id, int(chapter["active_text_revision_id"])),
+            )
+
+        registry = self._registry(3, 3)
+        unresolved = [
+            row for row in registry["rows"] if row["status"] == "UNRESOLVED_DIALOGUE"
+        ]
+        self.assertEqual(len(unresolved), 1)
+        self.assertEqual(unresolved[0]["target_utterances"][0]["sequence"], 3)
+        self.assertEqual(unresolved[0]["sample_lines"][0]["text"], "Give me the bag.")
 
     def test_skip_completed_filters_only_completed_chapters_and_keeps_remaining_dialogue(self) -> None:
         self._seed_chapter(1, audio_status="completed")

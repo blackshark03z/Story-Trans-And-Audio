@@ -159,4 +159,5 @@ main{max-width:1240px;margin:18px auto;padding:0 20px 50px}.app-view{animation:n
 .audio-library-video-preview{flex-basis:100%;width:min(420px,100%);border-radius:12px;background:#173b2c}
 .speaker-classification-summary{display:flex;flex-wrap:wrap;gap:6px 16px;padding:9px 10px;border-left:3px solid #6f8d7a;background:#f2f6f3}
 .speaker-review-deferred-notice{margin:0;padding:8px 10px;border-left:3px solid #c58a2e;background:#fff8e8;color:#6b4c16;font-size:12px;font-weight:700}
+.audio-artifact-configuration{grid-column:1/-1;border-top:1px solid #e2e8e3;padding-top:10px;color:#31433a}.audio-artifact-configuration summary{cursor:pointer;font-size:13px;font-weight:800}.audio-artifact-configuration-body{margin:8px 0 0;white-space:pre-wrap;font:12px/1.55 ui-monospace,Consolas,monospace}
 @media(max-width:800px){.audio-library-video-preview{width:100%}}

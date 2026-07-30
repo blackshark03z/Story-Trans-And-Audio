@@ -118,6 +118,60 @@ def is_unresolved_dialogue_text(text: str) -> bool:
     return stripped.startswith("-") or stripped.startswith("–") or stripped.startswith("—")
 
 
+def dash_dialogue_utterance_ids(
+    text: str,
+    utterances: Iterable[Mapping[str, Any]],
+    *,
+    source_layout_text: str | None = None,
+) -> set[str]:
+    items = [dict(item) for item in utterances]
+    result = {
+        str(item["utterance_id"])
+        for item in items
+        if is_unresolved_dialogue_text(
+            text[int(item["start_offset"]) : int(item["end_offset"])]
+        )
+    }
+    if not source_layout_text:
+        return result
+
+    collapsed_chars: list[str] = []
+    collapsed_offsets: list[int] = []
+    pending_space = False
+    for offset, character in enumerate(text):
+        if character.isspace():
+            pending_space = bool(collapsed_chars)
+            continue
+        if pending_space:
+            collapsed_chars.append(" ")
+            collapsed_offsets.append(offset)
+            pending_space = False
+        collapsed_chars.append(character)
+        collapsed_offsets.append(offset)
+    collapsed_text = "".join(collapsed_chars)
+    search_cursor = 0
+    for source_line in source_layout_text.splitlines():
+        line = " ".join(source_line.split())
+        if not is_unresolved_dialogue_text(line):
+            continue
+        start = collapsed_text.find(line, search_cursor)
+        if start < 0:
+            start = collapsed_text.find(line)
+        if start < 0:
+            continue
+        end = start + len(line)
+        search_cursor = end
+        original_start = collapsed_offsets[start]
+        original_end = collapsed_offsets[end - 1] + 1
+        result.update(
+            str(item["utterance_id"])
+            for item in items
+            if int(item["start_offset"]) < original_end
+            and int(item["end_offset"]) > original_start
+        )
+    return result
+
+
 def unresolved_dialogue_references(
     *,
     chapter: Mapping[str, Any],
@@ -1034,6 +1088,7 @@ __all__ = [
     "apply_speaker_character_mapping",
     "clear_speaker_character_mapping",
     "create_assignment_character",
+    "dash_dialogue_utterance_ids",
     "is_unresolved_dialogue_text",
     "parse_unresolved_dialogue_speaker_key",
     "unresolved_dialogue_references",

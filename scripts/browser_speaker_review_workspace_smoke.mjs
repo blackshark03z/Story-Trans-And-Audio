@@ -88,6 +88,7 @@ try {
   const key3 = "unresolved-dialogue:1004:u0002-cafebabe0000";
   const key4 = "unresolved-dialogue:1005:u0002-010203040506";
   const key5 = "unresolved-dialogue:1006:u0002-111213141516";
+  const key6 = "unresolved-dialogue:1007:u0002-171819202122";
   const attr = (name, value) => `[${name}="${value}"]`;
 
   await send("Runtime.enable");
@@ -97,7 +98,7 @@ try {
   await waitFor(`document.querySelectorAll('[data-speaker-review-view]').length===7`);
   const defaultView = await evaluate(`document.querySelector('[data-speaker-review-view="NEEDS_REVIEW"]').classList.contains('active')`);
   await click('[data-speaker-review-view="ALL"]');
-  await waitFor(`document.querySelectorAll('[data-speaker-suggestion-card]').length===5`);
+  await waitFor(`document.querySelectorAll('[data-speaker-suggestion-card]').length===6`);
   const allCardCount = await evaluate(`document.querySelectorAll('[data-speaker-suggestion-card]').length`);
   const initialQueueRequestCount = await evaluate(`fetch('/api/fixture/speaker-review-queue-count').then(response=>response.json()).then(payload=>payload.count)`);
   const jobsPollingControlStates = await evaluate(`(async()=>{const inspect=async selector=>{const control=document.querySelector(selector);if(!control)throw new Error("Missing review control: "+selector);let blurCount=0;control.addEventListener("blur",()=>{blurCount+=1});control.focus();const selection=control.matches("input,textarea")?[control.selectionStart,control.selectionEnd]:null;for(let index=0;index<3;index+=1)await loadJobs();const current=document.querySelector(selector);return{sameNode:current===control,focused:document.activeElement===control,blurCount,value:current?.value,selection:current?.matches("input,textarea")?[current.selectionStart,current.selectionEnd]:null,selectionBefore:selection}};const states={};states.resolution=await inspect(${JSON.stringify(attr("data-speaker-suggestion-resolution", key2))});states.group=await inspect(${JSON.stringify(attr("data-speaker-suggestion-group", key5))});states.character=await inspect(${JSON.stringify(attr("data-speaker-suggestion-character", key1))});const name=document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-name", key2))});name.setSelectionRange(1,Math.min(4,name.value.length));states.name=await inspect(${JSON.stringify(attr("data-speaker-suggestion-name", key2))});states.aliases=await inspect(${JSON.stringify(attr("data-speaker-suggestion-aliases", key2))});states.voiceMode=await inspect(${JSON.stringify(attr("data-speaker-suggestion-voice-mode", key2))});const mode=document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-voice-mode", key2))});mode.value="exact";mode.dispatchEvent(new Event("change",{bubbles:true}));states.voiceScope=await inspect(${JSON.stringify(attr("data-speaker-suggestion-voice-scope", key2))});states.voice=await inspect(${JSON.stringify(attr("data-speaker-suggestion-voice", key2))});states.filter=await inspect('[data-speaker-review-filter="confidence"]');const details=document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-context", key2))});details.open=true;const detailNode=details;for(let index=0;index<3;index+=1)await loadJobs();states.details={sameNode:document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-context", key2))})===detailNode,open:detailNode.open};detailNode.open=false;return states})()`);
@@ -130,6 +131,12 @@ try {
   await waitFor(`window.storyAudioAppState.bookVoiceRegistry.speakerSuggestions.result.suggestions.find(item=>item.unresolved_key===${JSON.stringify(key2)}).review_state==="EDITED_AND_ACCEPTED"`);
   const editedDecisionSaved = await evaluate(`document.querySelector('[data-speaker-review-view="APPROVED"]')?.innerText.includes("1")`);
 
+  await setSelect(attr("data-speaker-suggestion-resolution", key6), "BACKGROUND_GROUP");
+  await setSelect(attr("data-speaker-suggestion-group", key6), "MALE");
+  await click(attr("data-speaker-suggestion-save", key6));
+  await waitFor(`window.storyAudioAppState.bookVoiceRegistry.speakerSuggestions.result.suggestions.find(item=>item.unresolved_key===${JSON.stringify(key6)}).review_state==="EDITED_AND_ACCEPTED"`);
+  const editedBackgroundAccepted = await evaluate(`(() => { const item=window.storyAudioAppState.bookVoiceRegistry.speakerSuggestions.result.suggestions.find(row=>row.unresolved_key===${JSON.stringify(key6)}); const payload=item?.human_review?.reviewer_payload||{}; return payload.proposed_resolution==="BACKGROUND_GROUP" && payload.gender_hint==="MALE" && payload.continuity_required===false && !payload.existing_character_id && !payload.proposed_character_name })()`);
+
   await click(attr("data-speaker-suggestion-reanalyze", key3));
   await waitFor(`window.storyAudioAppState.productionCommand.commandType==="GENERATE_SPEAKER_SUGGESTIONS" && window.storyAudioAppState.productionCommand.status==="APPLIED"`);
   const reanalysisApplied = await evaluate(`window.storyAudioAppState.productionCommand.status==="APPLIED"`);
@@ -142,7 +149,7 @@ try {
   await waitFor(`window.storyAudioAppState.productionCommand.status==="APPLIED"`);
   await waitFor(`document.querySelector('[data-speaker-review-view="NEEDS_REVIEW"]')`);
   await click('[data-speaker-review-view="NEEDS_REVIEW"]');
-  const approvedMoved = await waitFor(`!document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key1))}) && [...document.querySelectorAll('[data-speaker-review-view]')].find(el=>el.dataset.speakerReviewView==="APPROVED")?.innerText.includes("2")`);
+  const approvedMoved = await waitFor(`!document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key1))}) && [...document.querySelectorAll('[data-speaker-review-view]')].find(el=>el.dataset.speakerReviewView==="APPROVED")?.innerText.includes("3")`);
   await click('[data-speaker-review-view="APPROVED"]');
   await waitFor(`document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key1))})`);
   await click(attr("data-speaker-suggestion-replace", key1));
@@ -180,7 +187,7 @@ try {
   const batchResultReloadedText = await evaluate(`document.querySelector('.speaker-review-durable-result')?.innerText||""`);
   const batchResultReloaded = batchResultReloadedText === batchResultText;
   await click('[data-speaker-review-view="APPROVED"]');
-  const reloadPersisted = await waitFor(`document.querySelectorAll('[data-speaker-suggestion-card]').length===3 && document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key1))})?.innerText.includes("Đã thay thế quyết định")`);
+  const reloadPersisted = await waitFor(`document.querySelectorAll('[data-speaker-suggestion-card]').length===4 && document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key1))})?.innerText.includes("Đã thay thế quyết định")`);
   const horizontalOverflow1366 = await evaluate(`document.documentElement.scrollWidth>innerWidth+1`);
   await send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   const horizontalOverflow1920 = await evaluate(`document.documentElement.scrollWidth>innerWidth+1`);
@@ -199,6 +206,7 @@ try {
     newCharacterFocus,
     voiceFocus,
     editedDecisionSaved,
+    editedBackgroundAccepted,
     reanalysisApplied,
     deferApplied,
     draftsPreserved: !!draftsPreserved,

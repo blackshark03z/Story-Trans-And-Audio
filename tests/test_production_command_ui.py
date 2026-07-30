@@ -181,6 +181,17 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertIn("classList.toggle('hidden',hideVerdicts)", self.js)
         self.assertIn("productionCommandBusy()", self.js)
 
+    def test_repair_prepare_replaces_handlers_and_blocks_busy_resubmission(self) -> None:
+        start = self.js.index("function bindProductionRepairActions")
+        end = self.js.index("async function prepareReplacementArtifact", start)
+        bindings = self.js[start:end]
+        prepare_start = end
+        prepare_end = self.js.index("function productionPrepareOperatorToken", prepare_start)
+        prepare = self.js[prepare_start:prepare_end]
+        self.assertIn("prepare.onclick=()=>prepareReplacementArtifact(vm)", bindings)
+        self.assertNotIn("repairPrepare')?.addEventListener", bindings)
+        self.assertIn("if(productionCommandBusy())return;", prepare)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -320,13 +320,17 @@ async function ensureAssignmentContext(){
   }
 }
 function bindProductionRepairActions(vm){
-  $('#repairSameData')?.addEventListener('click',()=>{state.productionRepair.mode='same_data';const content=$('#productionTaskContent');if(content)content.dataset.productionTaskKey='';renderProductionShell(vm)});
-  $('#repairBack')?.addEventListener('click',()=>{state.productionRepair.mode=null;const content=$('#productionTaskContent');if(content)content.dataset.productionTaskKey='';renderProductionShell(vm)});
-  $('#repairVoice')?.addEventListener('click',()=>{rememberAssignmentContext(repairAssignmentContext(vm));setAppRoute('assignment');renderAssignmentPage()});
-  $('#repairTextSpeaker')?.addEventListener('click',async()=>{rememberAssignmentContext(repairAssignmentContext(vm));setAppRoute('production');await focusProductionTarget('text')});
-  $('#repairPrepare')?.addEventListener('click',()=>prepareReplacementArtifact(vm));
+  // This function runs on projection refreshes. Replace handlers so one visible click
+  // cannot submit multiple replacement PREPARE commands from accumulated listeners.
+  const sameData=$('#repairSameData'),back=$('#repairBack'),voice=$('#repairVoice'),textSpeaker=$('#repairTextSpeaker'),prepare=$('#repairPrepare');
+  if(sameData)sameData.onclick=()=>{state.productionRepair.mode='same_data';const content=$('#productionTaskContent');if(content)content.dataset.productionTaskKey='';renderProductionShell(vm)};
+  if(back)back.onclick=()=>{state.productionRepair.mode=null;const content=$('#productionTaskContent');if(content)content.dataset.productionTaskKey='';renderProductionShell(vm)};
+  if(voice)voice.onclick=()=>{rememberAssignmentContext(repairAssignmentContext(vm));setAppRoute('assignment');renderAssignmentPage()};
+  if(textSpeaker)textSpeaker.onclick=async()=>{rememberAssignmentContext(repairAssignmentContext(vm));setAppRoute('production');await focusProductionTarget('text')};
+  if(prepare)prepare.onclick=()=>prepareReplacementArtifact(vm);
 }
 async function prepareReplacementArtifact(vm=currentProductionViewModel()){
+  if(productionCommandBusy())return;
   const repair=vm?.repair||{},chapter=vm?.affected_chapter||{},artifactId=Number(repair.artifact_id||0),bookId=Number(state.productionRange?.bookId||state.book?.id||state.dialog?.chapter?.book_id||0),chapterNumber=Number(chapter.number||state.dialog?.chapter?.chapter_number||0);
   if(!artifactId||!bookId||!chapterNumber||!repair.prepare_ready){toast('Bản sửa chưa đủ điều kiện để chuẩn bị.',true);return}
   const token=($('#repairOperatorToken')?.value||'').trim();
@@ -663,6 +667,17 @@ function filteredAudioLibraryItems(items){
   });
 }
 function audioLibraryVideoState(item){const id=Number(item?.artifact_id||0),cached=state.audioLibrary.videoExports?.[id];if(cached)return cached;const exported=item?.video_export||null,url=safeVideoExportUrl(exported?.download_url);return exported&&url?{...exported,download_url:url,status:'ready',message:'Video đã sẵn sàng.'}:{status:'missing',message:''}}
+function artifactConfigurationText(configuration){
+  const artifact=configuration?.artifact||{},book=configuration?.book||{},chapter=configuration?.chapter||{},job=configuration?.job||{},source=configuration?.source_revision_id??'—',plan=configuration?.casting_plan||{},provider=configuration?.provider||{},synthesis=configuration?.synthesis||{};
+  const actors=Array.isArray(configuration?.actors)?configuration.actors:[];
+  const actorText=actors.length?actors.map(actor=>`${actor.label||'Người nói'}: ${actor.voice_id||'chưa có giọng'} (${actor.provenance||'snapshot'})`).join(' | '):'Không có dữ liệu người nói trong snapshot.';
+  return [`${book.title||'Sách'} · Chương ${chapter.number??'—'}${chapter.title?` · ${chapter.title}`:''}. Artifact #${artifact.id??'—'} · Job #${job.id??'—'} · ${artifact.created_at||'không rõ thời điểm'}.`,`Nguồn: Text Revision ${source}; Casting Plan ${plan.id??'—'} rev ${plan.revision??'—'}.`,`TTS: ${provider.engine||'unknown'} · ${provider.mode||'unknown'}.`,`Người nói: ${actorText}.`,`Phân đoạn: ${synthesis.verified_segment_count??0}/${synthesis.segment_count??0} đã xác minh · ${synthesis.retry_count??0} retry.`,`QA: ${artifact.human_qa_status||'pending'} · ${artifact.active?'đang hoạt động':'lịch sử'} · ${formatDurationMs(artifact.duration_ms)||'không rõ thời lượng'} · ${bytes(artifact.size_bytes||0)} · SHA-256 ${artifact.sha256||'—'}.`].join('\n');
+}
+async function loadArtifactConfiguration(item,body){
+  if(body.dataset.loaded==='true'||body.dataset.loading==='true')return;
+  body.dataset.loading='true';body.textContent='Đang tải cấu hình render đã pin…';
+  try{const configuration=await api(`/api/artifacts/${Number(item.artifact_id)}/configuration`);body.textContent=artifactConfigurationText(configuration);body.dataset.loaded='true'}catch(error){body.textContent=`Không tải được cấu hình render: ${error.message||'lỗi không xác định'}.`}finally{delete body.dataset.loading}
+}
 function renderAudioLibrary(){
   const lib=state.audioLibrary||{items:[],status:'idle'};
   const status=$('#audioLibraryStatus'),list=$('#audioLibraryList'),empty=$('#audioLibraryEmpty'),error=$('#audioLibraryError'),errorText=$('#audioLibraryErrorText'),player=$('#audioLibraryPlayer');
@@ -764,7 +779,16 @@ function renderAudioLibraryItem(item){
     warning.textContent='Đường dẫn audio không hợp lệ nên đã tắt phát/tải.';
     actions.appendChild(warning);
   }
-  card.append(main,actions);
+  const configuration=document.createElement('details');
+  configuration.className='audio-artifact-configuration';
+  const configurationSummary=document.createElement('summary');
+  configurationSummary.textContent='Cấu hình đã dùng để tạo audio này';
+  const configurationBody=document.createElement('pre');
+  configurationBody.className='audio-artifact-configuration-body muted';
+  configurationBody.textContent='Mở để xem snapshot render bất biến.';
+  configuration.append(configurationSummary,configurationBody);
+  configuration.addEventListener('toggle',()=>{if(configuration.open)loadArtifactConfiguration(item,configurationBody)});
+  card.append(main,actions,configuration);
   return card;
 }
 function selectAudioLibraryItem(item,{play=false}={}){

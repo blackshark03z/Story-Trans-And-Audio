@@ -162,6 +162,17 @@ class RangeInputWorkflowTests(IsolatedTestCase):
             int(self.db.fetch_one("SELECT COUNT(*) AS n FROM artifacts")["n"]), 0
         )
 
+        # An immutable approved plan remains sufficient even if its historical
+        # speaker draft link is unavailable; range UI must not request Gemini.
+        with self.db.transaction() as connection:
+            connection.execute(
+                "DELETE FROM speaker_assignment_drafts WHERE chapter_id=?",
+                (self.chapter_id,),
+            )
+        final_snapshot = self.snapshot()
+        self.assertEqual(final_snapshot["summary"]["proposal_required_chapters"], 0)
+        self.assertEqual(final_snapshot["summary"]["ready_chapters"], 1)
+
     def test_batch_speaker_approval_is_idempotent_and_rejects_wrong_identity(self) -> None:
         prepared = self.prepare_with_provider(
             lambda **kwargs: fake_response(

@@ -50,6 +50,7 @@ from .character_assignment import (
     create_assignment_character,
 )
 from .active_output import annotate_chapter_rows, annotate_job_rows, get_active_output_bindings
+from .artifact_configuration import artifact_configuration_summary
 from .batch_plan import build_batch_plan
 from .batch_prepare_clone_api import (
     MAX_REQUEST_BYTES,
@@ -863,6 +864,14 @@ def audio_library() -> dict[str, Any]:
         item["video_export"] = inspect_video_export(db, settings, artifact_id)
         items.append(item)
     return {"items": items, "total": len(items)}
+
+
+@app.get("/api/artifacts/{artifact_id}/configuration")
+def artifact_configuration(artifact_id: int) -> dict[str, Any]:
+    result = artifact_configuration_summary(db, artifact_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Artifact configuration was not found")
+    return result
 
 
 def _archive_plan_payload(plan: dict[str, Any]) -> dict[str, Any]:

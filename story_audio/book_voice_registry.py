@@ -9,6 +9,7 @@ from .character_assignment import (
     UNRESOLVED_DIALOGUE_ROLE,
     UNRESOLVED_DIALOGUE_STATUS,
     UnresolvedDialogueReference,
+    dash_dialogue_utterance_ids,
     is_unresolved_dialogue_text,
 )
 from .config import Settings
@@ -339,12 +340,19 @@ def _collect_from_plan(
     chapter: Mapping[str, Any],
     characters: Mapping[int, Mapping[str, Any]],
     text: str,
+    source_layout_text: str | None = None,
 ) -> None:
-    for utterance in plan.get("plan", {}).get("utterances") or []:
+    utterances = plan.get("plan", {}).get("utterances") or []
+    dialogue_ids = dash_dialogue_utterance_ids(
+        text,
+        utterances,
+        source_layout_text=source_layout_text,
+    )
+    for utterance in utterances:
         role = str(utterance.get("role") or "narrator")
         voice_id = str(utterance.get("resolved_voice_id") or "").strip() or None
         segment = text[int(utterance["start_offset"]) : int(utterance["end_offset"])].strip()
-        if role == "narrator" and is_unresolved_dialogue_text(segment):
+        if role == "narrator" and str(utterance["utterance_id"]) in dialogue_ids:
             reference = UnresolvedDialogueReference(
                 chapter_id=int(chapter["id"]),
                 chapter_number=int(chapter["chapter_number"]),
@@ -365,6 +373,34 @@ def _collect_from_plan(
             row = _ensure_narrator(rows)
         row.touch(chapter, voice_id=voice_id)
         row.plan_touch(plan)
+
+
+def _source_layout_text(
+    db: Database,
+    store: ContentStore,
+    revision: Mapping[str, Any],
+) -> str | None:
+    parent_id = revision["parent_revision_id"]
+    visited: set[int] = set()
+    while parent_id not in (None, ""):
+        revision_id = int(parent_id)
+        if revision_id in visited:
+            break
+        visited.add(revision_id)
+        parent = db.fetch_one(
+            "SELECT id,parent_revision_id,kind,content_path FROM text_revisions WHERE id=?",
+            (revision_id,),
+        )
+        if not parent:
+            break
+        try:
+            parent_text = store.read_text(str(parent["content_path"]))
+        except OSError:
+            parent_text = ""
+        if parent_text and ("\n" in parent_text or "\r" in parent_text):
+            return parent_text
+        parent_id = parent["parent_revision_id"]
+    return None
 
 
 def _collect_from_speaker_draft(
@@ -735,13 +771,15 @@ def get_book_voice_registry(
 
     for chapter in chapters:
         revision = db.fetch_one(
-            "SELECT id,content_path FROM text_revisions WHERE id=?",
+            "SELECT id,parent_revision_id,kind,content_path FROM text_revisions WHERE id=?",
             (int(chapter.get("active_text_revision_id") or 0),),
         )
         text = ""
+        source_layout_text = None
         if revision:
             try:
                 text = store.read_text(str(revision["content_path"]))
+                source_layout_text = _source_layout_text(db, store, revision)
                 checked_revisions.append(
                     {
                         "chapter_id": int(chapter["id"]),
@@ -762,6 +800,7 @@ def get_book_voice_registry(
                     chapter=chapter,
                     characters=characters,
                     text=text,
+                    source_layout_text=source_layout_text,
                 )
                 plan_collected = True
             except (CastingError, OSError, ValueError):
