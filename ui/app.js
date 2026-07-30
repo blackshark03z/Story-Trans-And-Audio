@@ -667,11 +667,21 @@ function filteredAudioLibraryItems(items){
   });
 }
 function audioLibraryVideoState(item){const id=Number(item?.artifact_id||0),cached=state.audioLibrary.videoExports?.[id];if(cached)return cached;const exported=item?.video_export||null,url=safeVideoExportUrl(exported?.download_url);return exported&&url?{...exported,download_url:url,status:'ready',message:'Video đã sẵn sàng.'}:{status:'missing',message:''}}
+function sequenceRanges(values){
+  const sequences=[...new Set((Array.isArray(values)?values:[]).map(Number).filter(Number.isInteger))].sort((a,b)=>a-b);
+  if(!sequences.length)return'không rõ';
+  const ranges=[];let start=sequences[0],end=start;
+  for(let index=1;index<sequences.length;index+=1){const value=sequences[index];if(value===end+1){end=value;continue}ranges.push(start===end?String(start):`${start}–${end}`);start=end=value}
+  ranges.push(start===end?String(start):`${start}–${end}`);
+  return ranges.join(', ');
+}
 function artifactConfigurationText(configuration){
-  const artifact=configuration?.artifact||{},book=configuration?.book||{},chapter=configuration?.chapter||{},job=configuration?.job||{},source=configuration?.source_revision_id??'—',plan=configuration?.casting_plan||{},provider=configuration?.provider||{},synthesis=configuration?.synthesis||{};
+  const artifact=configuration?.artifact||{},book=configuration?.book||{},chapter=configuration?.chapter||{},job=configuration?.job||{},source=configuration?.source_revision||{},sourceId=source.id??configuration?.source_revision_id??'—',plan=configuration?.casting_plan||{},provider=configuration?.provider||{},synthesis=configuration?.synthesis||{};
   const actors=Array.isArray(configuration?.actors)?configuration.actors:[];
-  const actorText=actors.length?actors.map(actor=>`${actor.label||'Người nói'}: ${actor.voice_id||'chưa có giọng'} (${actor.provenance||'snapshot'})`).join(' | '):'Không có dữ liệu người nói trong snapshot.';
-  return [`${book.title||'Sách'} · Chương ${chapter.number??'—'}${chapter.title?` · ${chapter.title}`:''}. Artifact #${artifact.id??'—'} · Job #${job.id??'—'} · ${artifact.created_at||'không rõ thời điểm'}.`,`Nguồn: Text Revision ${source}; Casting Plan ${plan.id??'—'} rev ${plan.revision??'—'}.`,`TTS: ${provider.engine||'unknown'} · ${provider.mode||'unknown'}.`,`Người nói: ${actorText}.`,`Phân đoạn: ${synthesis.verified_segment_count??0}/${synthesis.segment_count??0} đã xác minh · ${synthesis.retry_count??0} retry.`,`QA: ${artifact.human_qa_status||'pending'} · ${artifact.active?'đang hoạt động':'lịch sử'} · ${formatDurationMs(artifact.duration_ms)||'không rõ thời lượng'} · ${bytes(artifact.size_bytes||0)} · SHA-256 ${artifact.sha256||'—'}.`].join('\n');
+  const actorText=actors.length?actors.map(actor=>`${actor.label||'Người nói'}: ${actor.voice_id||'chưa có giọng'} (${actor.provenance||'snapshot'}) · ${actor.segment_count??0} phân đoạn · seq ${sequenceRanges(actor.sequences)}`).join(' | '):'Không có dữ liệu người nói trong snapshot.';
+  const sourceText=source.parent_id?`raw Text Revision ${source.parent_id}; bản render pin Text Revision ${sourceId}${source.kind?` (${source.kind})`:''}`:`Text Revision ${sourceId}${source.kind?` (${source.kind})`:''}`;
+  const qaEvent=artifact.human_qa_event_id?` · audit #${artifact.human_qa_event_id}`:'';
+  return [`${book.title||'Sách'} · Chương ${chapter.number??'—'}${chapter.title?` · ${chapter.title}`:''}. Artifact #${artifact.id??'—'} · Job #${job.id??'—'} · ${artifact.created_at||'không rõ thời điểm'}.`,`Nguồn: ${sourceText}; Casting Plan ${plan.id??'—'} rev ${plan.revision??'—'}.`,`TTS: ${provider.engine||'unknown'} · ${provider.mode||'unknown'}.`,`Người nói: ${actorText}.`,`Phân đoạn: ${synthesis.verified_segment_count??0}/${synthesis.segment_count??0} đã xác minh · ${synthesis.attempt_count??0} attempt · ${synthesis.retry_count??0} retry.`,`QA: ${artifact.human_qa_status||'pending'}${qaEvent} · ${artifact.active?'đang hoạt động':'lịch sử'} · ${formatDurationMs(artifact.duration_ms)||'không rõ thời lượng'} · ${bytes(artifact.size_bytes||0)} · SHA-256 ${artifact.sha256||'—'}.`].join('\n');
 }
 async function loadArtifactConfiguration(item,body){
   if(body.dataset.loaded==='true'||body.dataset.loading==='true')return;

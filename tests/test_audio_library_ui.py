@@ -66,9 +66,16 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertNotIn("innerHTML", block)
 
     def test_artifact_configuration_is_read_only_and_snapshot_scoped(self) -> None:
+        self.assertIn("function sequenceRanges", self.js)
         self.assertIn("function artifactConfigurationText", self.js)
         self.assertIn("async function loadArtifactConfiguration", self.js)
         self.assertIn("/api/artifacts/${Number(item.artifact_id)}/configuration", self.js)
+        text_block = self._function_block("artifactConfigurationText")
+        self.assertIn("actor.segment_count", text_block)
+        self.assertIn("sequenceRanges(actor.sequences)", text_block)
+        self.assertIn("source.parent_id", text_block)
+        self.assertIn("synthesis.attempt_count", text_block)
+        self.assertIn("artifact.human_qa_event_id", text_block)
         block = self._function_block("renderAudioLibraryItem")
         self.assertIn("Cấu hình đã dùng để tạo audio này", block)
         self.assertIn("loadArtifactConfiguration(item,configurationBody)", block)

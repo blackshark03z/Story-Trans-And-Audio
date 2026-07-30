@@ -4137,13 +4137,26 @@ def job_action(job_id: int, action: str) -> dict[str, Any]:
 
 @app.get("/api/artifacts/{artifact_id}/file")
 def artifact_file(artifact_id: int):
-    row = db.fetch_one("SELECT * FROM artifacts WHERE id=? AND deleted_at IS NULL", (artifact_id,))
+    row = db.fetch_one(
+        """
+        SELECT a.*, c.book_id, c.chapter_number
+        FROM artifacts a
+        JOIN chapters c ON c.id=a.chapter_id
+        WHERE a.id=? AND a.deleted_at IS NULL
+        """,
+        (artifact_id,),
+    )
     if not row:
         raise HTTPException(404, "Không tìm thấy artifact.")
     path = Path(row["path"])
     if not path.exists():
         raise HTTPException(404, "File artifact không còn tồn tại.")
-    return FileResponse(path, filename=path.name)
+    suffix = path.suffix.lower() or ".bin"
+    download_name = (
+        f"book-{int(row['book_id'])}-chapter-{int(row['chapter_number']):04d}"
+        f"-artifact-{artifact_id}{suffix}"
+    )
+    return FileResponse(path, filename=download_name)
 
 
 @app.post("/api/artifacts/{artifact_id}/video-export")

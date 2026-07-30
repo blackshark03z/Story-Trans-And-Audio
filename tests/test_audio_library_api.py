@@ -128,11 +128,28 @@ class AudioLibraryApiTests(IsolatedTestCase):
             "tts_settings": {"tts_mode": "pinned-mode"},
             "character_labels": {"42": "Quần chúng nam"},
             "utterances": [
-                {"role": "narrator", "resolved_voice_id": "custom:narrator", "resolution_source": "narrator"},
-                {"role": "character", "character_id": 42, "resolved_voice_id": "custom:commander", "resolution_source": "character"},
+                {"sequence": 21, "utterance_id": "u0021", "role": "narrator", "resolved_voice_id": "custom:narrator", "resolution_source": "narrator"},
+                {"sequence": 22, "utterance_id": "u0022", "role": "character", "character_id": 42, "resolved_voice_id": "custom:commander", "resolution_source": "character"},
             ],
         }
         with self.db.transaction() as connection:
+            rendered_revision = connection.execute(
+                "SELECT text_revision_id FROM artifacts WHERE id=?",
+                (self.old_artifact_id,),
+            ).fetchone()["text_revision_id"]
+            raw_revision = int(
+                connection.execute(
+                    """INSERT INTO text_revisions(
+                        chapter_id,kind,content_path,content_sha256,lexical_sha256,char_count,
+                        processor_version,status,created_at
+                    ) VALUES(?,?,?,?,?,?,?,?,?)""",
+                    (self.chapter_id, "raw", "text/raw.txt", "raw-sha", "lexical", 16, "test", "verified", utcnow()),
+                ).lastrowid
+            )
+            connection.execute(
+                "UPDATE text_revisions SET parent_revision_id=? WHERE id=?",
+                (raw_revision, rendered_revision),
+            )
             connection.execute(
                 "UPDATE jobs SET settings_json=? WHERE id=1",
                 (json.dumps({"engine_version": "mutable-engine", "tts_mode": "mutable-mode"}),),
@@ -152,7 +169,43 @@ class AudioLibraryApiTests(IsolatedTestCase):
         self.assertEqual([actor["voice_id"] for actor in data["actors"]], ["custom:narrator", "custom:commander"])
         self.assertEqual(data["actors"][1]["label"], "Quần chúng nam")
         self.assertEqual(data["actors"][1]["provenance"], "casting_plan_snapshot")
+        self.assertEqual(data["actors"][0]["sequences"], [21])
+        self.assertEqual(data["actors"][1]["sequences"], [22])
+        self.assertEqual(data["utterances"][1]["utterance_id"], "u0022")
+        self.assertEqual(data["utterances"][1]["voice_id"], "custom:commander")
+        self.assertEqual(data["source_revision"]["parent_id"], raw_revision)
+        self.assertEqual(data["source_revision"]["parent_kind"], "raw")
         self.assertEqual(data["synthesis"]["segment_count"], 0)
+
+    def test_artifact_configuration_uses_artifact_specific_qa_history(self) -> None:
+        self.db.audit(
+            "human_qa_recorded",
+            job_id=1,
+            chapter_id=self.chapter_id,
+            details={"artifact_id": self.old_artifact_id, "status": "needs_fixes"},
+        )
+        with self.db.transaction() as connection:
+            connection.execute(
+                "UPDATE chapters SET human_approval_json=? WHERE id=?",
+                (
+                    json.dumps({"artifact_id": self.new_artifact_id, "status": "approved"}),
+                    self.chapter_id,
+                ),
+            )
+
+        data = self.client.get(f"/api/artifacts/{self.old_artifact_id}/configuration").json()
+        self.assertEqual(data["artifact"]["human_qa_status"], "needs_fixes")
+        self.assertIsInstance(data["artifact"]["human_qa_event_id"], int)
+        self.assertTrue(data["artifact"]["active"])
+
+    def test_artifact_download_filename_identifies_book_chapter_and_artifact(self) -> None:
+        response = self.client.get(f"/api/artifacts/{self.old_artifact_id}/file")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, b"old")
+        self.assertIn(
+            f"book-1-chapter-0010-artifact-{self.old_artifact_id}.m4a",
+            response.headers["content-disposition"],
+        )
 
     def test_unknown_artifact_configuration_returns_404(self) -> None:
         response = self.client.get("/api/artifacts/999999/configuration")
