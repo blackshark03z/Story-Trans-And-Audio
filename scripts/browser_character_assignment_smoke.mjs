@@ -303,14 +303,25 @@ try {
   try {
     socket?.close();
   } catch {}
+  const browserExited = new Promise(resolve => {
+    if (child.exitCode !== null) resolve();
+    else child.once("exit", resolve);
+  });
   child.kill();
-  for (let attempt = 0; attempt < 10; attempt += 1) {
+  await Promise.race([browserExited, delay(3000)]);
+  let cleanupError = null;
+  for (let attempt = 0; attempt < 30; attempt += 1) {
     try {
       await rm(profile, { recursive: true, force: true });
+      cleanupError = null;
       break;
     } catch (error) {
-      if (error?.code !== "EBUSY" || attempt === 9) throw error;
-      await delay(100);
+      cleanupError = error;
+      if (!["EBUSY", "EPERM"].includes(error?.code) || attempt === 29) break;
+      await delay(200);
     }
+  }
+  if (cleanupError) {
+    process.stderr.write(`Warning: disposable browser profile cleanup deferred: ${cleanupError.message}\n`);
   }
 }

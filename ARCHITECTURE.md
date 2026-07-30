@@ -1,5 +1,27 @@
 # Kiến trúc ứng dụng EPUB → VieNeu-TTS
 
+## Accepted-audio video export - 2026-07-30
+
+The Audio Library can derive one browser-compatible MP4 from the current
+active, Human-QA-accepted audio Artifact. The export does not create a new
+audio authority: the accepted Artifact, its verified file hash, and its
+authoritative duration remain the source of truth.
+
+`story_audio.video_export` creates a deterministic export identity from the
+source Artifact identity/hash and export configuration. It writes the MP4 and
+an immutable manifest under `data/output/video_exports/artifact_<id>/<export_id>/`.
+A repeated request reuses the verified result; an active Artifact change
+produces a different identity, so rejected or stale audio cannot be selected
+silently. Export uses a deterministic neutral frame when no chapter visual is
+available, H.264/AAC output, and an explicit duration cap derived from the
+source Artifact to prevent still-image encoder lookahead from extending the
+video.
+
+Video export is an offline post-processing boundary. It does not call Gemini,
+TTS, PREPARE, START_RENDER, or the worker. The UI exposes durable export state,
+inline playback, and download only after manifest, hash, codec, stream, and
+duration validation succeeds.
+
 ## Current PREPARE Rollout State - 2026-07-23
 
 Phase 13 is complete at `CLONE_ONLY / DISABLED_RUNTIME_ONLY / AUTH_BOUNDARY_CLONE_ONLY`.

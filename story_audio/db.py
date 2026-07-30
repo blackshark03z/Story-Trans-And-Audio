@@ -84,10 +84,25 @@ class Database:
         _check_live_db_guard(self.path)
         with self.connect() as connection:
             version = self.migration_runner.apply(connection, utcnow())
+            interrupted_at = utcnow()
             connection.execute(
                 "UPDATE jobs SET status='interrupted', current_stage='recovery', updated_at=? "
                 "WHERE status IN ('running','repairing','synthesizing','assembling')",
-                (utcnow(),),
+                (interrupted_at,),
+            )
+            connection.execute(
+                """UPDATE job_chapters SET status='interrupted'
+                   WHERE status='running'
+                   AND job_id IN (SELECT id FROM jobs WHERE status='interrupted')"""
+            )
+            connection.execute(
+                """UPDATE segments SET status='interrupted'
+                   WHERE status='running'
+                   AND job_chapter_id IN (
+                       SELECT jc.id FROM job_chapters jc
+                       JOIN jobs j ON j.id=jc.job_id
+                       WHERE j.status='interrupted'
+                   )"""
             )
         return version
 

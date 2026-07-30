@@ -1,6 +1,25 @@
 # DAILY-PROD Checkpoint State
 
-Updated: 2026-07-29
+Updated: 2026-07-30
+
+## Real User Media Golden Journey
+
+- Verdicts: `AUTOMATED_SPEAKER_REVIEW_WORKSPACE_PASS` and
+  `REAL_USER_MEDIA_GOLDEN_JOURNEY_PASS`.
+- The complete user journey passed on isolated Book `1`, Chapter `2`:
+  Gemini suggestion generation, human correction/history, wrong-voice
+  rejection, corrected replacement render, automated audio QA, acceptance,
+  audio/video download, and browser playback.
+- Wrong-voice Job `28` / Artifact `102` remains historical. Corrected Job `29`
+  produced accepted active Artifact `105` using inherited `custom:25`.
+- Audio `105`: `353720 ms`, `53/53` verified segments, SHA-256
+  `ec9baf19307a6b62c879a4944040773fc4cd867379c606d50c995f970a0c5b14`.
+- Video export `artifact-105-ec9baf19307a-99081a1294b9`: H.264/AAC 1280x720,
+  `353720 ms`, SHA-256
+  `f72094a7d9bf1636f1367734d80cb9a84e2ea9a37ae4ee7e2a3028a3fe08b915`.
+- Canonical production remained read-only at schema `15`, Jobs `26`,
+  Artifacts `99`; Chapter `369` remains not created. Full offline validation:
+  `1870` passed with `1` intentional skip.
 
 ## Book-Centric Golden Journey
 

@@ -283,12 +283,39 @@ def check_data_integrity(config: Settings, *, deep: bool = False) -> list[Findin
     )
 
     missing_segments = 0
+    missing_historical_segments = 0
     for row in database.fetch_all(
-        "SELECT id,wav_path FROM segments WHERE status='verified' AND wav_path IS NOT NULL"
+        """SELECT s.id,s.wav_path,jc.status AS job_chapter_status,
+                  (SELECT a.path FROM artifacts a
+                   WHERE a.job_chapter_id=jc.id
+                     AND a.status IN ('active','verified')
+                     AND a.deleted_at IS NULL
+                   ORDER BY CASE WHEN a.status='active' THEN 0 ELSE 1 END,a.id DESC
+                   LIMIT 1) AS published_artifact_path
+           FROM segments s
+           JOIN job_chapters jc ON jc.id=s.job_chapter_id
+           WHERE s.status='verified' AND s.wav_path IS NOT NULL"""
     ):
         if not Path(row["wav_path"]).exists():
-            missing_segments += 1
-            if missing_segments <= 5:
+            published_path = row["published_artifact_path"]
+            historical_only = (
+                row["job_chapter_status"] == "completed"
+                and published_path
+                and Path(published_path).exists()
+            )
+            if historical_only:
+                missing_historical_segments += 1
+                if missing_historical_segments <= 5:
+                    findings.append(
+                        Finding(
+                            "WARN",
+                            "missing_historical_segment",
+                            f"segment={row['id']} path={row['wav_path']}",
+                        )
+                    )
+            else:
+                missing_segments += 1
+            if not historical_only and missing_segments <= 5:
                 findings.append(
                     Finding(
                         "ERROR",
@@ -300,7 +327,14 @@ def check_data_integrity(config: Settings, *, deep: bool = False) -> list[Findin
         Finding(
             "OK" if missing_segments == 0 else "ERROR",
             "verified_segments",
-            f"missing={missing_segments}",
+            f"missing_resumable={missing_segments}",
+        )
+    )
+    findings.append(
+        Finding(
+            "WARN" if missing_historical_segments else "OK",
+            "historical_segment_files",
+            f"missing={missing_historical_segments}",
         )
     )
 

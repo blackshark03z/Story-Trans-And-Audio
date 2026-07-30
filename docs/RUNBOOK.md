@@ -4,6 +4,26 @@
 
 The instructions below describe currently supported production operation. Use them as executable guidance until a `DAILY-PROD` implementation task explicitly replaces a section.
 
+### Accepted audio and video delivery
+
+1. Complete Human QA on the current replacement Artifact. A rejected Artifact
+   remains history and must not be overwritten or exported as current media.
+2. Confirm Audio Library selects the active accepted Artifact, play it in the
+   browser, and download it through the visible control.
+3. Select `Xuat video`. The application creates or safely reuses the
+   deterministic MP4 for that exact Artifact; export never invokes TTS.
+4. Play the resulting inline video and download it from the durable export
+   result. Verify the manifest output hash against the downloaded file when
+   investigating delivery issues.
+5. If codec, stream, hash, or duration validation fails, retain the accepted
+   audio and rerun only offline export after fixing the deterministic defect.
+   Do not PREPARE or render again unless the accepted audio itself is defective.
+
+The MP4 uses H.264 video, AAC audio, `yuv420p`, and a deterministic neutral
+1280x720 frame when no chapter visual exists. The encoder is capped to the
+accepted Artifact duration; a material duration mismatch is an export failure,
+not a successful download.
+
 Current daily-production safety boundaries:
 
 - Approval, job preparation, and render start are separate actions.

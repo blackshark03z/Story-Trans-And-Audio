@@ -96,6 +96,26 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertIn("event.preventDefault()", item_block)
         self.assertIn("warning.textContent=", item_block)
 
+    def test_video_export_controls_are_visible_bounded_and_retry_safe(self) -> None:
+        safe_block = self._function_block("safeVideoExportUrl")
+        item_block = self._function_block("renderAudioLibraryItem")
+        export_block = self._function_block("exportAudioLibraryVideo")
+        self.assertIn(r"^\/api\/video-exports\/artifact-\d+-[0-9a-f]{12}-[0-9a-f]{12}\/file$", safe_block)
+        self.assertIn("audioLibraryVideoState(item)", item_block)
+        self.assertIn("exportButton.textContent=video.status==='exporting'?'Đang xuất video…':'Xuất video'", item_block)
+        self.assertIn("exportButton.disabled=video.status==='exporting'||!!videoUrl||!videoAllowed", item_block)
+        self.assertIn("videoDownload.textContent='Tải video'", item_block)
+        self.assertIn("videoPreview.controls=true", item_block)
+        self.assertIn("videoPreview.preload='metadata'", item_block)
+        self.assertIn("videoPreview.src=videoUrl", item_block)
+        self.assertIn("videoPreview.setAttribute('aria-label',`Phát video ${audioLibraryTitle(item)}`)", item_block)
+        self.assertNotIn("videoPreview.play()", item_block)
+        self.assertIn("Video chỉ xuất sau khi audio đã được chấp nhận.", item_block)
+        self.assertIn("current?.status==='exporting'", export_block)
+        self.assertIn("api(`/api/artifacts/${artifactId}/video-export`,{method:'POST'})", export_block)
+        self.assertIn("safeVideoExportUrl(result.download_url)", export_block)
+        self.assertIn("message:result.reused?'Video đã sẵn sàng.':'Video đã xuất xong.'", export_block)
+
     def test_audio_library_does_not_autoplay_on_load(self) -> None:
         self.assertIn('id="audioLibraryAudio" controls preload="metadata"', self.html)
         load_block = self._function_block("loadAudioLibrary")
@@ -144,13 +164,13 @@ class AudioLibraryUiTests(unittest.TestCase):
             "/api/jobs/prepare",
             "/start",
             "/api/voice-previews",
-            "method:'POST'",
             "method:'PATCH'",
             "method:'DELETE'",
             "369",
         )
         for value in forbidden:
             self.assertNotIn(value, audio_related)
+        self.assertIn("api(`/api/artifacts/${artifactId}/video-export`,{method:'POST'})", audio_related)
         self.assertNotIn("/human-approval", audio_related)
         self.assertIn("HUMAN_QA_ACCEPT", self.js)
         self.assertIn("HUMAN_QA_NEEDS_FIXES", self.js)

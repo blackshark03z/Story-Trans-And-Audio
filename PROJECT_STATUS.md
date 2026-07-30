@@ -1,13 +1,13 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-29 (Asia/Saigon)
-**Milestone:** DAILY-PROD-6 Lean Production Preflight Accepted - Real Character Assignment Implemented
-**Strategic state:** `DAILY_USE_V1_REAL_ASSIGNMENT_READY`
-**Trạng thái hiện tại:** The routine workflow combines canonical Task Projection, read-only Production Preflight, and editable Assignment registry rows. Operators can now see narrator, named characters, stable unknown speakers, and unresolved dialogue rows for the selected range; create or reuse missing characters; add aliases; map unresolved speaker lines to characters through the shared Production command coordinator; and then change voices for a book default, one chapter, or an exact selected range without losing scope. Character mapping and chapter/range voice changes create immutable approved Casting Plan revisions for selected chapters only; historical Jobs, Artifacts, accepted audio, Text Revisions, and rendered snapshots remain unchanged.
+**Cập nhật:** 2026-07-30 (Asia/Saigon)
+**Milestone:** Real User Media Golden Journey Certified
+**Strategic state:** `REAL_USER_MEDIA_GOLDEN_JOURNEY_PASS`
+**Trạng thái hiện tại:** The complete browser journey is certified on an isolated Book 1 Chapter 2 clone: bounded Gemini analysis, reversible review, intentional wrong-voice render and rejection, corrected replacement render, automated audio-content QA, Human QA acceptance, active-audio download, deterministic MP4 export/download, and browser playback. Canonical schema-15 production remained read-only.
 
-**Last verified implementation starting baseline:** `4287d771ac72a5ae5388e56a4ca9590a2cf26e27`
+**Last verified implementation starting baseline:** `ab9aacd2ea68d555f69eb2f2e4e3f3bddded4271`
 **Last verified branch:** `main`
-**Last verified date:** 2026-07-29
+**Last verified date:** 2026-07-30
 **Canonical runtime:** `http://127.0.0.1:8772`
 **Runtime schema:** canonical `15`
 **Default/latest schema:** `15`
@@ -25,6 +25,32 @@
 **DAILY-PROD-4:** complete
 **DAILY-PROD-3A:** complete
 **DAILY-PROD-3:** complete
+
+### Real User Media Golden Journey
+
+- Isolated root:
+  `D:\StoryAudio_RealMediaJourney\20260730-020514`; canonical port `8772`
+  stayed stopped and the isolated runtime used `18872`.
+- Gemini run `gsr-a06093d38b3c63b88cf032e3` analyzed exactly two Chapter 2
+  groups in one request/chunk. Review preserved the original proposals and
+  approved the explicit corrected decisions.
+- Intentional wrong voice `custom:27` produced Job `28` and Artifact `102`,
+  which was retained as needs-fixes history. Restored inherited voice
+  `custom:25` produced replacement Job `29` and accepted Artifact `105`.
+- Artifact `105` contains `53/53` verified segments, duration `353720 ms`,
+  SHA-256 `ec9baf19307a6b62c879a4944040773fc4cd867379c606d50c995f970a0c5b14`,
+  complete decode, no clipping or unexpected long silence, and no detected
+  repetition, mojibake, truncation, or segment-order defect in technical and
+  offline-ASR checks.
+- Deterministic export
+  `artifact-105-ec9baf19307a-99081a1294b9` is H.264/AAC 1280x720,
+  duration `353720 ms`, SHA-256
+  `f72094a7d9bf1636f1367734d80cb9a84e2ea9a37ae4ee7e2a3028a3fe08b915`.
+  Browser playback and downloaded audio/video hash checks passed.
+- Full offline suite: `1870` passed, `1` intentional skip. Canonical remained
+  schema `15`, Jobs `26`, Artifacts `99`, with Chapter `369` not created,
+  Chapter `372` on Artifact `99`, rejected Artifact `93` retained, and
+  Chapter `373` on Artifact `96`.
 
 ### Speaker Review Workspace And Reversible Decisions
 

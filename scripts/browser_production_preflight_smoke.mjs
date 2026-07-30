@@ -162,13 +162,19 @@ try {
   });
   child.kill();
   await Promise.race([browserExited, delay(3000)]);
+  let cleanupError = null;
   for (let attempt = 0; attempt < 30; attempt += 1) {
     try {
       await rm(profile, { recursive: true, force: true });
+      cleanupError = null;
       break;
     } catch (error) {
-      if (!["EBUSY", "EPERM"].includes(error?.code) || attempt === 29) throw error;
+      cleanupError = error;
+      if (!["EBUSY", "EPERM"].includes(error?.code) || attempt === 29) break;
       await delay(200);
     }
+  }
+  if (cleanupError) {
+    process.stderr.write(`Warning: disposable browser profile cleanup deferred: ${cleanupError.message}\n`);
   }
 }

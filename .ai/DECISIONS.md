@@ -1,6 +1,26 @@
 # Continuity Decisions
 
-Updated: 2026-07-29
+Updated: 2026-07-30
+
+## CONT-025 - Video export derives only from the active accepted audio Artifact
+
+The active Human-QA-accepted audio Artifact is the sole authority for chapter
+video export. A rejected, stale, inactive, missing, hash-mismatched, or
+duration-invalid Artifact must fail closed and cannot be selected through
+fallback.
+
+Video export remains a derived filesystem object rather than a new SQLite
+entity. Its deterministic identity binds source Artifact identity/hash and
+export configuration. A verified manifest pins the output hash, codec,
+resolution, duration, and source authority; identical valid requests reuse the
+same export, while an active Artifact/configuration change creates a new
+identity. Invalid partial output is removed.
+
+Static-visual encoding must use an explicit source-audio duration cap because
+encoder lookahead can otherwise extend an infinite color source beyond the
+audio despite `-shortest`. Export, validation, playback, and download are
+offline boundaries and never authorize PREPARE, START_RENDER, worker wake,
+Gemini, or TTS.
 
 ## CONT-024 - Chapter/range voice overrides use approved Casting Plan revisions
 

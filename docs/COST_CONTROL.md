@@ -47,6 +47,16 @@ Resolved voice phải đến từ immutable casting/job snapshot. Three-Voice Pr
 master_audio_sha256 + format/codec/bitrate + post-processing settings
 ```
 
+Accepted-audio video export adds source Artifact identity and deterministic
+visual/codec configuration to that cache boundary. Technical QA, offline ASR,
+audio download verification, video export/retry, and MP4 validation are
+offline operations and must not call Gemini or TTS. A video-only defect never
+justifies PREPARE, START_RENDER, or new synthesis cost.
+
+Real-provider certification is permitted only for an explicitly bounded
+isolated scope with recorded request/attempt limits. It must not mutate the
+canonical database.
+
 ### YouTube Auto downstream
 
 ```text

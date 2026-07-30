@@ -168,6 +168,12 @@ from .voice_profile import (
     set_character_gender,
     set_character_voice_override,
 )
+from .video_export import (
+    VideoExportError,
+    create_video_export,
+    inspect_video_export,
+    load_video_export_file,
+)
 from .voice_ref import CustomVoiceContext, is_custom_ref, resolve_custom_ref
 from .voice_eligibility import (
     VoiceCatalogAuthority,
@@ -821,40 +827,40 @@ def audio_library() -> dict[str, Any]:
             binding,
         )
         seen_chapters.add(chapter_id)
-        items.append(
-            {
-                "book_id": int(row["book_id"]),
-                "book_title": row["book_title"],
-                "chapter_id": chapter_id,
-                "chapter_number": int(row["chapter_number"]),
-                "chapter_title": row["chapter_title"],
-                "audio_status": row["audio_status"],
-                "artifact_id": artifact_id,
-                "artifact_kind": row["artifact_type"],
-                "artifact_status": row["artifact_status"],
-                "file_url": f"/api/artifacts/{artifact_id}/file",
-                "download_url": f"/api/artifacts/{artifact_id}/file",
-                "sha256": row["sha256"],
-                "size_bytes": int(row["size_bytes"]) if row["size_bytes"] is not None else None,
-                "duration_ms": int(row["duration_ms"]) if row["duration_ms"] is not None else None,
-                "artifact_created_at": row["artifact_created_at"],
-                "artifact_verified_at": row["artifact_verified_at"],
-                "job_id": binding.get("active_output_job_id"),
-                "job_chapter_id": binding.get("active_output_job_chapter_id"),
-                "job_chapter_status": binding.get("active_output_job_chapter_status"),
-                "casting_plan_id": binding.get("active_output_casting_plan_id"),
-                "casting_plan_revision": binding.get("active_output_casting_plan_revision"),
-                "requested_voice": binding.get("active_output_job_voice_name"),
-                "applied_narrator_voice": binding.get("active_output_narrator_voice_id"),
-                "human_qa_status": chapter_data["human_qa_status"],
-                "human_approval_status": chapter_data["human_approval_status"],
-                "human_approval_label": chapter_data["human_approval_label"],
-                "human_approval_warning": chapter_data["human_approval_warning"],
-                "human_approval_matches_active_artifact": (
-                    human_approval.get("matches_active_artifact") if human_approval else None
-                ),
-            }
-        )
+        item = {
+            "book_id": int(row["book_id"]),
+            "book_title": row["book_title"],
+            "chapter_id": chapter_id,
+            "chapter_number": int(row["chapter_number"]),
+            "chapter_title": row["chapter_title"],
+            "audio_status": row["audio_status"],
+            "artifact_id": artifact_id,
+            "artifact_kind": row["artifact_type"],
+            "artifact_status": row["artifact_status"],
+            "file_url": f"/api/artifacts/{artifact_id}/file",
+            "download_url": f"/api/artifacts/{artifact_id}/file",
+            "sha256": row["sha256"],
+            "size_bytes": int(row["size_bytes"]) if row["size_bytes"] is not None else None,
+            "duration_ms": int(row["duration_ms"]) if row["duration_ms"] is not None else None,
+            "artifact_created_at": row["artifact_created_at"],
+            "artifact_verified_at": row["artifact_verified_at"],
+            "job_id": binding.get("active_output_job_id"),
+            "job_chapter_id": binding.get("active_output_job_chapter_id"),
+            "job_chapter_status": binding.get("active_output_job_chapter_status"),
+            "casting_plan_id": binding.get("active_output_casting_plan_id"),
+            "casting_plan_revision": binding.get("active_output_casting_plan_revision"),
+            "requested_voice": binding.get("active_output_job_voice_name"),
+            "applied_narrator_voice": binding.get("active_output_narrator_voice_id"),
+            "human_qa_status": chapter_data["human_qa_status"],
+            "human_approval_status": chapter_data["human_approval_status"],
+            "human_approval_label": chapter_data["human_approval_label"],
+            "human_approval_warning": chapter_data["human_approval_warning"],
+            "human_approval_matches_active_artifact": (
+                human_approval.get("matches_active_artifact") if human_approval else None
+            ),
+        }
+        item["video_export"] = inspect_video_export(db, settings, artifact_id)
+        items.append(item)
     return {"items": items, "total": len(items)}
 
 
@@ -1215,6 +1221,14 @@ def _speaker_review_command_context(
     return expected, voice_catalog, custom_voice_context, registry
 
 
+def _speaker_review_mutation_range(command_range: dict[str, Any]) -> dict[str, int]:
+    return {
+        "book_id": int(command_range["book_id"]),
+        "from_chapter": int(command_range["from_chapter"]),
+        "to_chapter": int(command_range["to_chapter"]),
+    }
+
+
 def _project_production_command(
     scope: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any] | None]:
@@ -1537,7 +1551,7 @@ def _production_command_executor(
                 db,
                 store,
                 settings,
-                **command_range,
+                **_speaker_review_mutation_range(command_range),
                 analysis_run_id=analysis_run_id,
                 unresolved_key=unresolved_key,
                 reviewer_payload=dict(payload.get("reviewer_payload") or {}),
@@ -1580,7 +1594,7 @@ def _production_command_executor(
                 db,
                 store,
                 settings,
-                **command_range,
+                **_speaker_review_mutation_range(command_range),
                 analysis_run_id=analysis_run_id,
                 unresolved_key=unresolved_key,
                 reviewer_payload=dict(payload.get("reviewer_payload") or {}),
@@ -1618,7 +1632,7 @@ def _production_command_executor(
                     db,
                     store,
                     settings,
-                    **command_range,
+                    **_speaker_review_mutation_range(command_range),
                     items=[
                         dict(item)
                         for item in submitted_items
@@ -1645,7 +1659,7 @@ def _production_command_executor(
                     db,
                     store,
                     settings,
-                    **command_range,
+                    **_speaker_review_mutation_range(command_range),
                     analysis_run_id=analysis_run_id,
                     unresolved_keys=unresolved_keys,
                     voice_catalog=voice_catalog,
@@ -4053,7 +4067,7 @@ def job_action(job_id: int, action: str) -> dict[str, Any]:
                 )
         elif action == "retry":
             connection.execute(
-                "UPDATE job_chapters SET status='pending',error_message=NULL,finished_at=NULL WHERE job_id=? AND status IN ('failed','needs_review')",
+                "UPDATE job_chapters SET status='pending',error_message=NULL,finished_at=NULL WHERE job_id=? AND status IN ('failed','needs_review','interrupted')",
                 (job_id,),
             )
             connection.execute(
@@ -4061,7 +4075,7 @@ def job_action(job_id: int, action: str) -> dict[str, Any]:
                 (job_id,),
             )
             connection.execute(
-                "UPDATE segments SET status='pending',attempt_count=0,error_message=NULL WHERE job_chapter_id IN (SELECT id FROM job_chapters WHERE job_id=?) AND status IN ('failed','pending')",
+                "UPDATE segments SET status='pending',attempt_count=0,error_message=NULL WHERE job_chapter_id IN (SELECT id FROM job_chapters WHERE job_id=?) AND status IN ('failed','pending','interrupted','running')",
                 (job_id,),
             )
             connection.execute(
@@ -4084,6 +4098,29 @@ def artifact_file(artifact_id: int):
     if not path.exists():
         raise HTTPException(404, "File artifact không còn tồn tại.")
     return FileResponse(path, filename=path.name)
+
+
+@app.post("/api/artifacts/{artifact_id}/video-export")
+def artifact_video_export(artifact_id: int) -> dict[str, Any]:
+    try:
+        return create_video_export(db, settings, artifact_id)
+    except VideoExportError as exc:
+        status = 404 if exc.code in {"ARTIFACT_NOT_FOUND", "EXPORT_NOT_FOUND"} else 409
+        raise HTTPException(status, {"code": exc.code, "message": str(exc)}) from exc
+
+
+@app.get("/api/video-exports/{export_id}/file")
+def video_export_file(export_id: str):
+    try:
+        path, manifest = load_video_export_file(db, settings, export_id)
+    except VideoExportError as exc:
+        status = 404 if exc.code == "EXPORT_NOT_FOUND" else 409
+        raise HTTPException(status, {"code": exc.code, "message": str(exc)}) from exc
+    return FileResponse(
+        path,
+        media_type="video/mp4",
+        filename=Path(str(manifest["path"])).name,
+    )
 
 
 def _last_cleanup_result() -> dict[str, Any] | None:

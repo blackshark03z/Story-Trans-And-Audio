@@ -2,6 +2,30 @@
 
 Mục tiêu là bắt lỗi phục hồi và dữ liệu với chi phí thấp nhất. Test mặc định phải offline, nhanh và không nạp model.
 
+## Real user media golden journey
+
+The 2026-07-30 certification ran Book 1 Chapter 2 on an isolated schema-15
+clone and a non-canonical port. It exercised real bounded Gemini analysis,
+review correction/history, an intentionally wrong voice, PREPARE/render,
+needs-fixes, corrected replacement render, automated audio QA, acceptance,
+audio download, MP4 export/download, and browser playback. Canonical production
+remained read-only.
+
+Final media checks cover full decode, stream/codec metadata, Artifact and
+download hashes, duration/timeline/segment order, clipping and silence,
+narrator and dialogue boundaries, offline ASR comparison, static-frame
+validity, and inline browser playback. Video tests also prove deterministic
+reuse, accepted-active source enforcement, stale-source invalidation, and the
+explicit duration cap for still-image encoding.
+
+Windows Chromium smoke scripts wait for browser exit and perform bounded
+`EBUSY`/`EPERM` cleanup. A late disposable-profile lock is reported as cleanup
+evidence rather than changing a completed browser journey into a product
+failure.
+
+Current verified offline baseline: `1870` tests passed with `1` intentional
+skip on 2026-07-30.
+
 ## Tầng 1 — Offline unit tests (mỗi thay đổi)
 
 ```powershell

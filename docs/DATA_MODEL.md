@@ -2,6 +2,31 @@
 
 Source of truth cho schema thực thi hiện nằm trong `story_audio/db.py`. File này mô tả ý nghĩa và dependency; không copy nguyên SQL để tránh drift.
 
+## Derived video export contract
+
+Video exports are verified filesystem derivatives, not schema entities and not
+new audio authorities:
+
+```text
+accepted active Artifact
+  -> artifact file hash + authoritative duration
+  -> deterministic export configuration
+  -> video export identity
+  -> MP4 + manifest.json
+```
+
+Storage:
+`data/output/video_exports/artifact_<artifact_id>/<export_id>/`.
+The manifest pins source Artifact ID/hash, output path/hash/size, codec,
+resolution, duration, configuration, and creation evidence. Reuse is allowed
+only when the source is still the chapter's active accepted Artifact and every
+pinned file/hash/media check still passes. A changed active Artifact or export
+configuration creates a different export identity. Invalid partial output is
+removed and is never published as a reusable export.
+
+No migration is required. Historical/rejected Artifacts remain immutable, and
+their existence does not make them eligible as an export source.
+
 ## Entity graph
 
 ```text

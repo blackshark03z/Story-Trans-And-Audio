@@ -365,6 +365,67 @@ class ProductionCommandApiTests(IsolatedTestCase):
         )
         self.assertEqual(generate.call_args.kwargs["expected_input_fingerprint"], "abc123")
 
+    def test_accept_speaker_suggestion_does_not_forward_scope_filter(self) -> None:
+        command = {
+            "command_type": "EDIT_AND_ACCEPT_SPEAKER_SUGGESTION",
+            "idempotency_key": "speaker-review-accept-0001",
+            "scope": {
+                "range": {
+                    "book_id": 1,
+                    "from_chapter": 2,
+                    "to_chapter": 10,
+                    "skip_completed": False,
+                }
+            },
+            "payload": {
+                "book_id": 1,
+                "from_chapter": 2,
+                "to_chapter": 10,
+                "skip_completed": False,
+                "analysis_run_id": "gsr-source-a",
+                "unresolved_key": "unresolved-dialogue:1:u0002-a",
+                "reviewer_payload": {
+                    "proposed_resolution": "EXISTING_CHARACTER",
+                    "existing_character_id": 25,
+                    "voice_mode": "keep",
+                },
+            },
+        }
+        context = (
+            {
+                "book_id": 1,
+                "from_chapter": 2,
+                "to_chapter": 10,
+                "skip_completed": False,
+            },
+            object(),
+            None,
+            {"rows": []},
+        )
+        with (
+            patch("story_audio.api._project_production_command", self.projection),
+            patch(
+                "story_audio.api._speaker_review_command_context",
+                return_value=context,
+            ),
+            patch(
+                "story_audio.api.accept_speaker_review_suggestion",
+                return_value={
+                    "applied": {"chapter_count": 1},
+                    "review": {"decision": "EDITED_AND_ACCEPTED"},
+                },
+            ) as accept,
+        ):
+            response = self.client.post("/api/production/commands", json=command)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["outcome"], "APPLIED")
+        accept.assert_called_once()
+        self.assertNotIn("skip_completed", accept.call_args.kwargs)
+        self.assertEqual(accept.call_args.kwargs["book_id"], 1)
+        self.assertEqual(accept.call_args.kwargs["from_chapter"], 2)
+        self.assertEqual(accept.call_args.kwargs["to_chapter"], 10)
+
     def test_replacement_and_uncertain_commands_record_reversible_decisions(self) -> None:
         context = (
             {
@@ -496,6 +557,7 @@ class ProductionCommandApiTests(IsolatedTestCase):
         self.assertEqual(result["applied_items"][0]["type"], "speaker_review_correction")
         self.assertEqual(correct.call_args.kwargs["decision_override"], "CORRECTED")
         self.assertTrue(correct.call_args.kwargs["require_approved"])
+        self.assertNotIn("skip_completed", correct.call_args.kwargs)
 
     def test_note_and_safe_restore_commands_use_durable_gateway(self) -> None:
         context = (
@@ -630,6 +692,7 @@ class ProductionCommandApiTests(IsolatedTestCase):
             {"gsr-source-a", "gsr-source-b"},
         )
         approve.assert_called_once()
+        self.assertNotIn("skip_completed", approve.call_args.kwargs)
         self.assertEqual(approve.call_args.kwargs["items"], items)
         self.assertEqual(
             approve.call_args.kwargs["idempotency_key"],

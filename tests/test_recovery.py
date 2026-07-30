@@ -200,6 +200,33 @@ class RecoveryTests(unittest.TestCase):
             rows = database.fetch_all("SELECT status FROM segments ORDER BY segment_index")
             self.assertEqual([row["status"] for row in rows], ["verified", "verified"])
 
+    def test_initialize_marks_inflight_chapter_and_segment_interrupted(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config = make_config(Path(directory))
+            database, _store, job, chapter, _verified_wav = seed_recovery(config)
+            with database.connect() as connection:
+                connection.execute(
+                    "UPDATE segments SET status='running',attempt_count=1 WHERE job_chapter_id=? AND segment_index=2",
+                    (chapter["id"],),
+                )
+
+            database.initialize()
+
+            recovered_job = database.fetch_one("SELECT status,current_stage FROM jobs WHERE id=?", (job["id"],))
+            recovered_chapter = database.fetch_one(
+                "SELECT status FROM job_chapters WHERE id=?", (chapter["id"],)
+            )
+            segments = database.fetch_all(
+                "SELECT segment_index,status,attempt_count FROM segments WHERE job_chapter_id=? ORDER BY segment_index",
+                (chapter["id"],),
+            )
+            self.assertEqual((recovered_job["status"], recovered_job["current_stage"]), ("interrupted", "recovery"))
+            self.assertEqual(recovered_chapter["status"], "interrupted")
+            self.assertEqual(
+                [(row["segment_index"], row["status"], row["attempt_count"]) for row in segments],
+                [(1, "verified", 1), (2, "interrupted", 1)],
+            )
+
     def test_cancel_is_observed_before_tts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             config = make_config(Path(directory))

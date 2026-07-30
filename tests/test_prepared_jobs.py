@@ -508,6 +508,62 @@ class PreparedJobApiTests(IsolatedTestCase):
         )
         self.api_module.worker.wake.assert_called_once()
 
+    def test_retry_resets_only_unfinished_interrupted_segments(self) -> None:
+        prepared = self.client.post("/api/jobs/prepare", json=self.payload)
+        self.assertEqual(prepared.status_code, 200)
+        job_id = int(prepared.json()["job_id"])
+        job_chapter = self.db.fetch_one(
+            "SELECT id FROM job_chapters WHERE job_id=?", (job_id,)
+        )
+        now = "2026-07-30T00:00:00+00:00"
+        with self.db.connect() as connection:
+            connection.execute(
+                "UPDATE jobs SET status='completed_with_errors',finished_at=? WHERE id=?",
+                (now, job_id),
+            )
+            connection.execute(
+                "UPDATE job_chapters SET status='interrupted',finished_at=? WHERE id=?",
+                (now, job_chapter["id"]),
+            )
+            connection.execute(
+                """INSERT INTO segments(
+                    job_chapter_id,segment_index,text_path,text_sha256,status,attempt_count,
+                    created_at,voice_snapshot_version
+                ) VALUES(?,?,?,?,?,?,?,?)""",
+                (job_chapter["id"], 1, "text/one", "a" * 64, "verified", 1, now, 1),
+            )
+            connection.execute(
+                """INSERT INTO segments(
+                    job_chapter_id,segment_index,text_path,text_sha256,status,attempt_count,
+                    created_at,voice_snapshot_version
+                ) VALUES(?,?,?,?,?,?,?,?)""",
+                (job_chapter["id"], 2, "text/two", "b" * 64, "interrupted", 1, now, 1),
+            )
+        self.api_module.worker.wake.reset_mock()
+
+        response = self.client.post(f"/api/jobs/{job_id}/retry")
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(
+            self.db.fetch_one("SELECT status FROM jobs WHERE id=?", (job_id,))["status"],
+            "queued",
+        )
+        self.assertEqual(
+            self.db.fetch_one(
+                "SELECT status FROM job_chapters WHERE id=?", (job_chapter["id"],)
+            )["status"],
+            "pending",
+        )
+        segments = self.db.fetch_all(
+            "SELECT segment_index,status,attempt_count FROM segments WHERE job_chapter_id=? ORDER BY segment_index",
+            (job_chapter["id"],),
+        )
+        self.assertEqual(
+            [(row["segment_index"], row["status"], row["attempt_count"]) for row in segments],
+            [(1, "verified", 1), (2, "pending", 0)],
+        )
+        self.api_module.worker.wake.assert_called_once()
+
     def test_legacy_submit_route_creates_one_job_and_wakes_once(self) -> None:
         response = self.client.post("/api/jobs", json=self.payload)
         self.assertEqual(response.status_code, 200)

@@ -4,6 +4,33 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Real User Media Golden Journey
+
+- Added isolated real-provider journey orchestration with strict Book 1
+  Chapter 2 scope, non-canonical paths/port, storage gates, restart-safe resume,
+  and secret-redacted evidence.
+- Certified Gemini speaker analysis, independent review cards, correction and
+  approved history, deliberate wrong-voice rejection, immutable voice
+  correction, replacement PREPARE/render, automated audio-content QA, Human QA
+  acceptance, and active Artifact download.
+- Added deterministic accepted-audio MP4 export with H.264/AAC output, neutral
+  1280x720 visual fallback, immutable manifest, hash/duration/media validation,
+  stale-source rejection, retry-safe reuse, inline browser playback, and
+  download.
+- Fixed still-image export overrun by capping output to the authoritative
+  accepted-audio duration and deleting failed partial output.
+- Fixed runtime recovery so interrupted JobChapter/Segment state can resume the
+  same Job without replacing verified segments, and normalized speaker-review
+  range command options before the mutation service boundary.
+- Hardened Windows browser smoke cleanup against delayed Chromium
+  `EBUSY`/`EPERM` profile locks without masking browser/product assertions.
+- Updated Doctor to keep missing checkpoints resumable by active work as
+  critical errors while reporting pruned checkpoints of completed work with an
+  existing published Artifact as an explicit warning.
+- Added focused API, recovery, prepared-job, launcher, Audio Library, video,
+  encoding, and browser regressions. The full offline suite passes `1870`
+  tests with `1` intentional skip; canonical production remained read-only.
+
 ### Speaker Review Workspace And Reversible Decisions
 
 - Added a dedicated speaker-review workspace with explicit queue views,

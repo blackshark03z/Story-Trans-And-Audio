@@ -1,4 +1,4 @@
-const $=s=>document.querySelector(s);let state={config:null,books:[],book:null,page:0,pageSize:100,total:0,previewOk:false,dialog:null,jobs:[],libraryVoices:[],selectedVoiceId:null,showInactive:false,showSmokeBooks:false,libraryBusy:false,libraryRevisions:[],previewRevisionId:null,uploadBusy:false,previewBusy:false,customVoices:[],voiceCatalog:{items:[]},voiceCatalogError:null,runtimeIdentity:null,runtimeIdentityResolved:false,productionFlow:null,currentRoute:'home',productionRange:null,productionWorkingContext:null,bookVoiceRegistry:emptyBookVoiceRegistryState(),productionProjection:null,productionProjectionKey:null,productionProjectionRequestId:0,productionProjectionAbortController:null,productionInteractionEpoch:0,productionCommand:{status:'IDLE',active:false,commandType:null,commandId:null,idempotencyKey:null,message:'',appliedItems:[],failedItems:[],stateTokens:null,keys:{}},productionRepair:{taskKey:null,mode:null},assignmentContext:null,productionInspectedChapterId:null,productionPreflight:null,productionPreflightError:null,productionScopeSelection:{bookId:null,books:[],chapters:[],total:0,page:0,pageSize:6,bookQuery:'',chapterQuery:'',fromChapter:null,toChapter:null,singleChapter:true,review:null,error:null,loadingBooks:false,loadingChapters:false,chapterRequestId:0},homeOutputs:[],audioLibrary:{items:[],status:'idle',error:null,selectedArtifactId:null,loaded:false,loading:false},rangeReadiness:{status:'idle',error:null,result:null,scopeKey:null,requestId:0,loading:false},batchPlan:{status:'idle',error:null,result:null,scopeKey:null,targetPhase:'PREPARE',requestId:0,loading:false},productionPrepare:{readiness:null,status:'idle',result:null,error:null,clientRequestId:null,submitting:false}};
+const $=s=>document.querySelector(s);let state={config:null,books:[],book:null,page:0,pageSize:100,total:0,previewOk:false,dialog:null,jobs:[],libraryVoices:[],selectedVoiceId:null,showInactive:false,showSmokeBooks:false,libraryBusy:false,libraryRevisions:[],previewRevisionId:null,uploadBusy:false,previewBusy:false,customVoices:[],voiceCatalog:{items:[]},voiceCatalogError:null,runtimeIdentity:null,runtimeIdentityResolved:false,productionFlow:null,currentRoute:'home',productionRange:null,productionWorkingContext:null,bookVoiceRegistry:emptyBookVoiceRegistryState(),productionProjection:null,productionProjectionKey:null,productionProjectionRequestId:0,productionProjectionAbortController:null,productionInteractionEpoch:0,productionCommand:{status:'IDLE',active:false,commandType:null,commandId:null,idempotencyKey:null,message:'',appliedItems:[],failedItems:[],stateTokens:null,keys:{}},productionRepair:{taskKey:null,mode:null},assignmentContext:null,productionInspectedChapterId:null,productionPreflight:null,productionPreflightError:null,productionScopeSelection:{bookId:null,books:[],chapters:[],total:0,page:0,pageSize:6,bookQuery:'',chapterQuery:'',fromChapter:null,toChapter:null,singleChapter:true,review:null,error:null,loadingBooks:false,loadingChapters:false,chapterRequestId:0},homeOutputs:[],audioLibrary:{items:[],status:'idle',error:null,selectedArtifactId:null,loaded:false,loading:false,videoExports:{}},rangeReadiness:{status:'idle',error:null,result:null,scopeKey:null,requestId:0,loading:false},batchPlan:{status:'idle',error:null,result:null,scopeKey:null,targetPhase:'PREPARE',requestId:0,loading:false},productionPrepare:{readiness:null,status:'idle',result:null,error:null,clientRequestId:null,submitting:false}};
 const APP_ROUTES={home:{hash:'#/home',label:'Trang chủ',heading:'Trang chủ'},production:{hash:'#/production',label:'Sản xuất',heading:'Sản xuất'},voices:{hash:'#/voices',label:'Thư viện giọng',heading:'Thư viện giọng'},books:{hash:'#/books',label:'Sách và nhân vật',heading:'Sách và nhân vật'},audio:{hash:'#/audio',label:'Audio',heading:'Audio'},settings:{hash:'#/settings',label:'Cài đặt',heading:'Cài đặt'}};
 Object.assign(APP_ROUTES,{assignment:{hash:'#/assignment',label:'Gán giọng',heading:'Gán giọng'},jobs:{hash:'#/jobs',label:'Công việc',heading:'Công việc'},storage:{hash:'#/storage',label:'Dung lượng',heading:'Dung lượng'}});
 Object.assign(state,{runtimeStatus:null,audioArchive:{selectedChapterIds:[],readiness:null,loading:false},audioQa:{history:[],loading:false},storage:{report:null,loading:false,error:null}});
@@ -599,6 +599,7 @@ const submitProductionPrepareCore=submitProductionPrepare;
 submitProductionPrepare=async function(){await submitProductionPrepareCore();if(state.productionPrepare.result&&!state.productionPrepare.error){await loadJobs();setAppRoute('jobs')}};
 function formatDurationMs(ms){const value=Number(ms);if(!Number.isFinite(value)||value<=0)return '';const total=Math.round(value/1000),minutes=Math.floor(total/60),seconds=total%60;return `${minutes}:${String(seconds).padStart(2,'0')}`}
 function safeAudioLibraryUrl(url){const value=String(url||'');return /^\/api\/artifacts\/\d+\/file$/.test(value)?value:''}
+function safeVideoExportUrl(url){const value=String(url||'');return /^\/api\/video-exports\/artifact-\d+-[0-9a-f]{12}-[0-9a-f]{12}\/file$/.test(value)?value:''}
 function audioLibraryTitle(item){const chapter=`Chương ${item.chapter_number??'—'}`;return item.chapter_title?`${chapter}: ${item.chapter_title}`:chapter}
 function clearElement(el){if(el)el.replaceChildren()}
 function rangeReadinessScopeValues(){return{book_id:Number(state.book?.id||0),from_chapter:Number($('#fromChapter')?.value||0),to_chapter:Number($('#toChapter')?.value||0)}}
@@ -659,6 +660,7 @@ function filteredAudioLibraryItems(items){
     return true;
   });
 }
+function audioLibraryVideoState(item){const id=Number(item?.artifact_id||0),cached=state.audioLibrary.videoExports?.[id];if(cached)return cached;const exported=item?.video_export||null,url=safeVideoExportUrl(exported?.download_url);return exported&&url?{...exported,download_url:url,status:'ready',message:'Video đã sẵn sàng.'}:{status:'missing',message:''}}
 function renderAudioLibrary(){
   const lib=state.audioLibrary||{items:[],status:'idle'};
   const status=$('#audioLibraryStatus'),list=$('#audioLibraryList'),empty=$('#audioLibraryEmpty'),error=$('#audioLibraryError'),errorText=$('#audioLibraryErrorText'),player=$('#audioLibraryPlayer');
@@ -723,7 +725,37 @@ function renderAudioLibraryItem(item){
   download.textContent='Tải audio';
   download.setAttribute('aria-label',`Tải audio ${audioLibraryTitle(item)}`);
   if(url){download.href=url;download.setAttribute('download','')}else{download.href='#';download.setAttribute('aria-disabled','true');download.addEventListener('click',event=>event.preventDefault())}
-  actions.append(play,download);
+  const video=audioLibraryVideoState(item),videoUrl=safeVideoExportUrl(video.download_url),videoAllowed=String(item.human_qa_status||'').toLowerCase()==='accepted'&&!!url;
+  const exportButton=document.createElement('button');
+  exportButton.type='button';
+  exportButton.className='secondary';
+  exportButton.textContent=video.status==='exporting'?'Đang xuất video…':'Xuất video';
+  exportButton.disabled=video.status==='exporting'||!!videoUrl||!videoAllowed;
+  exportButton.setAttribute('aria-label',`Xuất video ${audioLibraryTitle(item)}`);
+  exportButton.addEventListener('click',()=>exportAudioLibraryVideo(item));
+  actions.append(play,download,exportButton);
+  if(videoUrl){
+    const videoDownload=document.createElement('a');
+    videoDownload.className='secondary app-secondary-link';
+    videoDownload.textContent='Tải video';
+    videoDownload.href=videoUrl;
+    videoDownload.setAttribute('download','');
+    videoDownload.setAttribute('aria-label',`Tải video ${audioLibraryTitle(item)}`);
+    actions.appendChild(videoDownload);
+    const videoPreview=document.createElement('video');
+    videoPreview.className='audio-library-video-preview';
+    videoPreview.controls=true;
+    videoPreview.preload='metadata';
+    videoPreview.src=videoUrl;
+    videoPreview.setAttribute('aria-label',`Phát video ${audioLibraryTitle(item)}`);
+    actions.appendChild(videoPreview);
+  }
+  if(video.message||!videoAllowed){
+    const videoStatus=document.createElement('p');
+    videoStatus.className=`audio-library-video-status muted ${video.status==='error'?'error':''}`;
+    videoStatus.textContent=video.message||'Video chỉ xuất sau khi audio đã được chấp nhận.';
+    actions.appendChild(videoStatus);
+  }
   if(!url){
     const warning=document.createElement('p');
     warning.className='audio-library-safe-warning muted';
@@ -750,6 +782,7 @@ function selectAudioLibraryItem(item,{play=false}={}){
   if(player)player.classList.remove('hidden');
   if(play&&audio)audio.play().catch(()=>{});
 }
+async function exportAudioLibraryVideo(item){const artifactId=Number(item?.artifact_id||0);if(!artifactId)return;const current=state.audioLibrary.videoExports?.[artifactId];if(current?.status==='exporting')return;state.audioLibrary.videoExports={...(state.audioLibrary.videoExports||{}),[artifactId]:{status:'exporting',message:'Đang xuất video…'}};renderAudioLibrary();try{const result=await api(`/api/artifacts/${artifactId}/video-export`,{method:'POST'}),downloadUrl=safeVideoExportUrl(result.download_url);if(!downloadUrl)throw new Error('Đường dẫn video trả về không hợp lệ.');const updated={...result,download_url:downloadUrl,status:'ready',message:result.reused?'Video đã sẵn sàng.':'Video đã xuất xong.'};const target=state.audioLibrary.items.find(row=>Number(row.artifact_id)===artifactId);if(target)target.video_export=updated;state.audioLibrary.videoExports={...(state.audioLibrary.videoExports||{}),[artifactId]:updated}}catch(e){state.audioLibrary.videoExports={...(state.audioLibrary.videoExports||{}),[artifactId]:{status:'error',message:e.message||'Không xuất được video.'}}}finally{renderAudioLibrary()}}
 function audioLibraryContextSelection(items){
   const context=currentProductionWorkingContext();
   if(!context||Number(context.fromChapter)!==Number(context.toChapter))return null;
@@ -758,14 +791,15 @@ function audioLibraryContextSelection(items){
 async function loadAudioLibrary({force=false}={}){
   if(state.audioLibrary.loading)return;
   if(state.audioLibrary.loaded&&!force){renderAudioLibrary();return}
-  state.audioLibrary={items:[],status:'loading',error:null,selectedArtifactId:null,loaded:false,loading:true};
+  const videoExports=state.audioLibrary.videoExports||{};
+  state.audioLibrary={items:[],status:'loading',error:null,selectedArtifactId:null,loaded:false,loading:true,videoExports};
   renderAudioLibrary();
   try{
     const data=await api('/api/audio-library');
     const items=Array.isArray(data.items)?data.items:[],contextItem=audioLibraryContextSelection(items);
-    state.audioLibrary={items,status:'ready',error:null,selectedArtifactId:contextItem?Number(contextItem.artifact_id):null,loaded:true,loading:false};
+    state.audioLibrary={items,status:'ready',error:null,selectedArtifactId:contextItem?Number(contextItem.artifact_id):null,loaded:true,loading:false,videoExports};
   }catch(e){
-    state.audioLibrary={items:[],status:'error',error:e.message,selectedArtifactId:null,loaded:false,loading:false};
+    state.audioLibrary={items:[],status:'error',error:e.message,selectedArtifactId:null,loaded:false,loading:false,videoExports};
   }
   renderAudioLibrary();
 }
