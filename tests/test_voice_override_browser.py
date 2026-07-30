@@ -343,6 +343,7 @@ class VoiceOverrideBrowserTests(unittest.TestCase):
         self.assertTrue(evidence["characterRange"])
         self.assertTrue(evidence["clearRestoresDefault"])
         self.assertTrue(evidence["mixedVisible"])
+        self.assertTrue(evidence["unidentifiedSpeakerHidden"])
         self.assertTrue(evidence["unavailableBlocked"])
         self.assertEqual(evidence["renderCommands"], [])
         self.assertEqual(VoiceOverrideFixtureHandler.mutation_count, evidence["mutationCount"])

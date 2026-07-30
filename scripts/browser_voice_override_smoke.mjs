@@ -119,11 +119,16 @@ try {
       && Number(window.storyAudioAppState?.bookVoiceRegistry?.result?.range?.from_chapter) === ${fromChapter}
       && Number(window.storyAudioAppState?.bookVoiceRegistry?.result?.range?.to_chapter) === ${toChapter}
       && !window.storyAudioAppState?.bookVoiceRegistry?.loading`);
+    await evaluate(`(() => {
+      const section = document.querySelector('[data-assignment-section="voices"]');
+      if (section) section.open = true;
+      return true;
+    })()`);
   };
   const attr = (name, value) => `[${name}="${value}"]`;
   const rowText = speaker => evaluate(`(() => {
     const editor = document.querySelector(${JSON.stringify(attr("data-registry-editor", speaker))});
-    return editor?.closest("tr")?.innerText || "";
+    return editor?.closest("tr")?.textContent || "";
   })()`);
   const rowHasVoice = async (speaker, text) => (await rowText(speaker)).includes(text);
   const waitAssignmentReady = async speaker => {
@@ -164,6 +169,11 @@ try {
   await send("Emulation.setDeviceMetricsOverride", { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false });
   await waitFor(`document.readyState === "complete"`);
   await waitFor(`window.storyAudioAppState && document.querySelector("#assignmentRows")`);
+  await evaluate(`(() => {
+    const section = document.querySelector('[data-assignment-section="voices"]');
+    if (section) section.open = true;
+    return !!section;
+  })()`);
   await waitAssignmentReady("narrator");
   await installCommandRecorder([]);
 
@@ -176,6 +186,7 @@ try {
       && !!document.querySelector('[data-registry-voice-key="narrator"]')
       && !!document.querySelector('[data-registry-apply="narrator"]')
       && !!document.querySelector('[data-registry-clear="narrator"]')
+      && !document.querySelector('[data-voice-library-row="unknown"]')
       && !body.includes("Narrator/unknown");
   })()`);
   if (!exactUrlNotReadOnly) throw new Error("Exact assignment URL is still read-only.");
@@ -183,13 +194,20 @@ try {
   await route("#/assignment?book=1&from=5&to=5&skip_completed=1");
   await waitAssignmentReady("narrator");
   const oneBusy = await applyVoice("narrator", "male", "chapter");
-  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "narrator"))})?.closest("tr")?.innerText.includes("Male Default")`);
+  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "narrator"))})?.closest("tr")?.textContent.includes("Male Default")`);
   const commandsBeforeReload = await evaluate(`window.__voiceOverrideCommands || []`);
+  await evaluate(`window.__voiceOverrideReloadMarker = "before-reload"`);
   await send("Page.reload", { ignoreCache: true });
-  await waitFor(`document.readyState === "complete"`);
+  await waitFor(`document.readyState === "complete" && window.__voiceOverrideReloadMarker !== "before-reload"`);
+  await evaluate(`(() => {
+    const section = document.querySelector('[data-assignment-section="voices"]');
+    if (section) section.open = true;
+    return !!section;
+  })()`);
   await waitAssignmentReady("narrator");
   await installCommandRecorder(commandsBeforeReload);
-  const oneChapterNarrator = oneBusy && await rowHasVoice("narrator", "Male Default");
+  const oneChapterNarratorText = await rowText("narrator");
+  const oneChapterNarrator = oneBusy && oneChapterNarratorText.includes("Male Default");
 
   await route("#/assignment?book=1&from=4&to=4&skip_completed=1");
   await waitAssignmentReady("narrator");
@@ -201,7 +219,7 @@ try {
   await route("#/assignment?book=1&from=6&to=8&skip_completed=1");
   await waitAssignmentReady("narrator");
   await applyVoice("narrator", "female", "range");
-  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "narrator"))})?.closest("tr")?.innerText.includes("Female Range")`);
+  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "narrator"))})?.closest("tr")?.textContent.includes("Female Range")`);
   const rangeNarrator = await rowHasVoice("narrator", "Female Range")
     && (await rowText("narrator")).includes("6")
     && (await rowText("narrator")).includes("8");
@@ -213,25 +231,24 @@ try {
   await route("#/assignment?book=1&from=2&to=4&skip_completed=1");
   await waitAssignmentReady("character:25");
   await applyVoice("character:25", "character-alt", "range");
+  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "character:25"))})?.closest("tr")?.textContent.includes("Character Alt")`);
   const characterRange = await rowHasVoice("character:25", "Character Alt");
 
   await route("#/assignment?book=1&from=3&to=3&skip_completed=1");
   await waitAssignmentReady("character:25");
   await clearVoice("character:25", "chapter");
-  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "character:25"))})?.closest("tr")?.innerText.includes("Male Default")`);
+  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "character:25"))})?.closest("tr")?.textContent.includes("Male Default")`);
   const clearRestoresDefault = await rowHasVoice("character:25", "Male Default");
 
   await route("#/assignment?book=1&from=2&to=4&skip_completed=1");
   await waitAssignmentReady("character:25");
-  const mixedVisible = await rowHasVoice("character:25", "Nhieu")
-    || await evaluate(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "character:25"))})?.innerText.includes("Nhi")`);
+  const mixedVisible = await rowHasVoice("character:25", "Xung đột giọng")
+    || await evaluate(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "character:25"))})?.textContent.includes("nhiều giọng")`);
   await applyVoice("character:25", "character-alt", "range");
   const mixedResolved = await rowHasVoice("character:25", "Character Alt");
 
   await route("#/assignment?book=1&from=1&to=1&skip_completed=1");
-  await waitAssignmentReady("unknown");
-  await applyVoice("unknown", "unknown-alt", "chapter");
-  const unknownSupported = await rowHasVoice("unknown", "Unknown Alt");
+  const unidentifiedSpeakerHidden = await evaluate(`!document.querySelector('[data-voice-library-row="unknown"]')`);
 
   const beforeUnavailableCommands = await evaluate(`window.__voiceOverrideCommands.length`);
   await evaluate(`(() => {
@@ -250,6 +267,7 @@ try {
   })()`);
 
   await send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
+  await evaluate(`document.querySelector('[data-registry-apply="narrator"]')?.scrollIntoView({ block: "center" })`);
   const layout1920 = await evaluate(`(() => {
     const action = document.querySelector('[data-registry-apply="narrator"]')?.getBoundingClientRect();
     return {
@@ -267,12 +285,14 @@ try {
     ok: true,
     exactUrlNotReadOnly,
     oneChapterNarrator,
+    oneBusy,
+    oneChapterNarratorText,
     rangeNarrator: rangeNarrator && chapter4Unchanged && chapter6UnchangedBeforeRange && chapter9Unchanged,
     characterRange,
     clearRestoresDefault,
     mixedVisible,
     mixedResolved,
-    unknownSupported,
+    unidentifiedSpeakerHidden,
     unavailableBlocked,
     commands,
     renderCommands: commands.filter(command => /PREPARE|START_RENDER/.test(command.type)),

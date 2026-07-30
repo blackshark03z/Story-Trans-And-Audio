@@ -658,27 +658,23 @@ class CharacterAssignmentBrowserTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         evidence = json.loads(result.stdout)
         self.assertTrue(evidence["ok"])
-        self.assertTrue(evidence["exactUrlHasRealRows"])
-        self.assertTrue(evidence["sampleVisible"])
-        self.assertTrue(evidence["openBeforeRefresh"]["newRow"])
-        self.assertTrue(evidence["openBeforeRefresh"]["existingRow"])
-        self.assertTrue(evidence["openBeforeRefresh"]["thirdRow"])
-        self.assertEqual(evidence["draftsBeforeRefresh"], evidence["draftsAfterRefresh"])
-        self.assertTrue(evidence["suggestionVisible"])
-        self.assertTrue(evidence["thirdRowRemoved"])
-        self.assertTrue(evidence["newCharacterMapped"])
-        self.assertTrue(evidence["existingCharacterMapped"])
+        self.assertEqual(evidence["initial"]["stepCount"], 3)
+        self.assertTrue(evidence["initial"]["reviewOpen"])
+        self.assertFalse(evidence["initial"]["voicesOpen"])
+        self.assertTrue(evidence["initial"]["unresolvedNotice"])
+        self.assertEqual(evidence["initial"]["unresolvedVoiceRows"], 0)
+        self.assertEqual(evidence["initial"]["characterRows"], 1)
+        self.assertEqual(evidence["reviewQueue"]["count"], 3)
+        self.assertTrue(evidence["reviewQueue"]["existingCharacterVisible"])
+        self.assertTrue(evidence["reviewQueue"]["sourceLineVisible"])
+        self.assertTrue(evidence["reviewQueue"]["noAutomaticApproval"])
         self.assertTrue(evidence["voiceAssigned"])
         self.assertEqual(evidence["renderCommands"], [])
         command_types = [item["type"] for item in evidence["commands"]]
-        self.assertIn("CREATE_CHARACTER", command_types)
-        self.assertIn("MAP_SPEAKER_TO_CHARACTER", command_types)
+        self.assertIn("GENERATE_SPEAKER_SUGGESTIONS", command_types)
         self.assertIn("SET_RANGE_VOICE_OVERRIDE", command_types)
-        self.assertEqual(
-            sum(1 for item in CharacterAssignmentFixtureHandler.characters.values() if item["display_name"] == "Gate Captain"),
-            1,
-        )
-        self.assertIn("red command voice", CharacterAssignmentFixtureHandler.characters[25]["aliases"])
+        self.assertNotIn("CREATE_CHARACTER", command_types)
+        self.assertNotIn("MAP_SPEAKER_TO_CHARACTER", command_types)
 
 
 if __name__ == "__main__":

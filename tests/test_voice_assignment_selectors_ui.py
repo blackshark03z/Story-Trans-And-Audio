@@ -120,7 +120,7 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             self.js.index("function registryScopeOptions"):
             self.js.index("async function loadBookVoiceRegistry")
         ] + self.js[
-            self.js.index("renderBookVoiceRegistryPage=function"):
+            self.js.index("function renderBookVoiceRegistryPage(context,registryState)"):
             self.js.index("async function saveBookRegistryVoice")
         ]
         self.assertIn("data-registry-scope-key", section)
@@ -137,27 +137,54 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertNotIn("Narrator/unknown", section)
         self.assertNotIn("disabled title=\"Override", section)
 
-    def test_assignment_registry_exposes_character_mapping_flow(self) -> None:
+    def test_assignment_workflow_separates_review_from_character_voice_library(self) -> None:
         section = self.js[
-            self.js.index("function registryStatusLabel"):
-            self.js.index("async function saveBookRegistryVoice")
+            self.js.index("function renderBookVoiceRegistryPage(context,registryState)"):
+            self.js.index("function speakerSuggestionScopeKey")
         ]
-        self.assertIn("UNRESOLVED_DIALOGUE", section)
-        self.assertIn("unresolved_dialogue", section)
-        self.assertIn("data-registry-map", section)
-        self.assertIn("data-registry-new-character", section)
-        self.assertIn("data-registry-character-key", section)
-        self.assertIn("data-registry-alias-key", section)
-        self.assertIn("data-create-character-top", section)
-        self.assertIn("CREATE_CHARACTER", section)
-        self.assertIn("MAP_SPEAKER_TO_CHARACTER", section)
-        self.assertIn("expected_registry_fingerprint:registryRowFingerprint(row)", section)
-        mapping_function = self.js[
-            self.js.index("async function saveRegistrySpeakerMapping"):
-            self.js.index("async function createTopLevelAssignmentCharacter")
+        self.assertIn("1. Duyệt người nói", section)
+        self.assertIn("2. Thư viện nhân vật và cấu hình giọng", section)
+        self.assertIn("3. Kiểm tra sẵn sàng", section)
+        self.assertIn("row.role==='unresolved_dialogue'||row.role==='unknown'", section)
+        self.assertIn("row.role==='narrator'||row.character_id", section)
+        self.assertIn("Còn ${reviewCount} câu chưa xác định người nói.", section)
+        self.assertIn("data-jump-to-speaker-review", section)
+        self.assertNotIn("data-registry-map", section)
+        self.assertNotIn("data-registry-new-character", section)
+        self.assertNotIn("data-registry-character-key", section)
+        self.assertNotIn("data-voice-library-row=\"unresolved", section)
+
+    def test_assignment_voice_actions_explain_scope_provenance_and_future_impact(self) -> None:
+        section = self.js[
+            self.js.index("function registryVoiceProvenance"):
+            self.js.index("async function saveRegistrySpeakerMapping")
         ]
-        self.assertNotIn("commandType:'PREPARE'", mapping_function)
-        self.assertNotIn("commandType:'START_RENDER'", mapping_function)
+        for label in (
+            "Lưu thay đổi giọng",
+            "Bỏ ghi đè và dùng giọng kế thừa",
+            "Hủy thay đổi chưa lưu",
+            "Nghe thử giọng",
+            "Mặc định của sách",
+            "Ghi đè chương",
+            "Ghi đè đúng phạm vi",
+            "Casting Plan",
+            "Giọng dự phòng",
+            "Chưa gán",
+        ):
+            self.assertIn(label, section)
+        self.assertIn("registryCanClearForScope", section)
+        self.assertIn("Chỉ ảnh hưởng các lần PREPARE/render tiếp theo", section)
+
+    def test_assignment_next_action_preserves_context_without_prepare_or_render(self) -> None:
+        section = self.js[
+            self.js.index("function openAssignmentPreflight"):
+            self.js.index("function rememberRegistryDraft")
+        ]
+        self.assertIn("rememberProductionWorkingContext(context)", section)
+        self.assertIn("setAppRoute('production')", section)
+        self.assertIn("loadProductionTaskProjection", section)
+        self.assertNotIn("commandType:'PREPARE'", section)
+        self.assertNotIn("commandType:'START_RENDER'", section)
 
     def test_exact_assignment_range_url_remains_supported_by_working_context(self) -> None:
         self.assertIn("#/assignment", self.js)
@@ -176,6 +203,9 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIn("pruneRegistryLocalState", self.js)
         self.assertIn("data-registry-detail", self.js)
         self.assertIn("rememberRegistryDetailState", self.js)
+        self.assertIn("activeAssignmentControl", self.js)
+        self.assertIn("deferredResult:result", self.js)
+        self.assertIn("workflowSections:{review:null,voices:null}", self.js)
         self.assertIn("state.bookVoiceRegistry=mergeBookVoiceRegistryState", self.js)
         self.assertNotIn(
             "state.bookVoiceRegistry={status:'ready',loading:false,error:null,result,scopeKey,requestId}",

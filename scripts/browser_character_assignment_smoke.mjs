@@ -27,7 +27,7 @@ const child = spawn(browserExe, [
 ], { stdio: "ignore" });
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function poll(callback, timeoutMs = 12000) {
+async function poll(callback, timeoutMs = 15000) {
   const deadline = Date.now() + timeoutMs;
   let lastError;
   while (Date.now() < deadline) {
@@ -94,23 +94,14 @@ try {
     }
     return result.result.value;
   };
-  const waitFor = (expression, timeoutMs = 10000) => poll(
+  const waitFor = (expression, timeoutMs = 15000) => poll(
     async () => (await evaluate(expression)) || null,
     timeoutMs,
   );
-  const attr = (name, value) => `[${name}="${value}"]`;
   const click = selector => evaluate(`(() => {
     const el = document.querySelector(${JSON.stringify(selector)});
     if (!el) throw new Error(${JSON.stringify(`Missing ${selector}`)});
     el.click();
-    return true;
-  })()`);
-  const setInput = (selector, value) => evaluate(`(() => {
-    const el = document.querySelector(${JSON.stringify(selector)});
-    if (!el) throw new Error(${JSON.stringify(`Missing ${selector}`)});
-    el.value = ${JSON.stringify(value)};
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-    el.dispatchEvent(new Event("change", { bubbles: true }));
     return true;
   })()`);
   const setSelect = (selector, value) => evaluate(`(() => {
@@ -120,24 +111,40 @@ try {
     el.dispatchEvent(new Event("change", { bubbles: true }));
     return true;
   })()`);
-  const rowText = speaker => evaluate(`(() => {
-    const editor = document.querySelector(${JSON.stringify(attr("data-registry-editor", speaker))});
-    return editor?.closest("tr")?.innerText || "";
+  const attr = (name, value) => `[${name}="${value}"]`;
+
+  await send("Runtime.enable");
+  await send("Page.enable");
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 1366,
+    height: 768,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await waitFor(`document.readyState === "complete"`);
+  await waitFor(`window.storyAudioAppState && document.querySelector("#assignmentRows")`);
+  await waitFor(`window.storyAudioAppState.bookVoiceRegistry?.status === "ready"
+    && document.querySelector('[data-assignment-section="review"]')
+    && document.querySelector('[data-generate-speaker-suggestions]')`);
+
+  const initial = await evaluate(`(() => {
+    const review = document.querySelector('[data-assignment-section="review"]');
+    const voices = document.querySelector('[data-assignment-section="voices"]');
+    const voiceRows = [...document.querySelectorAll('[data-voice-library-row]')];
+    return {
+      hash: location.hash,
+      stepCount: document.querySelectorAll('.assignment-workflow-steps > div').length,
+      reviewOpen: !!review?.open,
+      voicesOpen: !!voices?.open,
+      unresolvedNotice: !!document.querySelector('[data-jump-to-speaker-review]'),
+      unresolvedVoiceRows: voiceRows.filter(row => /unresolved|unknown/i.test(row.dataset.voiceLibraryRow || "")).length,
+      characterRows: voiceRows.filter(row => (row.dataset.voiceLibraryRow || "").startsWith("character:")).length,
+    };
   })()`);
-  const rowContent = speaker => evaluate(`(() => {
-    const editor = document.querySelector(${JSON.stringify(attr("data-registry-editor", speaker))});
-    return editor?.closest("tr")?.textContent || "";
-  })()`);
-  const waitMapReady = async speaker => {
-    await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-map", speaker))}) && !document.querySelector(${JSON.stringify(attr("data-registry-map", speaker))}).disabled`);
-  };
-  const waitVoiceReady = async speaker => {
-    await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-apply", speaker))}) && !document.querySelector(${JSON.stringify(attr("data-registry-apply", speaker))}).disabled`);
-  };
-  const installCommandRecorder = async (existing = []) => evaluate(`(() => {
-    window.__characterAssignmentCommands = ${JSON.stringify(existing)};
-    const originalPost = window.__characterAssignmentOriginalPost || postProductionCommand;
-    window.__characterAssignmentOriginalPost = originalPost;
+
+  await evaluate(`(() => {
+    window.__characterAssignmentCommands = [];
+    const originalPost = postProductionCommand;
     postProductionCommand = async (request, token = null) => {
       const response = await originalPost(request, token);
       window.__characterAssignmentCommands.push({
@@ -150,128 +157,42 @@ try {
     return true;
   })()`);
 
-  const unresolvedNew = "unresolved-dialogue:1002:u0002-deadbeef0000";
-  const unresolvedExisting = "unresolved-dialogue:1003:u0002-feedface0000";
-  const unresolvedThird = "unresolved-dialogue:1004:u0002-cafebabe0000";
-
-  await send("Runtime.enable");
-  await send("Page.enable");
-  await send("Emulation.setDeviceMetricsOverride", { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false });
-  await waitFor(`document.readyState === "complete"`);
-  await waitFor(`window.storyAudioAppState && document.querySelector("#assignmentRows")`);
-  await waitMapReady(unresolvedNew);
-  await installCommandRecorder([]);
-
-  const detailSelectors = [unresolvedNew, unresolvedExisting, unresolvedThird].map(key => attr("data-registry-detail", key));
-  for (const selector of detailSelectors) {
-    await click(`${selector} > summary`);
-  }
-  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedNew))})?.open && document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedExisting))})?.open && document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedThird))})?.open`);
-
-  const openBeforeRefresh = await evaluate(`(() => ({
-    newRow: document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedNew))})?.open || false,
-    existingRow: document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedExisting))})?.open || false,
-    thirdRow: document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedThird))})?.open || false,
-  }))()`);
-  await evaluate(`loadBookVoiceRegistry({force:true})`);
-  await waitFor(`window.storyAudioAppState.bookVoiceRegistry?.status === "ready"`);
-  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedNew))})?.open && document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedExisting))})?.open && document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedThird))})?.open`);
-
-  await setInput(attr("data-registry-new-character", unresolvedNew), "Gate Captain");
-  await setInput(attr("data-registry-alias-key", unresolvedNew), "front gate voice");
-  await setInput(attr("data-registry-new-character", unresolvedExisting), "Existing Commander");
-  await setInput(attr("data-registry-alias-key", unresolvedExisting), "red command voice");
-  await setInput(attr("data-registry-new-character", unresolvedThird), "Scout Caller");
-  await setInput(attr("data-registry-alias-key", unresolvedThird), "outer scout voice");
-  await setSelect(attr("data-registry-character-key", unresolvedThird), "25");
-
-  const draftsBeforeRefresh = await evaluate(`(() => ({
-    newRow: document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedNew))})?.value || "",
-    existingRow: document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedExisting))})?.value || "",
-    thirdRow: document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedThird))})?.value || "",
-  }))()`);
-  await evaluate(`loadBookVoiceRegistry({force:true})`);
-  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedNew))})?.value === "Gate Captain"`);
-  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedExisting))})?.value === "Existing Commander"`);
-  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedThird))})?.value === "Scout Caller"`);
-  const draftsAfterRefresh = await evaluate(`(() => ({
-    newRow: document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedNew))})?.value || "",
-    existingRow: document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedExisting))})?.value || "",
-    thirdRow: document.querySelector(${JSON.stringify(attr("data-registry-new-character", unresolvedThird))})?.value || "",
-  }))()`);
-
-  const generateButtonEnabled = await evaluate(`!document.querySelector('[data-generate-speaker-suggestions]')?.disabled`);
-  if (generateButtonEnabled) {
-    await click('[data-generate-speaker-suggestions]');
+  const generateEnabled = await evaluate(`!document.querySelector('[data-generate-speaker-suggestions]')?.disabled`);
+  if (generateEnabled) {
+    await click("[data-generate-speaker-suggestions]");
   } else {
     await evaluate(`generateSpeakerSuggestions(false)`);
   }
-  await waitFor(`document.querySelector('[data-speaker-suggestion-card]') && document.querySelector('[data-speaker-suggestion-card]').innerText.includes("Existing Commander")`, 15000);
-  const suggestionVisible = await evaluate(`(() => {
-    const card = document.querySelector('[data-speaker-suggestion-card]');
-    return !!card && card.innerText.includes('Existing Commander') && card.innerText.includes('Giọng hiệu lực');
-  })()`);
-  await click(`${attr("data-registry-map", unresolvedThird)}`);
-  const thirdRowRemoved = await waitFor(`(() => {
-    const third = document.querySelector(${JSON.stringify(attr("data-registry-editor", unresolvedThird))});
-    return !third && !!document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedNew))})?.open && !!document.querySelector(${JSON.stringify(attr("data-registry-detail", unresolvedExisting))})?.open;
-  })()`, 15000);
-
-  const exactState = await evaluate(`(() => {
-    const body = document.querySelector("#assignmentRows")?.innerText || "";
+  await waitFor(`document.querySelectorAll('[data-speaker-suggestion-card]').length === 3`);
+  const reviewQueue = await evaluate(`(() => {
+    const cards = [...document.querySelectorAll('[data-speaker-suggestion-card]')];
     return {
-      hash: location.hash,
-      body: body.slice(0, 1200),
-      hasBook: location.hash.includes("book=1"),
-      hasFrom: location.hash.includes("from=1"),
-      hasTo: location.hash.includes("to=10"),
-      hasExisting: body.includes("Existing Commander"),
-      hasMap: !!document.querySelector(${JSON.stringify(attr("data-registry-map", unresolvedNew))}),
-      hasCreateTop: !!document.querySelector('[data-create-character-top]'),
+      count: cards.length,
+      existingCharacterVisible: cards.some(card => card.textContent.includes("Existing Commander")),
+      sourceLineVisible: cards.some(card => card.textContent.includes("- Hold the gate")),
+      noAutomaticApproval: cards.every(card => !!card.querySelector('[data-speaker-suggestion-accept]')),
     };
   })()`);
-  const exactUrlHasRealRows = exactState.hasBook
-    && exactState.hasFrom
-    && exactState.hasTo
-    && exactState.hasExisting
-    && exactState.hasMap
-    && exactState.hasCreateTop;
-  const sampleVisible = (await rowContent(unresolvedNew)).includes("- Hold the gate");
-  if (!exactUrlHasRealRows || !sampleVisible) {
-    throw new Error(`Exact assignment URL did not expose real named/unresolved rows: ${JSON.stringify({ exactState, sampleVisible })}`);
-  }
 
-  await setInput(attr("data-registry-new-character", unresolvedNew), "Gate Captain");
-  await setInput(attr("data-registry-alias-key", unresolvedNew), "front gate voice");
-  await click(attr("data-registry-map", unresolvedNew));
-  await waitFor(`!!document.querySelector(${JSON.stringify(attr("data-registry-editor", "character:31"))})`, 12000);
-  await waitVoiceReady("character:31");
-  const newCharacterMapped = (await rowText("character:31")).includes("Gate Captain")
-    && !(await evaluate(`!!document.querySelector(${JSON.stringify(attr("data-registry-map", unresolvedNew))})`));
+  await evaluate(`document.querySelector('[data-assignment-section="voices"]').open = true`);
+  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:25"))})
+    && !document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:25"))}).disabled`);
+  await setSelect(attr("data-registry-scope-key", "character:25"), "range");
+  await setSelect(attr("data-registry-voice-key", "character:25"), "commander");
+  await click(attr("data-registry-apply", "character:25"));
+  await waitFor(`(window.__characterAssignmentCommands || []).some(command => command.type === "SET_RANGE_VOICE_OVERRIDE")`);
+  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "character:25"))})?.closest("tr")?.textContent.includes("Commander Voice")`);
+  const voiceAssigned = await evaluate(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "character:25"))})?.closest("tr")?.textContent.includes("Commander Voice")`);
 
-  await waitMapReady(unresolvedExisting);
-  await setSelect(attr("data-registry-character-key", unresolvedExisting), "25");
-  await setInput(attr("data-registry-alias-key", unresolvedExisting), "red command voice");
-  await click(attr("data-registry-map", unresolvedExisting));
-  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "character:25"))})?.closest("tr")?.innerText.includes("red command voice")`, 12000);
-  const existingCharacterMapped = (await rowText("character:25")).includes("Existing Commander")
-    && (await rowText("character:25")).includes("red command voice");
-
-  await waitVoiceReady("character:31");
-  const beforeVoiceCommands = await evaluate(`(window.__characterAssignmentCommands || []).length`);
-  await setSelect(attr("data-registry-scope-key", "character:31"), "range");
-  await setSelect(attr("data-registry-voice-key", "character:31"), "commander");
-  await click(attr("data-registry-apply", "character:31"));
-  await waitFor(`(window.__characterAssignmentCommands || []).length > ${beforeVoiceCommands}`, 12000);
-  await waitFor(`(window.__characterAssignmentCommands || []).some(command => command.type === "SET_RANGE_VOICE_OVERRIDE")`, 12000);
-  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "character:31"))})?.closest("tr")?.innerText.includes("Commander Voice")`, 12000);
-  const voiceAssigned = (await rowText("character:31")).includes("Commander Voice")
-    && await evaluate(`(window.__characterAssignmentCommands || []).some(command => command.type === "SET_RANGE_VOICE_OVERRIDE")`);
-
-  await send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
-  await evaluate(`document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:31"))})?.scrollIntoView({ block: "center" })`);
+  await send("Emulation.setDeviceMetricsOverride", {
+    width: 1920,
+    height: 1080,
+    deviceScaleFactor: 1,
+    mobile: false,
+  });
+  await evaluate(`document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:25"))})?.scrollIntoView({ block: "center" })`);
   const layout1920 = await evaluate(`(() => {
-    const action = document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:31"))})?.getBoundingClientRect();
+    const action = document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:25"))})?.getBoundingClientRect();
     return {
       primaryVisible: !!action && action.top >= 0 && action.bottom <= innerHeight,
       horizontal: document.documentElement.scrollWidth > innerWidth + 1,
@@ -280,20 +201,13 @@ try {
   if (!layout1920.primaryVisible || layout1920.horizontal) {
     throw new Error(`Character assignment layout failed: ${JSON.stringify(layout1920)}`);
   }
-
   if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
+
   const commands = await evaluate(`window.__characterAssignmentCommands || []`);
   process.stdout.write(JSON.stringify({
     ok: true,
-    exactUrlHasRealRows,
-    sampleVisible,
-    openBeforeRefresh,
-    draftsBeforeRefresh,
-    draftsAfterRefresh,
-    suggestionVisible,
-    thirdRowRemoved,
-    newCharacterMapped,
-    existingCharacterMapped,
+    initial,
+    reviewQueue,
     voiceAssigned,
     commands,
     renderCommands: commands.filter(command => /PREPARE|START_RENDER/.test(command.type)),
