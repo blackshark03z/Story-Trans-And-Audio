@@ -43,6 +43,9 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertIn("applyProductionCommandEnvelope", reconciliation)
         self.assertIn("retryRequest:commandRequest", coordinator)
         self.assertIn("AbortController", self.js)
+        self.assertIn("result_metadata", self.js)
+        self.assertIn("speakerReviewResponseIsCurrent", self.js)
+        self.assertIn("loadSpeakerReviewSuggestions({force:true})", self.js)
 
     def test_command_verification_does_not_hide_validation_failures(self) -> None:
         coordinator = self._function_source("submitAndReconcileProductionCommand")

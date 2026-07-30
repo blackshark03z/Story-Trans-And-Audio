@@ -645,6 +645,14 @@ def _prepare_mapping_plan(
     voice_operation: str = "preserve",
     voice_id: str | None = None,
 ) -> _PreparedMappingPlan | None:
+    # An unresolved dialogue key belongs to one chapter. Do not require an
+    # approved plan from unrelated chapters in the selected range.
+    if speaker_key.startswith(f"{UNRESOLVED_DIALOGUE_PREFIX}:"):
+        target_chapter_id, _utterance_id = parse_unresolved_dialogue_speaker_key(
+            speaker_key
+        )
+        if target_chapter_id != int(chapter["id"]):
+            return None
     plan_row = _latest_approved_plan_row(db, int(chapter["id"]))
     if int(plan_row["text_revision_id"]) != int(chapter.get("active_text_revision_id") or 0):
         raise CharacterAssignmentError(

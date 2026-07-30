@@ -28,6 +28,7 @@ class ProductionCommandMutation:
     failed_items: tuple[Mapping[str, Any], ...] = field(default_factory=tuple)
     operator_message: str = ""
     asynchronous_reference: Mapping[str, Any] | None = None
+    result_metadata: Mapping[str, Any] | None = None
 
     def __post_init__(self) -> None:
         if self.outcome not in COMMAND_OUTCOMES:
@@ -119,6 +120,11 @@ class ProductionCommandService:
             "applied_items": applied_items,
             "failed_items": failed_items,
             "operator_message": mutation.operator_message,
+            "result_metadata": (
+                dict(mutation.result_metadata)
+                if mutation.result_metadata is not None
+                else None
+            ),
             "resulting_task_projection": dict(task_projection),
             "resulting_preflight": dict(preflight) if preflight is not None else None,
             "asynchronous_reference": (
@@ -158,6 +164,7 @@ class ProductionCommandService:
             "applied_items": [],
             "failed_items": items or [{"reason": message}],
             "operator_message": message,
+            "result_metadata": None,
             "resulting_task_projection": dict(task_projection),
             "resulting_preflight": dict(preflight) if preflight is not None else None,
             "asynchronous_reference": None,

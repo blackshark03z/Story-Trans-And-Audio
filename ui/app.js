@@ -1329,12 +1329,13 @@ rowsRoot.innerHTML=`${suggestionPanel}<div class="assignment-registry-tools"><bu
 function speakerSuggestionScopeKey(context){return `${productionWorkingContextKey(context)}:speaker-suggestions`}
 function speakerSuggestionRows(registry){return (registry?.rows||[]).filter(row=>String(row.status||'')==='UNRESOLVED_DIALOGUE')}
 function speakerSuggestionByKey(key){return state.bookVoiceRegistry.speakerSuggestions?.result?.suggestions?.find(item=>String(item.unresolved_key)===String(key))||null}
+function speakerReviewResponseIsCurrent(requestId,mutationEpoch){return requestId===state.bookVoiceRegistry.speakerSuggestions.requestId&&mutationEpoch===state.productionInteractionEpoch}
 async function loadSpeakerReviewSuggestions({force=false}={}){
   const context=currentProductionWorkingContext(),registry=state.bookVoiceRegistry.result;if(!context||!registry)return null;
   const scopeKey=speakerSuggestionScopeKey(context),current=state.bookVoiceRegistry.speakerSuggestions||emptySpeakerSuggestionState();if(!force&&current.result&&current.scopeKey===scopeKey)return current.result;
-  const requestId=(current.requestId||0)+1;state.bookVoiceRegistry=mergeBookVoiceRegistryState({speakerSuggestions:{...current,status:'loading',loading:true,error:null,scopeKey,requestId}});renderAssignmentPage();
-  try{const params=new URLSearchParams({book_id:String(context.bookId),from_chapter:String(context.fromChapter),to_chapter:String(context.toChapter),skip_completed:String(!!context.skipCompleted)}),result=await api(`/api/production/speaker-review-suggestions?${params}`);if(requestId!==state.bookVoiceRegistry.speakerSuggestions.requestId)return null;state.bookVoiceRegistry=mergeBookVoiceRegistryState({speakerSuggestions:{status:'ready',loading:false,error:null,result,scopeKey,requestId}});pruneSpeakerSuggestionLocalState(result);renderAssignmentPage();return result}
-  catch(e){if(requestId!==state.bookVoiceRegistry.speakerSuggestions.requestId)return null;state.bookVoiceRegistry=mergeBookVoiceRegistryState({speakerSuggestions:{status:'error',loading:false,error:e.message||'Không tải được đề xuất Gemini.',result:null,scopeKey,requestId}});renderAssignmentPage();return null}
+  const requestId=(current.requestId||0)+1,mutationEpoch=state.productionInteractionEpoch;state.bookVoiceRegistry=mergeBookVoiceRegistryState({speakerSuggestions:{...current,status:'loading',loading:true,error:null,scopeKey,requestId}});renderAssignmentPage();
+  try{const params=new URLSearchParams({book_id:String(context.bookId),from_chapter:String(context.fromChapter),to_chapter:String(context.toChapter),skip_completed:String(!!context.skipCompleted)}),result=await api(`/api/production/speaker-review-suggestions?${params}`);if(!speakerReviewResponseIsCurrent(requestId,mutationEpoch))return null;state.bookVoiceRegistry=mergeBookVoiceRegistryState({speakerSuggestions:{...state.bookVoiceRegistry.speakerSuggestions,status:'ready',loading:false,error:null,result,scopeKey,requestId}});pruneSpeakerSuggestionLocalState(result);renderAssignmentPage();return result}
+  catch(e){if(!speakerReviewResponseIsCurrent(requestId,mutationEpoch))return null;state.bookVoiceRegistry=mergeBookVoiceRegistryState({speakerSuggestions:{...state.bookVoiceRegistry.speakerSuggestions,status:'error',loading:false,error:e.message||'Không tải được đề xuất Gemini.',result:null,scopeKey,requestId}});renderAssignmentPage();return null}
 }
 function suggestionResolutionLabel(value){return{EXISTING_CHARACTER:'Nhân vật có sẵn',NEW_CHARACTER:'Nhân vật mới',NARRATOR:'Người kể chuyện',UNKNOWN_SPEAKER:'Người nói chưa rõ',NEEDS_HUMAN_DECISION:'Cần người duyệt'}[String(value||'')]||'Cần duyệt'}
 function renderSuggestionCharacterOptions(selected=''){return registryCharacterOptions(selected)}
@@ -1842,6 +1843,7 @@ function speakerReviewSelectOptions(values,current){
   return values.map(([value,label])=>`<option value="${esc(value)}" ${String(value)===String(current)?'selected':''}>${esc(label)}</option>`).join('');
 }
 function speakerReviewExclusionLabel(reason){
+  if(reason==='approved_final_voice_map_missing')return 'Final Voice Map chưa được duyệt';
   return{confidence_not_high:'không phải HIGH',already_reviewed:'đã được xử lý',missing_unresolved_key:'thiếu khóa dòng ổn định',human_decision_required:'cần người quyết định',existing_character_missing:'nhân vật không còn tồn tại',new_character_name_missing:'thiếu tên nhân vật mới',unsaved_human_edit:'có chỉnh sửa chưa lưu',alternative_candidate_conflict:'có ứng viên thay thế',duplicate_character_warning:'có nguy cơ trùng nhân vật',warning_requires_review:'có cảnh báo cần xem',continuity_conflict:'xung đột liên tục',stale_source_revision:'Revision nguồn đã thay đổi',unavailable_effective_voice:'giọng hiệu lực không khả dụng',unavailable_suggested_voice:'giọng đề xuất không khả dụng'}[reason]||reason;
 }
 function speakerReviewCardSnapshot(){
@@ -1929,6 +1931,7 @@ reviewSpeakerSuggestion=async function(key,commandType,reviewerPayloadOverride=n
     await loadBookVoiceRegistry({force:true});await loadProductionTaskProjection({silent:true});
     const next=state.bookVoiceRegistry.speakerSuggestions||emptySpeakerSuggestionState();state.bookVoiceRegistry.speakerSuggestions={...next,lastResult:envelope.operator_message||'Đã lưu và cập nhật Preflight.'};renderAssignmentPage();restoreSpeakerReviewCardSnapshot(snapshot);
   }else{
+    if(envelope){await loadBookVoiceRegistry({force:true});await loadSpeakerReviewSuggestions({force:true})}
     const current=state.bookVoiceRegistry.speakerSuggestions||emptySpeakerSuggestionState();state.bookVoiceRegistry.speakerSuggestions={...current,cardErrors:{...(current.cardErrors||{}),[identity]:state.productionCommand.message||'Chưa lưu được; bản nháp vẫn được giữ.'}};renderAssignmentPage();restoreSpeakerReviewCardSnapshot(snapshot);
   }
 };
@@ -1941,9 +1944,9 @@ batchApproveSpeakerSuggestions=async function(){
   if(productionCommandBusy())return;
   const result=state.bookVoiceRegistry.speakerSuggestions?.result,context=currentProductionWorkingContext();if(!result||!context)return;
   const impact=speakerReviewBatchImpact(result.suggestions||[]),items=impact.eligible.map(item=>({analysis_run_id:speakerSuggestionSourceRunId(item,result),unresolved_key:item.unresolved_key}));if(!items.length)return;
-  const payload={book_id:context.bookId,from_chapter:context.fromChapter,to_chapter:context.toChapter,skip_completed:!!context.skipCompleted,items,unresolved_keys:items.map(item=>item.unresolved_key)};
+  const payload={book_id:context.bookId,from_chapter:context.fromChapter,to_chapter:context.toChapter,skip_completed:!!context.skipCompleted,items,unresolved_keys:items.map(item=>item.unresolved_key),excluded_count:impact.excluded.length};
   const envelope=await runProductionCommand({commandType:'APPROVE_SPEAKER_REVIEW_BATCH',scope:rangeProductionCommandScope(),payload,label:`Đang kiểm tra ${items.length} đề xuất…`});
-  if(envelope?.outcome==='APPLIED'||envelope?.outcome==='PARTIAL'){await loadBookVoiceRegistry({force:true});await loadProductionTaskProjection({silent:true});const queue=state.bookVoiceRegistry.speakerSuggestions||emptySpeakerSuggestionState();state.bookVoiceRegistry.speakerSuggestions={...queue,lastResult:`Đã duyệt ${envelope.applied_items?.length||items.length}/${items.length}. ${impact.excluded.length} mục bị loại vẫn ở hàng cũ.`};renderAssignmentPage()}
+  if(envelope){await loadBookVoiceRegistry({force:true});await loadSpeakerReviewSuggestions({force:true});await loadProductionTaskProjection({silent:true});const queue=state.bookVoiceRegistry.speakerSuggestions||emptySpeakerSuggestionState(),success=envelope.outcome==='APPLIED'||envelope.outcome==='PARTIAL';state.bookVoiceRegistry.speakerSuggestions={...queue,lastResult:success?`Đã duyệt ${envelope.result_metadata?.approved_count||envelope.applied_items?.length||items.length} đề xuất. ${impact.excluded.length} đề xuất vẫn cần xem xét.`:state.productionCommand.message||'Batch chưa được lưu; các đề xuất vẫn có thể xử lý lại an toàn.'};renderAssignmentPage()}
 };
 function focusSpeakerReviewControl(key,target){
   const attr=`data-speaker-suggestion-${target}`,control=document.querySelector(`[${attr}="${CSS.escape(String(key))}"]`);control?.focus?.();control?.scrollIntoView?.({block:'center',behavior:'smooth'});

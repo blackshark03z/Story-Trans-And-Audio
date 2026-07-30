@@ -110,7 +110,14 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
             "cardErrors",
         ):
             self.assertIn(bucket, self.js)
-        self.assertIn("requestId!==state.bookVoiceRegistry.speakerSuggestions.requestId", self.js)
+        self.assertIn(
+            "speakerReviewResponseIsCurrent(requestId,mutationEpoch)",
+            self.js,
+        )
+        self.assertIn(
+            "mutationEpoch===state.productionInteractionEpoch",
+            self.js,
+        )
         self.assertIn("speakerReviewCardSnapshot", self.js)
         self.assertIn("restoreSpeakerReviewCardSnapshot", self.js)
 

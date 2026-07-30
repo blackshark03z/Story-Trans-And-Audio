@@ -4,6 +4,23 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Speaker Review Mutation Reconciliation
+
+- Recovered the canonical Book 1 Chapters 1-10 batch attempt as a server-side
+  rejection: audit events `229-249` recorded 21 errors and no Character,
+  alias, Casting Plan, Job, or Artifact mutation.
+- Fixed range speaker mapping so an unrelated chapter without an approved
+  Final Voice Map cannot abort a target suggestion from another chapter.
+- Batch approval is now all-or-none without durable per-item error decisions
+  after rollback, returns decision IDs and resulting queue counts, and excludes
+  rows whose target chapter lacks an approved Final Voice Map.
+- Speaker-review queue state now uses durable-decision precedence, refreshes
+  after rejected as well as applied commands, rejects stale polling by request
+  and mutation epoch, and preserves local drafts while reconciling.
+- Full offline validation passed in four isolated groups: `1872` tests with
+  `1` intentional skip. No canonical approval, PREPARE, render, provider, or
+  TTS mutation was performed.
+
 ### Real User Media Golden Journey
 
 - Added isolated real-provider journey orchestration with strict Book 1
@@ -28,7 +45,7 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
   critical errors while reporting pruned checkpoints of completed work with an
   existing published Artifact as an explicit warning.
 - Added focused API, recovery, prepared-job, launcher, Audio Library, video,
-  encoding, and browser regressions. The full offline suite passes `1870`
+  encoding, and browser regressions. The full offline suite passes `1872`
   tests with `1` intentional skip; canonical production remained read-only.
 
 ### Speaker Review Workspace And Reversible Decisions

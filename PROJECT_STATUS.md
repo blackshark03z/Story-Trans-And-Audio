@@ -26,6 +26,23 @@
 **DAILY-PROD-3A:** complete
 **DAILY-PROD-3:** complete
 
+### Speaker Review Mutation Reconciliation
+
+- Canonical recovery classified the prior 21-item batch as server rejected.
+  Audit events `229-249` are 21 `ERROR` decisions from one idempotent batch;
+  no approved decision or Character, alias, Casting Plan, Job, or Artifact
+  mutation was created.
+- The rejection was caused by an unrelated Chapter `1` approved-plan lookup
+  occurring before target-chapter filtering. Target-specific mapping now skips
+  unrelated chapters first, and failed batches remain all-or-none and safely
+  retryable instead of persisting per-item error decisions after rollback.
+- Command responses now include durable decision IDs and resulting queue
+  counts. The UI reloads authoritative queue and task state after success or
+  rejection and rejects stale pre-command polling responses by request ID and
+  mutation epoch.
+- Full offline validation passed `1872` tests with `1` intentional skip.
+  Canonical data remained read-only during implementation and certification.
+
 ### Real User Media Golden Journey
 
 - Isolated root:
@@ -47,7 +64,7 @@
   duration `353720 ms`, SHA-256
   `f72094a7d9bf1636f1367734d80cb9a84e2ea9a37ae4ee7e2a3028a3fe08b915`.
   Browser playback and downloaded audio/video hash checks passed.
-- Full offline suite: `1870` passed, `1` intentional skip. Canonical remained
+- Full offline suite: `1872` passed, `1` intentional skip. Canonical remained
   schema `15`, Jobs `26`, Artifacts `99`, with Chapter `369` not created,
   Chapter `372` on Artifact `99`, rejected Artifact `93` retained, and
   Chapter `373` on Artifact `96`.

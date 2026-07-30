@@ -2,6 +2,25 @@
 
 Updated: 2026-07-30
 
+## Speaker Review Mutation Reconciliation
+
+- The canonical 21-item batch attempt was authoritatively a server rejection,
+  not a successful approval hidden by stale UI. Audit events `229-249` contain
+  the 21 legacy rollback `ERROR` outcomes; the effective queue is now `30`
+  pending, `0` approved, and `0` effective error while the audit history stays
+  intact.
+- Root cause: target-specific mapping inspected unrelated Chapter `1` before
+  checking whether a suggestion belonged to that chapter. Chapter `1` had no
+  approved Final Voice Map, so the transaction rolled back.
+- Mapping now skips non-target chapters first. Batch rollback leaves no partial
+  decisions, response metadata carries decision IDs and queue counts, and UI
+  reconciliation refreshes authoritative state for both success and rejection
+  while stale polling is blocked by request ID plus mutation epoch.
+- Full offline validation passed `1872` tests with `1` intentional skip.
+  Canonical review state was inspected read-only; no new approval, Character,
+  alias, Casting Plan, Job, Artifact, PREPARE, render, provider, or TTS action
+  was created.
+
 ## Real User Media Golden Journey
 
 - Verdicts: `AUTOMATED_SPEAKER_REVIEW_WORKSPACE_PASS` and
@@ -19,7 +38,7 @@ Updated: 2026-07-30
   `f72094a7d9bf1636f1367734d80cb9a84e2ea9a37ae4ee7e2a3028a3fe08b915`.
 - Canonical production remained read-only at schema `15`, Jobs `26`,
   Artifacts `99`; Chapter `369` remains not created. Full offline validation:
-  `1870` passed with `1` intentional skip.
+  `1872` passed with `1` intentional skip.
 
 ## Book-Centric Golden Journey
 

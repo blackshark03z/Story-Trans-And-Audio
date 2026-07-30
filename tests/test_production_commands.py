@@ -33,6 +33,7 @@ class ProductionCommandServiceTests(unittest.TestCase):
                 outcome="APPLIED",
                 submitted_count=7,
                 applied_items=tuple({"chapter_number": value} for value in range(10, 17)),
+                result_metadata={"requested_count": 7, "approved_count": 7},
                 operator_message="Đã duyệt 7/7 chương.",
             ),
         )
@@ -42,6 +43,7 @@ class ProductionCommandServiceTests(unittest.TestCase):
         self.assertEqual(result["submitted_count"], 7)
         self.assertEqual(result["applied_count"], 7)
         self.assertEqual(result["failed_count"], 0)
+        self.assertEqual(result["result_metadata"]["approved_count"], 7)
         self.assertEqual(
             result["resulting_task_projection"]["canonical_task"]["task_key"],
             "next:2",

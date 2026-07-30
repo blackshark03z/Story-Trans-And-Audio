@@ -1674,10 +1674,20 @@ def _production_command_executor(
                     }
                     for key in unresolved_keys
                 )
+            decision_ids = [int(value) for value in result.get("decision_ids") or []]
             return ProductionCommandMutation(
                 outcome="APPLIED",
                 submitted_count=int(result.get("submitted_count") or len(applied_items)),
                 applied_items=applied_items,
+                result_metadata={
+                    "requested_count": int(
+                        result.get("submitted_count") or len(applied_items)
+                    ),
+                    "approved_count": len(applied_items),
+                    "excluded_count": int(payload.get("excluded_count") or 0),
+                    "decision_ids": decision_ids,
+                    "queue_counts": result.get("queue_counts") or {},
+                },
                 operator_message=(
                     "Đã duyệt các đề xuất tin cậy cao được chọn. "
                     "Không có PREPARE hoặc render tự động."

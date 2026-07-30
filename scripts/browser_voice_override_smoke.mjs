@@ -110,7 +110,16 @@ try {
     el.dispatchEvent(new Event("change", { bubbles: true }));
     return true;
   })()`);
-  const route = hash => evaluate(`(() => { location.hash = ${JSON.stringify(hash)}; return true; })()`);
+  const route = async hash => {
+    const params = new URLSearchParams(hash.split("?")[1] || "");
+    const fromChapter = Number(params.get("from"));
+    const toChapter = Number(params.get("to"));
+    await evaluate(`(() => { location.hash = ${JSON.stringify(hash)}; return true; })()`);
+    await waitFor(`location.hash === ${JSON.stringify(hash)}
+      && Number(window.storyAudioAppState?.bookVoiceRegistry?.result?.range?.from_chapter) === ${fromChapter}
+      && Number(window.storyAudioAppState?.bookVoiceRegistry?.result?.range?.to_chapter) === ${toChapter}
+      && !window.storyAudioAppState?.bookVoiceRegistry?.loading`);
+  };
   const attr = (name, value) => `[${name}="${value}"]`;
   const rowText = speaker => evaluate(`(() => {
     const editor = document.querySelector(${JSON.stringify(attr("data-registry-editor", speaker))});

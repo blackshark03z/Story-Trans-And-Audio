@@ -918,9 +918,71 @@ def _latest_decision_for_item(
             for event in _decision_events(db, analysis_run_id=run_id)
             if str(event["details"].get("unresolved_key") or "") == str(unresolved_key)
         )
+    candidates = [
+        event
+        for event in candidates
+        if not (
+            str(event["details"].get("decision") or "").upper() == "ERROR"
+            and (
+                event["details"].get("reviewer_payload") or {}
+            ).get("batch_idempotency_key")
+        )
+    ]
     if not candidates:
         return None
-    event = max(candidates, key=lambda item: int(item.get("id") or 0))
+    # Durable corrections/replacements outrank lower-confidence retry errors.
+    # RESTORED_PENDING resets older history, but a later operator decision can
+    # establish a new effective state.
+    precedence = {
+        "ERROR": 10,
+        "MARKED_UNCERTAIN": 20,
+        "DEFERRED": 30,
+        "ACCEPTED": 40,
+        "EDITED_AND_ACCEPTED": 50,
+        "CORRECTED": 60,
+        "REPLACEMENT_DRAFT": 70,
+    }
+    latest_restore = max(
+        (
+            item
+            for item in candidates
+            if str(item["details"].get("decision") or "").upper()
+            == "RESTORED_PENDING"
+        ),
+        key=lambda item: int(item.get("id") or 0),
+        default=None,
+    )
+    if latest_restore is not None:
+        post_restore = [
+            item
+            for item in candidates
+            if int(item.get("id") or 0) > int(latest_restore.get("id") or 0)
+        ]
+        if not post_restore:
+            event = latest_restore
+        else:
+            candidates = post_restore
+            event = max(
+                candidates,
+                key=lambda item: (
+                    precedence.get(
+                        str(item["details"].get("decision") or "").upper(),
+                        0,
+                    ),
+                    int(item.get("id") or 0),
+                ),
+            )
+    else:
+        event = max(
+            candidates,
+            key=lambda item: (
+                precedence.get(
+                    str(item["details"].get("decision") or "").upper(),
+                    0,
+                ),
+                int(item.get("id") or 0),
+            ),
+        )
     details = dict(event["details"])
     details["audit_event_id"] = int(event["id"])
     details["recorded_at"] = event.get("created_at")
@@ -1153,6 +1215,22 @@ def _augment_suggestions(
             }
         )
         chapter_id = int(target.get("chapter_id") or 0)
+        approved_plan = (
+            db.fetch_one(
+                """
+                SELECT 1
+                FROM chapters c
+                JOIN casting_plans cp ON cp.chapter_id=c.id
+                WHERE c.id=?
+                  AND cp.status='approved'
+                  AND cp.text_revision_id=c.active_text_revision_id
+                LIMIT 1
+                """,
+                (chapter_id,),
+            )
+            if chapter_id
+            else None
+        )
         downstream = (
             db.fetch_one(
                 """
@@ -1181,6 +1259,7 @@ def _augment_suggestions(
         proposal.update(
             {
                 "target": target,
+                "approved_final_voice_map_available": bool(approved_plan),
                 "matched_character": (
                     characters.get(int(proposal["existing_character_id"]))
                     if proposal.get("existing_character_id") is not None
@@ -1605,10 +1684,28 @@ def record_speaker_suggestion_decision(
         "idempotency_key": idempotency_key,
     }
     chapter_id = int((suggestion.get("target") or {}).get("chapter_id") or 0) or None
+    audit_event_id: int | None = None
     if connection is None:
         db.audit(DECISION_EVENT, chapter_id=chapter_id, details=details)
+        row = db.fetch_one(
+            """
+            SELECT id,created_at
+            FROM audit_events
+            WHERE event_code=? AND details_json=?
+            ORDER BY id DESC
+            LIMIT 1
+            """,
+            (
+                DECISION_EVENT,
+                json.dumps(details, ensure_ascii=False),
+            ),
+        )
+        if row:
+            audit_event_id = int(row["id"])
+            details["audit_event_id"] = audit_event_id
+            details["recorded_at"] = row["created_at"]
     else:
-        connection.execute(
+        cursor = connection.execute(
             """
             INSERT INTO audit_events(event_code,job_id,chapter_id,details_json,created_at)
             VALUES(?,?,?,?,?)
@@ -1621,6 +1718,8 @@ def record_speaker_suggestion_decision(
                 utcnow(),
             ),
         )
+        audit_event_id = int(cursor.lastrowid)
+        details["audit_event_id"] = audit_event_id
     return {"reused": False, "decision": details}
 
 
@@ -1994,6 +2093,29 @@ def accept_speaker_review_suggestion(
     return {"applied": applied, "review": review}
 
 
+def _approved_final_voice_map_available(
+    db: Database,
+    suggestion: Mapping[str, Any],
+) -> bool:
+    chapter_id = int((suggestion.get("target") or {}).get("chapter_id") or 0)
+    if not chapter_id:
+        return False
+    return bool(
+        db.fetch_one(
+            """
+            SELECT 1
+            FROM chapters c
+            JOIN casting_plans cp ON cp.chapter_id=c.id
+            WHERE c.id=?
+              AND cp.status='approved'
+              AND cp.text_revision_id=c.active_text_revision_id
+            LIMIT 1
+            """,
+            (chapter_id,),
+        )
+    )
+
+
 def approve_high_confidence_suggestions(
     db: Database,
     store: ContentStore,
@@ -2061,6 +2183,10 @@ def approve_high_confidence_suggestions(
             raise SpeakerReviewSuggestionError(
                 f"Suggestion {key} is not safe for batch approval: {', '.join(reasons)}"
             )
+        if not _approved_final_voice_map_available(db, suggestion):
+            raise SpeakerReviewSuggestionError(
+                "Approved Final Voice Map is missing or stale"
+            )
         if suggestion.get("proposed_resolution") not in {
             "EXISTING_CHARACTER",
             "NEW_CHARACTER",
@@ -2096,24 +2222,29 @@ def approve_high_confidence_suggestions(
                 apply_with(transaction)
         else:
             apply_with(connection)
-    except Exception as exc:
-        if connection is not None:
-            raise
-        for key in keys:
-            record_speaker_suggestion_decision(
-                db,
-                store,
-                analysis_run_id=analysis_run_id,
-                unresolved_key=key,
-                decision="ERROR",
-                reviewer_payload={
-                    "batch_idempotency_key": idempotency_key,
-                    "reason": str(exc),
-                },
-                idempotency_key=f"{idempotency_key}:{key}:error",
-            )
+    except Exception:
+        # The transaction is the only durable batch result. Do not manufacture
+        # per-item ERROR decisions after rollback; the command envelope carries
+        # the failure and the queue remains retryable.
         raise
-    return {"applied": applied, "submitted_count": len(keys)}
+    queue = _latest_queue_for_run(db, store, analysis_run_id=analysis_run_id)
+    decision_ids = [
+        int(
+            ((item.get("review") or {}).get("decision") or {}).get(
+                "audit_event_id"
+            )
+        )
+        for item in applied
+        if ((item.get("review") or {}).get("decision") or {}).get(
+            "audit_event_id"
+        )
+    ]
+    return {
+        "applied": applied,
+        "submitted_count": len(keys),
+        "decision_ids": decision_ids,
+        "queue_counts": queue_view_counts(queue.get("suggestions") or []),
+    }
 
 
 def approve_speaker_review_batch_items(
@@ -2171,26 +2302,30 @@ def approve_speaker_review_batch_items(
                         connection=connection,
                     )
                 )
-    except Exception as exc:
-        for run_id, unresolved_key in normalized:
-            record_speaker_suggestion_decision(
+    except Exception:
+        # Preserve all-or-none semantics across source runs.
+        raise
+    decision_ids = [
+        decision_id
+        for result in results
+        for decision_id in result.get("decision_ids") or []
+    ]
+    queue_counts = {
+        run_id: queue_view_counts(
+            _latest_queue_for_run(
                 db,
                 store,
                 analysis_run_id=run_id,
-                unresolved_key=unresolved_key,
-                decision="ERROR",
-                reviewer_payload={
-                    "batch_idempotency_key": idempotency_key,
-                    "reason": str(exc),
-                },
-                idempotency_key=(
-                    f"{idempotency_key}:{run_id}:{unresolved_key}:error"
-                ),
-            )
-        raise
+            ).get("suggestions")
+            or []
+        )
+        for run_id in groups
+    }
     return {
         "groups": results,
         "submitted_count": len(normalized),
+        "decision_ids": decision_ids,
+        "queue_counts": queue_counts,
         "items": [
             {"analysis_run_id": run_id, "unresolved_key": unresolved_key}
             for run_id, unresolved_key in normalized

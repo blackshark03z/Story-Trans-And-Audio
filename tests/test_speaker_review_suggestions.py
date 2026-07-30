@@ -517,6 +517,50 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
         reviewed = next(item for item in queue["suggestions"] if item["unresolved_key"] == key)
         self.assertEqual(reviewed["review_state"], "ACCEPTED")
 
+    def test_legacy_batch_rollback_error_remains_history_but_not_effective(self) -> None:
+        registry = self._registry()
+        key = next(
+            row["speaker_key"]
+            for row in registry["rows"]
+            if row["status"] == "UNRESOLVED_DIALOGUE"
+        )
+        result = generate_speaker_review_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            skip_completed=False,
+            registry=registry,
+            voice_catalog=_catalog(),
+            unresolved_keys=[key],
+            provider=self._provider,
+            idempotency_key="speaker-review-legacy-batch-error-run",
+        )
+        record_speaker_suggestion_decision(
+            self.db,
+            self.store,
+            analysis_run_id=result["analysis_run_id"],
+            unresolved_key=key,
+            decision="ERROR",
+            reviewer_payload={
+                "batch_idempotency_key": "speaker-review-legacy-batch-error",
+                "reason": "transaction rolled back",
+            },
+            idempotency_key="speaker-review-legacy-batch-error-row",
+        )
+
+        queue = _latest_queue_for_run(
+            self.db,
+            self.store,
+            analysis_run_id=result["analysis_run_id"],
+        )
+        suggestion = queue["suggestions"][0]
+        self.assertEqual(suggestion["review_state"], "PENDING_REVIEW")
+        self.assertIsNone(suggestion["human_review"])
+        self.assertEqual(suggestion["review_history"][-1]["decision"], "ERROR")
+
     def test_approved_character_and_voice_correction_preserves_history(self) -> None:
         registry = self._registry()
         key = next(
@@ -684,6 +728,18 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
         restored = next(item for item in queue["suggestions"] if item["unresolved_key"] == key)
         self.assertEqual(restored["review_state"], "PENDING_REVIEW")
         self.assertEqual(restored["human_review"]["decision"], "RESTORED_PENDING")
+        with self.assertRaisesRegex(
+            SpeakerReviewSuggestionError,
+            "Only an approved speaker decision",
+        ):
+            restore_speaker_suggestion_pending(
+                self.db,
+                self.store,
+                analysis_run_id=run["analysis_run_id"],
+                unresolved_key=key,
+                reviewer_payload={"note": "duplicate restore"},
+                idempotency_key="speaker-review-note-restore-duplicate",
+            )
 
         accept_speaker_review_suggestion(
             self.db,
@@ -698,6 +754,15 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
             voice_catalog=_catalog(),
             idempotency_key="speaker-review-note-restore-reaccept",
         )
+        queue = _latest_queue_for_run(
+            self.db,
+            self.store,
+            analysis_run_id=run["analysis_run_id"],
+        )
+        reaccepted = next(
+            item for item in queue["suggestions"] if item["unresolved_key"] == key
+        )
+        self.assertEqual(reaccepted["review_state"], "ACCEPTED")
         chapter_id = int(key.split(":", 2)[1])
         now = utcnow()
         with self.db.transaction() as connection:
@@ -906,10 +971,4 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
             ("speaker_review_suggestion_reviewed",),
         )
         details = [json.loads(row["details_json"]) for row in events]
-        self.assertEqual([item["decision"] for item in details], ["ERROR", "ERROR"])
-        self.assertTrue(
-            all(
-                item["reviewer_payload"]["reason"] == "injected batch failure"
-                for item in details
-            )
-        )
+        self.assertEqual(details, [])

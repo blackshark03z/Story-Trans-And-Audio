@@ -60,6 +60,12 @@ class SpeakerReviewWorkspaceContractTests(unittest.TestCase):
         self.assertIn("warning_requires_review", reasons)
         self.assertIn("stale_source_revision", reasons)
         self.assertIn("unavailable_effective_voice", reasons)
+        self.assertEqual(
+            batch_exclusion_reasons(
+                {**safe, "approved_final_voice_map_available": False}
+            ),
+            ["approved_final_voice_map_missing"],
+        )
 
     def test_command_lifecycle_hides_internal_status_names(self) -> None:
         self.assertEqual(command_lifecycle_label("SUBMITTING"), "Đang lưu quyết định…")

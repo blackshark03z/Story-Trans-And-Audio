@@ -458,6 +458,41 @@ class CharacterAssignmentServiceTests(IsolatedTestCase):
         )
         self.assertEqual(self._latest_plan(int(other_chapter["id"]))["status"], "approved")
 
+    def test_unresolved_mapping_skips_unrelated_chapter_without_final_voice_map(self) -> None:
+        self._seed_chapter(1, approved_plan=False)
+        target_chapter = self._seed_chapter(2)
+        speaker_key = next(
+            row["speaker_key"]
+            for row in self._registry(2, 2)["rows"]
+            if row["status"] == "UNRESOLVED_DIALOGUE"
+        )
+        character = create_assignment_character(
+            self.db,
+            book_id=self.book_id,
+            display_name="Range Commander",
+            idempotency_key="range-commander",
+        )["character"]
+
+        result = apply_speaker_character_mapping(
+            self.db,
+            self.store,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            speaker_key=speaker_key,
+            character_id=int(character["id"]),
+            aliases=[],
+            voice_catalog=_catalog("narrator", "male", "female", "commander", "alternate"),
+            idempotency_key="range-commander-map",
+        )
+
+        self.assertEqual(len(result["applied"]), 1)
+        self.assertEqual(result["applied"][0]["chapter_number"], 2)
+        self.assertEqual(
+            self._latest_plan(int(target_chapter["id"]))["status"],
+            "approved",
+        )
+
     def test_partial_range_failure_creates_no_approved_plan_or_alias_rows(self) -> None:
         known = create_assignment_character(
             self.db,
