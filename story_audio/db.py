@@ -3,13 +3,43 @@
 import json
 import os
 import sqlite3
+import time
 from contextlib import contextmanager
+from contextvars import ContextVar
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator
 
 from .config import canonical_production_db_path
 from .migrations import MigrationRunner
+
+
+@dataclass
+class QueryMetrics:
+    """Per-request database timings collected without retaining SQL values."""
+
+    query_count: int = 0
+    sqlite_seconds: float = 0.0
+    connection_seconds: float = 0.0
+
+
+_query_metrics: ContextVar[QueryMetrics | None] = ContextVar(
+    "story_audio_query_metrics",
+    default=None,
+)
+
+
+@contextmanager
+def collect_query_metrics() -> Iterator[QueryMetrics]:
+    """Collect fetch query counts for one read-only service projection."""
+
+    metrics = QueryMetrics()
+    token = _query_metrics.set(metrics)
+    try:
+        yield metrics
+    finally:
+        _query_metrics.reset(token)
 
 class ClosingConnection(sqlite3.Connection):
     """Commit/rollback and close when used as a context manager."""
@@ -128,12 +158,30 @@ class Database:
             connection.close()
 
     def fetch_one(self, sql: str, params: tuple[Any, ...] = ()) -> sqlite3.Row | None:
+        metrics = _query_metrics.get()
+        connection_started = time.perf_counter()
         with self.connect() as connection:
-            return connection.execute(sql, params).fetchone()
+            if metrics is not None:
+                metrics.connection_seconds += time.perf_counter() - connection_started
+            query_started = time.perf_counter()
+            result = connection.execute(sql, params).fetchone()
+            if metrics is not None:
+                metrics.query_count += 1
+                metrics.sqlite_seconds += time.perf_counter() - query_started
+            return result
 
     def fetch_all(self, sql: str, params: tuple[Any, ...] = ()) -> list[sqlite3.Row]:
+        metrics = _query_metrics.get()
+        connection_started = time.perf_counter()
         with self.connect() as connection:
-            return list(connection.execute(sql, params).fetchall())
+            if metrics is not None:
+                metrics.connection_seconds += time.perf_counter() - connection_started
+            query_started = time.perf_counter()
+            result = list(connection.execute(sql, params).fetchall())
+            if metrics is not None:
+                metrics.query_count += 1
+                metrics.sqlite_seconds += time.perf_counter() - query_started
+            return result
 
     def audit(
         self,

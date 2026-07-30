@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
@@ -1113,6 +1114,72 @@ def _decision_events(db: Database, *, analysis_run_id: str) -> list[dict[str, An
     return events
 
 
+def _review_events_by_run(
+    db: Database,
+    *,
+    analysis_run_ids: Iterable[str],
+) -> dict[str, dict[str, list[dict[str, Any]]]]:
+    """Load and parse durable review history once for an entire queue."""
+
+    run_ids = {str(value).strip() for value in analysis_run_ids if str(value).strip()}
+    indexed: dict[str, dict[str, list[dict[str, Any]]]] = {
+        run_id: {DECISION_EVENT: [], NOTE_EVENT: []} for run_id in run_ids
+    }
+    if not indexed:
+        return indexed
+    rows = db.fetch_all(
+        """
+        SELECT * FROM audit_events
+        WHERE event_code IN (?,?)
+        ORDER BY id
+        """,
+        (DECISION_EVENT, NOTE_EVENT),
+    )
+    for row in rows:
+        try:
+            details = json.loads(row["details_json"] or "{}")
+        except (TypeError, ValueError):
+            continue
+        run_id = str(details.get("analysis_run_id") or "").strip()
+        if run_id not in indexed:
+            continue
+        indexed[run_id][str(row["event_code"])].append(
+            {**dict(row), "details": details}
+        )
+    return indexed
+
+
+def _review_events_for_item(
+    event_index: Mapping[str, Mapping[str, list[dict[str, Any]]]],
+    *,
+    analysis_run_id: str,
+    source_analysis_run_id: str | None,
+    unresolved_key: str,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    run_ids = {
+        str(value).strip()
+        for value in (analysis_run_id, source_analysis_run_id)
+        if str(value or "").strip()
+    }
+    decisions: list[dict[str, Any]] = []
+    history: list[dict[str, Any]] = []
+    for run_id in run_ids:
+        events = event_index.get(run_id, {})
+        run_decisions = [
+            event
+            for event in events.get(DECISION_EVENT, [])
+            if str(event["details"].get("unresolved_key") or "") == str(unresolved_key)
+        ]
+        decisions.extend(run_decisions)
+        history.extend(run_decisions)
+        history.extend(
+            event
+            for event in events.get(NOTE_EVENT, [])
+            if str(event["details"].get("unresolved_key") or "") == str(unresolved_key)
+        )
+    return decisions, history
+
+
 def _note_events(db: Database, *, analysis_run_id: str) -> list[dict[str, Any]]:
     rows = db.fetch_all(
         """
@@ -1156,6 +1223,12 @@ def _latest_decision_for_item(
             for event in _decision_events(db, analysis_run_id=run_id)
             if str(event["details"].get("unresolved_key") or "") == str(unresolved_key)
         )
+    return _latest_decision_from_events(candidates)
+
+
+def _latest_decision_from_events(
+    candidates: Iterable[Mapping[str, Any]],
+) -> dict[str, Any] | None:
     candidates = [
         event
         for event in candidates
@@ -1257,7 +1330,21 @@ def _decision_history_for_item(
                     "recorded_at": event.get("created_at"),
                 }
             )
-    return sorted(history, key=lambda item: int(item.get("audit_event_id") or 0))
+    return _history_from_events(history)
+
+
+def _history_from_events(events: Iterable[Mapping[str, Any]]) -> list[dict[str, Any]]:
+    return sorted(
+        [
+            {
+                **dict(event["details"]),
+                "audit_event_id": int(event["id"]),
+                "recorded_at": event.get("created_at"),
+            }
+            for event in events
+        ],
+        key=lambda item: int(item.get("audit_event_id") or 0),
+    )
 
 
 def _load_run_from_event(store: ContentStore, event: Mapping[str, Any]) -> dict[str, Any]:
@@ -1270,21 +1357,28 @@ def _load_run_from_event(store: ContentStore, event: Mapping[str, Any]) -> dict[
 
 def _clean_queue_state(db: Database, payload: dict[str, Any]) -> dict[str, Any]:
     analysis_run_id = str(payload["analysis_run_id"])
-    for item in payload.get("suggestions") or []:
+    suggestions = list(payload.get("suggestions") or [])
+    event_index = _review_events_by_run(
+        db,
+        analysis_run_ids=[
+            analysis_run_id,
+            *(
+                str(item.get("source_analysis_run_id") or analysis_run_id)
+                for item in suggestions
+            ),
+        ],
+    )
+    for item in suggestions:
         unresolved_key = str(item.get("unresolved_key") or "")
         source_analysis_run_id = str(item.get("source_analysis_run_id") or analysis_run_id)
-        decision = _latest_decision_for_item(
-            db,
+        decision_events, history_events = _review_events_for_item(
+            event_index,
             analysis_run_id=analysis_run_id,
             source_analysis_run_id=source_analysis_run_id,
             unresolved_key=unresolved_key,
         )
-        history = _decision_history_for_item(
-            db,
-            analysis_run_id=analysis_run_id,
-            source_analysis_run_id=source_analysis_run_id,
-            unresolved_key=unresolved_key,
-        )
+        decision = _latest_decision_from_events(decision_events)
+        history = _history_from_events(history_events)
         item.setdefault("source_analysis_run_id", analysis_run_id)
         item["suggestion_id"] = f"{item['source_analysis_run_id']}:{unresolved_key}"
         decision_state = str((decision or {}).get("decision") or "PENDING_REVIEW")
@@ -1299,10 +1393,10 @@ def _clean_queue_state(db: Database, payload: dict[str, Any]) -> dict[str, Any]:
             decision.get("audit_event_id") if decision else None
         )
         item["review_history"] = history
-    summary = _queue_summary(payload.get("suggestions") or [])
+    summary = _queue_summary(suggestions)
     payload["summary"] = {**dict(payload.get("summary") or {}), **summary}
     payload["latest_batch_result"] = _latest_durable_batch_result(
-        payload.get("suggestions") or []
+        suggestions
     )
     return payload
 
@@ -1918,20 +2012,35 @@ def get_speaker_review_queue(
     voice_catalog: EffectiveVoiceCatalog,
     custom_voice_context: CustomVoiceContext | None = None,
     unresolved_keys: Iterable[str] | None = None,
+    timings: dict[str, float] | None = None,
 ) -> dict[str, Any]:
-    request = build_speaker_review_request(
-        db,
-        store,
-        config,
-        book_id=book_id,
-        from_chapter=from_chapter,
-        to_chapter=to_chapter,
-        skip_completed=skip_completed,
-        registry=registry,
-        voice_catalog=voice_catalog,
-        unresolved_keys=unresolved_keys,
+    def timed(name: str, operation):
+        started = time.perf_counter()
+        try:
+            return operation()
+        finally:
+            if timings is not None:
+                timings[name] = timings.get(name, 0.0) + (time.perf_counter() - started)
+
+    request = timed(
+        "request_build",
+        lambda: build_speaker_review_request(
+            db,
+            store,
+            config,
+            book_id=book_id,
+            from_chapter=from_chapter,
+            to_chapter=to_chapter,
+            skip_completed=skip_completed,
+            registry=registry,
+            voice_catalog=voice_catalog,
+            unresolved_keys=unresolved_keys,
+        ),
     )
-    event = _latest_run_event(db, input_fingerprint=request["input_fingerprint"])
+    event = timed(
+        "analysis_run_lookup",
+        lambda: _latest_run_event(db, input_fingerprint=request["input_fingerprint"]),
+    )
     if not event:
         payload = _latest_compatible_run_for_request(
             db,
@@ -1982,35 +2091,44 @@ def get_speaker_review_queue(
                 "pending_review": len(request["targets"]),
             },
         }
-    payload = _load_run_from_event(store, event)
-    payload = _clean_queue_state(db, payload)
-    history = _latest_compatible_run_for_request(
-        db,
-        store,
-        config,
-        request=request,
-        minimum_suggestion_count=len(payload.get("suggestions") or []) + 1,
+    payload = timed("analysis_payload_load", lambda: _load_run_from_event(store, event))
+    payload = timed("current_review_projection", lambda: _clean_queue_state(db, payload))
+    history = timed(
+        "approved_history_lookup",
+        lambda: _latest_compatible_run_for_request(
+            db,
+            store,
+            config,
+            request=request,
+            minimum_suggestion_count=len(payload.get("suggestions") or []) + 1,
+        ),
     )
-    payload = _merge_approved_history(payload, history)
+    payload = timed("approved_history_merge", lambda: _merge_approved_history(payload, history))
     payload["schema"] = QUEUE_SCHEMA
     payload["status"] = "ready_for_human_review"
-    payload["suggestions"] = _augment_suggestions(
-        [dict(item) for item in payload.get("suggestions") or []],
-        db=db,
-        request=request,
-        registry=registry,
-        voice_catalog=voice_catalog,
-        custom_voice_context=custom_voice_context,
-    )
-    payload["summary"] = {
-        **_queue_summary(payload["suggestions"]),
-        "analyzed": len(payload["suggestions"]),
-        "pending_review": sum(
-            1
-            for item in payload["suggestions"]
-            if str(item.get("review_state")) == "PENDING_REVIEW"
+    payload["suggestions"] = timed(
+        "voice_provenance",
+        lambda: _augment_suggestions(
+            [dict(item) for item in payload.get("suggestions") or []],
+            db=db,
+            request=request,
+            registry=registry,
+            voice_catalog=voice_catalog,
+            custom_voice_context=custom_voice_context,
         ),
-    }
+    )
+    def build_summary() -> dict[str, Any]:
+        return {
+            **_queue_summary(payload["suggestions"]),
+            "analyzed": len(payload["suggestions"]),
+            "pending_review": sum(
+                1
+                for item in payload["suggestions"]
+                if str(item.get("review_state")) == "PENDING_REVIEW"
+            ),
+        }
+
+    payload["summary"] = timed("summary", build_summary)
     return payload
 
 

@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import threading
+from importlib import resources
 from pathlib import Path
 from typing import Any
 
@@ -27,6 +29,7 @@ class TtsService:
     def __init__(self) -> None:
         self._engine: Any = None
         self._lock = threading.RLock()
+        self._preset_voice_metadata: list[dict[str, str]] | None = None
         self.status = "not_loaded"
         self.error: str | None = None
 
@@ -131,10 +134,41 @@ class TtsService:
                 raise
 
     def voices(self) -> list[dict[str, str]]:
-        engine = self.ensure_loaded()
         with self._lock:
+            if self._preset_voice_metadata is not None:
+                return [dict(item) for item in self._preset_voice_metadata]
+            try:
+                metadata_path = resources.files("vieneu").joinpath(
+                    "assets/voices_v3_turbo.json"
+                )
+                payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+                presets = dict(payload.get("presets") or {})
+                values = [
+                    {
+                        "label": (
+                            f"{name} — {details.get('description')}"
+                            if details.get("description")
+                            else str(name)
+                        ),
+                        "id": str(name),
+                    }
+                    for name, details in presets.items()
+                    if isinstance(details, dict)
+                ]
+                if values:
+                    self._preset_voice_metadata = values
+                    return [dict(item) for item in values]
+            except Exception:
+                # Older/modified providers may not ship the v3 metadata bundle.
+                # Their engine remains the authoritative compatibility fallback.
+                pass
+            engine = self.ensure_loaded()
             values = engine.list_preset_voices()
-        return [{"label": str(label), "id": str(voice_id)} for label, voice_id in values]
+            self._preset_voice_metadata = [
+                {"label": str(label), "id": str(voice_id)}
+                for label, voice_id in values
+            ]
+            return [dict(item) for item in self._preset_voice_metadata]
 
     def synthesize(
         self,

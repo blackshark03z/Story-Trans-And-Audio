@@ -56,6 +56,25 @@ class TestTtsSnapshotIntegration(unittest.TestCase):
         self.vieneu_patcher.stop()
         self.temp_dir.cleanup()
 
+    def test_voice_listing_uses_metadata_without_loading_the_engine(self):
+        class MetadataPath:
+            def joinpath(self, _path: str):
+                return self
+
+            def read_text(self, *, encoding: str) -> str:
+                if encoding != "utf-8":
+                    raise AssertionError("metadata must be read as UTF-8")
+                return '{"presets":{"Metadata voice":{"description":"fast catalog"}}}'
+
+        with patch("story_audio.tts.resources.files", return_value=MetadataPath()):
+            voices = self.service.voices()
+
+        self.assertEqual(
+            voices,
+            [{"label": "Metadata voice — fast catalog", "id": "Metadata voice"}],
+        )
+        self.assertEqual(self.service.status, "not_loaded")
+
     def _make_preset_input(self, is_final=False):
         """Create a valid preset SegmentSynthesisInput."""
         settings = SynthesisSettings(0.8, 25, 256, 0.15, "vieneu:v3turbo")

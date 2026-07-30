@@ -99,6 +99,7 @@ try {
   await click('[data-speaker-review-view="ALL"]');
   await waitFor(`document.querySelectorAll('[data-speaker-suggestion-card]').length===5`);
   const allCardCount = await evaluate(`document.querySelectorAll('[data-speaker-suggestion-card]').length`);
+  const initialQueueRequestCount = await evaluate(`fetch('/api/fixture/speaker-review-queue-count').then(response=>response.json()).then(payload=>payload.count)`);
   const labelsReadable = await evaluate(`[...document.querySelectorAll('[data-speaker-suggestion-card]')].every(card => card.querySelector('.status-symbol') && card.querySelector('.speaker-card-evidence') && card.querySelector('.speaker-card-decision') && card.querySelector('.speaker-card-actions'))`);
   const backgroundGroupVisible = await evaluate(`(() => { const card=document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key5))}); const group=card?.querySelector(${JSON.stringify(attr("data-speaker-suggestion-group", key5))}); return !!card && card.innerText.includes("Quần chúng nam") && group?.value==="MALE" && card.innerText.includes("Mặc định nam của sách") })()`);
 
@@ -185,6 +186,7 @@ try {
   process.stdout.write(JSON.stringify({
     ok: defaultView && labelsReadable && backgroundGroupVisible,
     allCardCount,
+    initialQueueRequestCount,
     backgroundGroupVisible,
     busyVisible: !!busyVisible,
     characterFocus,

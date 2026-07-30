@@ -4,6 +4,7 @@ import json
 import os
 import signal
 import threading
+import time
 import unicodedata
 import uuid
 from contextlib import asynccontextmanager
@@ -11,8 +12,8 @@ from functools import wraps
 from pathlib import Path
 from typing import Any, Literal
 
-from fastapi import Body, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import Body, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from starlette.background import BackgroundTask
@@ -79,7 +80,7 @@ from .custom_voice_api import (
     reactivate_custom_voice_handler,
     set_preferred_synthesis_revision_handler,
 )
-from .db import Database, utcnow
+from .db import Database, collect_query_metrics, utcnow
 from .diagnostics import (
     DiagnosticNotFound,
     RetryConflict,
@@ -1056,35 +1057,61 @@ def production_speaker_review_suggestions(
     from_chapter: int = Query(..., ge=0),
     to_chapter: int = Query(..., ge=0),
     skip_completed: bool = Query(True),
-) -> dict[str, Any]:
+) -> Response:
     """Return the AI speaker-suggestion queue for the selected range."""
 
     try:
-        voice_catalog = _load_voice_catalog()
-        custom_voice_context = _build_custom_voice_context()
-        registry = get_book_voice_registry(
-            db,
-            store,
-            settings,
-            book_id=book_id,
-            from_chapter=from_chapter,
-            to_chapter=to_chapter,
-            skip_completed=skip_completed,
-            voice_catalog=voice_catalog,
-            custom_voice_context=custom_voice_context,
+        timings: dict[str, float] = {}
+        total_started = time.perf_counter()
+        with collect_query_metrics() as query_metrics:
+            started = time.perf_counter()
+            voice_catalog = _load_voice_catalog()
+            timings["voice_catalog"] = time.perf_counter() - started
+            started = time.perf_counter()
+            custom_voice_context = _build_custom_voice_context()
+            timings["custom_voice_context"] = time.perf_counter() - started
+            started = time.perf_counter()
+            registry = get_book_voice_registry(
+                db,
+                store,
+                settings,
+                book_id=book_id,
+                from_chapter=from_chapter,
+                to_chapter=to_chapter,
+                skip_completed=skip_completed,
+                voice_catalog=voice_catalog,
+                custom_voice_context=custom_voice_context,
+            )
+            timings["registry"] = time.perf_counter() - started
+            result = get_speaker_review_queue(
+                db,
+                store,
+                settings,
+                book_id=book_id,
+                from_chapter=from_chapter,
+                to_chapter=to_chapter,
+                skip_completed=skip_completed,
+                registry=registry,
+                voice_catalog=voice_catalog,
+                custom_voice_context=custom_voice_context,
+                timings=timings,
+            )
+            started = time.perf_counter()
+            response = JSONResponse(content=result)
+            timings["json_serialization"] = time.perf_counter() - started
+        timings["total"] = time.perf_counter() - total_started
+        response.headers["Server-Timing"] = ", ".join(
+            f"{name};dur={duration * 1000:.1f}"
+            for name, duration in (
+                *timings.items(),
+                ("sqlite", query_metrics.sqlite_seconds),
+                ("db_connect", query_metrics.connection_seconds),
+            )
         )
-        return get_speaker_review_queue(
-            db,
-            store,
-            settings,
-            book_id=book_id,
-            from_chapter=from_chapter,
-            to_chapter=to_chapter,
-            skip_completed=skip_completed,
-            registry=registry,
-            voice_catalog=voice_catalog,
-            custom_voice_context=custom_voice_context,
+        response.headers["X-Speaker-Review-Query-Count"] = str(
+            query_metrics.query_count
         )
+        return response
     except VoiceCatalogUnavailable as exc:
         raise _job_http_error(exc) from exc
     except LookupError as exc:

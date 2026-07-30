@@ -13,7 +13,7 @@ from story_audio.casting import (
     get_plan,
     split_utterances,
 )
-from story_audio.db import Database, utcnow
+from story_audio.db import Database, collect_query_metrics, utcnow
 from story_audio.speaker_review_suggestions import (
     SpeakerReviewSuggestionError,
     _latest_queue_for_run,
@@ -966,6 +966,53 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
             accepted["target"]["dialogue_text"],
         )
         self.assertIsNotNone(reviewed["review_audit_event_id"])
+
+    def test_queue_batches_review_history_queries_per_projection(self) -> None:
+        registry = self._registry()
+        keys = [
+            row["speaker_key"]
+            for row in registry["rows"]
+            if row["status"] == "UNRESOLVED_DIALOGUE"
+        ]
+        run = generate_speaker_review_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            skip_completed=False,
+            registry=registry,
+            voice_catalog=_catalog(),
+            unresolved_keys=keys,
+            provider=self._provider,
+            idempotency_key="queue-history-index",
+        )
+        original_fetch_all = self.db.fetch_all
+        review_history_queries: list[str] = []
+
+        def counted_fetch_all(sql: str, params: tuple[Any, ...] = ()):
+            if "event_code IN" in sql:
+                review_history_queries.append(sql)
+            return original_fetch_all(sql, params)
+
+        with patch.object(self.db, "fetch_all", side_effect=counted_fetch_all):
+            with collect_query_metrics() as metrics:
+                queue = get_speaker_review_queue(
+                    self.db,
+                    self.store,
+                    self.config,
+                    book_id=self.book_id,
+                    from_chapter=1,
+                    to_chapter=2,
+                    skip_completed=False,
+                    registry=registry,
+                    voice_catalog=_catalog(),
+                )
+
+        self.assertEqual(len(queue["suggestions"]), len(run["suggestions"]))
+        self.assertEqual(len(review_history_queries), 1)
+        self.assertLessEqual(metrics.query_count, 20)
 
     def test_canonical_shaped_queue_projects_21_approved_and_9_pending(self) -> None:
         now = utcnow()

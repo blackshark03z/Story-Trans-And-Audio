@@ -32,6 +32,7 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
     review_states: dict[str, str] = {}
     review_history: dict[str, list[dict]] = {}
     mutation_count = 0
+    speaker_queue_request_count = 0
     last_batch_result: dict | None = None
 
     @classmethod
@@ -42,6 +43,7 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
         }
         cls.review_history = {key: [] for key in cls.unresolved_targets}
         cls.mutation_count = 0
+        cls.speaker_queue_request_count = 0
         cls.last_batch_result = None
         cls.suggestions = cls.queue()
 
@@ -216,7 +218,11 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
         }
 
     def do_GET(self) -> None:
-        if urlparse(self.path).path == "/api/production/speaker-review-suggestions":
+        path = urlparse(self.path).path
+        if path == "/api/fixture/speaker-review-queue-count":
+            return self._json({"count": type(self).speaker_queue_request_count})
+        if path == "/api/production/speaker-review-suggestions":
+            type(self).speaker_queue_request_count += 1
             type(self).suggestions = type(self).queue()
         return super().do_GET()
 
@@ -401,6 +407,7 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         evidence = json.loads(result.stdout)
         self.assertTrue(evidence["ok"])
+        self.assertEqual(evidence["initialQueueRequestCount"], 1)
         self.assertEqual(evidence["allCardCount"], 5)
         self.assertTrue(evidence["busyVisible"])
         self.assertTrue(evidence["characterFocus"])
