@@ -89,6 +89,8 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
         self.assertIn("approval_exclusion_reasons", self.js)
         self.assertIn("Không PREPARE và không render", self.js)
         self.assertIn("APPROVE_SPEAKER_REVIEW_BATCH", self.js)
+        for label in ("Yêu cầu:", "Đã duyệt:", "Bị loại:", "Thất bại:"):
+            self.assertIn(label, self.js)
 
     def test_approved_history_and_corrections_preserve_future_render_boundary(self) -> None:
         self.assertIn("review_history", self.js)

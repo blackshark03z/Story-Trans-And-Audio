@@ -517,6 +517,76 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
         reviewed = next(item for item in queue["suggestions"] if item["unresolved_key"] == key)
         self.assertEqual(reviewed["review_state"], "ACCEPTED")
 
+    def test_queue_preserves_approved_history_after_registry_mapping_changes(self) -> None:
+        registry = self._registry()
+        unresolved_keys = [
+            row["speaker_key"]
+            for row in registry["rows"]
+            if row["status"] == "UNRESOLVED_DIALOGUE"
+        ]
+        run = generate_speaker_review_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            skip_completed=False,
+            registry=registry,
+            voice_catalog=_catalog(),
+            unresolved_keys=unresolved_keys,
+            provider=self._provider,
+            idempotency_key="speaker-review-history-projection-run",
+        )
+        accepted = run["suggestions"][0]
+        accept_speaker_review_suggestion(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            analysis_run_id=run["analysis_run_id"],
+            unresolved_key=accepted["unresolved_key"],
+            reviewer_payload=accepted,
+            voice_catalog=_catalog(),
+            idempotency_key="speaker-review-history-projection-accept",
+        )
+
+        refreshed_registry = self._registry()
+        queue = get_speaker_review_queue(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            skip_completed=False,
+            registry=refreshed_registry,
+            voice_catalog=_catalog(),
+        )
+
+        self.assertTrue(queue["projected_from_existing_run"])
+        self.assertEqual(queue["summary"]["total"], len(unresolved_keys))
+        self.assertEqual(queue["summary"]["approved"], 1)
+        self.assertEqual(queue["summary"]["pending_review"], len(unresolved_keys) - 1)
+        self.assertEqual(
+            queue["summary"]["queue_views"]["ALL"]["count"],
+            len(unresolved_keys),
+        )
+        self.assertEqual(queue["summary"]["queue_views"]["APPROVED"]["count"], 1)
+        reviewed = next(
+            item
+            for item in queue["suggestions"]
+            if item["unresolved_key"] == accepted["unresolved_key"]
+        )
+        self.assertEqual(reviewed["review_state"], "ACCEPTED")
+        self.assertEqual(
+            reviewed["target"]["dialogue_text"],
+            accepted["target"]["dialogue_text"],
+        )
+        self.assertIsNotNone(reviewed["review_audit_event_id"])
+
     def test_legacy_batch_rollback_error_remains_history_but_not_effective(self) -> None:
         registry = self._registry()
         key = next(

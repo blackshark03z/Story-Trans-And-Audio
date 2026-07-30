@@ -853,6 +853,79 @@ def _combined_run_from_existing_events(
     }
 
 
+def _latest_compatible_run_for_request(
+    db: Database,
+    store: ContentStore,
+    config: Settings,
+    *,
+    request: Mapping[str, Any],
+) -> dict[str, Any] | None:
+    """Project a prior full queue when accepted mappings remove current targets."""
+
+    requested_scope = dict(request.get("scope") or {})
+    requested_revisions = _text_revision_signatures(request)
+    current_targets = {
+        str(item["unresolved_key"]): item
+        for item in request.get("targets") or []
+    }
+    rows = db.fetch_all(
+        """
+        SELECT *
+        FROM audit_events
+        WHERE event_code=?
+        ORDER BY id DESC
+        """,
+        (ANALYSIS_EVENT,),
+    )
+    for row in rows:
+        try:
+            details = json.loads(row["details_json"] or "{}")
+        except (TypeError, ValueError):
+            continue
+        try:
+            payload = _load_run_from_event(store, {"details": details})
+        except SpeakerReviewSuggestionError:
+            continue
+        if not _run_payload_matches_request_contract(
+            payload,
+            request=request,
+            config=config,
+        ):
+            continue
+        run_scope = dict(payload.get("scope") or {})
+        if any(
+            run_scope.get(key) != requested_scope.get(key)
+            for key in ("book_id", "from_chapter", "to_chapter", "skip_completed")
+        ):
+            continue
+        run_revisions = _text_revision_signatures(payload)
+        if run_revisions != requested_revisions:
+            continue
+        suggestions = {
+            str(item.get("unresolved_key") or ""): item
+            for item in payload.get("suggestions") or []
+        }
+        if any(
+            key not in suggestions
+            or not _suggestion_matches_current_target(
+                suggestions[key],
+                target=target,
+                run_revisions=run_revisions,
+                request_revisions=requested_revisions,
+            )
+            for key, target in current_targets.items()
+        ):
+            continue
+        projected = _clean_queue_state(db, payload)
+        projected["source_input_fingerprint"] = projected.get("input_fingerprint")
+        projected["input_fingerprint"] = request["input_fingerprint"]
+        projected["projected_from_existing_run"] = True
+        projected["scope"] = request["scope"]
+        projected["text_revisions"] = request["text_revisions"]
+        return projected
+    return None
+
+
 def _decision_events(db: Database, *, analysis_run_id: str) -> list[dict[str, Any]]:
     rows = db.fetch_all(
         """
@@ -1164,7 +1237,11 @@ def _augment_suggestions(
             proposed_name_keys.setdefault(name, []).append(str(item.get("unresolved_key") or ""))
     augmented: list[dict[str, Any]] = []
     for item in suggestions:
-        target = by_key.get(str(item["unresolved_key"])) or {}
+        target = by_key.get(str(item["unresolved_key"])) or (
+            dict(item.get("target") or {})
+            if isinstance(item.get("target"), Mapping)
+            else {}
+        )
         proposal = dict(item)
         resolution = str(proposal.get("proposed_resolution") or "")
         inherited_voice = None
@@ -1529,12 +1606,19 @@ def get_speaker_review_queue(
     )
     event = _latest_run_event(db, input_fingerprint=request["input_fingerprint"])
     if not event:
-        payload = _combined_run_from_existing_events(
+        payload = _latest_compatible_run_for_request(
             db,
             store,
             config,
             request=request,
         )
+        if not payload:
+            payload = _combined_run_from_existing_events(
+                db,
+                store,
+                config,
+                request=request,
+            )
         if payload:
             payload["schema"] = QUEUE_SCHEMA
             payload["status"] = "ready_for_human_review"

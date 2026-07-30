@@ -253,7 +253,8 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
                 "recorded_at": "2026-07-29T15:00:00+00:00",
             }
             type(self).review_history[key].append(entry)
-        type(self).mutation_count += 1
+        if command_type != "GENERATE_SPEAKER_SUGGESTIONS":
+            type(self).mutation_count += 1
         type(self).suggestions = type(self).queue()
         scope = body.get("scope") or {}
         range_scope = scope.get("range") or {}
@@ -285,6 +286,18 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
             "asynchronous_reference": None,
             "state_tokens": {"task_projection": "fixture", "preflight": None},
         }
+        if command_type == "APPROVE_SPEAKER_REVIEW_BATCH":
+            response["result_metadata"] = {
+                "requested_count": len(submitted),
+                "approved_count": len(changed),
+                "excluded_count": int(payload.get("excluded_count") or 0),
+                "failed_count": 0,
+                "decision_ids": [
+                    type(self).review_history[key][-1]["audit_event_id"]
+                    for key, _decision in changed
+                ],
+                "queue_counts": type(self).queue()["summary"],
+            }
         self.command_responses[idempotency_key] = response
         self.commands.append(body)
         return self._json(response)
@@ -324,10 +337,18 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
         self.assertTrue(evidence["ok"])
         self.assertEqual(evidence["allCardCount"], 5)
         self.assertTrue(evidence["busyVisible"])
+        self.assertTrue(evidence["characterFocus"])
+        self.assertTrue(evidence["newCharacterFocus"])
+        self.assertTrue(evidence["voiceFocus"])
+        self.assertTrue(evidence["editedDecisionSaved"])
+        self.assertTrue(evidence["reanalysisApplied"])
+        self.assertTrue(evidence["deferApplied"])
         self.assertTrue(evidence["draftsPreserved"])
         self.assertTrue(evidence["approvedMoved"])
         self.assertTrue(evidence["correctionHistoryVisible"])
         self.assertTrue(evidence["batchExcludedUnsafe"])
+        self.assertTrue(evidence["batchBusyVisible"])
+        self.assertTrue(evidence["batchResultVisible"], evidence["batchResultText"])
         self.assertTrue(evidence["unknownResponseReconciled"])
         self.assertTrue(evidence["reloadPersisted"])
         self.assertFalse(evidence["horizontalOverflow1366"])
@@ -343,6 +364,13 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
         self.assertEqual(
             SpeakerReviewWorkspaceFixtureHandler.mutation_count,
             evidence["durableMutationCount"],
+        )
+        self.assertEqual(
+            sum(
+                command["command_type"] == "APPROVE_SPEAKER_REVIEW_BATCH"
+                for command in SpeakerReviewWorkspaceFixtureHandler.commands
+            ),
+            1,
         )
 
 

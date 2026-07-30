@@ -85,6 +85,7 @@ try {
   const setSelect = (selector, value) => evaluate(`(() => { const el=document.querySelector(${JSON.stringify(selector)}); if(!el)throw new Error("Missing select"); el.value=${JSON.stringify(value)}; el.dispatchEvent(new Event("change",{bubbles:true})); return true })()`);
   const key1 = "unresolved-dialogue:1002:u0002-deadbeef0000";
   const key2 = "unresolved-dialogue:1003:u0002-feedface0000";
+  const key3 = "unresolved-dialogue:1004:u0002-cafebabe0000";
   const key4 = "unresolved-dialogue:1005:u0002-010203040506";
   const key5 = "unresolved-dialogue:1006:u0002-111213141516";
   const attr = (name, value) => `[${name}="${value}"]`;
@@ -110,12 +111,33 @@ try {
   await waitFor(`document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-name", key2))})?.value==="Edited Sentinel"`);
   const draftsPreserved = await evaluate(`document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-context", key1))})?.open && document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-context", key2))})?.open && document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-name", key2))})?.value===${JSON.stringify(beforeDraft)} && window.storyAudioAppState.bookVoiceRegistry.speakerSuggestions.filters.confidence==="HIGH"`);
 
+  await click(`${attr("data-speaker-suggestion-focus", key2)}[data-speaker-focus-target="character"]`);
+  const characterFocus = await evaluate(`document.activeElement?.matches(${JSON.stringify(attr("data-speaker-suggestion-character", key2))})`);
+  await click(`${attr("data-speaker-suggestion-focus", key2)}[data-speaker-focus-target="name"]`);
+  const newCharacterFocus = await evaluate(`document.activeElement?.matches(${JSON.stringify(attr("data-speaker-suggestion-name", key2))})`);
+  await click(`${attr("data-speaker-suggestion-focus", key2)}[data-speaker-focus-target="voice-mode"]`);
+  const voiceFocus = await evaluate(`document.activeElement?.matches(${JSON.stringify(attr("data-speaker-suggestion-voice-mode", key2))})`);
+  await setSelect(attr("data-speaker-suggestion-resolution", key2), "NEW_CHARACTER");
+  await setInput(attr("data-speaker-suggestion-name", key2), "Edited Sentinel");
+  await setSelect(attr("data-speaker-suggestion-voice-mode", key2), "exact");
+  await setSelect(attr("data-speaker-suggestion-voice", key2), "commander");
+  await click(attr("data-speaker-suggestion-save", key2));
+  await waitFor(`window.storyAudioAppState.bookVoiceRegistry.speakerSuggestions.result.suggestions.find(item=>item.unresolved_key===${JSON.stringify(key2)}).review_state==="EDITED_AND_ACCEPTED"`);
+  const editedDecisionSaved = await evaluate(`document.querySelector('[data-speaker-review-view="APPROVED"]')?.innerText.includes("1")`);
+
+  await click(attr("data-speaker-suggestion-reanalyze", key3));
+  await waitFor(`window.storyAudioAppState.productionCommand.commandType==="GENERATE_SPEAKER_SUGGESTIONS" && window.storyAudioAppState.productionCommand.status==="APPLIED"`);
+  const reanalysisApplied = await evaluate(`window.storyAudioAppState.productionCommand.status==="APPLIED"`);
+  await click(attr("data-speaker-suggestion-defer", key3));
+  await waitFor(`window.storyAudioAppState.bookVoiceRegistry.speakerSuggestions.result.suggestions.find(item=>item.unresolved_key===${JSON.stringify(key3)}).review_state==="DEFERRED"`);
+  const deferApplied = await evaluate(`window.storyAudioAppState.productionCommand.status==="APPLIED"`);
+
   await click(attr("data-speaker-suggestion-accept", key1));
   const busyVisible = await poll(async () => evaluate(`!!document.querySelector('.command-spinner') && !!document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-accept", key1))})?.disabled`), 2000);
   await waitFor(`window.storyAudioAppState.productionCommand.status==="APPLIED"`);
   await waitFor(`document.querySelector('[data-speaker-review-view="NEEDS_REVIEW"]')`);
   await click('[data-speaker-review-view="NEEDS_REVIEW"]');
-  const approvedMoved = await waitFor(`!document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key1))}) && [...document.querySelectorAll('[data-speaker-review-view]')].find(el=>el.dataset.speakerReviewView==="APPROVED")?.innerText.includes("1")`);
+  const approvedMoved = await waitFor(`!document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key1))}) && [...document.querySelectorAll('[data-speaker-review-view]')].find(el=>el.dataset.speakerReviewView==="APPROVED")?.innerText.includes("2")`);
   await click('[data-speaker-review-view="APPROVED"]');
   await waitFor(`document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key1))})`);
   await click(attr("data-speaker-suggestion-replace", key1));
@@ -129,9 +151,13 @@ try {
 
   await click('[data-speaker-review-view="NEEDS_REVIEW"]');
   await click('[data-speaker-batch-preview] > summary');
-  const batchExcludedUnsafe = await evaluate(`document.querySelector('[data-speaker-batch-preview]')?.textContent.includes(${JSON.stringify(key2)}) && document.querySelector('[data-speaker-batch-preview]')?.textContent.includes(${JSON.stringify(key4)})`);
-  await click('[data-batch-speaker-suggestions]');
+  const batchExcludedUnsafe = await evaluate(`document.querySelector('[data-speaker-batch-preview]')?.textContent.includes(${JSON.stringify(key4)})`);
+  await evaluate(`(() => { const button=document.querySelector('[data-batch-speaker-suggestions]'); button.click(); button.click(); return true })()`);
+  const batchBusyVisible = await poll(async () => evaluate(`!!document.querySelector('.command-spinner') && !!document.querySelector('[data-batch-speaker-suggestions]')?.disabled`), 2000);
   await waitFor(`window.storyAudioAppState.bookVoiceRegistry.speakerSuggestions.result.suggestions.find(item=>item.unresolved_key===${JSON.stringify(key5)}).review_state==="ACCEPTED"`);
+  await waitFor(`(() => { const text=document.querySelector('.speaker-review-durable-result')?.innerText||""; return ["Yêu cầu: 1","Đã duyệt: 1","Bị loại: 1","Thất bại: 0"].every(value=>text.includes(value)) })()`);
+  const batchResultText = await evaluate(`document.querySelector('.speaker-review-durable-result')?.innerText||""`);
+  const batchResultVisible = ["Yêu cầu: 1", "Đã duyệt: 1", "Bị loại: 1", "Thất bại: 0"].every(value => batchResultText.includes(value));
 
   await evaluate(`(() => { const original=postProductionCommand; let lost=true; postProductionCommand=async(request,token=null)=>{const response=await original(request,token);if(lost&&request.command_type==="MARK_SPEAKER_SUGGESTION_UNCERTAIN"){lost=false;throw new Error("simulated response loss after apply")}return response}; return true })()`);
   await click(attr("data-speaker-suggestion-uncertain", key4));
@@ -143,7 +169,7 @@ try {
   await waitFor(`window.storyAudioAppState && document.querySelector('[data-speaker-review-workspace]')`, 20000);
   await waitFor(`document.querySelectorAll('[data-speaker-review-view]').length===7`, 20000);
   await click('[data-speaker-review-view="APPROVED"]');
-  const reloadPersisted = await waitFor(`document.querySelectorAll('[data-speaker-suggestion-card]').length===2 && document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key1))})?.innerText.includes("Đã thay thế quyết định")`);
+  const reloadPersisted = await waitFor(`document.querySelectorAll('[data-speaker-suggestion-card]').length===3 && document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key1))})?.innerText.includes("Đã thay thế quyết định")`);
   const horizontalOverflow1366 = await evaluate(`document.documentElement.scrollWidth>innerWidth+1`);
   await send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   const horizontalOverflow1920 = await evaluate(`document.documentElement.scrollWidth>innerWidth+1`);
@@ -153,10 +179,19 @@ try {
     ok: defaultView && labelsReadable,
     allCardCount,
     busyVisible: !!busyVisible,
+    characterFocus,
+    newCharacterFocus,
+    voiceFocus,
+    editedDecisionSaved,
+    reanalysisApplied,
+    deferApplied,
     draftsPreserved: !!draftsPreserved,
     approvedMoved: !!approvedMoved,
     correctionHistoryVisible,
     batchExcludedUnsafe,
+    batchBusyVisible: !!batchBusyVisible,
+    batchResultText,
+    batchResultVisible,
     unknownResponseReconciled,
     reloadPersisted: !!reloadPersisted,
     horizontalOverflow1366,
