@@ -1136,7 +1136,93 @@ def _clean_queue_state(db: Database, payload: dict[str, Any]) -> dict[str, Any]:
         item["review_history"] = history
     summary = _queue_summary(payload.get("suggestions") or [])
     payload["summary"] = {**dict(payload.get("summary") or {}), **summary}
+    payload["latest_batch_result"] = _latest_durable_batch_result(
+        payload.get("suggestions") or []
+    )
     return payload
+
+
+def _latest_durable_batch_result(
+    suggestions: list[Mapping[str, Any]],
+) -> dict[str, Any] | None:
+    """Reconstruct the last atomic batch result from immutable row decisions."""
+
+    groups: dict[str, dict[str, Any]] = {}
+    for item in suggestions:
+        if str(item.get("review_state") or "").upper() not in APPROVED_STATES:
+            continue
+        review = item.get("human_review")
+        if not isinstance(review, Mapping):
+            continue
+        idempotency_key = str(review.get("idempotency_key") or "")
+        if not idempotency_key.startswith("production-"):
+            continue
+        unresolved_key = str(item.get("unresolved_key") or "")
+        source_run_id = str(
+            item.get("source_analysis_run_id")
+            or item.get("analysis_run_id")
+            or ""
+        )
+        suffixes = [
+            f":{source_run_id}:{unresolved_key}" if source_run_id else "",
+            f":{unresolved_key}",
+        ]
+        batch_key = next(
+            (
+                idempotency_key[: -len(suffix)]
+                for suffix in suffixes
+                if suffix and idempotency_key.endswith(suffix)
+            ),
+            "",
+        )
+        if not batch_key:
+            continue
+        audit_event_id = int(review.get("audit_event_id") or 0)
+        group = groups.setdefault(
+            batch_key,
+            {
+                "idempotency_key": batch_key,
+                "decision_ids": [],
+                "item_keys": set(),
+                "source_analysis_run_ids": set(),
+                "latest_audit_event_id": 0,
+            },
+        )
+        group["decision_ids"].append(audit_event_id)
+        group["item_keys"].add(unresolved_key)
+        if source_run_id:
+            group["source_analysis_run_ids"].add(source_run_id)
+        group["latest_audit_event_id"] = max(
+            int(group["latest_audit_event_id"]),
+            audit_event_id,
+        )
+    if not groups:
+        return None
+    latest = max(
+        groups.values(),
+        key=lambda item: int(item["latest_audit_event_id"]),
+    )
+    approved_count = len(latest["item_keys"])
+    return {
+        "command_id": (
+            "pc-"
+            + sha256_text(
+                "APPROVE_SPEAKER_REVIEW_BATCH"
+                + "\0"
+                + str(latest["idempotency_key"])
+            )[:24]
+        ),
+        "idempotency_key": latest["idempotency_key"],
+        "requested_count": approved_count,
+        "approved_count": approved_count,
+        "excluded_count": max(0, len(suggestions) - approved_count),
+        "failed_count": 0,
+        "decision_ids": sorted(
+            value for value in latest["decision_ids"] if int(value) > 0
+        ),
+        "source_analysis_run_ids": sorted(latest["source_analysis_run_ids"]),
+        "latest_audit_event_id": int(latest["latest_audit_event_id"]),
+    }
 
 
 def _queue_summary(suggestions: list[Mapping[str, Any]]) -> dict[str, Any]:

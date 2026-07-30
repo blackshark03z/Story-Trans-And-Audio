@@ -168,6 +168,12 @@ try {
   await send("Page.reload", { ignoreCache: true });
   await waitFor(`window.storyAudioAppState && document.querySelector('[data-speaker-review-workspace]')`, 20000);
   await waitFor(`document.querySelectorAll('[data-speaker-review-view]').length===7`, 20000);
+  await waitFor(
+    `document.querySelector('.speaker-review-durable-result')?.innerText===${JSON.stringify(batchResultText)}`,
+    20000,
+  );
+  const batchResultReloadedText = await evaluate(`document.querySelector('.speaker-review-durable-result')?.innerText||""`);
+  const batchResultReloaded = batchResultReloadedText === batchResultText;
   await click('[data-speaker-review-view="APPROVED"]');
   const reloadPersisted = await waitFor(`document.querySelectorAll('[data-speaker-suggestion-card]').length===3 && document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key1))})?.innerText.includes("Đã thay thế quyết định")`);
   const horizontalOverflow1366 = await evaluate(`document.documentElement.scrollWidth>innerWidth+1`);
@@ -192,6 +198,8 @@ try {
     batchBusyVisible: !!batchBusyVisible,
     batchResultText,
     batchResultVisible,
+    batchResultReloadedText,
+    batchResultReloaded,
     unknownResponseReconciled,
     reloadPersisted: !!reloadPersisted,
     horizontalOverflow1366,

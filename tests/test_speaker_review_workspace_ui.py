@@ -85,6 +85,8 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
 
     def test_batch_preview_excludes_unsaved_or_unsafe_items_and_never_renders(self) -> None:
         self.assertIn("speakerReviewBatchImpact", self.js)
+        self.assertIn("speakerReviewDurableBatchResult", self.js)
+        self.assertIn("latest_batch_result", self.js)
         self.assertIn("unsaved_human_edit", self.js)
         self.assertIn("approval_exclusion_reasons", self.js)
         self.assertIn("Không PREPARE và không render", self.js)

@@ -32,6 +32,7 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
     review_states: dict[str, str] = {}
     review_history: dict[str, list[dict]] = {}
     mutation_count = 0
+    last_batch_result: dict | None = None
 
     @classmethod
     def reset(cls) -> None:
@@ -41,6 +42,7 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
         }
         cls.review_history = {key: [] for key in cls.unresolved_targets}
         cls.mutation_count = 0
+        cls.last_batch_result = None
         cls.suggestions = cls.queue()
 
     @classmethod
@@ -140,6 +142,7 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
             ],
             "target_count": len(suggestions),
             "suggestions": suggestions,
+            "latest_batch_result": cls.last_batch_result,
             "summary": {
                 "total": len(suggestions),
                 "analyzed": len(suggestions),
@@ -255,6 +258,20 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
             type(self).review_history[key].append(entry)
         if command_type != "GENERATE_SPEAKER_SUGGESTIONS":
             type(self).mutation_count += 1
+        if command_type == "APPROVE_SPEAKER_REVIEW_BATCH":
+            type(self).last_batch_result = {
+                "command_id": f"fixture-{idempotency_key}",
+                "idempotency_key": idempotency_key,
+                "requested_count": len(submitted),
+                "approved_count": len(changed),
+                "excluded_count": int(payload.get("excluded_count") or 0),
+                "failed_count": 0,
+                "decision_ids": [
+                    type(self).review_history[key][-1]["audit_event_id"]
+                    for key, _decision in changed
+                ],
+                "source_analysis_run_ids": ["fixture-review-run"],
+            }
         type(self).suggestions = type(self).queue()
         scope = body.get("scope") or {}
         range_scope = scope.get("range") or {}
@@ -349,6 +366,10 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
         self.assertTrue(evidence["batchExcludedUnsafe"])
         self.assertTrue(evidence["batchBusyVisible"])
         self.assertTrue(evidence["batchResultVisible"], evidence["batchResultText"])
+        self.assertTrue(
+            evidence["batchResultReloaded"],
+            evidence["batchResultReloadedText"],
+        )
         self.assertTrue(evidence["unknownResponseReconciled"])
         self.assertTrue(evidence["reloadPersisted"])
         self.assertFalse(evidence["horizontalOverflow1366"])

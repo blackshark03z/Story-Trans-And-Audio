@@ -587,6 +587,291 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
         )
         self.assertIsNotNone(reviewed["review_audit_event_id"])
 
+    def test_canonical_shaped_queue_projects_21_approved_and_9_pending(self) -> None:
+        now = utcnow()
+        with self.db.transaction() as connection:
+            book_id = int(
+                connection.execute(
+                    """
+                    INSERT INTO books(
+                        title,source_path,source_sha256,chapter_count,created_at,updated_at
+                    )
+                    VALUES(?,?,?,?,?,?)
+                    """,
+                    (
+                        "Canonical History Fixture",
+                        "canonical-history.epub",
+                        "canonical-history-sha",
+                        10,
+                        now,
+                        now,
+                    ),
+                ).lastrowid
+            )
+        set_book_voice_profile(
+            self.db,
+            book_id,
+            narrator_voice_id="narrator",
+            male_dialogue_voice_id="male",
+            female_dialogue_voice_id="female",
+            unknown_fallback="narrator",
+            unknown_voice_id=None,
+            allowed_voice_ids=ALL_VOICES,
+        )
+        commander = create_character(
+            self.db,
+            book_id,
+            "Canonical Commander",
+            None,
+        )
+        set_character_voice_override(
+            self.db,
+            int(commander["id"]),
+            "commander",
+            allowed_voice_ids=ALL_VOICES,
+        )
+
+        for number in range(1, 11):
+            text = (
+                "Completed chapter."
+                if number == 1
+                else (
+                    "Opening narration.\n"
+                    + "\n".join(
+                        f'- "Canonical command {index}."' for index in range(1, 31)
+                    )
+                    if number == 2
+                    else f"Chapter {number} has narration only."
+                )
+            )
+            content_path, content_sha = self.store.put_text(text)
+            with self.db.transaction() as connection:
+                chapter_id = int(
+                    connection.execute(
+                        """
+                        INSERT INTO chapters(
+                            book_id,chapter_number,title,char_count,audio_status,
+                            created_at,updated_at
+                        )
+                        VALUES(?,?,?,?,?,?,?)
+                        """,
+                        (
+                            book_id,
+                            number,
+                            f"Canonical Chapter {number}",
+                            len(text),
+                            "completed" if number == 1 else "not_created",
+                            now,
+                            now,
+                        ),
+                    ).lastrowid
+                )
+                revision_id = int(
+                    connection.execute(
+                        """
+                        INSERT INTO text_revisions(
+                            chapter_id,kind,content_path,content_sha256,lexical_sha256,
+                            char_count,processor_version,status,created_at
+                        )
+                        VALUES(?,?,?,?,?,?,?,?,?)
+                        """,
+                        (
+                            chapter_id,
+                            "reflowed",
+                            content_path,
+                            content_sha,
+                            f"canonical-lexical-{number}",
+                            len(text),
+                            "test",
+                            "approved",
+                            now,
+                        ),
+                    ).lastrowid
+                )
+                connection.execute(
+                    "UPDATE chapters SET active_text_revision_id=? WHERE id=?",
+                    (revision_id, chapter_id),
+                )
+            utterances = split_utterances(text)
+            draft = create_casting_draft(
+                self.db,
+                self.store,
+                chapter_id=chapter_id,
+                text_revision_id=revision_id,
+                narrator_voice_id="narrator",
+                assignments=[
+                    {
+                        "utterance_id": utterance["utterance_id"],
+                        "role": "narrator",
+                        "character_id": None,
+                    }
+                    for utterance in utterances
+                ],
+                allowed_voice_ids=ALL_VOICES,
+            )
+            approve_plan(self.db, self.store, int(draft["id"]))
+
+        registry = get_book_voice_registry(
+            self.db,
+            self.store,
+            self.config,
+            book_id=book_id,
+            from_chapter=1,
+            to_chapter=10,
+            skip_completed=True,
+            voice_catalog=_catalog(),
+        )
+        unresolved_keys = [
+            row["speaker_key"]
+            for row in registry["rows"]
+            if row["status"] == "UNRESOLVED_DIALOGUE"
+        ]
+        self.assertEqual(len(unresolved_keys), 30)
+
+        def canonical_provider(**kwargs: Any) -> dict[str, Any]:
+            request_data = kwargs["request_data"]
+            suggestions = []
+            for index, target in enumerate(request_data["targets"]):
+                suggestion = {
+                    **self._suggestion(
+                        str(target["unresolved_key"]),
+                        int(target["chapter_number"]),
+                        0,
+                    ),
+                    "confidence": "HIGH",
+                    "confidence_score": 0.95,
+                }
+                if index < 19:
+                    suggestion["existing_character_id"] = int(commander["id"])
+                else:
+                    suggestion.update(
+                        {
+                            "proposed_resolution": "NEW_CHARACTER",
+                            "existing_character_id": None,
+                            "proposed_character_name": f"Canonical New Character {index}",
+                            "proposed_aliases": [],
+                            "proposed_voice_handling": "USE_BOOK_DEFAULT",
+                        }
+                    )
+                suggestions.append(suggestion)
+            return {
+                "response": {
+                    "schema": "story-audio-gemini-speaker-review-suggestions/v1",
+                    "suggestions": suggestions,
+                }
+            }
+
+        run = generate_speaker_review_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=book_id,
+            from_chapter=1,
+            to_chapter=10,
+            skip_completed=True,
+            registry=registry,
+            voice_catalog=_catalog(),
+            unresolved_keys=unresolved_keys,
+            provider=canonical_provider,
+            idempotency_key="speaker-review-canonical-history-run",
+        )
+        approved_keys = unresolved_keys[:21]
+        approval = approve_speaker_review_batch_items(
+            self.db,
+            self.store,
+            self.config,
+            book_id=book_id,
+            from_chapter=1,
+            to_chapter=10,
+            items=[
+                {
+                    "analysis_run_id": run["analysis_run_id"],
+                    "unresolved_key": key,
+                }
+                for key in approved_keys
+            ],
+            voice_catalog=_catalog(),
+            idempotency_key="production-canonical-history-batch",
+        )
+        self.assertEqual(approval["submitted_count"], 21)
+
+        refreshed_registry = get_book_voice_registry(
+            self.db,
+            self.store,
+            self.config,
+            book_id=book_id,
+            from_chapter=1,
+            to_chapter=10,
+            skip_completed=True,
+            voice_catalog=_catalog(),
+        )
+        remaining_keys = [
+            row["speaker_key"]
+            for row in refreshed_registry["rows"]
+            if row["status"] == "UNRESOLVED_DIALOGUE"
+        ]
+        self.assertEqual(len(remaining_keys), 9)
+
+        queue = get_speaker_review_queue(
+            self.db,
+            self.store,
+            self.config,
+            book_id=book_id,
+            from_chapter=1,
+            to_chapter=10,
+            skip_completed=True,
+            registry=refreshed_registry,
+            voice_catalog=_catalog(),
+        )
+
+        self.assertTrue(queue["projected_from_existing_run"])
+        self.assertEqual(queue["summary"]["pending_review"], 9)
+        self.assertEqual(queue["summary"]["approved"], 21)
+        self.assertEqual(queue["summary"]["total"], 30)
+        self.assertEqual(queue["summary"]["queue_views"]["NEEDS_REVIEW"]["count"], 9)
+        self.assertEqual(queue["summary"]["queue_views"]["APPROVED"]["count"], 21)
+        self.assertEqual(queue["summary"]["queue_views"]["ALL"]["count"], 30)
+        self.assertEqual(
+            {
+                key: queue["latest_batch_result"][key]
+                for key in (
+                    "requested_count",
+                    "approved_count",
+                    "excluded_count",
+                    "failed_count",
+                )
+            },
+            {
+                "requested_count": 21,
+                "approved_count": 21,
+                "excluded_count": 9,
+                "failed_count": 0,
+            },
+        )
+        self.assertEqual(len(queue["latest_batch_result"]["decision_ids"]), 21)
+        approved = [
+            item for item in queue["suggestions"] if item["review_state"] == "ACCEPTED"
+        ]
+        self.assertEqual(len(approved), 21)
+        self.assertTrue(
+            any(
+                int((item["human_review"]["resulting_mapping"] or {}).get("character_id") or 0)
+                == int(commander["id"])
+                for item in approved
+            )
+        )
+        self.assertTrue(
+            any(
+                (item["human_review"]["resulting_mapping"] or {}).get(
+                    "created_character"
+                )
+                for item in approved
+            )
+        )
+        self.assertTrue(
+            all(item["source_analysis_run_id"] == run["analysis_run_id"] for item in approved)
+        )
+
     def test_legacy_batch_rollback_error_remains_history_but_not_effective(self) -> None:
         registry = self._registry()
         key = next(
