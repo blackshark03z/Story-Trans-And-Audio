@@ -5,6 +5,14 @@ from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 from .casting import CHUNKER_VERSION, split_utterances
+from .background_speakers import (
+    BACKGROUND_GROUPS,
+    background_group_spec,
+    ensure_background_group_character,
+    find_background_group_character,
+    normalize_generic_speaker_label,
+    resolve_background_group_voice,
+)
 from .chapter_voice_overrides import apply_chapter_voice_override
 from .character_assignment import (
     UNRESOLVED_DIALOGUE_STATUS,
@@ -37,15 +45,25 @@ ANALYSIS_EVENT = "speaker_review_analysis_generated"
 ANALYSIS_FAILED_EVENT = "speaker_review_analysis_failed"
 DECISION_EVENT = "speaker_review_suggestion_reviewed"
 NOTE_EVENT = "speaker_review_suggestion_noted"
-PROMPT_VERSION = "speaker-review-suggestions-v1"
+PROMPT_VERSION = "speaker-review-suggestions-v2"
+LEGACY_PROMPT_VERSION = "speaker-review-suggestions-v1"
 GENERATION_SETTINGS = {"temperature": 0, "response_mime_type": "application/json"}
 RESOLUTIONS = {
     "EXISTING_CHARACTER",
     "NEW_CHARACTER",
+    "BACKGROUND_GROUP",
     "NARRATOR",
     "UNKNOWN_SPEAKER",
     "NEEDS_HUMAN_DECISION",
 }
+SPEAKER_CLASSIFICATIONS = {
+    "NAMED_CHARACTER",
+    "RECURRING_MINOR_CHARACTER",
+    "BACKGROUND_GROUP",
+    "NARRATOR",
+    "NEEDS_HUMAN_DECISION",
+}
+GENDER_HINTS = set(BACKGROUND_GROUPS)
 VOICE_HANDLING = {
     "INHERIT_EXISTING_CONFIGURATION",
     "USE_BOOK_DEFAULT",
@@ -157,6 +175,22 @@ def _characters_by_id(registry: Mapping[str, Any]) -> dict[int, dict[str, Any]]:
         for item in registry.get("characters") or []
         if isinstance(item, Mapping) and item.get("id") is not None
     }
+
+
+def _bound_character_identities(registry: Mapping[str, Any]) -> set[str]:
+    identities: set[str] = set()
+    for item in registry.get("characters") or []:
+        if not isinstance(item, Mapping):
+            continue
+        for value in (
+            item.get("display_name"),
+            item.get("canonical_name"),
+            *(item.get("aliases") or []),
+        ):
+            normalized = normalize_identity(str(value or ""))
+            if normalized:
+                identities.add(normalized)
+    return identities
 
 
 def _character_voice(
@@ -486,6 +520,14 @@ def _validate_alternatives(value: Any, allowed_character_ids: set[int]) -> list[
     return alternatives
 
 
+def _legacy_classification(resolution: str) -> str:
+    return {
+        "EXISTING_CHARACTER": "NAMED_CHARACTER",
+        "NEW_CHARACTER": "RECURRING_MINOR_CHARACTER",
+        "NARRATOR": "NARRATOR",
+    }.get(resolution, "NEEDS_HUMAN_DECISION")
+
+
 def validate_speaker_review_response(
     payload: Mapping[str, Any],
     *,
@@ -513,7 +555,7 @@ def validate_speaker_review_response(
     for item in raw_suggestions:
         if not isinstance(item, Mapping):
             raise SpeakerReviewSuggestionError("Suggestion item is invalid")
-        required = {
+        legacy_fields = {
             "unresolved_key",
             "chapter_number",
             "proposed_resolution",
@@ -531,7 +573,19 @@ def validate_speaker_review_response(
             "voice_rationale",
             "warnings",
         }
-        if set(item) != required:
+        classification_fields = {
+            "speaker_classification",
+            "gender_hint",
+            "grouping_reason",
+            "generic_speaker_evidence",
+            "continuity_required",
+            "continuity_evidence",
+        }
+        item_fields = frozenset(item)
+        if item_fields not in {
+            frozenset(legacy_fields),
+            frozenset(legacy_fields | classification_fields),
+        }:
             raise SpeakerReviewSuggestionError("Suggestion fields are invalid")
         unresolved_key = str(item.get("unresolved_key") or "").strip()
         if unresolved_key not in target_set or unresolved_key in seen:
@@ -547,6 +601,47 @@ def validate_speaker_review_response(
         resolution = str(item.get("proposed_resolution") or "").strip().upper()
         if resolution not in RESOLUTIONS:
             raise SpeakerReviewSuggestionError("Suggestion resolution is invalid")
+        classification = str(
+            item.get("speaker_classification") or _legacy_classification(resolution)
+        ).strip().upper()
+        if classification not in SPEAKER_CLASSIFICATIONS:
+            raise SpeakerReviewSuggestionError("Speaker classification is invalid")
+        gender_hint = str(
+            item.get("gender_hint") or "NEUTRAL_OR_UNKNOWN"
+        ).strip().upper()
+        if gender_hint not in GENDER_HINTS:
+            raise SpeakerReviewSuggestionError("Speaker gender hint is invalid")
+        continuity_required = item.get("continuity_required", False)
+        if not isinstance(continuity_required, bool):
+            raise SpeakerReviewSuggestionError("continuity_required must be boolean")
+        grouping_reason = _optional_string(item.get("grouping_reason"), maximum=500) or ""
+        generic_evidence = (
+            _optional_string(item.get("generic_speaker_evidence"), maximum=500) or ""
+        )
+        continuity_evidence = (
+            _optional_string(item.get("continuity_evidence"), maximum=500) or ""
+        )
+        if resolution == "BACKGROUND_GROUP":
+            if classification != "BACKGROUND_GROUP":
+                raise SpeakerReviewSuggestionError(
+                    "Background group resolution requires BACKGROUND_GROUP classification"
+                )
+            if not grouping_reason or not generic_evidence or not continuity_evidence:
+                raise SpeakerReviewSuggestionError(
+                    "Background group evidence fields are required"
+                )
+            if continuity_required:
+                raise SpeakerReviewSuggestionError(
+                    "Background group cannot require identity continuity"
+                )
+        elif classification == "BACKGROUND_GROUP":
+            raise SpeakerReviewSuggestionError(
+                "BACKGROUND_GROUP classification requires background group resolution"
+            )
+        elif classification == "NARRATOR" and resolution != "NARRATOR":
+            raise SpeakerReviewSuggestionError(
+                "Narrator classification does not match resolution"
+            )
         existing_character_id = item.get("existing_character_id")
         warnings = _string_list(item.get("warnings"), field="warnings", maximum=8)
         if resolution == "EXISTING_CHARACTER":
@@ -591,6 +686,12 @@ def validate_speaker_review_response(
                 "unresolved_key": unresolved_key,
                 "chapter_number": int(chapter_number),
                 "proposed_resolution": resolution,
+                "speaker_classification": classification,
+                "gender_hint": gender_hint,
+                "grouping_reason": grouping_reason,
+                "generic_speaker_evidence": generic_evidence,
+                "continuity_required": continuity_required,
+                "continuity_evidence": continuity_evidence,
                 "existing_character_id": (
                     int(existing_character_id) if resolution == "EXISTING_CHARACTER" else None
                 ),
@@ -694,7 +795,10 @@ def _run_payload_matches_request_contract(
         return False
     if str(payload.get("suggestion_schema") or "") != SUGGESTION_SCHEMA:
         return False
-    if str(payload.get("prompt_version") or "") != PROMPT_VERSION:
+    if str(payload.get("prompt_version") or "") not in {
+        PROMPT_VERSION,
+        LEGACY_PROMPT_VERSION,
+    }:
         return False
     if str(payload.get("model_id") or "") != str(config.gemini_model):
         return False
@@ -734,6 +838,9 @@ def _strip_runtime_projection_fields(suggestion: Mapping[str, Any]) -> dict[str,
         "effective_voice_source",
         "suggested_voice",
         "possible_duplicates",
+        "background_group",
+        "generic_name_signal",
+        "approval_exclusion_reasons",
         "approval_eligible",
     }
     return {key: value for key, value in dict(suggestion).items() if key not in runtime_fields}
@@ -859,6 +966,7 @@ def _latest_compatible_run_for_request(
     config: Settings,
     *,
     request: Mapping[str, Any],
+    minimum_suggestion_count: int = 0,
 ) -> dict[str, Any] | None:
     """Project a prior full queue when accepted mappings remove current targets."""
 
@@ -905,6 +1013,8 @@ def _latest_compatible_run_for_request(
             str(item.get("unresolved_key") or ""): item
             for item in payload.get("suggestions") or []
         }
+        if len(suggestions) < int(minimum_suggestion_count):
+            continue
         if any(
             key not in suggestions
             or not _suggestion_matches_current_target(
@@ -924,6 +1034,61 @@ def _latest_compatible_run_for_request(
         projected["text_revisions"] = request["text_revisions"]
         return projected
     return None
+
+
+def _merge_approved_history(
+    current: dict[str, Any],
+    history: Mapping[str, Any] | None,
+) -> dict[str, Any]:
+    """Keep a partial replacement run authoritative without losing approvals."""
+
+    if not history:
+        return current
+    current_run_id = str(current.get("analysis_run_id") or "")
+    current_items: list[dict[str, Any]] = []
+    current_keys: set[str] = set()
+    for raw in current.get("suggestions") or []:
+        item = dict(raw)
+        key = str(item.get("unresolved_key") or "")
+        if not key:
+            continue
+        item.setdefault("source_analysis_run_id", current_run_id)
+        current_items.append(item)
+        current_keys.add(key)
+    approved_history: list[dict[str, Any]] = []
+    history_run_id = str(history.get("analysis_run_id") or "")
+    for raw in history.get("suggestions") or []:
+        if str(raw.get("review_state") or "").upper() not in APPROVED_STATES:
+            continue
+        key = str(raw.get("unresolved_key") or "")
+        if not key or key in current_keys:
+            continue
+        item = dict(raw)
+        item.setdefault(
+            "source_analysis_run_id",
+            str(item.get("source_analysis_run_id") or history_run_id),
+        )
+        approved_history.append(item)
+    if not approved_history:
+        return current
+    merged = dict(current)
+    merged["suggestions"] = sorted(
+        [*current_items, *approved_history],
+        key=lambda item: (
+            int(
+                item.get("chapter_number")
+                or (item.get("target") or {}).get("chapter_number")
+                or 0
+            ),
+            int((item.get("target") or {}).get("sequence") or 0),
+            str(item.get("unresolved_key") or ""),
+        ),
+    )
+    merged["approved_history_merged"] = True
+    merged["approved_history_source_run_id"] = history_run_id
+    if history.get("latest_batch_result"):
+        merged["latest_batch_result"] = dict(history["latest_batch_result"])
+    return merged
 
 
 def _decision_events(db: Database, *, analysis_run_id: str) -> list[dict[str, Any]]:
@@ -1233,6 +1398,10 @@ def _queue_summary(suggestions: list[Mapping[str, Any]]) -> dict[str, Any]:
         "low_confidence": 0,
         "existing_character_matches": 0,
         "proposed_new_characters": 0,
+        "background_groups": 0,
+        "background_group_male": 0,
+        "background_group_female": 0,
+        "background_group_neutral": 0,
         "narrator_proposals": 0,
         "still_unresolved": 0,
         "inherited_voice": 0,
@@ -1254,6 +1423,15 @@ def _queue_summary(suggestions: list[Mapping[str, Any]]) -> dict[str, Any]:
             counts["existing_character_matches"] += 1
         elif resolution == "NEW_CHARACTER":
             counts["proposed_new_characters"] += 1
+        elif resolution == "BACKGROUND_GROUP":
+            counts["background_groups"] += 1
+            gender_hint = str(item.get("gender_hint") or "").upper()
+            if gender_hint == "MALE":
+                counts["background_group_male"] += 1
+            elif gender_hint == "FEMALE":
+                counts["background_group_female"] += 1
+            else:
+                counts["background_group_neutral"] += 1
         elif resolution == "NARRATOR":
             counts["narrator_proposals"] += 1
         elif resolution in {"UNKNOWN_SPEAKER", "NEEDS_HUMAN_DECISION"}:
@@ -1310,6 +1488,7 @@ def _augment_suggestions(
     book_profile = dict(request["voice_configuration"].get("book_voice_profile") or {})
     by_key = {item["unresolved_key"]: item for item in request["targets"]}
     characters = _characters_by_id(registry)
+    bound_identities = _bound_character_identities(registry)
     current_revision_by_chapter = {
         int(item.get("chapter_number") or 0): int(item.get("text_revision_id") or 0)
         for item in request.get("text_revisions") or []
@@ -1330,6 +1509,19 @@ def _augment_suggestions(
         )
         proposal = dict(item)
         resolution = str(proposal.get("proposed_resolution") or "")
+        proposal.setdefault(
+            "speaker_classification",
+            _legacy_classification(resolution),
+        )
+        proposal.setdefault("gender_hint", "NEUTRAL_OR_UNKNOWN")
+        proposal.setdefault("grouping_reason", "")
+        proposal.setdefault("generic_speaker_evidence", "")
+        proposal.setdefault("continuity_required", False)
+        proposal.setdefault("continuity_evidence", "")
+        generic_signal = normalize_generic_speaker_label(
+            proposal.get("proposed_character_name"),
+            bound_identities=bound_identities,
+        )
         inherited_voice = None
         voice_source = "Chưa có giọng"
         if resolution == "EXISTING_CHARACTER" and proposal.get("existing_character_id") is not None:
@@ -1344,6 +1536,45 @@ def _augment_suggestions(
         elif resolution == "NARRATOR":
             inherited_voice = _narrator_voice(book_profile=book_profile, catalog=voice_catalog)
             voice_source = "Mặc định của sách"
+        elif resolution == "BACKGROUND_GROUP":
+            gender_hint = str(proposal.get("gender_hint") or "").upper()
+            with db.connect() as connection:
+                group_character = find_background_group_character(
+                    connection,
+                    book_id=int(request["book"]["id"]),
+                    gender_hint=gender_hint,
+                )
+            registry_row = next(
+                (
+                    row
+                    for row in registry.get("rows") or []
+                    if isinstance(row, Mapping)
+                    and group_character
+                    and str(row.get("speaker_key"))
+                    == f"character:{int(group_character['id'])}"
+                ),
+                None,
+            )
+            if registry_row and str(registry_row.get("assignment_source")) in {
+                "chapter override",
+                "range override",
+            }:
+                inherited_voice = dict(registry_row.get("effective_voice") or {}) or None
+                voice_source = str(registry_row.get("assignment_source"))
+            else:
+                inherited_voice, voice_source = resolve_background_group_voice(
+                    gender_hint=gender_hint,
+                    book_profile=book_profile,
+                    catalog=voice_catalog,
+                    group_character=group_character,
+                )
+            proposal["background_group"] = {
+                **background_group_spec(gender_hint),
+                "character_id": (
+                    int(group_character["id"]) if group_character else None
+                ),
+                "exists": bool(group_character),
+            }
         suggested_voice = _voice_payload(proposal.get("suggested_voice_id"), voice_catalog)
         duplicate_candidates = (
             _duplicate_candidates(
@@ -1357,9 +1588,18 @@ def _augment_suggestions(
         proposal_warnings = list(proposal.get("warnings") or [])
         name_key = normalize_identity(str(proposal.get("proposed_character_name") or ""))
         if resolution == "NEW_CHARACTER" and name_key and len(proposed_name_keys.get(name_key, [])) > 1:
-            proposal_warnings.append(
-                "Đề xuất tên nhân vật lặp trong cùng phạm vi; cần gộp hoặc chọn nhân vật có sẵn."
-            )
+            if generic_signal["is_generic_candidate"]:
+                group = background_group_spec(str(generic_signal["gender_hint"]))
+                proposal_warnings.append(
+                    "Mô tả người nói chung bị lặp; ưu tiên "
+                    f"{group['display_name']} thay vì tạo Character trùng tên. "
+                    "Mỗi dòng nguồn vẫn được lưu dấu riêng."
+                )
+            else:
+                proposal_warnings.append(
+                    "Đề xuất tên nhân vật lặp trong cùng phạm vi; cần gộp hoặc "
+                    "chọn nhân vật có sẵn."
+                )
         if duplicate_candidates:
             proposal_warnings = [
                 *proposal_warnings,
@@ -1432,6 +1672,7 @@ def _augment_suggestions(
                 "effective_voice_source": voice_source,
                 "suggested_voice": suggested_voice,
                 "possible_duplicates": duplicate_candidates,
+                "generic_name_signal": generic_signal,
                 "review_state": proposal.get("review_state") or "PENDING_REVIEW",
                 "source_revision_current": source_revision_current,
                 "downstream_immutable_exists": has_downstream,
@@ -1743,6 +1984,14 @@ def get_speaker_review_queue(
         }
     payload = _load_run_from_event(store, event)
     payload = _clean_queue_state(db, payload)
+    history = _latest_compatible_run_for_request(
+        db,
+        store,
+        config,
+        request=request,
+        minimum_suggestion_count=len(payload.get("suggestions") or []) + 1,
+    )
+    payload = _merge_approved_history(payload, history)
     payload["schema"] = QUEUE_SCHEMA
     payload["status"] = "ready_for_human_review"
     payload["suggestions"] = _augment_suggestions(
@@ -2113,8 +2362,12 @@ def accept_speaker_review_suggestion(
         else None
     )
     voice_scope = str(reviewer_payload.get("voice_scope") or "chapter").strip().lower()
-    if voice_scope not in {"chapter", "range"}:
+    if voice_scope not in {"book", "chapter", "range"}:
         raise SpeakerReviewSuggestionError("Unsupported voice correction scope")
+    if voice_scope == "book" and resolution != "BACKGROUND_GROUP":
+        raise SpeakerReviewSuggestionError(
+            "Book-level voice correction is limited to reusable background groups"
+        )
     voice_operation = (
         "set"
         if voice_mode in {"exact", "override", "set"}
@@ -2181,6 +2434,75 @@ def accept_speaker_review_suggestion(
             voice_id=requested_voice,
         )
         applied["created_character"] = created
+    elif resolution == "BACKGROUND_GROUP":
+        gender_hint = str(
+            reviewer_payload.get("gender_hint")
+            or suggestion.get("gender_hint")
+            or ""
+        ).upper()
+        if bool(
+            reviewer_payload.get(
+                "continuity_required",
+                suggestion.get("continuity_required"),
+            )
+        ):
+            raise SpeakerReviewSuggestionError(
+                "A speaker requiring identity continuity cannot use a background group"
+            )
+        group = ensure_background_group_character(
+            connection,
+            book_id=book_id,
+            gender_hint=gender_hint,
+            idempotency_key=f"{idempotency_key}:background-group",
+        )
+        character_id = int(group["character"]["id"])
+        final_speaker_key = f"character:{character_id}"
+        if voice_scope == "book" and voice_change_requested:
+            if requested_voice and requested_voice not in voice_catalog.selectable_ids:
+                raise SpeakerReviewSuggestionError(
+                    "Selected background group voice is unavailable"
+                )
+            connection.execute(
+                """
+                UPDATE characters
+                SET voice_override_id=?,default_voice_id=?,updated_at=?
+                WHERE id=? AND book_id=? AND active=1
+                """,
+                (
+                    requested_voice,
+                    requested_voice or "",
+                    utcnow(),
+                    character_id,
+                    book_id,
+                ),
+            )
+        applied = apply_speaker_character_mapping(
+            db,
+            store,
+            book_id=book_id,
+            from_chapter=from_chapter,
+            to_chapter=to_chapter,
+            speaker_key=unresolved_key,
+            character_id=character_id,
+            aliases=[],
+            voice_catalog=voice_catalog,
+            idempotency_key=f"{idempotency_key}:mapping",
+            custom_voice_context=custom_voice_context,
+            connection=connection,
+            voice_operation=(
+                "preserve" if voice_scope == "book" else voice_operation
+            ),
+            voice_id=(
+                None if voice_scope == "book" else requested_voice
+            ),
+        )
+        applied["background_group"] = {
+            **group,
+            "gender_hint": gender_hint,
+            "source_unresolved_key": unresolved_key,
+            "voice_scope": voice_scope,
+            "voice_mode": voice_mode or "keep",
+        }
     elif resolution == "NARRATOR":
         final_speaker_key = "narrator"
         applied = clear_speaker_character_mapping(
@@ -2237,6 +2559,8 @@ def accept_speaker_review_suggestion(
         "existing_character_id",
         "proposed_character_name",
         "proposed_aliases",
+        "speaker_classification",
+        "gender_hint",
         "suggested_voice_id",
     )
     human_edited = any(
@@ -2360,6 +2684,7 @@ def approve_high_confidence_suggestions(
         if suggestion.get("proposed_resolution") not in {
             "EXISTING_CHARACTER",
             "NEW_CHARACTER",
+            "BACKGROUND_GROUP",
             "NARRATOR",
         }:
             raise SpeakerReviewSuggestionError(

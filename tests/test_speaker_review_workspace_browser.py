@@ -53,9 +53,11 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
             target = cls.unresolved_targets[key]
             resolution = (
                 "EXISTING_CHARACTER"
-                if index in {0, 3, 4}
+                if index in {0, 3}
                 else "NEW_CHARACTER"
                 if index == 1
+                else "BACKGROUND_GROUP"
+                if index == 4
                 else "NEEDS_HUMAN_DECISION"
             )
             warnings = (
@@ -83,6 +85,36 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
                         ],
                     },
                     "proposed_resolution": resolution,
+                    "speaker_classification": (
+                        "BACKGROUND_GROUP"
+                        if resolution == "BACKGROUND_GROUP"
+                        else "NAMED_CHARACTER"
+                        if resolution == "EXISTING_CHARACTER"
+                        else "RECURRING_MINOR_CHARACTER"
+                        if resolution == "NEW_CHARACTER"
+                        else "NEEDS_HUMAN_DECISION"
+                    ),
+                    "gender_hint": (
+                        "MALE"
+                        if resolution == "BACKGROUND_GROUP"
+                        else "NEUTRAL_OR_UNKNOWN"
+                    ),
+                    "grouping_reason": (
+                        "A one-scene unnamed guard."
+                        if resolution == "BACKGROUND_GROUP"
+                        else ""
+                    ),
+                    "generic_speaker_evidence": (
+                        "The text only calls this speaker a guard."
+                        if resolution == "BACKGROUND_GROUP"
+                        else ""
+                    ),
+                    "continuity_required": False,
+                    "continuity_evidence": (
+                        "No continuity cue exists."
+                        if resolution == "BACKGROUND_GROUP"
+                        else ""
+                    ),
                     "existing_character_id": 25 if resolution == "EXISTING_CHARACTER" else None,
                     "proposed_character_name": "Outer Sentinel" if resolution == "NEW_CHARACTER" else None,
                     "proposed_aliases": ["sentinel"] if resolution == "NEW_CHARACTER" else [],
@@ -104,9 +136,26 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
                         "available": True,
                         "source_kind": "preset",
                     }
-                    if resolution == "EXISTING_CHARACTER"
+                    if resolution in {"EXISTING_CHARACTER", "BACKGROUND_GROUP"}
                     else None,
-                    "effective_voice_source": "book default" if resolution == "EXISTING_CHARACTER" else "Chưa có giọng",
+                    "effective_voice_source": (
+                        "Mặc định nam của sách"
+                        if resolution == "BACKGROUND_GROUP"
+                        else "book default"
+                        if resolution == "EXISTING_CHARACTER"
+                        else "Chưa có giọng"
+                    ),
+                    "background_group": (
+                        {
+                            "key": "background-group:male",
+                            "display_name": "Quần chúng nam",
+                            "gender": "male",
+                            "character_id": None,
+                            "exists": False,
+                        }
+                        if resolution == "BACKGROUND_GROUP"
+                        else None
+                    ),
                     "suggested_voice": None,
                     "possible_duplicates": [],
                     "review_state": state,
@@ -119,12 +168,12 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
                     "downstream_stale": state in {"CORRECTED", "REPLACEMENT_DRAFT"} and index == 0,
                     "approval_exclusion_reasons": (
                         []
-                        if resolution in {"EXISTING_CHARACTER", "NEW_CHARACTER"} and not warnings
+                        if resolution in {"EXISTING_CHARACTER", "NEW_CHARACTER", "BACKGROUND_GROUP"} and not warnings
                         else ["human_decision_required"]
                         if resolution == "NEEDS_HUMAN_DECISION"
                         else ["warning_requires_review", "continuity_conflict"]
                     ),
-                    "approval_eligible": resolution in {"EXISTING_CHARACTER", "NEW_CHARACTER"} and not warnings and state == "PENDING_REVIEW",
+                    "approval_eligible": resolution in {"EXISTING_CHARACTER", "NEW_CHARACTER", "BACKGROUND_GROUP"} and not warnings and state == "PENDING_REVIEW",
                 }
             )
         approved = sum(

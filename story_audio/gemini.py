@@ -207,11 +207,24 @@ SPEAKER_REVIEW_SUGGESTION_SYSTEM_PROMPT = """Bạn hỗ trợ biên tập viên 
 
 QUY TẮC BẮT BUỘC:
 - Đây chỉ là đề xuất để con người duyệt, không phải phê duyệt sản xuất.
-- Ưu tiên tái sử dụng nhân vật có sẵn và alias đã duyệt trước khi đề xuất nhân vật mới.
-- Không suy luận từ giọng nói, audio, giới tính nhạy cảm, hoặc dữ liệu ngoài phạm vi đã cung cấp.
-- Không gán narrator chỉ vì thiếu tự tin; nếu không đủ chứng cứ, dùng NEEDS_HUMAN_DECISION hoặc UNKNOWN_SPEAKER.
+- Ưu tiên tái sử dụng nhân vật có sẵn và alias đã duyệt.
+- Phân loại mỗi mục là NAMED_CHARACTER, RECURRING_MINOR_CHARACTER,
+  BACKGROUND_GROUP, NARRATOR hoặc NEEDS_HUMAN_DECISION.
+- Dùng BACKGROUND_GROUP khi người nói không có tên riêng ổn định, chỉ là mô tả
+  chung/nghề nghiệp, có chức năng một lần hoặc có thể thay thế, và không có
+  bằng chứng cần duy trì cùng một cá nhân ở các lượt sau.
+- Không dùng BACKGROUND_GROUP cho tên riêng, danh xưng định danh duy nhất,
+  nhân vật tái diễn, quan hệ quan trọng với nhân vật có tên, nhiều lượt thoại
+  của cùng một cá nhân, xung đột giữa các nhân vật có sẵn, hoặc khi chưa chắc
+  tính liên tục. Khi đó dùng nhân vật có sẵn, RECURRING_MINOR_CHARACTER hoặc
+  NEEDS_HUMAN_DECISION.
+- HIGH confidence không tự chứng minh rằng việc gom nhóm là an toàn.
+- Với BACKGROUND_GROUP, proposed_resolution phải là BACKGROUND_GROUP,
+  gender_hint phải là MALE, FEMALE hoặc NEUTRAL_OR_UNKNOWN, và phải nêu bằng
+  chứng về tính chung/không tên cùng nhu cầu liên tục.
+- Không suy luận từ audio hoặc dữ liệu ngoài phạm vi đã cung cấp.
+- Không gán narrator chỉ vì thiếu tự tin.
 - Mỗi unresolved_key phải có đúng một suggestion.
-- evidence_summary và context_evidence phải ngắn, dựa trên câu/đoạn được cung cấp.
 - Chỉ trả JSON đúng schema, không markdown."""
 
 
@@ -261,11 +274,34 @@ def build_speaker_review_suggestion_payload(request_data: dict[str, Any]) -> dic
                                     "enum": [
                                         "EXISTING_CHARACTER",
                                         "NEW_CHARACTER",
+                                        "BACKGROUND_GROUP",
                                         "NARRATOR",
                                         "UNKNOWN_SPEAKER",
                                         "NEEDS_HUMAN_DECISION",
                                     ],
                                 },
+                                "speaker_classification": {
+                                    "type": "STRING",
+                                    "enum": [
+                                        "NAMED_CHARACTER",
+                                        "RECURRING_MINOR_CHARACTER",
+                                        "BACKGROUND_GROUP",
+                                        "NARRATOR",
+                                        "NEEDS_HUMAN_DECISION",
+                                    ],
+                                },
+                                "gender_hint": {
+                                    "type": "STRING",
+                                    "enum": [
+                                        "MALE",
+                                        "FEMALE",
+                                        "NEUTRAL_OR_UNKNOWN",
+                                    ],
+                                },
+                                "grouping_reason": {"type": "STRING"},
+                                "generic_speaker_evidence": {"type": "STRING"},
+                                "continuity_required": {"type": "BOOLEAN"},
+                                "continuity_evidence": {"type": "STRING"},
                                 "existing_character_id": {
                                     "type": "INTEGER",
                                     "nullable": True,
@@ -338,6 +374,12 @@ def build_speaker_review_suggestion_payload(request_data: dict[str, Any]) -> dic
                                 "unresolved_key",
                                 "chapter_number",
                                 "proposed_resolution",
+                                "speaker_classification",
+                                "gender_hint",
+                                "grouping_reason",
+                                "generic_speaker_evidence",
+                                "continuity_required",
+                                "continuity_evidence",
                                 "existing_character_id",
                                 "proposed_character_name",
                                 "proposed_aliases",

@@ -67,6 +67,30 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
         self.assertIn(".status-symbol", self.css)
         self.assertIn(".speaker-suggestion-card.is-editing", self.css)
 
+    def test_background_group_decision_is_bounded_and_explains_voice_scope(self) -> None:
+        for marker in (
+            "BACKGROUND_GROUP",
+            "data-speaker-suggestion-group",
+            "speaker_classification",
+            "gender_hint",
+            "grouping_reason",
+            "generic_speaker_evidence",
+            "continuity_evidence",
+            "background_group",
+        ):
+            self.assertIn(marker, self.js)
+        for label in (
+            "Nhóm quần chúng / nhân vật phụ",
+            "Quần chúng nam",
+            "Quần chúng nữ",
+            "Quần chúng trung tính",
+            "Toàn bộ sách",
+            "nhóm tạo / tái sử dụng",
+            "nhóm chưa có giọng",
+        ):
+            self.assertIn(label, self.js)
+        self.assertIn(".speaker-classification-summary", self.css)
+
     def test_command_lifecycle_is_visible_retryable_and_idempotent(self) -> None:
         for status in (
             "SUBMITTING",
@@ -91,6 +115,7 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
         self.assertIn("approval_exclusion_reasons", self.js)
         self.assertIn("Không PREPARE và không render", self.js)
         self.assertIn("APPROVE_SPEAKER_REVIEW_BATCH", self.js)
+        self.assertIn("background_voice_unassigned", self.js)
         for label in ("Yêu cầu:", "Đã duyệt:", "Bị loại:", "Thất bại:"):
             self.assertIn(label, self.js)
 

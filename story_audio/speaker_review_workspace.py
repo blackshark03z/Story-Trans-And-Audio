@@ -100,12 +100,30 @@ def batch_exclusion_reasons(
     if not str(item.get("unresolved_key") or "").strip():
         reasons.append("missing_unresolved_key")
     resolution = str(item.get("proposed_resolution") or "").upper()
-    if resolution not in {"EXISTING_CHARACTER", "NEW_CHARACTER", "NARRATOR"}:
+    if resolution not in {
+        "EXISTING_CHARACTER",
+        "NEW_CHARACTER",
+        "BACKGROUND_GROUP",
+        "NARRATOR",
+    }:
         reasons.append("human_decision_required")
     if resolution == "EXISTING_CHARACTER" and not item.get("existing_character_id"):
         reasons.append("existing_character_missing")
     if resolution == "NEW_CHARACTER" and not str(item.get("proposed_character_name") or "").strip():
         reasons.append("new_character_name_missing")
+    if resolution == "BACKGROUND_GROUP":
+        if str(item.get("speaker_classification") or "").upper() != "BACKGROUND_GROUP":
+            reasons.append("background_classification_mismatch")
+        if str(item.get("gender_hint") or "").upper() not in {
+            "MALE",
+            "FEMALE",
+            "NEUTRAL_OR_UNKNOWN",
+        }:
+            reasons.append("background_gender_invalid")
+        if item.get("continuity_required") is not False:
+            reasons.append("background_continuity_conflict")
+        if not str(item.get("generic_speaker_evidence") or "").strip():
+            reasons.append("background_evidence_missing")
     if unsaved_edit:
         reasons.append("unsaved_human_edit")
     if item.get("alternative_candidates"):
@@ -122,6 +140,8 @@ def batch_exclusion_reasons(
         reasons.append("stale_source_revision")
     voice = item.get("effective_inherited_voice")
     suggested_voice = item.get("suggested_voice")
+    if resolution == "BACKGROUND_GROUP" and not voice and not suggested_voice:
+        reasons.append("background_voice_unassigned")
     if voice and voice.get("available") is False:
         reasons.append("unavailable_effective_voice")
     if suggested_voice and suggested_voice.get("available") is False:

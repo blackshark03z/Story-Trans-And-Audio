@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import sqlite3
 from typing import Any
 from unittest.mock import patch
 
@@ -26,6 +27,7 @@ from story_audio.speaker_review_suggestions import (
     restore_speaker_suggestion_pending,
     validate_speaker_review_response,
 )
+from story_audio.speaker_review_workspace import batch_exclusion_reasons
 from story_audio.storage import ContentStore
 from story_audio.voice_eligibility import EffectiveVoiceCatalog
 from story_audio.voice_profile import set_book_voice_profile, set_character_voice_override
@@ -57,8 +59,17 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
     def setUp(self) -> None:
         super().setUp()
         self.config.ensure_dirs()
+        template_path = self.config.root / "schema-current-template.db"
+        template_db = Database(template_path)
+        template_db.initialize()
+        source = sqlite3.connect(template_path)
+        destination = sqlite3.connect(self.config.db_path)
+        try:
+            source.backup(destination)
+        finally:
+            destination.close()
+            source.close()
         self.db = Database(self.config.db_path)
-        self.db.initialize()
         self.store = ContentStore(self.config)
         (self.config.root / "secrets" / "gemini_api_key.txt").write_text(
             "fake-gemini-key\n",
@@ -233,6 +244,64 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
             "usage_metadata": {"promptTokenCount": 12, "candidatesTokenCount": 6},
         }
 
+    def _background_provider(
+        self,
+        *,
+        gender_hint: str = "MALE",
+        classification: str = "BACKGROUND_GROUP",
+        resolution: str = "BACKGROUND_GROUP",
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        request_data = kwargs["request_data"]
+        suggestions = []
+        for target in request_data["targets"]:
+            suggestions.append(
+                {
+                    "unresolved_key": str(target["unresolved_key"]),
+                    "chapter_number": int(target["chapter_number"]),
+                    "proposed_resolution": resolution,
+                    "speaker_classification": classification,
+                    "gender_hint": gender_hint,
+                    "grouping_reason": (
+                        "Đây là vai nền dùng một lần, không cần danh tính riêng."
+                    ),
+                    "generic_speaker_evidence": (
+                        "Ngữ cảnh chỉ mô tả người nói bằng danh xưng chung."
+                    ),
+                    "continuity_required": classification
+                    == "RECURRING_MINOR_CHARACTER",
+                    "continuity_evidence": (
+                        "Không có dấu hiệu nhân vật này cần tiếp tục qua các cảnh."
+                        if classification == "BACKGROUND_GROUP"
+                        else "Vai này xuất hiện lặp lại và cần giữ danh tính."
+                    ),
+                    "existing_character_id": None,
+                    "proposed_character_name": (
+                        "Người canh cổng"
+                        if resolution == "NEW_CHARACTER"
+                        else None
+                    ),
+                    "proposed_aliases": [],
+                    "confidence": "HIGH",
+                    "confidence_score": 0.94,
+                    "evidence_summary": "Mệnh lệnh ngắn của một vai nền.",
+                    "context_evidence": ["Không có tên riêng trong ngữ cảnh."],
+                    "alternative_candidates": [],
+                    "continuity_notes": "",
+                    "proposed_voice_handling": "INHERIT_EXISTING_CONFIGURATION",
+                    "suggested_voice_id": None,
+                    "voice_rationale": "Dùng giọng mặc định đúng nhóm giới tính.",
+                    "warnings": [],
+                }
+            )
+        return {
+            "response": {
+                "schema": "story-audio-gemini-speaker-review-suggestions/v1",
+                "suggestions": suggestions,
+            },
+            "usage_metadata": {"promptTokenCount": 12, "candidatesTokenCount": 6},
+        }
+
     def test_validate_response_requires_exact_schema_and_chapter_number(self) -> None:
         with self.assertRaises(SpeakerReviewSuggestionError):
             validate_speaker_review_response(
@@ -251,6 +320,317 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
                 allowed_character_ids={int(self.commander["id"])},
                 selectable_voice_ids=ALL_VOICES,
             )
+
+    def test_background_group_batch_reuses_identity_and_retry_is_idempotent(self) -> None:
+        registry = self._registry()
+        keys = [
+            row["speaker_key"]
+            for row in registry["rows"]
+            if row["status"] == "UNRESOLVED_DIALOGUE"
+        ][:3]
+        run = generate_speaker_review_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            skip_completed=False,
+            registry=registry,
+            voice_catalog=_catalog(),
+            unresolved_keys=keys,
+            provider=self._background_provider,
+            idempotency_key="background-analysis",
+        )
+        self.assertEqual(len(run["suggestions"]), 3)
+        self.assertTrue(
+            all(item["approval_eligible"] for item in run["suggestions"])
+        )
+
+        accepted = approve_high_confidence_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            analysis_run_id=run["analysis_run_id"],
+            unresolved_keys=keys,
+            voice_catalog=_catalog(),
+            idempotency_key="background-batch",
+        )
+        group_ids = {
+            int(
+                item["applied"]["background_group"]["character"]["id"]
+            )
+            for item in accepted["applied"]
+        }
+        self.assertEqual(len(group_ids), 1)
+        group_id = next(iter(group_ids))
+        self.assertEqual(
+            int(
+                self.db.fetch_one(
+                    """
+                    SELECT COUNT(*) AS count FROM characters
+                    WHERE book_id=? AND external_key_normalized='background-group:male'
+                    """,
+                    (self.book_id,),
+                )["count"]
+            ),
+            1,
+        )
+        self.assertEqual(
+            int(
+                self.db.fetch_one(
+                    "SELECT COUNT(*) AS count FROM character_aliases WHERE character_id=?",
+                    (group_id,),
+                )["count"]
+            ),
+            0,
+        )
+
+        replay = approve_high_confidence_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            analysis_run_id=run["analysis_run_id"],
+            unresolved_keys=keys,
+            voice_catalog=_catalog(),
+            idempotency_key="background-batch",
+        )
+        self.assertTrue(replay["reused"])
+        self.assertEqual(
+            int(self.db.fetch_one("SELECT COUNT(*) AS count FROM characters")["count"]),
+            2,
+        )
+        self.assertEqual(
+            int(self.db.fetch_one("SELECT COUNT(*) AS count FROM jobs")["count"]),
+            0,
+        )
+        self.assertEqual(
+            int(self.db.fetch_one("SELECT COUNT(*) AS count FROM artifacts")["count"]),
+            0,
+        )
+
+    def test_background_group_can_be_corrected_to_existing_character_with_history(self) -> None:
+        registry = self._registry()
+        key = next(
+            row["speaker_key"]
+            for row in registry["rows"]
+            if row["status"] == "UNRESOLVED_DIALOGUE"
+        )
+        run = generate_speaker_review_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            skip_completed=False,
+            registry=registry,
+            voice_catalog=_catalog(),
+            unresolved_keys=[key],
+            provider=self._background_provider,
+            idempotency_key="background-correction-analysis",
+        )
+        accept_speaker_review_suggestion(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            analysis_run_id=run["analysis_run_id"],
+            unresolved_key=key,
+            reviewer_payload=run["suggestions"][0],
+            voice_catalog=_catalog(),
+            idempotency_key="background-correction-accept",
+        )
+        corrected = accept_speaker_review_suggestion(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            analysis_run_id=run["analysis_run_id"],
+            unresolved_key=key,
+            reviewer_payload={
+                "proposed_resolution": "EXISTING_CHARACTER",
+                "existing_character_id": int(self.commander["id"]),
+                "proposed_aliases": [],
+                "voice_mode": "keep",
+            },
+            voice_catalog=_catalog(),
+            idempotency_key="background-correction-existing",
+            decision_override="CORRECTED",
+            require_approved=True,
+        )
+        self.assertEqual(corrected["review"]["decision"]["decision"], "CORRECTED")
+        queue = _latest_queue_for_run(
+            self.db,
+            self.store,
+            analysis_run_id=run["analysis_run_id"],
+        )
+        history = queue["suggestions"][0]["review_history"]
+        self.assertEqual(
+            [item["decision"] for item in history],
+            ["ACCEPTED", "CORRECTED"],
+        )
+        self.assertEqual(
+            queue["suggestions"][0]["human_review"]["reviewer_payload"][
+                "existing_character_id"
+            ],
+            int(self.commander["id"]),
+        )
+
+    def test_female_and_neutral_groups_reuse_gender_safe_defaults(self) -> None:
+        for gender_hint, expected_voice, key_count in (
+            ("FEMALE", "female", 2),
+            ("NEUTRAL_OR_UNKNOWN", "narrator", 1),
+        ):
+            with self.subTest(gender_hint=gender_hint):
+                registry = self._registry()
+                keys = [
+                    row["speaker_key"]
+                    for row in registry["rows"]
+                    if row["status"] == "UNRESOLVED_DIALOGUE"
+                ][:key_count]
+                run = generate_speaker_review_suggestions(
+                    self.db,
+                    self.store,
+                    self.config,
+                    book_id=self.book_id,
+                    from_chapter=1,
+                    to_chapter=2,
+                    skip_completed=False,
+                    registry=registry,
+                    voice_catalog=_catalog(),
+                    unresolved_keys=keys,
+                    provider=lambda **kwargs: self._background_provider(
+                        gender_hint=gender_hint,
+                        **kwargs,
+                    ),
+                    idempotency_key=f"background-{gender_hint}-analysis",
+                )
+                self.assertTrue(
+                    all(
+                        item["effective_inherited_voice"]["id"] == expected_voice
+                        for item in run["suggestions"]
+                    )
+                )
+                approved = approve_high_confidence_suggestions(
+                    self.db,
+                    self.store,
+                    self.config,
+                    book_id=self.book_id,
+                    from_chapter=1,
+                    to_chapter=2,
+                    analysis_run_id=run["analysis_run_id"],
+                    unresolved_keys=keys,
+                    voice_catalog=_catalog(),
+                    idempotency_key=f"background-{gender_hint}-approve",
+                )
+                group_ids = {
+                    int(item["applied"]["background_group"]["character"]["id"])
+                    for item in approved["applied"]
+                }
+                self.assertEqual(len(group_ids), 1)
+
+    def test_human_existing_character_override_does_not_create_proposed_group(self) -> None:
+        registry = self._registry()
+        key = next(
+            row["speaker_key"]
+            for row in registry["rows"]
+            if row["status"] == "UNRESOLVED_DIALOGUE"
+        )
+        run = generate_speaker_review_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            skip_completed=False,
+            registry=registry,
+            voice_catalog=_catalog(),
+            unresolved_keys=[key],
+            provider=self._background_provider,
+            idempotency_key="background-human-override-analysis",
+        )
+        accepted = accept_speaker_review_suggestion(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            analysis_run_id=run["analysis_run_id"],
+            unresolved_key=key,
+            reviewer_payload={
+                "proposed_resolution": "EXISTING_CHARACTER",
+                "existing_character_id": int(self.commander["id"]),
+                "proposed_aliases": [],
+                "voice_mode": "keep",
+            },
+            voice_catalog=_catalog(),
+            idempotency_key="background-human-override-accept",
+        )
+        self.assertNotIn("background_group", accepted["applied"])
+        self.assertEqual(
+            int(
+                self.db.fetch_one(
+                    """
+                    SELECT COUNT(*) AS count FROM characters
+                    WHERE external_key_normalized LIKE 'background-group:%'
+                    """
+                )["count"]
+            ),
+            0,
+        )
+
+    def test_recurring_minor_remains_distinct_and_missing_group_voice_blocks_batch(self) -> None:
+        recurring = self._background_provider(
+            request_data={
+                "targets": [
+                    {"unresolved_key": "u-recurring", "chapter_number": 1}
+                ]
+            },
+            classification="RECURRING_MINOR_CHARACTER",
+            resolution="NEW_CHARACTER",
+        )["response"]
+        validated = validate_speaker_review_response(
+            recurring,
+            target_keys=["u-recurring"],
+            target_chapter_numbers_by_key={"u-recurring": 1},
+            allowed_character_ids={int(self.commander["id"])},
+            selectable_voice_ids=ALL_VOICES,
+        )
+        self.assertEqual(
+            validated["suggestions"][0]["proposed_resolution"],
+            "NEW_CHARACTER",
+        )
+        blocked = {
+            "confidence": "HIGH",
+            "review_state": "PENDING_REVIEW",
+            "unresolved_key": "u-background",
+            "proposed_resolution": "BACKGROUND_GROUP",
+            "speaker_classification": "BACKGROUND_GROUP",
+            "gender_hint": "NEUTRAL_OR_UNKNOWN",
+            "continuity_required": False,
+            "generic_speaker_evidence": "Vai nền không tên.",
+            "approved_final_voice_map_available": True,
+            "source_revision_current": True,
+            "effective_inherited_voice": None,
+            "suggested_voice": None,
+        }
+        self.assertIn(
+            "background_voice_unassigned",
+            batch_exclusion_reasons(blocked),
+        )
 
     def test_generate_records_review_queue_without_business_mutation_and_reuses_it(self) -> None:
         registry = self._registry()

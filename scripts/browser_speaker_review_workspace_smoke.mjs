@@ -100,6 +100,7 @@ try {
   await waitFor(`document.querySelectorAll('[data-speaker-suggestion-card]').length===5`);
   const allCardCount = await evaluate(`document.querySelectorAll('[data-speaker-suggestion-card]').length`);
   const labelsReadable = await evaluate(`[...document.querySelectorAll('[data-speaker-suggestion-card]')].every(card => card.querySelector('.status-symbol') && card.querySelector('.speaker-card-evidence') && card.querySelector('.speaker-card-decision') && card.querySelector('.speaker-card-actions'))`);
+  const backgroundGroupVisible = await evaluate(`(() => { const card=document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key5))}); const group=card?.querySelector(${JSON.stringify(attr("data-speaker-suggestion-group", key5))}); return !!card && card.innerText.includes("Quần chúng nam") && group?.value==="MALE" && card.innerText.includes("Mặc định nam của sách") })()`);
 
   await click(`${attr("data-speaker-suggestion-context", key1)} > summary`);
   await click(`${attr("data-speaker-suggestion-context", key2)} > summary`);
@@ -182,8 +183,9 @@ try {
   const durableMutationCount = await evaluate(`new Set((window.storyAudioAppState.bookVoiceRegistry.speakerSuggestions.result.suggestions||[]).flatMap(item=>(item.review_history||[]).map(entry=>entry.idempotency_key))).size`);
   if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
   process.stdout.write(JSON.stringify({
-    ok: defaultView && labelsReadable,
+    ok: defaultView && labelsReadable && backgroundGroupVisible,
     allCardCount,
+    backgroundGroupVisible,
     busyVisible: !!busyVisible,
     characterFocus,
     newCharacterFocus,
