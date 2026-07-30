@@ -150,6 +150,19 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
         self.assertIn("speakerReviewCardSnapshot", self.js)
         self.assertIn("restoreSpeakerReviewCardSnapshot", self.js)
 
+    def test_active_review_controls_defer_changed_snapshots_without_stopping_polling(self) -> None:
+        for marker in (
+            "speakerReviewQueueFingerprint",
+            "activeSpeakerReviewControl",
+            "deferredResult",
+            "showSpeakerReviewDeferredNotice",
+            "applyDeferredSpeakerReviewUpdate",
+            "Có dữ liệu mới — sẽ cập nhật sau khi bạn hoàn tất chỉnh sửa.",
+            "state.currentRoute!=='assignment'",
+        ):
+            self.assertIn(marker, self.js)
+        self.assertIn("speaker-review-deferred-notice", self.css)
+
 
 if __name__ == "__main__":
     unittest.main()

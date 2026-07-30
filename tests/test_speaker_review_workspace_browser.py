@@ -34,6 +34,7 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
     mutation_count = 0
     speaker_queue_request_count = 0
     last_batch_result: dict | None = None
+    server_annotations: dict[str, str] = {}
 
     @classmethod
     def reset(cls) -> None:
@@ -45,6 +46,7 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
         cls.mutation_count = 0
         cls.speaker_queue_request_count = 0
         cls.last_batch_result = None
+        cls.server_annotations = {}
         cls.suggestions = cls.queue()
 
     @classmethod
@@ -122,7 +124,10 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
                     "proposed_aliases": ["sentinel"] if resolution == "NEW_CHARACTER" else [],
                     "confidence": "HIGH",
                     "confidence_score": 0.94,
-                    "evidence_summary": f"Fixture evidence for card {index + 1}.",
+                    "evidence_summary": (
+                        f"Fixture evidence for card {index + 1}."
+                        f"{cls.server_annotations.get(key, '')}"
+                    ),
                     "context_evidence": ["Named action and nearby command response."],
                     "alternative_candidates": [],
                     "continuity_notes": "Stable fixture continuity.",
@@ -228,6 +233,15 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/api/fixture/speaker-review-server-update":
+            length = int(self.headers.get("Content-Length", "0") or 0)
+            body = json.loads(self.rfile.read(length) or b"{}")
+            key = str(body.get("unresolved_key") or "")
+            if key not in type(self).unresolved_targets:
+                return self._json({"detail": "unknown fixture key"}, status=404)
+            type(self).server_annotations[key] = str(body.get("annotation") or "")
+            type(self).suggestions = type(self).queue()
+            return self._json({"ok": True})
         if parsed.path != "/api/production/commands":
             return super().do_POST()
         length = int(self.headers.get("Content-Length", "0") or 0)
@@ -408,6 +422,30 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
         evidence = json.loads(result.stdout)
         self.assertTrue(evidence["ok"])
         self.assertEqual(evidence["initialQueueRequestCount"], 1)
+        self.assertEqual(evidence["queueRequestCountAfterJobsPolling"], 1)
+        for control in evidence["jobsPollingControlStates"].values():
+            self.assertTrue(control["sameNode"])
+            self.assertTrue(control.get("focused", True))
+            self.assertEqual(control.get("blurCount", 0), 0)
+        self.assertEqual(
+            evidence["jobsPollingControlStates"]["name"]["selection"],
+            evidence["jobsPollingControlStates"]["name"]["selectionBefore"],
+        )
+        self.assertTrue(evidence["jobsPollingControlStates"]["details"]["open"])
+        self.assertTrue(evidence["deferredAuthoritativeUpdate"]["sameBeforeBlur"])
+        self.assertEqual(
+            evidence["deferredAuthoritativeUpdate"]["valueBeforeBlur"],
+            "Draft survives polling",
+        )
+        self.assertTrue(evidence["deferredAuthoritativeUpdate"]["notice"])
+        self.assertTrue(
+            evidence["deferredAuthoritativeUpdate"]["applied"],
+            evidence["deferredAuthoritativeUpdate"],
+        )
+        self.assertEqual(
+            evidence["deferredAuthoritativeUpdate"]["draftAfterBlur"],
+            "Draft survives polling",
+        )
         self.assertEqual(evidence["allCardCount"], 5)
         self.assertTrue(evidence["busyVisible"])
         self.assertTrue(evidence["characterFocus"])
