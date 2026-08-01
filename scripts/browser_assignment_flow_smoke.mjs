@@ -159,7 +159,7 @@ try {
   })`);
 
   const key = await evaluate(`document.querySelector('[data-speaker-suggestion-card]')?.dataset?.speakerSuggestionCard`);
-  await click(`[data-speaker-suggestion-accept="${key}"]`);
+  await click(`[data-speaker-suggestion-submit="${key}"]`);
   await waitFor(`document.querySelector('.assignment-workflow-steps')?.innerText.includes("Hoàn tất")
     && document.querySelector('[data-assignment-section="voices"]')?.open
     && !document.querySelector('[data-voice-library-row^="unresolved-dialogue:"]')`, 20000);

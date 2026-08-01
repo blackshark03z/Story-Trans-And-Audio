@@ -48,11 +48,14 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
         ):
             self.assertIn(marker, self.js)
         for label in (
-            "Chấp nhận đề xuất",
-            "Lưu chỉnh sửa",
-            "Chọn nhân vật khác",
-            "Tạo nhân vật mới",
-            "Đổi giọng",
+            "Đề xuất của Gemini",
+            "Quyết định cuối cùng của bạn",
+            "Chấp nhận đề xuất Gemini",
+            "Lưu chỉnh sửa và duyệt",
+            "Bỏ chỉnh sửa",
+            "Sửa người nói",
+            "Chọn tạo nhân vật mới",
+            "Sửa cấu hình giọng",
             "Đánh dấu chưa chắc",
             "Để sau",
             "Chỉnh sửa người nói",
@@ -66,6 +69,41 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
         self.assertIn(".speaker-suggestion-card", self.css)
         self.assertIn(".status-symbol", self.css)
         self.assertIn(".speaker-suggestion-card.is-editing", self.css)
+
+    def test_proposal_and_human_decision_have_one_state_driven_submit(self) -> None:
+        for marker in (
+            "speakerReviewProposalPayload",
+            "speakerReviewDecisionChanges",
+            "speakerReviewDecisionValidation",
+            "speakerReviewDecisionMeta",
+            "submitSpeakerReviewDecision",
+            'data-speaker-suggestion-submit',
+            'data-speaker-submit-mode',
+        ):
+            self.assertIn(marker, self.js)
+        self.assertIn("Đang giữ nguyên đề xuất Gemini", self.js)
+        self.assertIn("Đã chỉnh sửa ${meta.changes.length} trường", self.js)
+        self.assertIn("root.querySelectorAll('[data-speaker-suggestion-submit]')", self.js)
+        self.assertIn("meta.edited?'EDIT_AND_ACCEPT_SPEAKER_SUGGESTION':'ACCEPT_SPEAKER_SUGGESTION'", self.js)
+
+    def test_shortcuts_and_discard_are_local_only(self) -> None:
+        self.assertIn("applySpeakerReviewShortcut", self.js)
+        self.assertIn("discardSpeakerSuggestionEdits", self.js)
+        self.assertIn("clearSpeakerSuggestionDraft(key)", self.js)
+        self.assertIn("shortcutsNoMutation", (ROOT / "scripts" / "browser_speaker_review_workspace_smoke.mjs").read_text(encoding="utf-8"))
+
+    def test_analyze_progress_is_visible_truthful_and_bounded(self) -> None:
+        for label in (
+            "Đang chuẩn bị ${Number(progress.targetCount||0)} câu",
+            "Đang gửi Gemini — nhóm 1/đang xác định",
+            "Đang kiểm tra kết quả",
+            "Gemini vẫn đang phân tích. Bạn có thể tiếp tục chờ; không cần bấm lại.",
+            "Đang xác minh kết quả đã lưu",
+            "Đã tạo ${Number(summary.total||progress.targetCount||0)} đề xuất",
+        ):
+            self.assertIn(label, self.js)
+        self.assertIn("speakerAnalysisProgressTimer", self.js)
+        self.assertIn("executeSpeakerAnalysis", self.js)
 
     def test_background_group_decision_is_bounded_and_explains_voice_scope(self) -> None:
         for marker in (

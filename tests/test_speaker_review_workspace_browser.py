@@ -42,6 +42,7 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
     speaker_queue_request_count = 0
     last_batch_result: dict | None = None
     server_annotations: dict[str, str] = {}
+    next_analysis_delay_seconds = 10.6
 
     @classmethod
     def reset(cls) -> None:
@@ -54,6 +55,7 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
         cls.speaker_queue_request_count = 0
         cls.last_batch_result = None
         cls.server_annotations = {}
+        cls.next_analysis_delay_seconds = 10.6
         cls.suggestions = cls.queue()
 
     @classmethod
@@ -235,6 +237,14 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
         path = urlparse(self.path).path
         if path == "/api/fixture/speaker-review-queue-count":
             return self._json({"count": type(self).speaker_queue_request_count})
+        if path == "/api/fixture/speaker-review-command-state":
+            return self._json(
+                {
+                    "command_count": len(type(self).commands),
+                    "mutation_count": type(self).mutation_count,
+                    "commands": type(self).commands,
+                }
+            )
         if path == "/api/production/speaker-review-suggestions":
             type(self).speaker_queue_request_count += 1
             type(self).suggestions = type(self).queue()
@@ -273,7 +283,12 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
             self.commands.append(body)
             return self._json(self.command_responses[idempotency_key])
 
-        time.sleep(0.35)
+        if command_type == "GENERATE_SPEAKER_SUGGESTIONS":
+            delay = type(self).next_analysis_delay_seconds
+            type(self).next_analysis_delay_seconds = 0.35
+            time.sleep(delay)
+        else:
+            time.sleep(0.35)
         payload = body.get("payload") or {}
         changed: list[tuple[str, str]] = []
         if command_type == "APPROVE_SPEAKER_REVIEW_BATCH":
@@ -431,10 +446,18 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
         evidence = json.loads(result.stdout)
         self.assertTrue(evidence["ok"])
         self.assertEqual(evidence["initialQueueRequestCount"], 1)
-        self.assertEqual(evidence["queueRequestCountAfterJobsPolling"], 1)
-        for control in evidence["jobsPollingControlStates"].values():
+        self.assertTrue(evidence["analysisImmediate"])
+        self.assertTrue(evidence["analysisElapsed"])
+        self.assertTrue(evidence["analysisLongWait"])
+        self.assertTrue(evidence["analysisVerificationSeen"])
+        self.assertTrue(evidence["analysisSingleCommand"])
+        self.assertTrue(evidence["analysisCardsRemainVisible"])
+        self.assertIn("Đã tạo 6 đề xuất", evidence["analysisFinalSummary"])
+        self.assertIn("1 cần quyết định", evidence["analysisFinalSummary"])
+        self.assertEqual(evidence["queueRequestCountAfterJobsPolling"], 2)
+        for name, control in evidence["jobsPollingControlStates"].items():
             self.assertTrue(control["sameNode"])
-            self.assertTrue(control.get("focused", True))
+            self.assertTrue(control.get("focused", True), f"{name}: {control}")
             self.assertEqual(control.get("blurCount", 0), 0)
         self.assertEqual(
             evidence["jobsPollingControlStates"]["name"]["selection"],
@@ -460,11 +483,24 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
         self.assertTrue(evidence["characterFocus"])
         self.assertTrue(evidence["newCharacterFocus"])
         self.assertTrue(evidence["voiceFocus"])
+        self.assertTrue(evidence["invalidDecisionBlocked"])
+        self.assertTrue(evidence["discardRestored"])
+        self.assertTrue(evidence["discardNoMutation"])
+        self.assertTrue(evidence["shortcutsNoMutation"])
+        self.assertTrue(evidence["unchangedPrimary"])
+        self.assertTrue(evidence["oneFieldDirty"])
+        self.assertIn("Đã chỉnh sửa", evidence["multiFieldDirty"])
         self.assertTrue(evidence["editedDecisionSaved"])
-        self.assertTrue(evidence["editedBackgroundAccepted"])
+        self.assertTrue(evidence["originalProposalRetained"])
+        self.assertTrue(evidence["oneFieldAccepted"])
         self.assertTrue(evidence["reanalysisApplied"])
         self.assertTrue(evidence["deferApplied"])
         self.assertTrue(evidence["draftsPreserved"])
+        self.assertIn("Đã chỉnh sửa", evidence["pollingDecisionState"]["dirty"])
+        self.assertEqual(
+            evidence["pollingDecisionState"]["primary"],
+            "Lưu chỉnh sửa và duyệt",
+        )
         self.assertTrue(evidence["approvedMoved"])
         self.assertTrue(evidence["correctionHistoryVisible"])
         self.assertTrue(evidence["batchExcludedUnsafe"])
@@ -497,6 +533,34 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
             ),
             1,
         )
+        unchanged = next(
+            command
+            for command in SpeakerReviewWorkspaceFixtureHandler.commands
+            if command["command_type"] == "ACCEPT_SPEAKER_SUGGESTION"
+            and command["payload"]["unresolved_key"]
+            == "unresolved-dialogue:1002:u0002-deadbeef0000"
+        )
+        self.assertEqual(
+            unchanged["payload"]["reviewer_payload"],
+            {
+                "proposed_resolution": "EXISTING_CHARACTER",
+                "existing_character_id": 25,
+                "proposed_character_name": None,
+                "proposed_aliases": [],
+                "voice_mode": "keep",
+            },
+        )
+        edited = next(
+            command
+            for command in SpeakerReviewWorkspaceFixtureHandler.commands
+            if command["command_type"] == "EDIT_AND_ACCEPT_SPEAKER_SUGGESTION"
+            and command["payload"]["unresolved_key"]
+            == "unresolved-dialogue:1003:u0002-feedface0000"
+        )
+        self.assertEqual(edited["payload"]["reviewer_payload"]["existing_character_id"], 25)
+        self.assertEqual(edited["payload"]["reviewer_payload"]["suggested_voice_id"], "commander")
+        self.assertEqual(edited["payload"]["reviewer_payload"]["voice_scope"], "range")
+        self.assertEqual(edited["payload"]["reviewer_payload"]["proposed_aliases"], ["edited alias"])
 
 
 if __name__ == "__main__":

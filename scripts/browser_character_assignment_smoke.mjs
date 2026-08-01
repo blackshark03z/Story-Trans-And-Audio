@@ -170,7 +170,7 @@ try {
       count: cards.length,
       existingCharacterVisible: cards.some(card => card.textContent.includes("Existing Commander")),
       sourceLineVisible: cards.some(card => card.textContent.includes("- Hold the gate")),
-      noAutomaticApproval: cards.every(card => !!card.querySelector('[data-speaker-suggestion-accept]')),
+      noAutomaticApproval: cards.every(card => !!card.querySelector('[data-speaker-suggestion-submit]')),
     };
   })()`);
 

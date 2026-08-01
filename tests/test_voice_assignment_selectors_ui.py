@@ -215,7 +215,7 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
     def test_gemini_speaker_review_workspace_is_draft_only(self) -> None:
         section = self.js[
             self.js.index("function speakerSuggestionScopeKey"):
-            self.js.index("function clearRegistryDraft")
+            self.js.rindex("Object.assign(window,{speakerReviewQueueView")
         ]
         self.assertIn("/api/production/speaker-review-suggestions", section)
         self.assertIn("GENERATE_SPEAKER_SUGGESTIONS", section)
@@ -226,7 +226,7 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIn("data-speaker-suggestion-resolution", section)
         self.assertIn("data-speaker-suggestion-character", section)
         self.assertIn("data-speaker-suggestion-voice", section)
-        self.assertIn("Phân tích người nói bằng Gemini", section)
+        self.assertIn("Phân tích bằng Gemini", section)
         self.assertIn("Gemini chỉ tạo đề xuất", section)
         self.assertNotIn("commandType:'PREPARE'", section)
         self.assertNotIn("commandType:'START_RENDER'", section)
