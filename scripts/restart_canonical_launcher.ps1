@@ -63,7 +63,7 @@ if ($listener) {
 
 $started = Get-Date
 $launcherProcess = Start-Process -FilePath "powershell.exe" -ArgumentList @(
-    "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $LauncherPath,
+    "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "`"$LauncherPath`"",
     "--host", "127.0.0.1", "--port", "$Port"
 ) -PassThru -WindowStyle Hidden
 $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
