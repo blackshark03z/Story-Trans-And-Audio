@@ -169,6 +169,7 @@ try {
   const journeyEPrepare = await show({ casting: approved, rangeState: "READY_TO_PREPARE" });
   const journeyInfrastructure = await evaluate(`(() => { state.productionPrepare.readiness={runtime_mode:"PRODUCTION",prepare_allowed:false,start_render_allowed:false,operator_authentication_verified:false,blockers:[{code:"AUTH_BOOTSTRAP_MISSING",message:"Launcher chưa cấp phiên vận hành cho ứng dụng."}]}; renderProductionShell(); const primary=[...document.querySelectorAll("#productionTaskWorkspace .primary")].filter(element=>getComputedStyle(element).display!=="none").map(element=>element.textContent.trim()); return {state:document.querySelector("#productionStateCard").dataset.productionState,primary,summary:document.querySelector("#productionStateExplanation").textContent}; })()`);
   const journeyEStart = await show({ casting: approved, jobs: [{ id: 9001, book_id: 91, from_chapter: 401, to_chapter: 401, casting_plan_id: 801, status: "prepared" }], rangeState: "PREPARED" });
+  const journeyEStartBlocked = await evaluate(`(() => { state.productionPrepare.readiness={runtime_mode:"PRODUCTION",prepare_allowed:true,start_render_allowed:false,operator_authentication_verified:true,blockers:[]}; renderProductionShell(); const button=document.querySelector("#productionPrimaryAction"); return {state:button.dataset.journeyPrimary,primary:button.textContent.trim(),disabled:button.disabled,title:button.title}; })()`);
   const journeyERunning = await show({ casting: approved, jobs: [{ id: 9001, book_id: 91, from_chapter: 401, to_chapter: 401, casting_plan_id: 801, status: "running", total_chapters: 1, completed_chapters: 0, completed_segments: 3, failed_segments: 0, pending_segments: 5, actions: { can_retry: false } }], rangeState: "RENDERING_OR_PAUSED" });
   const journeyF = await show({ casting: approved, jobs: [{ id: 9001, book_id: 91, from_chapter: 401, to_chapter: 401, status: "failed", actions: { can_retry: true }, is_historical_output: false }], rangeState: "RENDERING_OR_PAUSED" });
   const qaDialog = structuredClone(fixture.dialog); qaDialog.chapter.audio_status = "completed"; qaDialog.active_output = { active_output_job_id: 9001, active_output_artifact_id: 9901 }; qaDialog.audio_artifact = { id: 9901, duration_ms: 60000, actual_size_bytes: 1024 };
@@ -203,6 +204,7 @@ try {
   if (journeyERunning.body.includes("Bắt đầu render")) throw new Error("Running state exposed duplicate start.");
   if (journeyG.primary.length !== 1 || !journeyG.primary.includes("Nghe và duyệt") || !journeyG.body.includes("Ghi chú QA")) throw new Error(`QA controls are unclear: ${JSON.stringify(journeyG)}`);
   if (journeyInfrastructure.state !== "INFRASTRUCTURE_BLOCKED" || journeyInfrastructure.primary.length !== 1 || journeyInfrastructure.primary[0] !== "Kiểm tra lại môi trường" || !journeyInfrastructure.summary.includes("chưa sẵn sàng")) throw new Error(`Infrastructure readiness was not safe: ${JSON.stringify(journeyInfrastructure)}`);
+  if (journeyEStartBlocked.state !== "READY_TO_RENDER" || journeyEStartBlocked.primary !== "Bắt đầu tạo audio" || !journeyEStartBlocked.disabled) throw new Error(`Prepared job lost its ready-to-render state while START_RENDER was closed: ${JSON.stringify(journeyEStartBlocked)}`);
   if (!qaNullSafe.ok || qaNullSafe.casting !== null) throw new Error(`QA renderer touched casting state: ${JSON.stringify(qaNullSafe)}`);
   if (!qaNoteRequired.includes("ghi chú")) throw new Error("QA rejection did not require a note.");
   if (journeyH.queue !== 10 || !journeyH.current.includes("503")) throw new Error(`Ten-chapter queue did not focus the first action: ${JSON.stringify(journeyH)}`);
@@ -221,7 +223,7 @@ try {
   if (desktop.horizontal || !desktop.primaryVisible) throw new Error(`1920 layout failed: ${JSON.stringify(desktop)}`);
   if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
 
-  process.stdout.write(JSON.stringify({ ok: true, journeyA, journeyB, journeyC, pollingStability, journeyDEdit, journeyDReview, journeyEPrepare, journeyInfrastructure, journeyEStart, journeyERunning, journeyF, journeyG, qaNullSafe, journeyH, commandLifecycle, qaCommandReconcile, inspectionBC, malformedSafe, desktop }));
+  process.stdout.write(JSON.stringify({ ok: true, journeyA, journeyB, journeyC, pollingStability, journeyDEdit, journeyDReview, journeyEPrepare, journeyInfrastructure, journeyEStart, journeyEStartBlocked, journeyERunning, journeyF, journeyG, qaNullSafe, journeyH, commandLifecycle, qaCommandReconcile, inspectionBC, malformedSafe, desktop }));
 } finally {
   try { socket?.close(); } catch {}
   const browserExited = new Promise(resolve => {

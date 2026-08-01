@@ -169,6 +169,11 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertIn("retryRequest:commandRequest", self.js)
         self.assertIn("Đang khôi phục kết quả PREPARE đã gửi", self.js)
 
+    def test_prepared_job_remains_visible_when_render_gate_is_closed(self) -> None:
+        self.assertIn("const preparedJob=String(vm?.render?.job_status", self.js)
+        self.assertIn("journeyVm.journey_state==='READY_TO_RENDER'&&!startRenderAllowed()", self.js)
+        self.assertIn("Audio đã được chuẩn bị. Sẵn sàng bắt đầu tạo audio.", self.js)
+
     def test_approval_evidence_is_human_readable(self) -> None:
         for evidence in (
             "proposal_source",
