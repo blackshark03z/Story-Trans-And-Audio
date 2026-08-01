@@ -20,7 +20,6 @@ class ProductionPrepareUiTests(IsolatedTestCase):
         for value in (
             'id="productionPreparePanel"',
             'id="productionPrepareExactRange"',
-            'id="productionPrepareToken"',
             'id="productionPrepareConfirmation"',
             'id="submitProductionPrepare"',
             'id="refreshProductionPrepareStatus"',
@@ -30,6 +29,8 @@ class ProductionPrepareUiTests(IsolatedTestCase):
             self.html.index('id="productionPreparePanel"') :
             self.html.index("</section>", self.html.index('id="productionPreparePanel"'))
         ]
+        self.assertNotIn('id="productionPrepareToken"', self.html)
+        self.assertNotIn('id="productionTaskOperatorToken"', self.html)
         self.assertNotIn("/start", panel)
 
     def test_prepare_payload_has_no_client_execution_authority(self):
@@ -67,15 +68,13 @@ class ProductionPrepareUiTests(IsolatedTestCase):
         self.assertIn('button[onclick^="startPreparedJob"]', self.js)
         self.assertNotIn("start_render:", self.js)
 
-    def test_prepare_dialog_reconciles_scoped_token_after_preflight_refresh(self):
+    def test_prepare_dialog_reconciles_scoped_confirmation_after_preflight_refresh(self):
         update_start = self.js.index("function updateProductionPrepareDialog()")
         update_end = self.js.index("function openProductionPrepareDialog()", update_start)
         update_source = self.js[update_start:update_end]
-        self.assertIn(
-            "dialog?.querySelector('#productionTaskOperatorToken')",
-            update_source,
-        )
-        self.assertNotIn("token=$('#productionTaskOperatorToken')", update_source)
+        self.assertIn("Phiên vận hành đã được xác minh", update_source)
+        self.assertNotIn("productionTaskOperatorToken", update_source)
+        self.assertNotIn("productionPrepareToken", update_source)
 
         task_start = self.js.index("async function loadProductionTaskProjection")
         task_end = self.js.index("function stableProductionCommandValue", task_start)

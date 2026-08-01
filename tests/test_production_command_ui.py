@@ -131,6 +131,44 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertIn("production-command-status", self.css)
         self.assertIn("failedItems", self.js)
 
+    def test_milestone_one_uses_verified_runtime_readiness_and_one_journey_primary(self) -> None:
+        for state in (
+            "RESOLVE_BLOCKERS",
+            "READY_TO_PREPARE",
+            "PREPARING",
+            "READY_TO_RENDER",
+            "RENDERING",
+            "READY_FOR_QA",
+            "REPAIR_REQUIRED",
+            "COMPLETE",
+            "INFRASTRUCTURE_BLOCKED",
+        ):
+            self.assertIn(state, self.js)
+        for label in (
+            "Xử lý điều kiện còn thiếu",
+            "Chuẩn bị audio",
+            "Đang chuẩn bị…",
+            "Bắt đầu tạo audio",
+            "Đang tạo audio…",
+            "Nghe và duyệt",
+            "Sửa và tạo bản thay thế",
+            "Mở audio đã hoàn tất",
+            "Kiểm tra lại môi trường",
+        ):
+            self.assertIn(label, self.js)
+        self.assertIn("dataset.journeyPrimary", self.js)
+        self.assertIn("operator_authentication_verified", self.js)
+        self.assertNotIn("productionTaskOperatorToken", self.js)
+        self.assertNotIn("productionPrepareToken", self.js)
+
+    def test_prepare_checkpoint_reuses_the_same_idempotency_request_after_reload(self) -> None:
+        self.assertIn("PRODUCTION_COMMAND_CHECKPOINT_KEY", self.js)
+        self.assertIn("persistProductionCommandCheckpoint", self.js)
+        self.assertIn("restoreProductionCommandCheckpoint", self.js)
+        self.assertIn("resumeProductionCommandCheckpoint", self.js)
+        self.assertIn("retryRequest:commandRequest", self.js)
+        self.assertIn("Đang khôi phục kết quả PREPARE đã gửi", self.js)
+
     def test_approval_evidence_is_human_readable(self) -> None:
         for evidence in (
             "proposal_source",
@@ -189,7 +227,7 @@ class ProductionCommandUiTests(unittest.TestCase):
         end = self.js.index("async function prepareReplacementArtifact", start)
         bindings = self.js[start:end]
         prepare_start = end
-        prepare_end = self.js.index("function productionPrepareOperatorToken", prepare_start)
+        prepare_end = self.js.index("function productionRenderTaskContent", prepare_start)
         prepare = self.js[prepare_start:prepare_end]
         self.assertIn("prepare.onclick=()=>prepareReplacementArtifact(vm)", bindings)
         self.assertNotIn("repairPrepare')?.addEventListener", bindings)

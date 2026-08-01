@@ -2,6 +2,28 @@
 
 Updated: 2026-07-30
 
+## Unified Production Journey And Runtime Readiness
+
+- Production now derives one visible journey state from the read-only task
+  projection, preflight, command status, and safe runtime-readiness contract.
+  It preserves a single primary action while keeping command IDs,
+  idempotency keys, and diagnostics inside collapsed technical details.
+- The supervised launcher verifies its configured operator credential in the
+  child process and issues an in-memory HttpOnly localhost session cookie.
+  The browser never receives or stores the credential, and a missing or
+  mismatched bootstrap keeps PREPARE disabled without constructing the
+  production mutation service.
+- PREPARE is still separate from START_RENDER. A submitted PREPARE request
+  persists its idempotency checkpoint client-side and is reconciled after
+  reload or restart before another submission can be offered.
+- The production readiness endpoint reports only safe Vietnamese blockers for
+  runtime mode, launcher session, canonical database, writable output,
+  configuration, provider, feature flags, and kill switch. It is read-only.
+- Validation uses isolated API and browser fixtures plus clone restart replay.
+  Canonical verification remains read-only: no PREPARE, START_RENDER,
+  provider/TTS, Job, Artifact, QA, or Chapter `369` mutation is part of this
+  milestone.
+
 ## Speaker Review Mutation Reconciliation
 
 - The canonical 21-item batch attempt was authoritatively a server rejection,

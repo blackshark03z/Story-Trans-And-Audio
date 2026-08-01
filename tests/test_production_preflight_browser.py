@@ -38,13 +38,13 @@ class ProductionPreflightBrowserTests(unittest.TestCase):
         self.assertTrue(evidence["ok"])
         self.assertEqual(evidence["blockerNavigation"]["chapterId"], 7002)
         self.assertEqual(evidence["blockerNavigation"]["target"], "speakers")
-        self.assertEqual(evidence["scenarioB"]["primary"], "Chuẩn bị 2 chương")
+        self.assertEqual(evidence["scenarioB"]["primary"], "Chuẩn bị audio")
         self.assertTrue(evidence["readyDialog"]["open"])
         self.assertTrue(evidence["readyDialogEnabled"])
-        self.assertTrue(evidence["authDialog"]["submitDisabled"])
+        self.assertFalse(evidence["authDialog"]["open"])
         self.assertEqual(
             evidence["scenarioE"]["primary"],
-            "Bắt đầu render 2 chương",
+            "Bắt đầu tạo audio",
         )
         self.assertTrue(evidence["scenarioG"]["visibleAt1366"])
         self.assertFalse(evidence["scenarioG"]["horizontal"])

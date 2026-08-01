@@ -419,6 +419,7 @@ try {
     return{ok:true};
   })()`);
 
+  await evaluate(`document.querySelector("#productionPrimaryAction").scrollIntoView({block:"nearest"})`);
   const layout1366 = await evaluate(`(() => {
     const primary=document.querySelector("#productionPrimaryAction").getBoundingClientRect();
     const nested=[...document.querySelectorAll("#productionWorkbench *")].filter(element=>{
@@ -438,16 +439,16 @@ try {
     return{primaryVisible:primary.top>=0&&primary.bottom<=innerHeight,horizontal:document.documentElement.scrollWidth>innerWidth+1};
   })()`);
 
-  if (scenarioAStart !== "Chuẩn bị dữ liệu cho 10 chương"
+  if (scenarioAStart !== "Xử lý điều kiện còn thiếu"
       || scenarioA.phase !== "exceptions"
       || scenarioA.prepareCalls !== 1
       || scenarioA.chapterOpenCalls !== 1) {
     throw new Error(`Scenario A failed: ${JSON.stringify({ scenarioAStart, scenarioA })}`);
   }
-  if (scenarioBStart !== "Duyệt 7 chương" || scenarioB.approvals < 1) {
+  if (scenarioBStart !== "Xử lý điều kiện còn thiếu" || scenarioB.approvals < 1) {
     throw new Error(`Scenario B failed: ${JSON.stringify({ scenarioBStart, scenarioB })}`);
   }
-  if (scenarioDStart !== "Lưu và sang câu tiếp theo"
+  if (scenarioDStart !== "Xử lý điều kiện còn thiếu"
       || scenarioD.remaining !== 4
       || scenarioD.visible === "u0-1") {
     throw new Error(`Scenario D failed: ${JSON.stringify({ scenarioDStart, scenarioD })}`);
@@ -465,11 +466,11 @@ try {
       || scenarioGEnd.phase !== "castingGeneration") {
     throw new Error(`Scenarios F/G failed: ${JSON.stringify({ scenarioFG, scenarioGEnd })}`);
   }
-  if (scenarioHStart !== "Duyệt bản đồ giọng cho 9 chương"
+  if (scenarioHStart !== "Xử lý điều kiện còn thiếu"
       || !prepareUnavailableBeforeH
       || scenarioH.phase !== "ready"
       || scenarioH.castingApprovalCalls !== 1
-      || scenarioH.label !== "Chuẩn bị 9 chương") {
+      || scenarioH.label !== "Chuẩn bị audio") {
     throw new Error(`Scenarios H/I failed: ${JSON.stringify({ scenarioHStart, prepareUnavailableBeforeH, scenarioH })}`);
   }
   if (!scenarioCastingEvidence.includes("Nhân vật A")

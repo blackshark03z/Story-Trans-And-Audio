@@ -185,6 +185,16 @@ def _runtime_ready(_descriptor) -> dict[str, Any]:
         "operator_window_open": True,
         "kill_switch_active": False,
         "authentication_state": "AUTH_CONFIGURED",
+        "operator_authentication_configured": True,
+        "operator_authentication_verified": True,
+        "canonical_db_path_valid": True,
+        "output_root_writable": True,
+        "required_secrets_present": True,
+        "provider_configuration_present": True,
+        "prepare_allowed": True,
+        "start_render_allowed": True,
+        "blocker_codes": [],
+        "blockers": [],
         "mutation_service_constructed": True,
         "mutation_route_registered": True,
         "read_only_planning_available": True,
@@ -237,6 +247,7 @@ def configure_isolated_api(run_root: Path):
     api.voice_previews = VoicePreviewService(api.tts_service, api.settings, custom_voice_repo=api.custom_voice_repo, store=api.store)
     api.batch_prepare_api_service = FakeBatchPrepareService(api)
     api.public_runtime_readiness = _runtime_ready
+    api._production_runtime_readiness = lambda: _runtime_ready(api.prepare_runtime_integration)
     return api
 
 

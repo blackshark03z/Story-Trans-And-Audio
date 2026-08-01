@@ -233,7 +233,6 @@ try {
   await click("#productionPrimaryAction");
   await waitFor(`document.querySelector("#productionPrepareAuthDialog")?.open===true`);
   await click("#productionPrepareDialogConfirmation");
-  await evaluate(`(() => { const dialog=document.querySelector("#productionPrepareAuthDialog"),el=dialog?.querySelector("#productionTaskOperatorToken"); if(!el) throw new Error("Missing PREPARE dialog token"); el.value="fixture-token"; el.dispatchEvent(new Event("input",{bubbles:true})); el.dispatchEvent(new Event("change",{bubbles:true})); return true; })()`);
   await evaluate(`updateProductionPrepareDialog(); true`);
   try {
     await waitFor(`(()=>{updateProductionPrepareDialog();return document.querySelector("#productionPrepareDialogSubmit")?.disabled===false})()`, 5000);
@@ -245,7 +244,7 @@ try {
       readiness: window.storyAudioAppState.productionPrepare?.readiness,
       dialogOpen: document.querySelector("#productionPrepareAuthDialog")?.open,
       checked: document.querySelector("#productionPrepareDialogConfirmation")?.checked,
-      tokenLength: document.querySelector("#productionPrepareAuthDialog")?.querySelector("#productionTaskOperatorToken")?.value?.length || 0,
+      manualTokenControlPresent: !!document.querySelector("#productionPrepareAuthDialog")?.querySelector("#productionTaskOperatorToken"),
       disabled: document.querySelector("#productionPrepareDialogSubmit")?.disabled,
       status: document.querySelector("#productionPrepareDialogStatus")?.textContent || "",
       updateSource: String(updateProductionPrepareDialog).slice(0, 360),

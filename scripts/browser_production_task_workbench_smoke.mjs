@@ -135,6 +135,7 @@ try {
     const queue=(state.productionRange.readiness?.chapters||[]).map((item,index)=>({chapter_id:item.chapter_id,chapter_number:item.chapter_number,title:item.title||"",status:index===0&&!rangeTask?"current":"ready",state:item.state,user_stage:stage,task_type:rangeTask?null:taskType,task_key:"chapter:"+item.chapter_id+":"+taskType}));
     state.productionProjection={range_identity:"book:91:401-401",task_scope:rangeTask?"range":"chapter",task_type:taskType,task_key:(rangeTask?"range:91:401-401:":"chapter:9101:")+taskType,user_stage:stage,title:actionLabel||"Nghe và duyệt",summary:"Trạng thái fixture",task_title:actionLabel||"Nghe và duyệt",task_summary:"Trạng thái fixture",affected_chapter:rangeTask?null:{id:9101,number:401,title:state.dialog?.chapter?.title||""},chapter_queue:queue,queue,primary_action:actionKey?{key:actionKey,label:actionLabel,target:stageKey}:null,secondary_actions:[],secondary_links:[],blocker:null,next_task_hint:"Bước tiếp theo",next_task_after_success:"Bước tiếp theo",technical_details:[],phases:[],conceptual_state:rangeState,current_stage_key:stageKey};
     state.runtimeIdentity={state:"isolated",label:"Dữ liệu kiểm thử"};
+    state.productionPrepare.readiness={runtime_mode:"PRODUCTION",prepare_allowed:true,start_render_allowed:true,mutation_authorized:true,operator_authentication_verified:true,blockers:[]};
     const sections={speaker:null,casting:null,range_prepare:null,render:null,qa:null};
     if(["CREATE_SPEAKER_PROPOSAL","RESOLVE_SPEAKER","APPROVE_SPEAKER_DRAFT"].includes(taskType))sections.speaker={chapter_id:9101,draft_id:draft?.id||null,draft_status:draft?.status||null,target_count:draft?.target_count||0,invalid_count:draft?.invalid_count||0,remaining_unreviewed_count:draft?.remaining_unreviewed_count||0,stale:!!draft?.stale};
     else if(["ASSIGN_VOICE","REVIEW_CASTING_PLAN"].includes(taskType))sections.casting={chapter_id:9101,plan_id:state.casting?.casting?.id||null,plan_revision:state.casting?.casting?.plan_revision||null,plan_status:state.casting?.casting?.status||null,voice_issues:[]};
@@ -166,6 +167,7 @@ try {
   const journeyDReview = await show({ casting: fixture.casting, rangeState: "CASTING_REVIEW" });
   const approved = structuredClone(fixture.casting); approved.casting.status = "approved";
   const journeyEPrepare = await show({ casting: approved, rangeState: "READY_TO_PREPARE" });
+  const journeyInfrastructure = await evaluate(`(() => { state.productionPrepare.readiness={runtime_mode:"PRODUCTION",prepare_allowed:false,start_render_allowed:false,operator_authentication_verified:false,blockers:[{code:"AUTH_BOOTSTRAP_MISSING",message:"Launcher chưa cấp phiên vận hành cho ứng dụng."}]}; renderProductionShell(); const primary=[...document.querySelectorAll("#productionTaskWorkspace .primary")].filter(element=>getComputedStyle(element).display!=="none").map(element=>element.textContent.trim()); return {state:document.querySelector("#productionStateCard").dataset.productionState,primary,summary:document.querySelector("#productionStateExplanation").textContent}; })()`);
   const journeyEStart = await show({ casting: approved, jobs: [{ id: 9001, book_id: 91, from_chapter: 401, to_chapter: 401, casting_plan_id: 801, status: "prepared" }], rangeState: "PREPARED" });
   const journeyERunning = await show({ casting: approved, jobs: [{ id: 9001, book_id: 91, from_chapter: 401, to_chapter: 401, casting_plan_id: 801, status: "running", total_chapters: 1, completed_chapters: 0, completed_segments: 3, failed_segments: 0, pending_segments: 5, actions: { can_retry: false } }], rangeState: "RENDERING_OR_PAUSED" });
   const journeyF = await show({ casting: approved, jobs: [{ id: 9001, book_id: 91, from_chapter: 401, to_chapter: 401, status: "failed", actions: { can_retry: true }, is_historical_output: false }], rangeState: "RENDERING_OR_PAUSED" });
@@ -181,14 +183,14 @@ try {
   const inspectionBC = await evaluate(`(()=>{const projection=state.productionProjection,canonicalKey=projection.canonical_task.task_key;projection.inspected_chapter={id:9200,number:500,title:"Chương 500"};projection.inspection_summary={read_only:true,task_type:"HUMAN_QA",title:"Đánh giá audio",summary:"Chương 500 có audio chờ nghe.",blocker:null};projection.chapter_queue.forEach(item=>item.inspected=Number(item.chapter_id)===9200);renderProductionShell();const inspected={taskKey:currentProductionViewModel().task_key,primary:document.querySelector("#productionPrimaryAction").textContent,qaHidden:document.querySelector("#productionQaActions").classList.contains("hidden"),labels:[...document.querySelectorAll(".production-queue-item small")].map(item=>item.textContent),summaryHidden:document.querySelector("#productionInspectionSummary").classList.contains("hidden")};projection.inspected_chapter=null;projection.inspection_summary=null;projection.chapter_queue.forEach(item=>item.inspected=false);renderProductionShell();return{canonicalKey,inspected,restoredKey:currentProductionViewModel().task_key,summaryRestored:document.querySelector("#productionInspectionSummary").classList.contains("hidden")}})()`);
   const malformedSafe = await evaluate(`(()=>{try{parseProductionProjection({canonical_task:{task_type:"HUMAN_QA",task_key:"bad",user_stage:5,technical_details:[],qa:null}});return{ok:false}}catch(error){state.productionProjection=productionProjectionFailure(error.message);renderProductionShell();return{ok:true,title:document.querySelector("#productionCurrentStepHeading").textContent,summary:document.querySelector("#productionStateExplanation").textContent,action:document.querySelector("#productionPrimaryAction").textContent,technical:document.querySelector("#productionTechnicalBody").textContent}}})()`);
   const expected = [
-    [journeyB, "Tạo đề xuất người nói"],
-    [journeyC, "Xác nhận và tiếp tục"],
-    [journeyDEdit, "Gán giọng"],
-    [journeyDReview, "Kiểm tra bản đồ giọng"],
-    [journeyEPrepare, "Chuẩn bị 1 chương"],
-    [journeyEStart, "Bắt đầu render 1 chương"],
-    [journeyERunning, "Theo dõi render"],
-    [journeyF, "Xử lý render"],
+    [journeyB, "Xử lý điều kiện còn thiếu"],
+    [journeyC, "Xử lý điều kiện còn thiếu"],
+    [journeyDEdit, "Xử lý điều kiện còn thiếu"],
+    [journeyDReview, "Xử lý điều kiện còn thiếu"],
+    [journeyEPrepare, "Chuẩn bị audio"],
+    [journeyEStart, "Bắt đầu tạo audio"],
+    [journeyERunning, "Đang tạo audio…"],
+    [journeyF, "Đang tạo audio…"],
   ];
   for (const [journey, label] of expected) {
     if (journey.primary.length !== 1 || journey.primary[0] !== label) throw new Error(`Primary action mismatch for ${label}: ${JSON.stringify(journey)}`);
@@ -199,7 +201,8 @@ try {
   if (!pollingStability) throw new Error("Advanced speaker controls did not survive five polling intervals.");
   if (journeyDReview.body.includes("Lưu bản nháp")) throw new Error("Voice save and approval competed on the review screen.");
   if (journeyERunning.body.includes("Bắt đầu render")) throw new Error("Running state exposed duplicate start.");
-  if (journeyG.primary.length !== 1 || !journeyG.primary.includes("Chấp nhận") || !journeyG.body.includes("Ghi chú QA")) throw new Error(`QA controls are unclear: ${JSON.stringify(journeyG)}`);
+  if (journeyG.primary.length !== 1 || !journeyG.primary.includes("Nghe và duyệt") || !journeyG.body.includes("Ghi chú QA")) throw new Error(`QA controls are unclear: ${JSON.stringify(journeyG)}`);
+  if (journeyInfrastructure.state !== "INFRASTRUCTURE_BLOCKED" || journeyInfrastructure.primary.length !== 1 || journeyInfrastructure.primary[0] !== "Kiểm tra lại môi trường" || !journeyInfrastructure.summary.includes("chưa sẵn sàng")) throw new Error(`Infrastructure readiness was not safe: ${JSON.stringify(journeyInfrastructure)}`);
   if (!qaNullSafe.ok || qaNullSafe.casting !== null) throw new Error(`QA renderer touched casting state: ${JSON.stringify(qaNullSafe)}`);
   if (!qaNoteRequired.includes("ghi chú")) throw new Error("QA rejection did not require a note.");
   if (journeyH.queue !== 10 || !journeyH.current.includes("503")) throw new Error(`Ten-chapter queue did not focus the first action: ${JSON.stringify(journeyH)}`);
@@ -211,14 +214,14 @@ try {
   if (!commandLifecycle.K.restored) throw new Error(`Command K failed: ${JSON.stringify(commandLifecycle.K)}`);
   if (!qaCommandReconcile.firstNull || qaCommandReconcile.failedStatus !== "FAILED" || qaCommandReconcile.failedActive || qaCommandReconcile.calls !== 2 || !qaCommandReconcile.sameKey || qaCommandReconcile.secondOutcome !== "APPLIED" || qaCommandReconcile.task !== "REPAIR_REQUIRED" || !qaCommandReconcile.qaHidden || !qaCommandReconcile.stayedRepair) throw new Error(`QA command reconciliation failed: ${JSON.stringify(qaCommandReconcile)}`);
   if (inspectionBC.inspected.taskKey !== inspectionBC.canonicalKey || !inspectionBC.inspected.qaHidden || inspectionBC.inspected.summaryHidden || !inspectionBC.inspected.labels.some(label=>label.includes("Việc tiếp theo")) || !inspectionBC.inspected.labels.some(label=>label.includes("Đang xem")) || inspectionBC.restoredKey !== inspectionBC.canonicalKey || !inspectionBC.summaryRestored) throw new Error(`Inspection changed canonical task: ${JSON.stringify(inspectionBC)}`);
-  if (!malformedSafe.ok || malformedSafe.title !== "Không thể tải việc tiếp theo" || malformedSafe.summary !== "Trạng thái sản xuất chưa đầy đủ. Hãy làm mới để hệ thống kiểm tra lại." || malformedSafe.action !== "Thử lại" || !malformedSafe.technical.includes("PROJECTION_CONTRACT_INVALID")) throw new Error(`Malformed projection was not fail-closed: ${JSON.stringify(malformedSafe)}`);
+  if (!malformedSafe.ok || malformedSafe.title !== "Không thể tải việc tiếp theo" || malformedSafe.summary !== "Trạng thái sản xuất chưa đầy đủ. Hãy làm mới để hệ thống kiểm tra lại." || malformedSafe.action !== "Xử lý điều kiện còn thiếu" || !malformedSafe.technical.includes("PROJECTION_CONTRACT_INVALID")) throw new Error(`Malformed projection was not fail-closed: ${JSON.stringify(malformedSafe)}`);
 
   await send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   const desktop = await evaluate(`(() => ({horizontal:document.documentElement.scrollWidth>innerWidth+1,primaryVisible:document.querySelector("#productionPrimaryAction").getBoundingClientRect().top<innerHeight}))()`);
   if (desktop.horizontal || !desktop.primaryVisible) throw new Error(`1920 layout failed: ${JSON.stringify(desktop)}`);
   if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
 
-  process.stdout.write(JSON.stringify({ ok: true, journeyA, journeyB, journeyC, pollingStability, journeyDEdit, journeyDReview, journeyEPrepare, journeyEStart, journeyERunning, journeyF, journeyG, qaNullSafe, journeyH, commandLifecycle, qaCommandReconcile, inspectionBC, malformedSafe, desktop }));
+  process.stdout.write(JSON.stringify({ ok: true, journeyA, journeyB, journeyC, pollingStability, journeyDEdit, journeyDReview, journeyEPrepare, journeyInfrastructure, journeyEStart, journeyERunning, journeyF, journeyG, qaNullSafe, journeyH, commandLifecycle, qaCommandReconcile, inspectionBC, malformedSafe, desktop }));
 } finally {
   try { socket?.close(); } catch {}
   const browserExited = new Promise(resolve => {

@@ -144,7 +144,7 @@
               <section id="productionPhaseWorkspace" class="production-phase-workspace hidden" aria-label="Công cụ của việc hiện tại"></section>
               <div id="productionQaActions" class="production-qa-actions hidden" aria-label="Kết luận nghe duyệt">
                 <button id="productionQaNeedsFixes" class="secondary" type="button">Cần sửa</button>
-                <button id="productionQaAccept" class="primary" type="button">Chấp nhận</button>
+                <button id="productionQaAccept" class="secondary" type="button">Chấp nhận</button>
               </div>
               <div id="productionSecondaryLinks" class="production-secondary-links"></div>
               <p id="productionNextTaskHint" class="production-next-hint"></p>
@@ -240,7 +240,7 @@
             </div>
             <div id="batchPlanResult" class="plan-review-result empty" aria-live="polite">Chưa có kế hoạch batch.</div>
           </section>
-          <section id="productionPreparePanel" class="production-prepare-panel" aria-labelledby="productionPrepareHeading">
+          <section id="productionPreparePanel" class="production-prepare-panel hidden" aria-labelledby="productionPrepareHeading" aria-hidden="true">
             <div class="section-head">
               <div>
                 <p class="eyebrow">PREPARE only</p>
@@ -255,15 +255,12 @@
               <label for="productionPrepareExactRange">Xác nhận đúng phạm vi
                 <input id="productionPrepareExactRange" autocomplete="off" placeholder="book_id:from-to">
               </label>
-              <label for="productionPrepareToken">Mã xác thực operator
-                <input id="productionPrepareToken" type="password" autocomplete="off" spellcheck="false">
-              </label>
               <label class="check wide" for="productionPrepareConfirmation">
                 <input id="productionPrepareConfirmation" type="checkbox">
                 Tôi xác nhận chỉ PREPARE đúng phạm vi đang hiển thị, không START_RENDER.
               </label>
             </div>
-            <button id="submitProductionPrepare" class="primary full" type="button" disabled>Chuẩn bị batch</button>
+            <button id="submitProductionPrepare" class="secondary full" type="button" disabled>Chuẩn bị batch</button>
             <div class="prepare-request-status">
               <div>
                 <strong>Request hiện tại</strong>
@@ -1001,7 +998,7 @@
   <dialog id="productionPrepareAuthDialog" class="production-auth-dialog" aria-labelledby="productionPrepareAuthHeading">
     <div class="dialog-head">
       <div>
-        <p class="eyebrow">Xác thực thao tác</p>
+        <p class="eyebrow">Xác nhận thao tác</p>
         <h2 id="productionPrepareAuthHeading">Chuẩn bị phạm vi audio</h2>
       </div>
       <button class="ghost" type="button" data-close="productionPrepareAuthDialog">Đóng</button>
@@ -1010,9 +1007,6 @@
     <label class="check production-confirmation">
       <input id="productionPrepareDialogConfirmation" type="checkbox" onchange="updateProductionPrepareDialog()">
       <span id="productionPrepareConfirmationCopy">Tôi xác nhận phạm vi đã chọn. Bước này chưa tạo audio.</span>
-    </label>
-    <label class="production-operator-key" for="productionTaskOperatorToken">Mã xác nhận vận hành
-      <input id="productionTaskOperatorToken" type="password" autocomplete="off" placeholder="Nhập mã xác nhận" oninput="updateProductionPrepareDialog()">
     </label>
     <div class="production-auth-actions">
       <button class="ghost" type="button" onclick="document.querySelector('#productionPrepareAuthDialog').close()">Hủy</button>

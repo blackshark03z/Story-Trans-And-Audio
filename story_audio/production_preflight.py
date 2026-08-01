@@ -381,9 +381,16 @@ def project_production_preflight(snapshot: Mapping[str, Any]) -> dict[str, Any]:
         == int(runtime.get("required_schema_version") or 15)
         == 15
     )
+    # The production readiness projection combines config, the supervised
+    # launcher session, and the canonical execution gates.  Older isolated
+    # projections do not include ``prepare_allowed`` yet, so retain their
+    # established authorization contract for read-only compatibility tests.
     authorization_ready = bool(
-        runtime.get("mutation_authorized")
-        and runtime.get("authentication_state") == "AUTH_CONFIGURED"
+        runtime.get(
+            "prepare_allowed",
+            runtime.get("mutation_authorized")
+            and runtime.get("authentication_state") == "AUTH_CONFIGURED",
+        )
     )
     kill_switch_clear = not bool(runtime.get("kill_switch_active"))
     conflict_free = int(checks["conflict"]["passed"]) == int(checks["conflict"]["total"])

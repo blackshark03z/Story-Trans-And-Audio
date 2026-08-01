@@ -85,17 +85,25 @@ class ScopeFixtureHandler(SimpleHTTPRequestHandler):
         if parsed.path == "/api/production/prepare-readiness":
             return self._json(
                 {
-                    "runtime_mode": "ISOLATED",
+                    "runtime_mode": "PRODUCTION",
                     "schema_version": 15,
                     "required_schema_version": 15,
-                    "status": "DISABLED",
-                    "kill_switch_active": True,
-                    "authentication_state": "AUTH_NOT_CONFIGURED",
-                    "feature_available": False,
-                    "mutation_enabled": False,
-                    "mutation_authorized": False,
-                    "operator_window_open": False,
-                    "start_render_available": False,
+                    "status": "PRODUCTION_AUTHENTICATED_READY",
+                    "kill_switch_active": False,
+                    "authentication_state": "READY",
+                    "operator_authentication_configured": True,
+                    "operator_authentication_verified": True,
+                    "canonical_db_path_valid": True,
+                    "output_root_writable": True,
+                    "required_secrets_present": True,
+                    "provider_configuration_present": True,
+                    "feature_available": True,
+                    "mutation_enabled": True,
+                    "mutation_authorized": True,
+                    "prepare_allowed": True,
+                    "operator_window_open": True,
+                    "start_render_available": True,
+                    "blockers": [],
                 }
             )
         if parsed.path == "/api/books":

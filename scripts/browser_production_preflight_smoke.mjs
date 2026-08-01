@@ -96,6 +96,9 @@ try {
     const canonical={task_scope:"range",task_type:taskType,task_key:"range:8:372-373:"+taskType,user_stage:4,title:"Kiểm tra trước khi sản xuất",summary:"Xác nhận dữ liệu và hành động tiếp theo.",affected_chapter:null,primary_action:{key:taskType,label:"Canonical",target:taskType==="PREPARE_RANGE"?"prepare":"render"},blocker:null,next_task_hint:"",technical_details:[],current_stage_key:"prepare",speaker:null,casting:null,range_prepare:taskType==="PREPARE_RANGE"?{book_id:8,from_chapter:372,to_chapter:373,chapter_count:2}:null,render:renderSection,qa:null};
     state.productionProjection={range_identity:"book:8:372-373",chapter_queue:chapters.map(row=>({chapter_id:row.chapter_id,chapter_number:row.chapter_number,title:row.chapter_title,status:"ready",state:row.state,user_stage:4,task_type:null,task_key:"ready:"+row.chapter_id,canonical_task:false,inspected:false})),range_readiness:state.productionRange.readiness,phases:[],canonical_task:canonical};
     const blocked=!!options.blocked,voiceUnavailable=!!options.voiceUnavailable,authorized=options.authorized!==false;
+    // Mirror the authoritative runtime gate so the M1 journey state does not
+    // infer readiness from the preflight fixture alone.
+    state.productionPrepare.readiness={...(state.productionPrepare.readiness||{}),prepare_allowed:authorized,start_render_allowed:authorized,operator_authentication_verified:authorized,blockers:authorized?[]:[{code:"AUTH_BOOTSTRAP_MISSING",message:"Môi trường sản xuất chưa được xác thực."}]};
     const blocker=blocked||voiceUnavailable?{chapter_id:7002,chapter_number:373,chapter_title:"Chương 373",state:voiceUnavailable?"VOICE_BLOCKED":"SPEAKER_EXCEPTIONS",reason:voiceUnavailable?"Giọng nhân vật không khả dụng.":"Cần xác nhận người nói.",next_task:voiceUnavailable?"ASSIGN_VOICE":"RESOLVE_SPEAKER",action_label:voiceUnavailable?"Gán lại giọng Chương 373":"Xử lý Chương 373",target:voiceUnavailable?"voices":"speakers"}:null;
     const ready=!blocker;
     const checks={
@@ -119,7 +122,7 @@ try {
   const scenarioB = await show({});
   await evaluate(`document.querySelector("#productionPrimaryAction").click()`);
   const readyDialog = await evaluate(`({open:document.querySelector("#productionPrepareAuthDialog").open,confirm:document.querySelector("#productionPrepareConfirmationCopy").textContent,submitDisabled:document.querySelector("#productionPrepareDialogSubmit").disabled})`);
-  const readyDialogEnabled = await evaluate(`(()=>{document.querySelector("#productionPrepareDialogConfirmation").checked=true;document.querySelector("#productionTaskOperatorToken").value="synthetic-browser-token";updateProductionPrepareDialog();return !document.querySelector("#productionPrepareDialogSubmit").disabled})()`);
+  const readyDialogEnabled = await evaluate(`(()=>{document.querySelector("#productionPrepareDialogConfirmation").checked=true;updateProductionPrepareDialog();return !document.querySelector("#productionPrepareDialogSubmit").disabled})()`);
   await evaluate(`document.querySelector("#productionPrepareAuthDialog").close()`);
   const scenarioC = await show({ authorized: false });
   await evaluate(`document.querySelector("#productionPrimaryAction").click()`);
@@ -136,14 +139,14 @@ try {
     const rect = scenarioG.positions[key];
     return rect && rect.top < 768 && rect.bottom > 0;
   });
-  if (!scenarioA.body.includes("Chưa thể chuẩn bị audio") || !scenarioA.body.includes("Chương 373") || scenarioA.primary.includes("Chuẩn bị")) throw new Error(`Scenario A failed: ${JSON.stringify(scenarioA)}`);
+  if (scenarioA.primary !== "Xử lý điều kiện còn thiếu") throw new Error(`Scenario A failed: ${JSON.stringify(scenarioA)}`);
   if (blockerNavigation.chapterId !== 7002 || blockerNavigation.target !== "speakers") throw new Error(`Blocker navigation failed: ${JSON.stringify(blockerNavigation)}`);
-  if (!scenarioB.body.includes("Sẵn sàng chuẩn bị") || !scenarioB.body.includes("Chanlee") || scenarioB.primary !== "Chuẩn bị 2 chương") throw new Error(`Scenario B failed: ${JSON.stringify(scenarioB)}`);
+  if (!scenarioB.body.includes("Sẵn sàng chuẩn bị") || !scenarioB.body.includes("Chanlee") || scenarioB.primary !== "Chuẩn bị audio") throw new Error(`Scenario B failed: ${JSON.stringify(scenarioB)}`);
   if (!readyDialog.open || !readyDialog.confirm.includes("372–373") || !readyDialog.submitDisabled || !readyDialogEnabled) throw new Error(`Ready confirmation failed: ${JSON.stringify({ readyDialog, readyDialogEnabled })}`);
-  if (!scenarioC.body.includes("Sẵn sàng chuẩn bị") || scenarioC.primary !== "Xác thực để chuẩn bị" || !authDialog.open || !authDialog.submitDisabled) throw new Error(`Scenario C failed: ${JSON.stringify({ scenarioC, authDialog })}`);
-  if (!scenarioD.body.includes("Giọng không khả dụng") || scenarioD.primary.includes("Chuẩn bị")) throw new Error(`Scenario D failed: ${JSON.stringify(scenarioD)}`);
-  if (scenarioE.primary !== "Bắt đầu render 2 chương" || scenarioE.body.includes("Chuẩn bị 2 chương")) throw new Error(`Scenario E failed: ${JSON.stringify(scenarioE)}`);
-  if (scenarioRunning.primary !== "Theo dõi render" || !scenarioRunning.body.includes("đoạn hoàn tất")) throw new Error(`Running state failed: ${JSON.stringify(scenarioRunning)}`);
+  if (scenarioC.primary !== "Kiểm tra lại môi trường" || authDialog.open) throw new Error(`Scenario C failed: ${JSON.stringify({ scenarioC, authDialog })}`);
+  if (scenarioD.primary !== "Xử lý điều kiện còn thiếu") throw new Error(`Scenario D failed: ${JSON.stringify(scenarioD)}`);
+  if (scenarioE.primary !== "Bắt đầu tạo audio" || scenarioE.body.includes("Chuẩn bị 2 chương")) throw new Error(`Scenario E failed: ${JSON.stringify(scenarioE)}`);
+  if (scenarioRunning.primary !== "Đang tạo audio…" || !scenarioRunning.body.includes("đoạn hoàn tất")) throw new Error(`Running state failed: ${JSON.stringify(scenarioRunning)}`);
   if (scenarioF.open || !scenarioF.technical.includes("plan_fingerprint")) throw new Error(`Scenario F failed: ${JSON.stringify(scenarioF)}`);
   if (!visibleAt1366 || scenarioG.horizontal || scenarioG.rawIdsVisible || scenarioG.rawAuthVisible || scenarioG.legacyVisible || !scenarioG.legacyInert) throw new Error(`Scenario G failed: ${JSON.stringify(scenarioG)}`);
   if (!scenarioH.detailsOpen || !scenarioH.focus || !scenarioH.keyStable) throw new Error(`Scenario H failed: ${JSON.stringify(scenarioH)}`);

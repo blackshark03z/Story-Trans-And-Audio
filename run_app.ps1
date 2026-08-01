@@ -58,6 +58,9 @@ try {
                 $Hasher.Dispose()
                 [Array]::Clear($TokenBytes, 0, $TokenBytes.Length)
             }
+            # The child consumes this bootstrap value before serving requests.
+            # It is never returned by an API or copied into browser state.
+            $Values["STORY_AUDIO_OPERATOR_TOKEN_BOOTSTRAP"] = $Values["PREPARE_OPERATOR_TOKEN"]
             $Values.Remove("PREPARE_OPERATOR_TOKEN")
         }
         foreach ($Entry in $Values.GetEnumerator()) {
@@ -91,8 +94,60 @@ try {
     if (Test-Path -LiteralPath $env:STORY_AUDIO_RESTART_SIGNAL) {
         Remove-Item -LiteralPath $env:STORY_AUDIO_RESTART_SIGNAL -Force
     }
+    $ListenHost = "127.0.0.1"
+    $ListenPort = 8772
+    for ($Index = 0; $Index -lt $LaunchArgs.Count; $Index++) {
+        if ($LaunchArgs[$Index] -eq "--host" -and ($Index + 1) -lt $LaunchArgs.Count) {
+            $ListenHost = $LaunchArgs[$Index + 1]
+        }
+        if ($LaunchArgs[$Index] -eq "--port" -and ($Index + 1) -lt $LaunchArgs.Count) {
+            $ListenPort = [int]$LaunchArgs[$Index + 1]
+        }
+    }
+
+    function Test-StoryAudioPortOpen([string]$HostName, [int]$Port) {
+        $Client = [System.Net.Sockets.TcpClient]::new()
+        try {
+            $Connect = $Client.ConnectAsync($HostName, $Port)
+            if (-not $Connect.Wait(500)) { return $false }
+            return $Client.Connected
+        } catch {
+            return $false
+        } finally {
+            $Client.Dispose()
+        }
+    }
+
+    function Wait-StoryAudioReadiness([Diagnostics.Process]$Process, [string]$HostName, [int]$Port) {
+        $Deadline = [DateTime]::UtcNow.AddSeconds(30)
+        do {
+            if ($Process.HasExited) {
+                throw "Story Audio exited before production readiness was available."
+            }
+            try {
+                $Readiness = Invoke-RestMethod -Uri "http://$HostName`:$Port/api/production/prepare-readiness" -TimeoutSec 2
+                if ($Readiness.runtime_mode -eq "PRODUCTION" -and $Readiness.operator_authentication_verified) {
+                    return
+                }
+            } catch {
+                # The server may still be importing modules; retry until the bounded deadline.
+            }
+            Start-Sleep -Milliseconds 250
+        } while ([DateTime]::UtcNow -lt $Deadline)
+        throw "Story Audio did not reach verified production readiness within 30 seconds."
+    }
+
+    $ChildProcess = $null
+    $InitialLaunch = $true
     while ($true) {
-        & $Python -m story_audio.main @LaunchArgs
+        if ($InitialLaunch -and (Test-StoryAudioPortOpen $ListenHost $ListenPort)) {
+            throw "Port $ListenHost`:$ListenPort is already in use. Stop the stale runtime before using the production launcher."
+        }
+        $ChildProcess = Start-Process -FilePath $Python -ArgumentList (@("-m", "story_audio.main") + $LaunchArgs) -PassThru -WindowStyle Hidden
+        Wait-StoryAudioReadiness $ChildProcess $ListenHost $ListenPort
+        $ChildProcess.WaitForExit()
+        $ChildProcess = $null
+        $InitialLaunch = $false
         if (-not (Test-Path -LiteralPath $env:STORY_AUDIO_RESTART_SIGNAL)) {
             break
         }
@@ -100,6 +155,9 @@ try {
         Start-Sleep -Milliseconds 500
     }
 } finally {
+    if ($ChildProcess -and -not $ChildProcess.HasExited) {
+        Stop-Process -Id $ChildProcess.Id -Force
+    }
     foreach ($Entry in $PreviousEnvironment.GetEnumerator()) {
         [Environment]::SetEnvironmentVariable(
             $Entry.Key,

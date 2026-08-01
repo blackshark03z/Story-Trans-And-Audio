@@ -66,6 +66,11 @@ from .batch_prepare_runtime_integration import (
     read_runtime_integration_config,
     require_clone_runtime,
 )
+from .production_runtime_readiness import production_runtime_readiness
+from .runtime_operator_session import (
+    RuntimeOperatorSession,
+    mutation_service_construction_allowed,
+)
 from .batch_prepare_schema import PREPARE_SCHEMA_VERSION, prepare_migration_runner
 from .book_voice_registry import BookVoiceRegistryError, get_book_voice_registry
 from .custom_voice import CustomVoiceRepository
@@ -209,6 +214,10 @@ prepare_runtime_integration = build_runtime_integration(
     canonical_db_path=canonical_production_db_path(),
 )
 require_clone_runtime(prepare_runtime_integration)
+runtime_operator_session = RuntimeOperatorSession.from_environment(
+    prepare_runtime_integration,
+    prepare_runtime_config.auth,
+)
 db = _build_runtime_database(settings.db_path, prepare_runtime_integration)
 store = ContentStore(settings)
 custom_voice_repo = CustomVoiceRepository(db, store)
@@ -222,17 +231,41 @@ def _load_voice_catalog():
     return VoiceCatalogAuthority(_voice_catalog_payload).load()
 
 
-batch_prepare_api_service = build_prepare_api_service(
-    settings=settings,
-    config=prepare_runtime_config,
-    descriptor=prepare_runtime_integration,
-    voice_catalog_loader=_load_voice_catalog,
+_prepare_service_construction_allowed = mutation_service_construction_allowed(
+    prepare_runtime_integration,
+    runtime_operator_session,
+)
+batch_prepare_api_service = (
+    build_prepare_api_service(
+        settings=settings,
+        config=prepare_runtime_config,
+        descriptor=prepare_runtime_integration,
+        voice_catalog_loader=_load_voice_catalog,
+    )
+    if _prepare_service_construction_allowed
+    else None
 )
 worker = PipelineWorker(db, store, tts_service, settings)
 voice_previews = VoicePreviewService(
     tts_service, settings, custom_voice_repo=custom_voice_repo, store=store
 )
 production_operation_lock = threading.RLock()
+
+
+def _production_runtime_readiness() -> dict[str, Any]:
+    return production_runtime_readiness(
+        prepare_runtime_integration,
+        session=runtime_operator_session,
+        output_root=settings.output_dir,
+        # Read-only catalog fixtures intentionally expose no provider status.
+        # Treat that as unavailable instead of failing the readiness endpoint.
+        provider_configured=getattr(tts_service, "status", None) == "ready",
+        mutation_service_constructed=batch_prepare_api_service is not None,
+    )
+
+
+def _request_prepare_authorization(request: Request) -> str | None:
+    return runtime_operator_session.authorization_header(request)
 
 
 def _serialized_production_mutation(function):
@@ -684,11 +717,9 @@ def get_runtime_identity() -> dict[str, Any]:
 
 
 @app.get("/api/production/prepare-readiness")
-def production_prepare_readiness() -> dict[str, Any]:
-    payload = public_runtime_readiness(prepare_runtime_integration)
-    enabled = batch_prepare_api_service is not None
-    payload["mutation_service_constructed"] = enabled
-    payload["mutation_route_registered"] = enabled
+def production_prepare_readiness(response: Response) -> dict[str, Any]:
+    payload = _production_runtime_readiness()
+    runtime_operator_session.apply_cookie(response)
     return payload
 
 
@@ -700,11 +731,24 @@ def _prepare_service():
             raise HTTPException(503, {"code": "KILL_SWITCH_ACTIVE"})
         if prepare_runtime_integration.authentication_state != "AUTH_CONFIGURED":
             raise HTTPException(503, {"code": "AUTH_NOT_READY"})
+        if (
+            prepare_runtime_integration.runtime_mode == PRODUCTION
+            and not runtime_operator_session.verified
+        ):
+            raise HTTPException(503, {"code": "AUTH_NOT_READY"})
         raise HTTPException(503, {"code": "PREPARE_DISABLED"})
     return batch_prepare_api_service
 
 
 def _clone_prepare_error(exc: ClonePrepareApiError) -> HTTPException:
+    if str(exc.code).startswith("AUTH_"):
+        return HTTPException(
+            exc.http_status,
+            {
+                "code": "AUTH_NOT_READY",
+                "message": "Không thể chuẩn bị audio vì môi trường sản xuất chưa được xác thực. Hệ thống chưa gửi yêu cầu PREPARE.",
+            },
+        )
     return HTTPException(exc.http_status, {"code": exc.code, "message": str(exc)})
 
 
@@ -731,7 +775,7 @@ async def production_batch_prepare(request: Request) -> dict[str, Any]:
         with production_operation_lock:
             result = _prepare_service().prepare(
                 payload.model_dump(),
-                authorization_header=request.headers.get("authorization"),
+                authorization_header=_request_prepare_authorization(request),
             )
     except ClonePrepareApiError as exc:
         raise _clone_prepare_error(exc) from exc
@@ -750,7 +794,7 @@ def production_batch_prepare_status(
     try:
         result = _prepare_service().status(
             client_request_id,
-            authorization_header=request.headers.get("authorization"),
+            authorization_header=_request_prepare_authorization(request),
         )
     except ClonePrepareApiError as exc:
         raise _clone_prepare_error(exc) from exc
@@ -1008,9 +1052,7 @@ def production_preflight(
 
     try:
         voice_catalog = _load_voice_catalog()
-        runtime_readiness = public_runtime_readiness(prepare_runtime_integration)
-        runtime_readiness["mutation_service_constructed"] = batch_prepare_api_service is not None
-        runtime_readiness["mutation_route_registered"] = batch_prepare_api_service is not None
+        runtime_readiness = _production_runtime_readiness()
         return get_production_preflight(
             db,
             book_id=book_id,
@@ -1281,9 +1323,7 @@ def _project_production_command(
         config=settings,
         custom_voice_context=custom_context,
     )
-    runtime_readiness = public_runtime_readiness(prepare_runtime_integration)
-    runtime_readiness["mutation_service_constructed"] = batch_prepare_api_service is not None
-    runtime_readiness["mutation_route_registered"] = batch_prepare_api_service is not None
+    runtime_readiness = _production_runtime_readiness()
     try:
         preflight = get_production_preflight(
             db,
@@ -2639,7 +2679,7 @@ def execute_production_command(
             scope=command.scope,
             executor=_production_command_executor(
                 command,
-                authorization_header=request.headers.get("authorization"),
+                authorization_header=_request_prepare_authorization(request),
             ),
         )
     except HTTPException as exc:
@@ -4400,4 +4440,6 @@ app.mount("/assets", StaticFiles(directory=UI_DIR), name="assets")
 
 @app.get("/", include_in_schema=False)
 def index():
-    return FileResponse(UI_DIR / "index.html")
+    response = FileResponse(UI_DIR / "index.html")
+    runtime_operator_session.apply_cookie(response)
+    return response
