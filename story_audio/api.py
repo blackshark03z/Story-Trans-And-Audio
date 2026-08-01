@@ -2022,7 +2022,11 @@ def _production_command_executor(
             is_clear = command_type.startswith("CLEAR_")
             is_chapter = "_CHAPTER_" in command_type
             if is_chapter and command_range["from_chapter"] != command_range["to_chapter"]:
-                raise ProductionCommandError("Chapter voice override requires a one-chapter scope")
+                raise ProductionCommandError(
+                    "Ghi đè giọng theo chương chỉ áp dụng cho đúng một chương. "
+                    f"Phạm vi hiện tại: Chương {int(command_range['from_chapter'])}-"
+                    f"{int(command_range['to_chapter'])}."
+                )
             voice_id = None if is_clear else str(payload.get("voice_id") or "").strip()
             if not is_clear and not voice_id:
                 raise ProductionCommandError("A selectable voice is required")

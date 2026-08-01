@@ -343,9 +343,10 @@ def _chapter_task(item: dict[str, Any]) -> dict[str, Any] | None:
 
 def _repair_blocker_details(source: dict[str, Any]) -> list[dict[str, Any]]:
     chapter_number = int(source.get("chapter_number") or 0)
+    raw_blockers = [str(item) for item in source.get("repair_input_blockers") or []]
+    speaker_blocked = any("speaker draft" in item.casefold() for item in raw_blockers)
     details: list[dict[str, Any]] = []
-    for raw in source.get("repair_input_blockers") or []:
-        message = str(raw)
+    for message in raw_blockers:
         normalized = message.casefold()
         if "speaker draft" in normalized:
             stale = "stale" in normalized
@@ -364,13 +365,22 @@ def _repair_blocker_details(source: dict[str, Any]) -> list[dict[str, Any]]:
             })
         elif "final voice map" in normalized or "casting plan" in normalized:
             details.append({
-                "code": "VOICE_MAP_NOT_READY",
-                "title": f"Chương {chapter_number} chưa có bản đồ giọng cuối cùng",
-                "explanation": "Cần hoàn tất người nói và giọng hiệu lực trước khi PREPARE bản thay thế.",
-                "action_label": f"Hoàn tất giọng cho Chương {chapter_number}",
+                "code": "VOICE_MAP_DEPENDS_ON_SPEAKER" if speaker_blocked else "VOICE_MAP_NOT_READY",
+                "title": (
+                    "Bản đồ giọng cuối cùng sẽ được tạo sau khi duyệt người nói"
+                    if speaker_blocked
+                    else f"Chương {chapter_number} chưa có bản đồ giọng cuối cùng"
+                ),
+                "explanation": (
+                    "Sau khi duyệt người nói, hãy chọn giọng cho các vai rồi tạo và duyệt bản đồ giọng cuối cùng."
+                    if speaker_blocked
+                    else "Cần hoàn tất người nói và giọng hiệu lực trước khi PREPARE bản thay thế."
+                ),
+                "action_label": None if speaker_blocked else f"Hoàn tất giọng cho Chương {chapter_number}",
                 "target": "assignment",
                 "assignment_focus": "voices",
                 "technical_reason": message,
+                "dependent": speaker_blocked,
             })
         else:
             details.append({

@@ -137,6 +137,36 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertNotIn("Narrator/unknown", section)
         self.assertNotIn("disabled title=\"Override", section)
 
+    def test_chapter_voice_save_is_guarded_until_casting_plan_is_ready(self) -> None:
+        section = self.js[
+            self.js.index("function renderRegistryActionCell"):
+            self.js.index("function renderRegistryTableRow")
+        ]
+        self.assertIn(
+            "Chưa thể lưu giọng riêng cho Chương ${chapterNumber} vì bản xác định người nói chưa được duyệt.",
+            section,
+        )
+        self.assertIn("Lựa chọn tạm thời — chưa được lưu", section)
+        self.assertIn("Duyệt người nói trước", section)
+        self.assertIn("Hủy lựa chọn chưa lưu", section)
+        self.assertIn("Lưu cấu hình giọng và hoàn tất bản đồ giọng", section)
+        self.assertIn("Duyệt bản xác định người nói hiện tại.", section)
+        self.assertIn("Tạo và duyệt bản đồ giọng cuối cùng.", section)
+
+    def test_range_command_scope_prefers_exact_working_context(self) -> None:
+        section = self.js[
+            self.js.index("function rangeProductionCommandScope"):
+            self.js.index("function chapterProductionCommandScope")
+        ]
+        self.assertIn("context=currentProductionWorkingContext()", section)
+        self.assertIn("normalizeProductionWorkingContext(context)", section)
+        self.assertIn("from_chapter:exact.fromChapter", section)
+        save_section = self.js[
+            self.js.index("async function saveRegistryScopedVoice"):
+            self.js.index("async function clearRegistryScopedVoice")
+        ]
+        self.assertIn("rangeProductionCommandScope(context)", save_section)
+
     def test_assignment_workflow_separates_review_from_character_voice_library(self) -> None:
         section = self.js[
             self.js.index("function renderBookVoiceRegistryPage(context,registryState)"):
@@ -162,7 +192,7 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         for label in (
             "Lưu thay đổi giọng",
             "Bỏ ghi đè và dùng giọng kế thừa",
-            "Hủy thay đổi chưa lưu",
+            "Hủy lựa chọn chưa lưu",
             "Nghe thử giọng",
             "Mặc định của sách",
             "Ghi đè chương",

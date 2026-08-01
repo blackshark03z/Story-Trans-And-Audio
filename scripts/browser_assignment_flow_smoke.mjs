@@ -211,6 +211,21 @@ try {
     };
   })()`);
 
+  await click('[data-registry-apply="character:25"]');
+  await waitFor(`!window.storyAudioAppState.productionCommand?.active
+    && !window.storyAudioAppState.bookVoiceRegistry?.loading`, 20000);
+  const voiceSaveState = await evaluate(`({
+    command: window.storyAudioAppState.productionCommand,
+    rowError: window.storyAudioAppState.bookVoiceRegistry?.rowErrors?.['character:25'] || null,
+    rowResult: window.storyAudioAppState.bookVoiceRegistry?.rowResults?.['character:25'] || null,
+    preflightEnabled: !!document.querySelector('[data-open-production-preflight]:not([disabled])'),
+    commands: null,
+  })`);
+  voiceSaveState.commands = await evaluate(`fetch('/api/fixture/commands').then(response => response.json())`);
+  if (!voiceSaveState.preflightEnabled) {
+    throw new Error(`Voice save did not unlock preflight: ${JSON.stringify(voiceSaveState)}`);
+  }
+
   const commandsBeforePreflight = await evaluate(`fetch('/api/fixture/commands').then(response => response.json())`);
   await click('[data-open-production-preflight]:not([disabled])');
   await waitFor(`location.hash.startsWith("#/production")`);
@@ -254,8 +269,12 @@ try {
     state.productionProjection=projection;state.productionRepair={taskKey:null,mode:null};state.productionRange={bookId:1,fromChapter:1,toChapter:1,skipCompleted:false};setAppRoute('production');renderProductionShell();
     return {blockers:document.querySelectorAll('[data-repair-blocker]').length,nextAction:document.querySelector('#repairSameData')?.textContent,prepareButton:!!document.querySelector('#repairPrepare'),commandsBefore:0};
   })()`);
-  await click('#repairSameData');
-  const replacementPreflight = await evaluate(`({mode:window.storyAudioAppState.productionRepair.mode,heading:document.querySelector('.production-repair-same-data h3')?.textContent,pins:document.querySelector('.production-repair-pins')?.innerText,prepareDisabled:document.querySelector('#repairPrepare')?.disabled})`);
+  await waitFor(`(() => { const button=document.querySelector('#repairSameData'); if(!button)return false; button.click(); return true; })()`);
+  const replacementPreflight = await waitFor(`(() => {
+    const heading=document.querySelector('.production-repair-same-data h3')?.textContent;
+    if(window.storyAudioAppState.productionRepair.mode !== "same_data" || !heading)return null;
+    return {mode:window.storyAudioAppState.productionRepair.mode,heading,pins:document.querySelector('.production-repair-pins')?.innerText,prepareDisabled:document.querySelector('#repairPrepare')?.disabled};
+  })()`);
   const commandsAfterRepairChecks = await evaluate(`fetch('/api/fixture/commands').then(response => response.json())`);
 
   if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
@@ -267,6 +286,7 @@ try {
     navigationState,
     reviewCompletion,
     pollingStability,
+    voiceSaveState,
     readyNavigation,
     commandsBeforePreflight,
     commandsAfterPreflight,

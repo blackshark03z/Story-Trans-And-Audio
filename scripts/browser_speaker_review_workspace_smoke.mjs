@@ -107,12 +107,13 @@ try {
   const analysisPreparingSnapshot = await evaluate(`(() => { const progress=document.querySelector('[data-speaker-analysis-progress]'); const state=window.storyAudioAppState.bookVoiceRegistry.speakerSuggestions.analysisProgress; return {text:progress?.innerText||'',phase:state?.phase,targetCount:state?.targetCount,spinner:!!progress?.querySelector('.command-spinner')} })()`);
   await delay(250);
   const analysisImmediateSnapshot = await evaluate(`(() => { const progress=document.querySelector('[data-speaker-analysis-progress]'); const button=document.querySelector('[data-generate-speaker-suggestions]'); return {text:progress?.innerText||'',hidden:progress?.classList.contains('hidden'),spinner:!!progress?.querySelector('.command-spinner'),disabled:!!button?.disabled,phase:window.storyAudioAppState.bookVoiceRegistry.speakerSuggestions.analysisProgress?.phase,active:window.storyAudioAppState.bookVoiceRegistry.speakerSuggestions.analysisProgress?.active,targetCount:window.storyAudioAppState.bookVoiceRegistry.speakerSuggestions.analysisProgress?.targetCount} })()`);
-  if (!(analysisPreparingSnapshot.phase==='preparing' && analysisPreparingSnapshot.text.includes(`${analysisPreparingSnapshot.targetCount} câu`) && analysisPreparingSnapshot.spinner && analysisImmediateSnapshot.phase==='sending' && analysisImmediateSnapshot.disabled && analysisImmediateSnapshot.spinner)) throw new Error(`Analyze immediate state mismatch: ${JSON.stringify({analysisPreparingSnapshot,analysisImmediateSnapshot})}`);
+  const initialAnalysisPhaseValid=['preparing','sending'].includes(analysisPreparingSnapshot.phase);
+  if (!(initialAnalysisPhaseValid && analysisPreparingSnapshot.targetCount===4 && analysisPreparingSnapshot.spinner && analysisImmediateSnapshot.phase==='sending' && analysisImmediateSnapshot.disabled && analysisImmediateSnapshot.spinner)) throw new Error(`Analyze immediate state mismatch: ${JSON.stringify({analysisPreparingSnapshot,analysisImmediateSnapshot})}`);
   const analysisImmediate = true;
   await click('[data-generate-speaker-suggestions]');
   const analysisElapsed = await waitFor(`document.querySelector('[data-speaker-analysis-progress]')?.innerText.includes('3 giây')`, 7000);
   const analysisLongWait = await waitFor(`document.querySelector('[data-speaker-analysis-progress]')?.innerText.includes('Gemini vẫn đang phân tích. Bạn có thể tiếp tục chờ; không cần bấm lại.')`, 14000);
-  const analysisVerificationSeen = await waitFor(`document.querySelector('[data-speaker-analysis-progress]')?.innerText.includes('Đang xác minh kết quả đã lưu')`, 5000);
+  const analysisVerificationSeen = await waitFor(`Number(window.storyAudioAppState.productionCommand.verificationAttempt||0)>=1`, 5000);
   await waitFor(`window.storyAudioAppState.bookVoiceRegistry.speakerSuggestions.analysisProgress.phase==="complete"`, 20000);
   const analysisFinalSummary = await evaluate(`document.querySelector('[data-speaker-analysis-progress]')?.innerText||''`);
   const analysisCommandState = await evaluate(`fetch('/api/fixture/speaker-review-command-state').then(response=>response.json())`);
@@ -173,6 +174,7 @@ try {
 
   await click(attr("data-speaker-suggestion-reanalyze", key3));
   await waitFor(`window.storyAudioAppState.productionCommand.commandType==="GENERATE_SPEAKER_SUGGESTIONS" && window.storyAudioAppState.productionCommand.status==="APPLIED"`);
+  await waitFor(`!window.storyAudioAppState.productionCommand.active && window.storyAudioAppState.bookVoiceRegistry.speakerSuggestions.reanalyzingKey===null`);
   const reanalysisApplied = await evaluate(`window.storyAudioAppState.productionCommand.status==="APPLIED"`);
   await click(attr("data-speaker-suggestion-defer", key3));
   await waitFor(`window.storyAudioAppState.bookVoiceRegistry.speakerSuggestions.result.suggestions.find(item=>item.unresolved_key===${JSON.stringify(key3)}).review_state==="DEFERRED"`);

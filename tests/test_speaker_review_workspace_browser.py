@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import io
 import threading
 import time
 import unittest
@@ -264,7 +265,8 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
         if parsed.path != "/api/production/commands":
             return super().do_POST()
         length = int(self.headers.get("Content-Length", "0") or 0)
-        body = json.loads(self.rfile.read(length) or b"{}")
+        raw_body = self.rfile.read(length) or b"{}"
+        body = json.loads(raw_body)
         command_type = str(body.get("command_type") or "")
         supported = {
             "ACCEPT_SPEAKER_SUGGESTION",
@@ -277,6 +279,7 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
             "GENERATE_SPEAKER_SUGGESTIONS",
         }
         if command_type not in supported:
+            self.rfile = io.BytesIO(raw_body)
             return super().do_POST()
         idempotency_key = str(body.get("idempotency_key") or "")
         if idempotency_key in self.command_responses:

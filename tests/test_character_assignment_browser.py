@@ -530,6 +530,8 @@ class CharacterAssignmentFixtureHandler(ScopeFixtureHandler):
             for chapter in range(start, end + 1):
                 self.overrides[(chapter, speaker_key)] = voice_id
                 applied.append({"chapter_number": chapter, "speaker_key": speaker_key, "voice_id": voice_id})
+            if hasattr(type(self), "plan_ready"):
+                type(self).plan_ready = True
         elif command_type in {"CLEAR_CHAPTER_VOICE_OVERRIDE", "CLEAR_RANGE_VOICE_OVERRIDE"}:
             speaker_key = str(payload.get("speaker_key") or "")
             for chapter in range(start, end + 1):

@@ -40,6 +40,7 @@ class VoiceOverrideFixtureHandler(ScopeFixtureHandler):
     command_responses: dict[str, dict] = {}
     commands: list[dict] = []
     mutation_count = 0
+    plan_ready_chapters: set[int] = set()
 
     @classmethod
     def reset(cls) -> None:
@@ -48,6 +49,7 @@ class VoiceOverrideFixtureHandler(ScopeFixtureHandler):
         cls.command_responses = {}
         cls.commands = []
         cls.mutation_count = 0
+        cls.plan_ready_chapters = set(range(2, 395))
 
     @classmethod
     def _base_voice(cls, speaker_key: str) -> str:
@@ -73,6 +75,7 @@ class VoiceOverrideFixtureHandler(ScopeFixtureHandler):
         effective_voice_id = voices[0] if len(voices) == 1 else effective_by_chapter[chapter_numbers[0]]
         has_override = any((chapter, speaker_key) in cls.overrides for chapter in chapter_numbers)
         base_voice_id = cls._base_voice(speaker_key)
+        durable_ready = all(chapter in cls.plan_ready_chapters for chapter in chapter_numbers)
         return {
             "speaker_key": speaker_key,
             "character_id": 25 if speaker_key == "character:25" else None,
@@ -110,7 +113,8 @@ class VoiceOverrideFixtureHandler(ScopeFixtureHandler):
             "last_review": {"reviewed": False, "reviewed_at": None},
             "actions": {
                 "can_save_book_default": True,
-                "can_create_range_or_chapter_override": True,
+                "can_create_range_or_chapter_override": durable_ready,
+                "chapter_override_blocker": None if durable_ready else "APPROVED_CASTING_PLAN_REQUIRED",
                 "can_remove_override": has_override,
                 "can_preview_effective_voice": True,
             },
@@ -245,6 +249,12 @@ class VoiceOverrideFixtureHandler(ScopeFixtureHandler):
 
     def do_POST(self) -> None:
         parsed = urlparse(self.path)
+        if parsed.path == "/fixture/approve-speaker":
+            length = int(self.headers.get("Content-Length", "0") or 0)
+            body = json.loads(self.rfile.read(length) or b"{}")
+            chapter = int(body.get("chapter") or 0)
+            type(self).plan_ready_chapters.add(chapter)
+            return self._json({"chapter": chapter, "approved_plan_ready": True})
         if parsed.path != "/api/production/commands":
             return self._json({"detail": f"Unhandled fixture route: {parsed.path}"}, 404)
         length = int(self.headers.get("Content-Length", "0") or 0)
@@ -338,6 +348,12 @@ class VoiceOverrideBrowserTests(unittest.TestCase):
         evidence = json.loads(result.stdout)
         self.assertTrue(evidence["ok"])
         self.assertTrue(evidence["exactUrlNotReadOnly"])
+        self.assertTrue(evidence["localUnsavedGuard"])
+        self.assertTrue(evidence["bookScopeCannotBypassGuard"])
+        self.assertTrue(evidence["localChoiceCancelled"])
+        self.assertTrue(evidence["exactScopeAfterReload"])
+        self.assertTrue(evidence["exactCommandScope"])
+        self.assertTrue(evidence["chapterOnePersistence"])
         self.assertTrue(evidence["oneChapterNarrator"])
         self.assertTrue(evidence["rangeNarrator"])
         self.assertTrue(evidence["characterRange"])

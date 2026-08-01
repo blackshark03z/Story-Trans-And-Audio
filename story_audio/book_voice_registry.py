@@ -412,7 +412,7 @@ def _collect_from_speaker_draft(
     chapter: Mapping[str, Any],
     draft_id: int,
     characters: Mapping[int, Mapping[str, Any]],
-) -> None:
+) -> dict[str, Any]:
     detail = get_speaker_review_draft(
         db,
         store,
@@ -420,6 +420,8 @@ def _collect_from_speaker_draft(
         chapter_id=int(chapter["id"]),
         draft_id=draft_id,
     )
+    # A reviewed speaker draft only stores dialogue targets; all remaining text is narration.
+    _ensure_narrator(rows).touch(chapter)
     reviews = {str(item["utterance_id"]): item for item in detail.get("row_reviews") or []}
     for review_row in detail.get("review_rows") or []:
         decision = reviews.get(str(review_row["utterance_id"]))
@@ -447,6 +449,7 @@ def _collect_from_speaker_draft(
         else:
             row = _ensure_narrator(rows)
         row.touch(chapter)
+    return detail
 
 
 def _collect_from_text(
@@ -578,6 +581,7 @@ def _row_to_payload(
     custom_voice_context: CustomVoiceContext | None,
     prior_character_ids: set[int],
     range_size: int,
+    approved_draft_chapters: set[int],
 ) -> dict[str, Any]:
     try:
         resolution, base_voice_id = _resolve_row_voice(
@@ -655,6 +659,20 @@ def _row_to_payload(
                     ),
                 }
             )
+    planned_chapters = {
+        int(chapter_number)
+        for chapter_numbers in row.plan_voice_chapters.values()
+        for chapter_number in chapter_numbers
+    }
+    durable_chapters = planned_chapters | approved_draft_chapters
+    durable_override_ready = bool(
+        row.chapter_numbers
+        and row.chapter_numbers <= durable_chapters
+        and row.plan_statuses <= {"approved"}
+    )
+    requires_casting_plan_creation = bool(
+        durable_override_ready and row.chapter_numbers - planned_chapters
+    )
     return {
         "speaker_key": row.speaker_key,
         "character_id": row.character_id,
@@ -694,7 +712,16 @@ def _row_to_payload(
         "provenance": list(row.provenance),
         "actions": {
             "can_save_book_default": row.role in {"narrator", "unknown"} or row.character_id is not None,
-            "can_create_range_or_chapter_override": row.role in {"narrator", "unknown"} or row.character_id is not None,
+            "can_create_range_or_chapter_override": bool(
+                durable_override_ready
+                and (row.role in {"narrator", "unknown"} or row.character_id is not None)
+            ),
+            "chapter_override_blocker": (
+                None
+                if durable_override_ready
+                else "APPROVED_CASTING_PLAN_REQUIRED"
+            ),
+            "requires_casting_plan_creation": requires_casting_plan_creation,
             "can_remove_override": bool(plan_override_voice),
             "can_preview_effective_voice": bool(effective_voice and effective_voice.get("preview_url")),
             "can_map_to_character": row.role in {UNRESOLVED_DIALOGUE_ROLE, "unknown"},
@@ -768,6 +795,7 @@ def get_book_voice_registry(
     rows: dict[str, _RegistryRow] = {}
     _ensure_narrator(rows)
     checked_revisions: list[dict[str, Any]] = []
+    approved_draft_chapters: set[int] = set()
 
     for chapter in chapters:
         revision = db.fetch_one(
@@ -813,7 +841,7 @@ def get_book_voice_registry(
                 _collect_from_text(rows, chapter=chapter, text=text)
             continue
         try:
-            _collect_from_speaker_draft(
+            draft_detail = _collect_from_speaker_draft(
                 rows,
                 db=db,
                 store=store,
@@ -822,6 +850,11 @@ def get_book_voice_registry(
                 draft_id=int(draft["id"]),
                 characters=characters,
             )
+            if (
+                not draft_detail.get("stale")
+                and int(draft_detail.get("remaining_unreviewed_count") or 0) == 0
+            ):
+                approved_draft_chapters.add(int(chapter["chapter_number"]))
         except (SpeakerReviewError, SpeakerAssignmentError, OSError, ValueError):
             if text:
                 _collect_from_text(rows, chapter=chapter, text=text)
@@ -837,6 +870,7 @@ def get_book_voice_registry(
             custom_voice_context=custom_voice_context,
             prior_character_ids=prior_ids,
             range_size=range_size,
+            approved_draft_chapters=approved_draft_chapters,
         )
         for row in rows.values()
         if row.speaker_key == "narrator" or row.line_count > 0

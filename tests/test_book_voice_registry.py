@@ -7,10 +7,13 @@ from story_audio.chapter_voice_overrides import (
 )
 from story_audio.casting import approve_plan, create_casting_draft, create_character, get_plan, split_utterances
 from story_audio.db import Database, utcnow
+from story_audio.speaker_assignment import generate_speaker_assignment_draft
+from story_audio.speaker_review import approve_speaker_assignment_draft_only
 from story_audio.storage import ContentStore
 from story_audio.voice_eligibility import EffectiveVoiceCatalog
 from story_audio.voice_profile import set_book_voice_profile, set_character_voice_override
 from tests.base import IsolatedTestCase
+from tests.test_speaker_assignment import seed_zero_target
 
 
 ALL_VOICES = {
@@ -320,6 +323,13 @@ class BookVoiceRegistryTests(IsolatedTestCase):
 
     def test_narrator_range_override_persists_as_exact_approved_plan_revisions(self) -> None:
         before_plans = self._plan_count()
+        chapter_one = self._chapter(1)
+        before_revision = int(
+            self.db.fetch_one(
+                "SELECT MAX(plan_revision) AS revision FROM casting_plans WHERE chapter_id=?",
+                (int(chapter_one["id"]),),
+            )["revision"]
+        )
         result = self._apply_override(1, 2, "narrator", "male")
         self.assertEqual(result["chapter_count"], 2)
         self.assertEqual(len(result["applied"]), 2)
@@ -333,6 +343,27 @@ class BookVoiceRegistryTests(IsolatedTestCase):
         self.assertEqual(
             sorted(item["chapter_number"] for item in narrator["chapter_voice_details"]),
             [1, 2],
+        )
+        latest = self.db.fetch_one(
+            """
+            SELECT id,plan_revision,status
+            FROM casting_plans
+            WHERE chapter_id=?
+            ORDER BY plan_revision DESC,id DESC
+            LIMIT 1
+            """,
+            (int(chapter_one["id"]),),
+        )
+        self.assertEqual(int(latest["plan_revision"]), before_revision + 1)
+        self.assertEqual(latest["status"], "approved")
+        latest_plan = get_plan(self.db, self.store, int(latest["id"]))["plan"]
+        narrator_items = [item for item in latest_plan["utterances"] if item["role"] == "narrator"]
+        self.assertTrue(narrator_items)
+        self.assertTrue(all(item["resolved_voice_id"] == "male" for item in narrator_items))
+        self.assertIsNone(
+            self.db.fetch_one(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name='pending_chapter_voice_overrides'"
+            )
         )
 
         outside = self._registry(3, 3)
@@ -358,6 +389,102 @@ class BookVoiceRegistryTests(IsolatedTestCase):
         )
         narrator = next(row for row in restarted_registry["rows"] if row["speaker_key"] == "narrator")
         self.assertEqual(narrator["effective_voice"]["display_name"], "Male Default")
+
+    def test_approved_speaker_draft_creates_first_immutable_plan_and_reuses_request(self) -> None:
+        root = self.temp_root / "first-plan"
+        config, db, store, book_id, chapter_id, _revision_id, _character_id = seed_zero_target(root)
+        draft = generate_speaker_assignment_draft(
+            db,
+            store,
+            config,
+            chapter_id=chapter_id,
+            provider=lambda **_kwargs: (_ for _ in ()).throw(AssertionError("provider called")),
+        )
+        approve_speaker_assignment_draft_only(
+            db,
+            store,
+            config,
+            chapter_id=chapter_id,
+            draft_id=int(draft["id"]),
+        )
+
+        registry = get_book_voice_registry(
+            db,
+            store,
+            config,
+            book_id=book_id,
+            from_chapter=1,
+            to_chapter=1,
+            voice_catalog=_catalog("narrator", "male", "female"),
+        )
+        narrator = next(row for row in registry["rows"] if row["speaker_key"] == "narrator")
+        self.assertTrue(narrator["actions"]["can_create_range_or_chapter_override"])
+        self.assertTrue(narrator["actions"]["requires_casting_plan_creation"])
+
+        request_key = "first-approved-plan"
+        first = apply_chapter_voice_override(
+            db,
+            store,
+            book_id=book_id,
+            from_chapter=1,
+            to_chapter=1,
+            speaker_key="narrator",
+            operation="set",
+            voice_id="male",
+            voice_catalog=_catalog("narrator", "male", "female"),
+            idempotency_key=request_key,
+        )
+        self.assertEqual(first["reused_count"], 0)
+        self.assertEqual(len(first["applied"]), 1)
+        self.assertEqual(first["applied"][0]["plan_revision"], 1)
+        plan_id = int(first["applied"][0]["casting_plan_id"])
+        plan = get_plan(db, store, plan_id)["plan"]
+        self.assertTrue(plan["utterances"])
+        self.assertTrue(
+            all(item["resolved_voice_id"] == "male" for item in plan["utterances"])
+        )
+
+        restarted_db = Database(config.db_path)
+        restarted_registry = get_book_voice_registry(
+            restarted_db,
+            ContentStore(config),
+            config,
+            book_id=book_id,
+            from_chapter=1,
+            to_chapter=1,
+            voice_catalog=_catalog("narrator", "male", "female"),
+        )
+        restarted_narrator = next(
+            row for row in restarted_registry["rows"] if row["speaker_key"] == "narrator"
+        )
+        self.assertEqual(restarted_narrator["effective_voice"]["id"], "male")
+        self.assertFalse(
+            restarted_narrator["actions"]["requires_casting_plan_creation"]
+        )
+
+        replay = apply_chapter_voice_override(
+            restarted_db,
+            ContentStore(config),
+            book_id=book_id,
+            from_chapter=1,
+            to_chapter=1,
+            speaker_key="narrator",
+            operation="set",
+            voice_id="male",
+            voice_catalog=_catalog("narrator", "male", "female"),
+            idempotency_key=request_key,
+        )
+        self.assertEqual(replay["reused_count"], 1)
+        self.assertEqual(
+            int(restarted_db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans")["n"]),
+            1,
+        )
+        self.assertIsNone(
+            restarted_db.fetch_one(
+                "SELECT name FROM sqlite_master "
+                "WHERE type='table' AND name='pending_chapter_voice_overrides'"
+            )
+        )
 
     def test_character_range_override_and_single_chapter_clear_restore_default(self) -> None:
         speaker_key = f"character:{int(self.characters['recurring']['id'])}"

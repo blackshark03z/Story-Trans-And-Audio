@@ -215,6 +215,35 @@ class ProductionCommandApiTests(IsolatedTestCase):
         save.assert_called_once()
         self.assertEqual(save.call_args.kwargs["idempotency_key"], "range-voice-override-0001")
 
+    def test_chapter_voice_override_rejects_range_with_vietnamese_guidance(self) -> None:
+        with patch("story_audio.api._project_production_command", self.projection):
+            response = self.client.post(
+                "/api/production/commands",
+                json={
+                    "command_type": "SET_CHAPTER_VOICE_OVERRIDE",
+                    "idempotency_key": "chapter-voice-stale-range-0001",
+                    "scope": {
+                        "range": {
+                            "book_id": 1,
+                            "from_chapter": 1,
+                            "to_chapter": 10,
+                        }
+                    },
+                    "payload": {
+                        "book_id": 1,
+                        "speaker_key": "narrator",
+                        "voice_id": "male",
+                    },
+                },
+            )
+
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        self.assertEqual(payload["outcome"], "REJECTED")
+        self.assertEqual(payload["applied_count"], 0)
+        self.assertIn("chỉ áp dụng cho đúng một chương", payload["operator_message"])
+        self.assertIn("Chương 1-10", payload["operator_message"])
+
     def test_create_character_uses_common_command_envelope(self) -> None:
         command = {
             "command_type": "CREATE_CHARACTER",

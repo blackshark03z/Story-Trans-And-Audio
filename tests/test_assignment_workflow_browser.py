@@ -19,6 +19,7 @@ from tests.test_speaker_review_workspace_browser import (
 
 
 class AssignmentWorkflowFixtureHandler(SpeakerReviewWorkspaceFixtureHandler):
+    plan_ready = False
     unresolved_targets = {
         "unresolved-dialogue:1002:u0002-deadbeef0000": {
             "chapter_id": 1002,
@@ -32,6 +33,7 @@ class AssignmentWorkflowFixtureHandler(SpeakerReviewWorkspaceFixtureHandler):
     @classmethod
     def reset(cls) -> None:
         super().reset()
+        cls.plan_ready = False
         cls.characters[26] = {
             "id": 26,
             "display_name": "Unvoiced Scout",
@@ -49,6 +51,14 @@ class AssignmentWorkflowFixtureHandler(SpeakerReviewWorkspaceFixtureHandler):
             key: 25 for key, state in cls.review_states.items() if state in accepted
         }
         result = super().registry(book_id, start, end)
+        review_complete = all(
+            state in accepted for state in cls.review_states.values()
+        )
+        for row in result["rows"]:
+            if row.get("role") == "narrator" or row.get("character_id"):
+                row["actions"]["requires_casting_plan_creation"] = bool(
+                    review_complete and not cls.plan_ready
+                )
         if start <= 3 <= end:
             unvoiced = cls._character_row(
                 character_id=26,

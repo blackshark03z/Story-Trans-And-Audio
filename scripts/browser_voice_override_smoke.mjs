@@ -144,15 +144,21 @@ try {
   };
   const installCommandRecorder = async (existing = []) => evaluate(`(() => {
     window.__voiceOverrideCommands = ${JSON.stringify(existing)};
-    const originalPost = window.__voiceOverrideOriginalPost || postProductionCommand;
-    window.__voiceOverrideOriginalPost = originalPost;
-    postProductionCommand = async (request, token = null) => {
-      const response = await originalPost(request, token);
-      window.__voiceOverrideCommands.push({
-        type: request.command_type,
-        key: request.idempotency_key,
-        applied: response.applied_count || 0,
-      });
+    const originalFetch = window.__voiceOverrideOriginalFetch || window.fetch.bind(window);
+    window.__voiceOverrideOriginalFetch = originalFetch;
+    window.fetch = async (...args) => {
+      const response = await originalFetch(...args);
+      const url = typeof args[0] === 'string' ? args[0] : args[0]?.url || '';
+      if (url === '/api/production/commands') {
+        const request = JSON.parse(args[1]?.body || '{}');
+        const payload = await response.clone().json();
+        window.__voiceOverrideCommands.push({
+          type: request.command_type,
+          key: request.idempotency_key,
+          applied: payload.applied_count || 0,
+          range: request.scope?.range || null,
+        });
+      }
       return response;
     };
     return true;
@@ -174,7 +180,7 @@ try {
     if (section) section.open = true;
     return !!section;
   })()`);
-  await waitAssignmentReady("narrator");
+  await waitFor(`!!document.querySelector('[data-voice-save-guard="narrator"]')`);
   await installCommandRecorder([]);
 
   const exactUrlNotReadOnly = await evaluate(`(() => {
@@ -184,12 +190,81 @@ try {
       && location.hash.includes("to=10")
       && !!document.querySelector('[data-registry-scope-key="narrator"]')
       && !!document.querySelector('[data-registry-voice-key="narrator"]')
-      && !!document.querySelector('[data-registry-apply="narrator"]')
+      && !!document.querySelector('[data-registry-review-first="narrator"]')
       && !!document.querySelector('[data-registry-clear="narrator"]')
       && !document.querySelector('[data-voice-library-row="unknown"]')
       && !body.includes("Narrator/unknown");
   })()`);
   if (!exactUrlNotReadOnly) throw new Error("Exact assignment URL is still read-only.");
+
+  await evaluate(`(() => {
+    const stale = {bookId:1,fromChapter:1,toChapter:10,focusedChapterId:1001,sourceTask:"REPAIR_REQUIRED",returnTask:"REPAIR_PREFLIGHT",assignmentFocus:"voices",skipCompleted:false};
+    localStorage.setItem("storyAudio.productionWorkingContext.v1", JSON.stringify(stale));
+    sessionStorage.setItem("storyAudio.productionWorkingContext.v1", JSON.stringify(stale));
+    window.storyAudioAppState.productionRange = {bookId:1,fromChapter:1,toChapter:10,chapterId:1001,skipCompleted:false};
+    return true;
+  })()`);
+  const chapterOneHash = "#/assignment?book=1&from=1&to=1&focus=1001&source_task=REPAIR_REQUIRED&return_task=REPAIR_PREFLIGHT&assignment_focus=voices";
+  await route(chapterOneHash);
+  await waitFor(`!!document.querySelector('[data-voice-save-guard="narrator"]')`);
+  await setSelect(attr("data-registry-voice-key", "narrator"), "male");
+  const localGuardEvidence = await evaluate(`(() => {
+    const editor = document.querySelector('[data-registry-editor="narrator"]');
+    return {
+      noApply: !document.querySelector('[data-registry-apply="narrator"]'),
+      reviewFirst: !!document.querySelector('[data-registry-review-first="narrator"]'),
+      guardCopy: !!editor?.textContent.includes("Chưa thể lưu giọng riêng cho Chương 1 vì bản xác định người nói chưa được duyệt."),
+      temporaryCopy: !!editor?.querySelector('.assignment-unsaved-choice:not(.hidden)')
+        && !!editor?.textContent.includes("Lựa chọn tạm thời — chưa được lưu"),
+      dependencyCopy: !!editor?.textContent.includes("Duyệt bản xác định người nói hiện tại."),
+      commandCount: window.__voiceOverrideCommands.length,
+      text: editor?.textContent || "",
+    };
+  })()`);
+  const localUnsavedGuard = localGuardEvidence.noApply
+    && localGuardEvidence.reviewFirst
+    && localGuardEvidence.guardCopy
+    && localGuardEvidence.temporaryCopy
+    && localGuardEvidence.dependencyCopy
+    && localGuardEvidence.commandCount === 0;
+  if (!localUnsavedGuard) throw new Error(`Chapter 1 local-only voice guard is not honest or complete: ${JSON.stringify(localGuardEvidence)}`);
+  await setSelect(attr("data-registry-scope-key", "narrator"), "book");
+  const bookScopeCannotBypassGuard = await evaluate(`!document.querySelector('[data-registry-apply="narrator"]')
+    && !!document.querySelector('[data-registry-review-first="narrator"]')
+    && window.__voiceOverrideCommands.length === 0`);
+  if (!bookScopeCannotBypassGuard) throw new Error("Book scope bypassed the Chapter 1 dependency guard.");
+  await click(attr("data-registry-cancel", "narrator"));
+  const localChoiceCancelled = await evaluate(`document.querySelector('.assignment-unsaved-choice')?.classList.contains('hidden') && window.__voiceOverrideCommands.length === 0`);
+  await evaluate(`window.__voiceOverrideReloadMarker = "chapter-one-guard"`);
+  await send("Page.reload", { ignoreCache: true });
+  await waitFor(`document.readyState === "complete" && window.__voiceOverrideReloadMarker !== "chapter-one-guard" && location.hash === ${JSON.stringify(chapterOneHash)}`);
+  browserErrors.length = 0;
+  await waitFor(`Number(window.storyAudioAppState?.bookVoiceRegistry?.result?.range?.from_chapter) === 1
+    && Number(window.storyAudioAppState?.bookVoiceRegistry?.result?.range?.to_chapter) === 1
+    && !!document.querySelector('[data-voice-save-guard="narrator"]')`);
+  const exactScopeAfterReload = await evaluate(`(() => {
+    const context = currentProductionWorkingContext();
+    return context?.bookId === 1 && context?.fromChapter === 1 && context?.toChapter === 1 && context?.focusedChapterId === 1001;
+  })()`);
+  await evaluate(`fetch("/fixture/approve-speaker", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({chapter:1})})`);
+  await evaluate(`loadBookVoiceRegistry({force:true})`);
+  await waitAssignmentReady("narrator");
+  await installCommandRecorder([]);
+  await applyVoice("narrator", "male", "chapter");
+  await waitFor(`document.querySelector('[data-registry-editor="narrator"]')?.closest("tr")?.textContent.includes("Male Default")`);
+  const chapterOneCommand = await evaluate(`window.__voiceOverrideCommands.find(item => item.type === "SET_CHAPTER_VOICE_OVERRIDE") || null`);
+  const exactCommandScope = chapterOneCommand?.range?.book_id === 1
+    && chapterOneCommand?.range?.from_chapter === 1
+    && chapterOneCommand?.range?.to_chapter === 1;
+  if (!exactCommandScope) throw new Error(`Chapter 1 command used stale scope: ${JSON.stringify(chapterOneCommand)}`);
+  const chapterOneCommands = await evaluate(`window.__voiceOverrideCommands || []`);
+  await evaluate(`window.__voiceOverrideReloadMarker = "chapter-one-plan"`);
+  await send("Page.reload", { ignoreCache: true });
+  await waitFor(`document.readyState === "complete" && window.__voiceOverrideReloadMarker !== "chapter-one-plan"
+    && document.querySelector('[data-registry-editor="narrator"]')?.closest("tr")?.textContent.includes("Male Default")`);
+  browserErrors.length = 0;
+  const chapterOnePersistence = await rowHasVoice("narrator", "Male Default");
+  await installCommandRecorder(chapterOneCommands);
 
   await route("#/assignment?book=1&from=5&to=5&skip_completed=1");
   await waitAssignmentReady("narrator");
@@ -199,6 +274,7 @@ try {
   await evaluate(`window.__voiceOverrideReloadMarker = "before-reload"`);
   await send("Page.reload", { ignoreCache: true });
   await waitFor(`document.readyState === "complete" && window.__voiceOverrideReloadMarker !== "before-reload"`);
+  browserErrors.length = 0;
   await evaluate(`(() => {
     const section = document.querySelector('[data-assignment-section="voices"]');
     if (section) section.open = true;
@@ -284,6 +360,12 @@ try {
   process.stdout.write(JSON.stringify({
     ok: true,
     exactUrlNotReadOnly,
+    localUnsavedGuard,
+    bookScopeCannotBypassGuard,
+    localChoiceCancelled,
+    exactScopeAfterReload,
+    exactCommandScope,
+    chapterOnePersistence,
     oneChapterNarrator,
     oneBusy,
     oneChapterNarratorText,

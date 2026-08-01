@@ -498,12 +498,15 @@ class ProductionTaskProjectionTests(unittest.TestCase):
 
         self.assertEqual(
             [item["code"] for item in details],
-            ["SPEAKER_DRAFT_STALE", "VOICE_MAP_NOT_READY"],
+            ["SPEAKER_DRAFT_STALE", "VOICE_MAP_DEPENDS_ON_SPEAKER"],
         )
         self.assertEqual(
             [item["assignment_focus"] for item in details],
             ["review", "voices"],
         )
+        self.assertFalse(details[0].get("dependent", False))
+        self.assertTrue(details[1]["dependent"])
+        self.assertIsNone(details[1]["action_label"])
         self.assertEqual(projection["phases"][0]["state"], "current")
 
 class ProductionTaskProjectionAuditTests(IsolatedTestCase):
