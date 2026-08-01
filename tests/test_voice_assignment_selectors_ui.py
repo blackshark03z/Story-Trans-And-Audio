@@ -184,6 +184,33 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertNotIn("data-registry-character-key", section)
         self.assertNotIn("data-voice-library-row=\"unresolved", section)
 
+    def test_current_revision_speaker_state_controls_step_and_history(self) -> None:
+        section = self.js[
+            self.js.index("function speakerStateResolved"):
+            self.js.index("function speakerSuggestionScopeKey")
+        ]
+        for status in (
+            "APPROVED_CURRENT",
+            "CURRENT_REVIEW_REQUIRED",
+            "ANALYSIS_REQUIRED",
+            "NO_REVIEW_REQUIRED",
+        ):
+            self.assertIn(status, section)
+        self.assertIn(
+            "Kh\u00f4ng c\u00f3 c\u00e2u tho\u1ea1i n\u00e0o c\u1ea7n x\u00e1c \u0111\u1ecbnh "
+            "ng\u01b0\u1eddi n\u00f3i trong b\u1ea3n hi\u1ec7n t\u1ea1i.",
+            section,
+        )
+        self.assertIn("Ph\u00e2n t\u00edch ng\u01b0\u1eddi n\u00f3i cho Ch\u01b0\u01a1ng", section)
+        self.assertIn("Xem l\u1ecbch s\u1eed x\u00e1c \u0111\u1ecbnh ng\u01b0\u1eddi n\u00f3i", section)
+        self.assertIn("\u0110\u00e3 c\u0169 so v\u1edbi Revision", section)
+        self.assertIn("data-speaker-state-history", section)
+        self.assertIn(
+            "workflowSections={...current,history:event.currentTarget.open}",
+            section,
+        )
+        self.assertIn("speakerStateResolved(result.speaker_state)", section)
+
     def test_assignment_voice_actions_explain_scope_provenance_and_future_impact(self) -> None:
         section = self.js[
             self.js.index("function registryVoiceProvenance"):

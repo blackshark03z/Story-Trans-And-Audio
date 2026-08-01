@@ -9,6 +9,7 @@ from .active_output import get_active_output_bindings, get_latest_casting_plan_b
 from .db import Database
 from .files import sha256_text
 from .pipeline import JOB_ACTIVE_STATUSES, JOB_PREPARED_STATUS
+from .speaker_state import ANALYSIS_REQUIRED, CURRENT_REVIEW_REQUIRED, resolve_chapter_speaker_state
 from .storage import ContentStore
 from .text_encoding import (
     CanonicalTextValidationError,
@@ -272,6 +273,7 @@ def _state_item(
     live_jobs: list[dict[str, Any]],
     voice_catalog: EffectiveVoiceCatalog | None,
     text_validation_error: str | None,
+    speaker_state: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     chapter_id = int(chapter["id"])
     active_artifact_id = active_binding.get("active_output_artifact_id")
@@ -316,7 +318,17 @@ def _state_item(
             repair_input_blockers.append(
                 f"Existing job #{int(live_jobs[0]['job_id'])} must be resolved before replacement PREPARE."
             )
-        if not latest_draft:
+        if speaker_state:
+            speaker_status = str(speaker_state.get("status") or "")
+            if speaker_status == ANALYSIS_REQUIRED:
+                repair_input_blockers.append(
+                    "Current Speaker Analysis is missing for unresolved dialogue."
+                )
+            elif speaker_status == CURRENT_REVIEW_REQUIRED:
+                repair_input_blockers.append(
+                    "Current Speaker Draft has unresolved rows or requires review."
+                )
+        elif not latest_draft:
             repair_input_blockers.append("Speaker Draft is missing for the active Text Revision.")
         elif int(latest_draft.get("text_revision_id") or 0) != int(active_text_revision_id or 0):
             repair_input_blockers.append("Latest Speaker Draft is stale for the active Text Revision.")
@@ -359,7 +371,17 @@ def _state_item(
     elif chapter_id not in approved_text_ids:
         state = "TEXT_BLOCKED"
         blockers.append(text_validation_error or "Active approved Text Revision is missing.")
-    elif latest_draft and str(latest_draft.get("status") or "").lower() not in {"approved"}:
+    elif speaker_state and bool(speaker_state.get("blocks_progress")):
+        state = "SPEAKER_EXCEPTIONS"
+        if str(speaker_state.get("status") or "") == ANALYSIS_REQUIRED:
+            blockers.append("Current Speaker Analysis is missing for unresolved dialogue.")
+        else:
+            blockers.append("Current Speaker Draft has unresolved rows or requires review.")
+    elif (
+        not speaker_state
+        and latest_draft
+        and str(latest_draft.get("status") or "").lower() not in {"approved"}
+    ):
         state = "SPEAKER_EXCEPTIONS"
         blockers.append("Latest Speaker Draft is not approved.")
     elif not latest_plan:
@@ -433,6 +455,7 @@ def _state_item(
         "replacement_revision_ready": replacement_revision_ready,
         "repair_prepare_ready": repair_prepare_ready,
         "repair_input_blockers": repair_input_blockers,
+        "speaker_state": dict(speaker_state) if speaker_state else None,
     }
     if exception_kind and state not in {"READY_TO_PREPARE", "COMPLETE"}:
         item["exception_kind"] = exception_kind
@@ -495,6 +518,20 @@ def get_range_readiness(
     )
     live_jobs = _live_jobs(db, chapter_ids)
 
+    speaker_states: dict[int, dict[str, Any]] = {}
+    if store is not None:
+        for chapter in chapters:
+            try:
+                speaker_states[int(chapter["id"])] = resolve_chapter_speaker_state(
+                    db,
+                    store,
+                    chapter,
+                )
+            except OSError:
+                # A caller with a mismatched fixture store must retain the
+                # legacy readiness contract rather than inspect another root.
+                continue
+
     items: list[dict[str, Any]] = []
     for chapter in chapters:
         chapter_id = int(chapter["id"])
@@ -511,6 +548,7 @@ def get_range_readiness(
                 live_jobs=live_jobs.get(chapter_id, []),
                 voice_catalog=voice_catalog,
                 text_validation_error=text_validation_errors.get(chapter_id),
+                speaker_state=speaker_states.get(chapter_id),
             )
         )
 

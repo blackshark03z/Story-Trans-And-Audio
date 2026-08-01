@@ -16,6 +16,11 @@ from .config import Settings
 from .db import Database
 from .speaker_assignment import SpeakerAssignmentError
 from .speaker_review import SpeakerReviewError, get_speaker_review_draft
+from .speaker_state import (
+    APPROVED_CURRENT,
+    NO_REVIEW_REQUIRED,
+    resolve_chapter_speaker_state,
+)
 from .storage import ContentStore
 from .voice_eligibility import EffectiveVoiceCatalog
 from .voice_profile import VoiceProfileError, get_book_voice_profile, resolve_voice
@@ -795,7 +800,8 @@ def get_book_voice_registry(
     rows: dict[str, _RegistryRow] = {}
     _ensure_narrator(rows)
     checked_revisions: list[dict[str, Any]] = []
-    approved_draft_chapters: set[int] = set()
+    resolved_speaker_chapters: set[int] = set()
+    speaker_states: list[dict[str, Any]] = []
 
     for chapter in chapters:
         revision = db.fetch_one(
@@ -817,6 +823,17 @@ def get_book_voice_registry(
                 )
             except OSError:
                 text = ""
+        speaker_state = resolve_chapter_speaker_state(
+            db,
+            store,
+            chapter,
+            text=text,
+        )
+        speaker_state["chapter_id"] = int(chapter["id"])
+        speaker_state["chapter_number"] = int(chapter["chapter_number"])
+        speaker_states.append(speaker_state)
+        if speaker_state["status"] in {APPROVED_CURRENT, NO_REVIEW_REQUIRED}:
+            resolved_speaker_chapters.add(int(chapter["chapter_number"]))
         plan_row = _latest_plan_row(db, int(chapter["id"]))
         plan_collected = False
         if plan_row and int(plan_row["text_revision_id"]) == int(chapter.get("active_text_revision_id") or 0):
@@ -854,7 +871,7 @@ def get_book_voice_registry(
                 not draft_detail.get("stale")
                 and int(draft_detail.get("remaining_unreviewed_count") or 0) == 0
             ):
-                approved_draft_chapters.add(int(chapter["chapter_number"]))
+                resolved_speaker_chapters.add(int(chapter["chapter_number"]))
         except (SpeakerReviewError, SpeakerAssignmentError, OSError, ValueError):
             if text:
                 _collect_from_text(rows, chapter=chapter, text=text)
@@ -870,7 +887,7 @@ def get_book_voice_registry(
             custom_voice_context=custom_voice_context,
             prior_character_ids=prior_ids,
             range_size=range_size,
-            approved_draft_chapters=approved_draft_chapters,
+            approved_draft_chapters=resolved_speaker_chapters,
         )
         for row in rows.values()
         if row.speaker_key == "narrator" or row.line_count > 0
@@ -938,4 +955,6 @@ def get_book_voice_registry(
             "dialogue_detection": "dash-led dialogue utterances marked unresolved when still assigned narrator",
             "unresolved_dialogue_count": status_counts.get(UNRESOLVED_DIALOGUE_STATUS, 0),
         },
+        "speaker_state": speaker_states[0] if len(speaker_states) == 1 else None,
+        "speaker_states": speaker_states,
     }

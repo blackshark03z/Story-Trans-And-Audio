@@ -209,6 +209,8 @@ def _chapter_task(item: dict[str, Any]) -> dict[str, Any] | None:
     state = str(item.get("state") or "")
     blockers = list(item.get("blockers") or [])
     blocker = blockers[0] if blockers else None
+    speaker_state = dict(item.get("speaker_state") or {})
+    speaker_status = str(speaker_state.get("status") or "")
 
     if state == "RENDERED_NOT_QA":
         return {
@@ -246,7 +248,41 @@ def _chapter_task(item: dict[str, Any]) -> dict[str, Any] | None:
             "stage_key": "text",
         }
 
-    if not item.get("latest_speaker_draft_id"):
+    if speaker_status == "ANALYSIS_REQUIRED":
+        return {
+            "task_type": "CREATE_SPEAKER_PROPOSAL",
+            "user_stage": 2,
+            "title": "Tạo đề xuất người nói",
+            "summary": f"{chapter} chưa được phân tích người nói cho bản hiện tại.",
+            "action": _action(
+                "CREATE_SPEAKER_PROPOSAL",
+                f"Phân tích người nói cho {chapter}",
+                "speakers",
+            ),
+            "blocker": blocker or "Bản hiện tại chưa được phân tích người nói.",
+            "next": "Sau khi phân tích, xác nhận từng dòng chưa rõ.",
+            "stage_key": "speakers",
+        }
+
+    if speaker_status == "CURRENT_REVIEW_REQUIRED":
+        count = int(speaker_state.get("unresolved_count") or 0)
+        return {
+            "task_type": "RESOLVE_SPEAKER",
+            "user_stage": 2,
+            "title": "Xác nhận người nói",
+            "summary": f"{chapter}: còn {count} câu cần duyệt.",
+            "action": _action(
+                "RESOLVE_SPEAKER",
+                f"Tiếp tục duyệt {count} câu",
+                "speakers",
+            ),
+            "blocker": blocker or "Bản hiện tại còn câu cần xác định người nói.",
+            "next": "Sau khi xác nhận đủ, tiếp tục cấu hình giọng.",
+            "stage_key": "speakers",
+        }
+
+    speaker_resolved = speaker_status in {"APPROVED_CURRENT", "NO_REVIEW_REQUIRED"}
+    if not speaker_resolved and not item.get("latest_speaker_draft_id"):
         return {
             "task_type": "CREATE_SPEAKER_PROPOSAL",
             "user_stage": 2,
@@ -263,7 +299,7 @@ def _chapter_task(item: dict[str, Any]) -> dict[str, Any] | None:
         }
 
     draft_status = str(item.get("latest_speaker_draft_status") or "").lower()
-    if draft_status != "approved":
+    if not speaker_resolved and draft_status != "approved":
         review = _review_summary(item)
         if review["stale"] or review["remaining_unreviewed_count"]:
             detail = (
@@ -344,11 +380,21 @@ def _chapter_task(item: dict[str, Any]) -> dict[str, Any] | None:
 def _repair_blocker_details(source: dict[str, Any]) -> list[dict[str, Any]]:
     chapter_number = int(source.get("chapter_number") or 0)
     raw_blockers = [str(item) for item in source.get("repair_input_blockers") or []]
-    speaker_blocked = any("speaker draft" in item.casefold() for item in raw_blockers)
+    speaker_blocked = any("speaker" in item.casefold() for item in raw_blockers)
     details: list[dict[str, Any]] = []
     for message in raw_blockers:
         normalized = message.casefold()
-        if "speaker draft" in normalized:
+        if "current speaker analysis" in normalized:
+            details.append({
+                "code": "SPEAKER_ANALYSIS_REQUIRED",
+                "title": "Bản hiện tại chưa được phân tích người nói",
+                "explanation": "Cần phân tích đúng Text Revision hiện tại trước khi tạo bản audio thay thế.",
+                "action_label": f"Phân tích người nói cho Chương {chapter_number}",
+                "target": "assignment",
+                "assignment_focus": "review",
+                "technical_reason": message,
+            })
+        elif "speaker draft" in normalized:
             stale = "stale" in normalized
             details.append({
                 "code": "SPEAKER_DRAFT_STALE" if stale else "SPEAKER_DRAFT_NOT_APPROVED",

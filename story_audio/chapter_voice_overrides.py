@@ -14,6 +14,7 @@ from .db import Database, utcnow
 from .files import sha256_text
 from .storage import ContentStore
 from .speaker_review import get_speaker_review_draft
+from .speaker_state import NO_REVIEW_REQUIRED, resolve_chapter_speaker_state
 from .voice_eligibility import EffectiveVoiceCatalog
 from .voice_profile import get_book_voice_profile
 from .voice_ref import CustomVoiceContext
@@ -143,6 +144,41 @@ def _assignments_from_plan(payload: Mapping[str, Any]) -> list[dict[str, Any]]:
     ]
 
 
+def _current_speaker_assignments(
+    db: Database,
+    store: ContentStore,
+    chapter: Mapping[str, Any],
+) -> tuple[list[dict[str, Any]], int | None, str]:
+    try:
+        detail = _approved_speaker_draft(db, store, chapter)
+    except ChapterVoiceOverrideError:
+        state = resolve_chapter_speaker_state(db, store, chapter)
+        if state.get("status") != NO_REVIEW_REQUIRED:
+            raise
+        return [], None, "current_speaker_structure_resolved"
+
+    reviews = {
+        str(item["utterance_id"]): item
+        for item in detail.get("row_reviews") or []
+    }
+    assignments: list[dict[str, Any]] = []
+    for row in detail.get("review_rows") or []:
+        utterance_id = str(row["utterance_id"])
+        review = reviews.get(utterance_id)
+        if not review:
+            raise ChapterVoiceOverrideError(
+                f"Speaker review is incomplete for Chapter {int(chapter['chapter_number'])}"
+            )
+        assignments.append(
+            {
+                "utterance_id": utterance_id,
+                "role": str(review.get("speaker_type") or "unknown"),
+                "character_id": review.get("character_id"),
+            }
+        )
+    return assignments, int(detail["id"]), "approved_speaker_draft_voice_finalization"
+
+
 def _speaker_voices(payload: Mapping[str, Any]) -> dict[str, set[str]]:
     result: dict[str, set[str]] = {}
     for item in payload.get("utterances") or []:
@@ -235,26 +271,11 @@ def _prepare_plan(
             custom_voice_context and custom_voice_context.is_available(voice_id)
         ):
             raise ChapterVoiceOverrideError("Selected voice is not available")
-        detail = _approved_speaker_draft(db, store, chapter)
-        reviews = {
-            str(item["utterance_id"]): item
-            for item in detail.get("row_reviews") or []
-        }
-        assignments: list[dict[str, Any]] = []
-        for row in detail.get("review_rows") or []:
-            utterance_id = str(row["utterance_id"])
-            review = reviews.get(utterance_id)
-            if not review:
-                raise ChapterVoiceOverrideError(
-                    f"Speaker review is incomplete for Chapter {int(chapter['chapter_number'])}"
-                )
-            assignments.append(
-                {
-                    "utterance_id": utterance_id,
-                    "role": str(review.get("speaker_type") or "unknown"),
-                    "character_id": review.get("character_id"),
-                }
-            )
+        assignments, source_draft_id, source_kind = _current_speaker_assignments(
+            db,
+            store,
+            chapter,
+        )
         profile = get_book_voice_profile(db, int(chapter["book_id"]))
         narrator_voice_id = str(profile.get("narrator_voice_id") if profile else "").strip()
         if not narrator_voice_id:
@@ -273,8 +294,12 @@ def _prepare_plan(
             ),
             source_metadata={
                 **dict(source_metadata),
-                "source": "approved_speaker_draft_voice_finalization",
-                "speaker_draft_id": int(detail["id"]),
+                "source": source_kind,
+                **(
+                    {"speaker_draft_id": source_draft_id}
+                    if source_draft_id is not None
+                    else {"speaker_state": NO_REVIEW_REQUIRED}
+                ),
             },
             custom_voice_context=custom_voice_context,
             speaker_voice_overrides={speaker_key: voice_id},
@@ -293,7 +318,7 @@ def _prepare_plan(
             chapter_number=int(chapter["chapter_number"]),
             previous_plan_id=None,
             previous_plan_sha256=None,
-            source_draft_id=int(detail["id"]),
+            source_draft_id=source_draft_id,
             text_revision_id=int(chapter["active_text_revision_id"]),
             plan_revision=0,
             content_path=content_path,
@@ -486,22 +511,36 @@ def apply_chapter_voice_override(
                     raise ChapterVoiceOverrideError(
                         f"Chapter {item.chapter_number} voice map changed while saving"
                     )
-                draft = transaction.execute(
-                    """
-                    SELECT id,status,text_revision_id
-                    FROM speaker_assignment_drafts
-                    WHERE id=? AND chapter_id=?
-                    """,
-                    (item.source_draft_id, item.chapter_id),
-                ).fetchone()
-                if (
-                    not draft
-                    or str(draft["status"]) != "approved"
-                    or int(draft["text_revision_id"]) != item.text_revision_id
-                ):
-                    raise ChapterVoiceOverrideError(
-                        f"Chapter {item.chapter_number} speaker review changed while saving"
-                    )
+                if item.source_draft_id is not None:
+                    draft = transaction.execute(
+                        """
+                        SELECT id,status,text_revision_id
+                        FROM speaker_assignment_drafts
+                        WHERE id=? AND chapter_id=?
+                        """,
+                        (item.source_draft_id, item.chapter_id),
+                    ).fetchone()
+                    if (
+                        not draft
+                        or str(draft["status"]) != "approved"
+                        or int(draft["text_revision_id"]) != item.text_revision_id
+                    ):
+                        raise ChapterVoiceOverrideError(
+                            f"Chapter {item.chapter_number} speaker review changed while saving"
+                        )
+                else:
+                    chapter_state = transaction.execute(
+                        "SELECT active_text_revision_id FROM chapters WHERE id=?",
+                        (item.chapter_id,),
+                    ).fetchone()
+                    if (
+                        not chapter_state
+                        or int(chapter_state["active_text_revision_id"] or 0)
+                        != item.text_revision_id
+                    ):
+                        raise ChapterVoiceOverrideError(
+                            f"Chapter {item.chapter_number} speaker state changed while saving"
+                        )
             elif (
                 not latest
                 or int(latest["id"]) != item.previous_plan_id

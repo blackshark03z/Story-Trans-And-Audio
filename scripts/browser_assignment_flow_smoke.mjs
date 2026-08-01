@@ -163,13 +163,24 @@ try {
 
   const key = await evaluate(`document.querySelector('[data-speaker-suggestion-card]')?.dataset?.speakerSuggestionCard`);
   await click(`[data-speaker-suggestion-submit="${key}"]`);
-  await waitFor(`document.querySelector('.assignment-workflow-steps')?.innerText.includes("Hoàn tất")
-    && document.querySelector('[data-assignment-section="voices"]')?.open
-    && !document.querySelector('[data-voice-library-row^="unresolved-dialogue:"]')`, 20000);
+  try {
+    await waitFor(`document.querySelector('.assignment-workflow-steps > div:first-child')?.classList.contains('complete')
+      && document.querySelector('[data-assignment-section="voices"]')?.open
+      && !document.querySelector('[data-voice-library-row^="unresolved-dialogue:"]')`, 20000);
+  } catch (error) {
+    const diagnostic = await evaluate(`({
+      steps: document.querySelector('.assignment-workflow-steps')?.innerText || '',
+      voicesOpen: !!document.querySelector('[data-assignment-section="voices"]')?.open,
+      unresolvedRows: document.querySelectorAll('[data-voice-library-row^="unresolved-dialogue:"]').length,
+      registryStatus: window.storyAudioAppState?.bookVoiceRegistry?.status,
+      commandActive: !!window.storyAudioAppState?.productionCommand?.active,
+    })`);
+    throw new Error(`${error.message} ${JSON.stringify(diagnostic)}`);
+  }
   const reviewCompletion = await evaluate(`(() => {
     const rows = [...document.querySelectorAll('[data-voice-library-row="character:25"]')];
     return {
-      reviewComplete: document.querySelector('.assignment-workflow-steps')?.innerText.includes('Hoàn tất'),
+      reviewComplete: document.querySelector('.assignment-workflow-steps > div:first-child')?.classList.contains('complete'),
       voiceEmphasized: document.querySelector('[data-assignment-section="voices"]')?.classList.contains('is-current'),
       voiceOpen: document.querySelector('[data-assignment-section="voices"]')?.open,
       characterRows: rows.length,
