@@ -132,6 +132,8 @@ class RuntimeOperatorSessionTests(unittest.TestCase):
         )
         self.assertTrue(readiness["prepare_allowed"])
         self.assertFalse(readiness["start_render_allowed"])
+        self.assertTrue(readiness["mutation_service_constructed"])
+        self.assertFalse(readiness["start_render_available"])
         self.assertIn("PROVIDER_NOT_READY", readiness["start_render_blocker_codes"])
 
 
