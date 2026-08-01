@@ -146,6 +146,12 @@ class AssignmentWorkflowBrowserTests(unittest.TestCase):
         self.assertTrue(evidence["initial"]["unresolvedNotice"])
         self.assertEqual(evidence["initial"]["unresolvedVoiceRows"], 0)
         self.assertGreaterEqual(evidence["initial"]["characterRows"], 2)
+        self.assertEqual(evidence["initial"]["preflightPrimaryCount"], 1)
+        self.assertEqual(evidence["initial"]["sectionTwoPreflightPrimaryCount"], 0)
+        self.assertEqual(
+            evidence["initial"]["sectionTwoConditionLink"],
+            "Xem điều kiện để tiếp tục",
+        )
         self.assertTrue(evidence["unresolvedNavigation"])
         self.assertEqual(evidence["navigationState"]["filter"], evidence["filterBeforeJump"])
         self.assertIn("book=1", evidence["navigationState"]["hash"])
@@ -170,6 +176,34 @@ class AssignmentWorkflowBrowserTests(unittest.TestCase):
         self.assertIn("from=1", evidence["readyNavigation"]["hash"])
         self.assertIn("to=10", evidence["readyNavigation"]["hash"])
         self.assertEqual(evidence["renderCommands"], [])
+        self.assertEqual(evidence["repairBlocked"]["heading"], "Cần sửa và tạo bản thay thế")
+        self.assertEqual(evidence["repairBlocked"]["badge"], "Luồng tạo bản thay thế")
+        self.assertEqual(len(evidence["repairBlocked"]["blockers"]), 2)
+        self.assertIn("Bản xác định người nói", evidence["repairBlocked"]["blockers"][0])
+        self.assertIn("bản đồ giọng", evidence["repairBlocked"]["blockers"][1])
+        self.assertEqual(len(evidence["repairBlocked"]["sequence"]), 5)
+        self.assertFalse(evidence["repairBlocked"]["prepareEnabled"])
+        self.assertTrue(evidence["repairBlocked"]["qaControlsHidden"])
+        self.assertIn("from=1", evidence["speakerRepairNavigation"]["hash"])
+        self.assertIn("to=1", evidence["speakerRepairNavigation"]["hash"])
+        self.assertIn("assignment_focus=review", evidence["speakerRepairNavigation"]["hash"])
+        self.assertEqual(evidence["speakerRepairNavigation"]["returnTask"], "REPAIR_PREFLIGHT")
+        self.assertTrue(evidence["speakerRepairNavigation"]["reviewOpen"])
+        self.assertIn("assignment_focus=voices", evidence["voiceRepairNavigation"]["hash"])
+        self.assertEqual(evidence["voiceRepairNavigation"]["returnTask"], "REPAIR_PREFLIGHT")
+        self.assertTrue(evidence["voiceRepairNavigation"]["voicesOpen"])
+        self.assertEqual(evidence["voiceRepairNavigation"]["unresolvedVoiceRows"], 0)
+        self.assertEqual(
+            evidence["voiceRepairNavigation"]["returnLabel"],
+            "Quay lại chuẩn bị bản thay thế",
+        )
+        self.assertEqual(evidence["repairReady"]["blockers"], 0)
+        self.assertIn("Mở Preflight bản thay thế", evidence["repairReady"]["nextAction"])
+        self.assertFalse(evidence["repairReady"]["prepareButton"])
+        self.assertEqual(evidence["replacementPreflight"]["mode"], "same_data")
+        self.assertIn("Chuẩn bị bản thay thế", evidence["replacementPreflight"]["heading"])
+        self.assertIn("Artifact cũ #39", evidence["replacementPreflight"]["pins"])
+        self.assertEqual(evidence["repairCheckCommands"], [])
 
 
 if __name__ == "__main__":

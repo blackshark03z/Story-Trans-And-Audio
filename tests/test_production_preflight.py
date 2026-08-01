@@ -256,6 +256,47 @@ class ProductionPreflightProjectionTests(unittest.TestCase):
             1,
         )
 
+    def test_repair_input_blockers_fail_closed_and_keep_actionable_targets(self) -> None:
+        row = _row(
+            1,
+            "REPAIR_REQUIRED",
+            blockers=["Latest Speaker Draft is not approved."],
+            repair_input_blockers=[
+                "Latest Speaker Draft is not approved.",
+                "Final Voice Map is missing.",
+            ],
+        )
+        snapshot = _snapshot([row], task_type="REPAIR_REQUIRED")
+        snapshot["task_projection"]["canonical_task"]["repair"] = {
+            "input_blocker_details": [
+                {
+                    "code": "SPEAKER_DRAFT_NOT_APPROVED",
+                    "explanation": "Cần xác nhận ai đang nói.",
+                    "action_label": "Duyệt người nói Chương 1",
+                    "target": "assignment",
+                    "assignment_focus": "review",
+                },
+                {
+                    "code": "VOICE_MAP_NOT_READY",
+                    "explanation": "Cần hoàn tất giọng hiệu lực.",
+                    "action_label": "Hoàn tất giọng cho Chương 1",
+                    "target": "assignment",
+                    "assignment_focus": "voices",
+                },
+            ]
+        }
+
+        projection = project_production_preflight(snapshot)
+        blockers = projection["data_readiness"]["ordered_blockers"]
+
+        self.assertFalse(projection["data_readiness"]["ready"])
+        self.assertFalse(projection["execution_readiness"]["prepare_allowed"])
+        self.assertEqual([item["reason_code"] for item in blockers], [
+            "SPEAKER_DRAFT_NOT_APPROVED",
+            "VOICE_MAP_NOT_READY",
+        ])
+        self.assertEqual([item["assignment_focus"] for item in blockers], ["review", "voices"])
+
     def test_prepared_projection_has_one_start_action(self) -> None:
         projection = project_production_preflight(
             _snapshot(

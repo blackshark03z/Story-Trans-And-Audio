@@ -136,6 +136,9 @@ try {
       unresolvedNotice: !!document.querySelector('[data-jump-to-speaker-review]'),
       unresolvedVoiceRows: [...document.querySelectorAll('[data-voice-library-row]')].filter(row => row.getAttribute('data-voice-library-row').startsWith('unresolved-dialogue:')).length,
       characterRows: document.querySelectorAll('[data-voice-library-row^="character:"]').length,
+      preflightPrimaryCount: document.querySelectorAll('[data-open-production-preflight]').length,
+      sectionTwoPreflightPrimaryCount: voices?.querySelectorAll('[data-open-production-preflight]').length || 0,
+      sectionTwoConditionLink: voices?.querySelector('[data-jump-to-assignment-preflight]')?.textContent || '',
     };
   })()`);
 
@@ -217,6 +220,44 @@ try {
   })`);
   const commandsAfterPreflight = await evaluate(`fetch('/api/fixture/commands').then(response => response.json())`);
 
+  const repairBlocked = await evaluate(`(() => {
+    const chapter={id:1001,number:1,title:'Chapter 1'};
+    const details=[
+      {code:'SPEAKER_DRAFT_NOT_APPROVED',title:'Bản xác định người nói mới nhất chưa được duyệt',explanation:'Cần xác nhận ai đang nói trước khi tạo bản audio thay thế.',action_label:'Duyệt người nói Chương 1',target:'assignment',assignment_focus:'review',technical_reason:'Latest Speaker Draft is not approved.'},
+      {code:'VOICE_MAP_NOT_READY',title:'Chương 1 chưa có bản đồ giọng cuối cùng',explanation:'Cần hoàn tất người nói và giọng hiệu lực trước khi PREPARE bản thay thế.',action_label:'Hoàn tất giọng cho Chương 1',target:'assignment',assignment_focus:'voices',technical_reason:'Final Voice Map is missing.'},
+    ];
+    const phases=['Xác nhận nội dung và người nói','Hoàn tất cấu hình giọng','Chuẩn bị bản thay thế','Render bản thay thế','Nghe và duyệt bản mới'].map((label,index)=>({number:index+1,key:'repair-'+(index+1),label,current:index===0,complete:false,locked:index>0,state:index===0?'current':'locked',summary:index===0?'Đang thực hiện':'Sẽ thực hiện sau'}));
+    const task={task_scope:'chapter',task_type:'REPAIR_REQUIRED',task_key:'chapter:1001:REPAIR_REQUIRED:artifact:39:plan:0',user_stage:5,title:'Cần sửa và tạo bản thay thế',summary:'Chương 1 có audio bị từ chối.',affected_chapter:chapter,primary_action:null,blocker:'Latest Speaker Draft is not approved.',next_task_hint:'Hoàn tất đầu vào.',technical_details:['artifact_id:39'],current_stage_key:'repair',input_summary:{},speaker:null,casting:null,range_prepare:null,render:null,qa:null,repair:{chapter_id:1001,artifact_id:39,job_id:14,duration_ms:294040,created_at:'2026-01-01T00:00:00Z',qa_note:'Đổi giọng narrator',qa_recorded_at:'2026-01-02T00:00:00Z',active_text_revision_id:3977,current_casting_plan_id:null,current_casting_plan_revision:null,current_casting_plan_status:null,prepare_ready:false,input_blockers:details.map(item=>item.technical_reason),input_blocker_details:details,effective_voice_map:[],voice_map_diff:[]}};
+    window.__repairProjection={range_identity:'book:1:1-1',task_scope:'chapter',task_type:'REPAIR_REQUIRED',task_key:task.task_key,user_stage:5,title:task.title,summary:task.summary,task_title:task.title,task_summary:task.summary,affected_chapter:chapter,chapter_queue:[{chapter_id:1001,chapter_number:1,title:'Chapter 1',status:'current',state:'REPAIR_REQUIRED',user_stage:5,task_type:'REPAIR_REQUIRED',task_key:task.task_key,canonical_task:true,inspected:false}],queue:[],primary_action:null,secondary_actions:[],secondary_links:[],blocker:task.blocker,range_readiness:{scope:{book_id:1,from_chapter:1,to_chapter:1},summary:{}},next_task_hint:'',next_task_after_success:'',technical_details:task.technical_details,range_task:false,current_stage_key:'repair',conceptual_state:'REPAIR_REQUIRED',input_summary:{},phases,canonical_task:task,inspected_chapter:null,inspection_summary:null};
+    state.productionRange={bookId:1,fromChapter:1,toChapter:1,skipCompleted:false};
+    state.productionProjection=window.__repairProjection;
+    state.productionRepair={taskKey:null,mode:null};
+    setAppRoute('production');renderProductionShell();
+    return {heading:document.querySelector('#productionCurrentStepHeading')?.textContent,badge:document.querySelector('#productionStateBadge')?.textContent,blockers:[...document.querySelectorAll('[data-repair-blocker]')].map(card=>card.innerText),sequence:[...document.querySelectorAll('.production-repair-sequence li')].map(item=>item.innerText),prepareEnabled:!!document.querySelector('#repairPrepare:not([disabled])'),qaControlsHidden:document.querySelector('#productionQaActions')?.classList.contains('hidden')};
+  })()`);
+
+  await click('[data-repair-blocker-action="0"]');
+  await waitFor(`location.hash.startsWith('#/assignment?') && location.hash.includes('from=1') && location.hash.includes('to=1') && location.hash.includes('assignment_focus=review')`);
+  await waitFor(`document.querySelector('[data-assignment-section="review"]')`);
+  const speakerRepairNavigation = await evaluate(`({hash:location.hash,reviewOpen:document.querySelector('[data-assignment-section="review"]')?.open,returnTask:window.storyAudioAppState.productionWorkingContext?.returnTask,scope:document.querySelector('#assignmentScope')?.textContent})`);
+
+  await evaluate(`(() => { state.productionProjection=window.__repairProjection; state.productionRange={bookId:1,fromChapter:1,toChapter:1,skipCompleted:false}; setAppRoute('production'); renderProductionShell(); return true })()`);
+  await click('[data-repair-blocker-action="1"]');
+  await waitFor(`location.hash.startsWith('#/assignment?') && location.hash.includes('assignment_focus=voices')`);
+  await waitFor(`document.querySelector('[data-assignment-section="voices"]')`);
+  const voiceRepairNavigation = await evaluate(`({hash:location.hash,voicesOpen:document.querySelector('[data-assignment-section="voices"]')?.open,returnTask:window.storyAudioAppState.productionWorkingContext?.returnTask,returnLabel:document.querySelector('[data-open-production-preflight]')?.textContent,unresolvedVoiceRows:document.querySelectorAll('[data-voice-library-row^="unresolved-dialogue:"]').length})`);
+
+  const repairReady = await evaluate(`(() => {
+    const projection=JSON.parse(JSON.stringify(window.__repairProjection)),task=projection.canonical_task;
+    task.repair.input_blockers=[];task.repair.input_blocker_details=[];task.repair.prepare_ready=true;task.blocker=null;projection.blocker=null;
+    projection.phases=projection.phases.map((phase,index)=>({...phase,current:index===2,complete:index<2,locked:index>2,state:index<2?'complete':index===2?'current':'locked'}));
+    state.productionProjection=projection;state.productionRepair={taskKey:null,mode:null};state.productionRange={bookId:1,fromChapter:1,toChapter:1,skipCompleted:false};setAppRoute('production');renderProductionShell();
+    return {blockers:document.querySelectorAll('[data-repair-blocker]').length,nextAction:document.querySelector('#repairSameData')?.textContent,prepareButton:!!document.querySelector('#repairPrepare'),commandsBefore:0};
+  })()`);
+  await click('#repairSameData');
+  const replacementPreflight = await evaluate(`({mode:window.storyAudioAppState.productionRepair.mode,heading:document.querySelector('.production-repair-same-data h3')?.textContent,pins:document.querySelector('.production-repair-pins')?.innerText,prepareDisabled:document.querySelector('#repairPrepare')?.disabled})`);
+  const commandsAfterRepairChecks = await evaluate(`fetch('/api/fixture/commands').then(response => response.json())`);
+
   if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
   process.stdout.write(JSON.stringify({
     ok: true,
@@ -229,6 +270,12 @@ try {
     readyNavigation,
     commandsBeforePreflight,
     commandsAfterPreflight,
+    repairBlocked,
+    speakerRepairNavigation,
+    voiceRepairNavigation,
+    repairReady,
+    replacementPreflight,
+    repairCheckCommands: commandsAfterRepairChecks.slice(commandsAfterPreflight.length),
     renderCommands: commandsAfterPreflight.filter(command => /PREPARE|START_RENDER/.test(command.command_type || "")),
   }));
 } finally {

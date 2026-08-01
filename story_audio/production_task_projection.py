@@ -226,12 +226,12 @@ def _chapter_task(item: dict[str, Any]) -> dict[str, Any] | None:
         return {
             "task_type": "REPAIR_REQUIRED",
             "user_stage": 5,
-            "title": "Bản audio này cần sửa",
-            "summary": f"{chapter} đã được đánh dấu Cần sửa. Chọn cách xử lý trước khi tạo bản audio mới.",
+            "title": "Cần sửa và tạo bản thay thế",
+            "summary": f"{chapter} có audio bị từ chối. Hoàn tất đầu vào rồi tạo một bản thay thế mới.",
             "action": None,
             "blocker": blocker,
-            "next": "Chọn một hướng sửa; bản audio cũ vẫn được giữ làm bằng chứng lịch sử.",
-            "stage_key": "qa",
+            "next": "Bản audio cũ vẫn được giữ làm bằng chứng lịch sử trong khi đầu vào bản thay thế được hoàn tất.",
+            "stage_key": "repair",
         }
 
     if state == "TEXT_BLOCKED":
@@ -339,6 +339,76 @@ def _chapter_task(item: dict[str, Any]) -> dict[str, Any] | None:
             "stage_key": "text",
         }
     return None
+
+
+def _repair_blocker_details(source: dict[str, Any]) -> list[dict[str, Any]]:
+    chapter_number = int(source.get("chapter_number") or 0)
+    details: list[dict[str, Any]] = []
+    for raw in source.get("repair_input_blockers") or []:
+        message = str(raw)
+        normalized = message.casefold()
+        if "speaker draft" in normalized:
+            stale = "stale" in normalized
+            details.append({
+                "code": "SPEAKER_DRAFT_STALE" if stale else "SPEAKER_DRAFT_NOT_APPROVED",
+                "title": (
+                    "Bản xác định người nói cần được làm mới"
+                    if stale
+                    else "Bản xác định người nói mới nhất chưa được duyệt"
+                ),
+                "explanation": "Cần xác nhận ai đang nói trước khi tạo bản audio thay thế.",
+                "action_label": f"Duyệt người nói Chương {chapter_number}",
+                "target": "assignment",
+                "assignment_focus": "review",
+                "technical_reason": message,
+            })
+        elif "final voice map" in normalized or "casting plan" in normalized:
+            details.append({
+                "code": "VOICE_MAP_NOT_READY",
+                "title": f"Chương {chapter_number} chưa có bản đồ giọng cuối cùng",
+                "explanation": "Cần hoàn tất người nói và giọng hiệu lực trước khi PREPARE bản thay thế.",
+                "action_label": f"Hoàn tất giọng cho Chương {chapter_number}",
+                "target": "assignment",
+                "assignment_focus": "voices",
+                "technical_reason": message,
+            })
+        else:
+            details.append({
+                "code": "REPAIR_INPUT_BLOCKED",
+                "title": "Đầu vào bản thay thế chưa sẵn sàng",
+                "explanation": message,
+                "action_label": f"Kiểm tra Chương {chapter_number}",
+                "target": "production",
+                "assignment_focus": None,
+                "technical_reason": message,
+            })
+    return details
+
+
+def _repair_phases(repair: dict[str, Any]) -> list[dict[str, Any]]:
+    details = list(repair.get("input_blocker_details") or [])
+    codes = {str(item.get("code") or "") for item in details}
+    current = 1 if any("SPEAKER" in code for code in codes) else 2 if details else 3
+    labels = [
+        "Xác nhận nội dung và người nói",
+        "Hoàn tất cấu hình giọng",
+        "Chuẩn bị bản thay thế",
+        "Render bản thay thế",
+        "Nghe và duyệt bản mới",
+    ]
+    return [
+        {
+            "number": number,
+            "key": f"repair-{number}",
+            "label": label,
+            "current": number == current,
+            "complete": number < current,
+            "locked": number > current,
+            "state": "current" if number == current else "complete" if number < current else "locked",
+            "summary": "Đang thực hiện" if number == current else "Đã xong" if number < current else "Sẽ thực hiện sau",
+        }
+        for number, label in enumerate(labels, 1)
+    ]
 
 
 def _phases(user_stage: int, completed: bool = False) -> list[dict[str, Any]]:
@@ -457,6 +527,7 @@ def _typed_task_sections(
             "size_bytes": source.get("artifact_size_bytes"),
         }
     elif task_type == "REPAIR_REQUIRED":
+        blocker_details = _repair_blocker_details(source)
         sections["repair"] = {
             "chapter_id": affected["id"] if affected else None,
             "artifact_id": source.get("active_artifact_id"),
@@ -483,6 +554,7 @@ def _typed_task_sections(
             ),
             "prepare_ready": bool(source.get("repair_prepare_ready")),
             "input_blockers": list(source.get("repair_input_blockers") or []),
+            "input_blocker_details": blocker_details,
             "effective_voice_map": list(source.get("effective_voice_map") or []),
             "voice_map_diff": list(source.get("voice_map_diff") or []),
         }
@@ -533,7 +605,7 @@ def _base_projection(
         "blocker": blocker,
         "next_task_hint": next_hint,
         "technical_details": list(technical),
-        "current_stage_key": {
+        "current_stage_key": "repair" if task_type == "REPAIR_REQUIRED" else {
             1: "scope",
             2: "speakers",
             3: "voice_map",
@@ -569,7 +641,11 @@ def _base_projection(
         "current_stage_key": canonical_task["current_stage_key"],
         "conceptual_state": task_type,
         "input_summary": dict(canonical_task["input_summary"]),
-        "phases": _phases(user_stage, task_type == "COMPLETE"),
+        "phases": (
+            _repair_phases(sections["repair"] or {})
+            if task_type == "REPAIR_REQUIRED"
+            else _phases(user_stage, task_type == "COMPLETE")
+        ),
         "canonical_task": canonical_task,
         "inspected_chapter": None,
         "inspection_summary": None,
@@ -666,6 +742,19 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
         in ({JOB_PREPARED_STATUS} | _ACTIVE_OR_RECOVERABLE)
     ]
     exact_jobs.sort(key=lambda job: int(job.get("id") or job.get("job_id") or 0), reverse=True)
+    rejected_output_job_ids = [
+        int(row.get("active_output_job_id") or 0)
+        for row in rows
+        if row.get("state") == "REPAIR_REQUIRED" and row.get("active_output_job_id")
+    ]
+    if rejected_output_job_ids:
+        newest_rejected_output_job_id = max(rejected_output_job_ids)
+        exact_jobs = [
+            job
+            for job in exact_jobs
+            if str(job.get("status") or "").lower() not in {"failed", "completed_with_errors"}
+            or int(job.get("id") or job.get("job_id") or 0) > newest_rejected_output_job_id
+        ]
     exact_job = exact_jobs[0] if len(exact_jobs) == 1 else None
     scope_key = (
         f"range:{scope.get('book_id')}:{scope.get('from_chapter')}-{scope.get('to_chapter')}"

@@ -329,6 +329,12 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertEqual(projection["chapter_queue"][0]["status"], "current")
         self.assert_typed_section(projection, "repair")
 
+        complete = _row(1, "COMPLETE")
+        projection = project_production_task({"readiness": _readiness(complete)})
+        self.assertEqual(projection["task_type"], "COMPLETE")
+        self.assertIsNone(projection["primary_action"])
+        self.assertEqual(projection["task_scope"], "range")
+
     def test_text_blocker_precedes_range_input_orchestration(self) -> None:
         blocked = _row(
             1,
@@ -467,16 +473,38 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         projection = project_production_task({"readiness": _readiness(repair)})
         self.assertEqual(projection["task_type"], "REPAIR_REQUIRED")
         self.assertEqual(projection["user_stage"], 5)
+        self.assertEqual(projection["current_stage_key"], "repair")
+        self.assertEqual(projection["title"], "Cần sửa và tạo bản thay thế")
+        self.assertEqual(len(projection["phases"]), 5)
+        self.assertEqual(projection["phases"][0]["label"], "Xác nhận nội dung và người nói")
         self.assertIsNone(projection["primary_action"])
         self.assertEqual(projection["chapter_queue"][0]["status"], "current")
         self.assert_typed_section(projection, "repair")
 
-        complete = _row(1, "COMPLETE")
-        projection = project_production_task({"readiness": _readiness(complete)})
-        self.assertEqual(projection["task_type"], "COMPLETE")
-        self.assertIsNone(projection["primary_action"])
-        self.assertEqual(projection["task_scope"], "range")
+    def test_repair_blockers_are_structured_for_assignment_deep_links(self) -> None:
+        repair = _row(
+            1,
+            "REPAIR_REQUIRED",
+            blockers=["needs fixes"],
+            active_artifact_id=39,
+            repair_input_blockers=[
+                "Latest Speaker Draft is stale for the active Text Revision.",
+                "Final Voice Map is missing.",
+            ],
+        )
 
+        projection = project_production_task({"readiness": _readiness(repair)})
+        details = projection["canonical_task"]["repair"]["input_blocker_details"]
+
+        self.assertEqual(
+            [item["code"] for item in details],
+            ["SPEAKER_DRAFT_STALE", "VOICE_MAP_NOT_READY"],
+        )
+        self.assertEqual(
+            [item["assignment_focus"] for item in details],
+            ["review", "voices"],
+        )
+        self.assertEqual(projection["phases"][0]["state"], "current")
 
 class ProductionTaskProjectionAuditTests(IsolatedTestCase):
     def setUp(self) -> None:
@@ -485,6 +513,7 @@ class ProductionTaskProjectionAuditTests(IsolatedTestCase):
         self.db = seeded["db"]
         self.chapter_id = seeded["chapter_one"]
         self.artifact_id = seeded["old_artifact_id"]
+        self.output_job_id = seeded["job_old"]
         self.book_id = int(
             self.db.fetch_one(
                 "SELECT book_id FROM chapters WHERE id=?",
@@ -581,6 +610,7 @@ class ProductionTaskProjectionAuditTests(IsolatedTestCase):
                     "latest_speaker_draft_id": 12,
                     "latest_speaker_draft_status": "approved",
                     "active_artifact_id": self.artifact_id,
+                    "active_output_job_id": self.output_job_id,
                     "latest_casting_plan_id": 6,
                     "latest_casting_plan_revision": 1,
                     "latest_casting_plan_status": "approved",
@@ -596,9 +626,16 @@ class ProductionTaskProjectionAuditTests(IsolatedTestCase):
                 }
             ],
         }
+        historical_job = {
+            "id": self.output_job_id - 1,
+            "job_id": self.output_job_id - 1,
+            "status": "completed_with_errors",
+            "chapter_count": 1,
+            "all_chapters_match": True,
+        }
         with patch("story_audio.production_task_projection.get_range_readiness", return_value=readiness), patch(
             "story_audio.production_task_projection._exact_range_jobs",
-            return_value=[],
+            return_value=[historical_job],
         ):
             projection = get_production_task_projection(
                 self.db,

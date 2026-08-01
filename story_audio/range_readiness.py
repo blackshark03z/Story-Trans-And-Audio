@@ -76,18 +76,20 @@ def _latest_drafts(db: Database, chapter_ids: list[int]) -> dict[int, dict[str, 
         return {}
     rows = db.fetch_all(
         f"""
-        SELECT sad.*
+        SELECT sad.*, c.active_text_revision_id
         FROM speaker_assignment_drafts sad
-        JOIN (
-            SELECT chapter_id, MAX(id) AS id
-            FROM speaker_assignment_drafts
-            WHERE chapter_id IN ({_placeholders(len(chapter_ids))})
-            GROUP BY chapter_id
-        ) latest ON latest.id = sad.id
+        JOIN chapters c ON c.id = sad.chapter_id
+        WHERE sad.chapter_id IN ({_placeholders(len(chapter_ids))})
+        ORDER BY sad.chapter_id,
+                 CASE WHEN sad.text_revision_id = c.active_text_revision_id THEN 0 ELSE 1 END,
+                 sad.id DESC
         """,
         tuple(chapter_ids),
     )
-    return {int(row["chapter_id"]): dict(row) for row in rows}
+    result: dict[int, dict[str, Any]] = {}
+    for row in rows:
+        result.setdefault(int(row["chapter_id"]), dict(row))
+    return result
 
 
 def _approved_text_state(
@@ -239,22 +241,21 @@ def _latest_casting_payloads(db: Database, chapter_ids: list[int]) -> dict[int, 
                cp.text_revision_id,
                cp.narrator_voice_id,
                cp.content_path,
-               cp.plan_sha256
+               cp.plan_sha256,
+               c.active_text_revision_id
         FROM casting_plans cp
-        JOIN (
-            SELECT chapter_id, MAX(plan_revision) AS plan_revision
-            FROM casting_plans
-            WHERE chapter_id IN ({_placeholders(len(chapter_ids))})
-            GROUP BY chapter_id
-        ) latest
-          ON latest.chapter_id = cp.chapter_id
-         AND latest.plan_revision = cp.plan_revision
+        JOIN chapters c ON c.id = cp.chapter_id
         WHERE cp.chapter_id IN ({_placeholders(len(chapter_ids))})
+        ORDER BY cp.chapter_id,
+                 CASE WHEN cp.text_revision_id = c.active_text_revision_id THEN 0 ELSE 1 END,
+                 cp.plan_revision DESC
         """,
-        tuple(chapter_ids + chapter_ids),
+        tuple(chapter_ids),
     )
     result: dict[int, dict[str, Any]] = {}
     for row in rows:
+        if int(row["chapter_id"]) in result:
+            continue
         plan = dict(row)
         plan["_payload"] = _read_casting_payload(db, plan)
         result[int(row["chapter_id"])] = plan
@@ -315,7 +316,11 @@ def _state_item(
             repair_input_blockers.append(
                 f"Existing job #{int(live_jobs[0]['job_id'])} must be resolved before replacement PREPARE."
             )
-        if not latest_draft or str(latest_draft.get("status") or "").lower() != "approved":
+        if not latest_draft:
+            repair_input_blockers.append("Speaker Draft is missing for the active Text Revision.")
+        elif int(latest_draft.get("text_revision_id") or 0) != int(active_text_revision_id or 0):
+            repair_input_blockers.append("Latest Speaker Draft is stale for the active Text Revision.")
+        elif str(latest_draft.get("status") or "").lower() != "approved":
             repair_input_blockers.append("Latest Speaker Draft is not approved.")
         if not latest_plan:
             repair_input_blockers.append("Final Voice Map is missing.")
@@ -405,6 +410,14 @@ def _state_item(
         "active_text_revision_id": active_text_revision_id,
         "latest_speaker_draft_id": int(latest_draft["id"]) if latest_draft else None,
         "latest_speaker_draft_status": latest_draft.get("status") if latest_draft else None,
+        "latest_speaker_draft_text_revision_id": (
+            int(latest_draft["text_revision_id"]) if latest_draft else None
+        ),
+        "latest_speaker_draft_stale": bool(
+            latest_draft
+            and int(latest_draft.get("text_revision_id") or 0)
+            != int(active_text_revision_id or 0)
+        ),
         "latest_casting_plan_id": int(latest_plan["id"]) if latest_plan else None,
         "latest_casting_plan_revision": int(latest_plan["plan_revision"]) if latest_plan else None,
         "latest_casting_plan_status": latest_plan.get("status") if latest_plan else None,

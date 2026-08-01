@@ -174,9 +174,18 @@ class RangeReadinessApiTests(IsolatedTestCase):
     def _draft_plan(self, number: int) -> int:
         return self._plan(number, "draft")
 
-    def _speaker_draft(self, number: int, status: str) -> int:
+    def _speaker_draft(
+        self,
+        number: int,
+        status: str,
+        *,
+        revision_id: int | None = None,
+    ) -> int:
         chapter_id = self.chapters[number]
-        revision_id = self.db.fetch_one("SELECT active_text_revision_id FROM chapters WHERE id=?", (chapter_id,))["active_text_revision_id"]
+        revision_id = revision_id or self.db.fetch_one(
+            "SELECT active_text_revision_id FROM chapters WHERE id=?",
+            (chapter_id,),
+        )["active_text_revision_id"]
         now = utcnow()
         return int(
             self._execute(
@@ -189,7 +198,7 @@ class RangeReadinessApiTests(IsolatedTestCase):
                     self.book_id,
                     chapter_id,
                     revision_id,
-                    f"fingerprint-{chapter_id}",
+                    f"fingerprint-{chapter_id}-{revision_id}-{status}-{now}",
                     "characters",
                     "fake",
                     "speaker-assignment-v2",
@@ -385,7 +394,10 @@ class RangeReadinessApiTests(IsolatedTestCase):
         self.assertEqual(blocked["next_action"], "CHOOSE_REPAIR_PATH")
         self.assertEqual(blocked["replacement_for_artifact_id"], artifact_id)
         self.assertFalse(blocked["repair_prepare_ready"])
-        self.assertIn("Latest Speaker Draft is not approved.", blocked["repair_input_blockers"])
+        self.assertIn(
+            "Speaker Draft is missing for the active Text Revision.",
+            blocked["repair_input_blockers"],
+        )
 
         self._speaker_draft(1, "approved")
         ready = self._readiness(1, 1)["chapters"][0]
@@ -428,6 +440,36 @@ class RangeReadinessApiTests(IsolatedTestCase):
         self.assertFalse(item["repair_prepare_ready"])
         self.assertIn("TEXT_ENCODING_INVALID", item["blockers"][0])
         self.assertIn("TEXT_ENCODING_INVALID", item["repair_input_blockers"][0])
+
+    def test_current_revision_draft_precedes_newer_historical_draft(self) -> None:
+        chapter_id = self.chapters[1]
+        artifact_id = self.db.fetch_one(
+            "SELECT active_audio_artifact_id FROM chapters WHERE id=?",
+            (chapter_id,),
+        )["active_audio_artifact_id"]
+        old_revision_id = int(self.db.fetch_one(
+            "SELECT active_text_revision_id FROM chapters WHERE id=?",
+            (chapter_id,),
+        )["active_text_revision_id"])
+        self._execute(
+            "UPDATE chapters SET human_approval_json=? WHERE id=?",
+            (json.dumps({"status": "needs_fixes", "artifact_id": artifact_id}), chapter_id),
+        )
+        self._speaker_draft(1, "generated", revision_id=old_revision_id)
+        new_revision_id = self._approve_text(chapter_id, "Replacement text for current revision.")
+        current_draft_id = self._speaker_draft(1, "approved", revision_id=new_revision_id)
+        historical_draft_id = self._speaker_draft(1, "generated", revision_id=old_revision_id)
+
+        item = self._readiness(1, 1)["chapters"][0]
+
+        self.assertGreater(historical_draft_id, current_draft_id)
+        self.assertEqual(item["latest_speaker_draft_id"], current_draft_id)
+        self.assertEqual(item["latest_speaker_draft_status"], "approved")
+        self.assertFalse(item["latest_speaker_draft_stale"])
+        self.assertNotIn(
+            "Latest Speaker Draft is not approved.",
+            item["repair_input_blockers"],
+        )
 
     def test_active_audio_accepted_is_complete(self) -> None:
         item = self._readiness(2, 2)["chapters"][0]

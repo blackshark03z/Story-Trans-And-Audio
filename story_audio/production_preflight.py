@@ -47,8 +47,8 @@ _LIFECYCLE_ACTIONS = {
     ),
     "REPAIR_REQUIRED": (
         "CHOOSE_REPAIR_PATH",
-        "Chọn cách sửa audio",
-        "qa",
+        "Mở luồng tạo bản thay thế",
+        "repair",
     ),
     "COMPLETE": (
         "COMPLETE",
@@ -146,13 +146,31 @@ def _blockers(
     result: list[dict[str, Any]] = []
     for row in rows:
         state = str(row.get("state") or "")
+        if state == "REPAIR_REQUIRED":
+            if not row.get("repair_input_blockers"):
+                continue
+            details = list((canonical.get("repair") or {}).get("input_blocker_details") or [])
+            for index, reason in enumerate(row.get("repair_input_blockers") or []):
+                detail = details[index] if index < len(details) else {}
+                result.append({
+                    "chapter_id": int(row["chapter_id"]),
+                    "chapter_number": int(row["chapter_number"]),
+                    "chapter_title": row.get("chapter_title") or "",
+                    "state": state,
+                    "reason": str(detail.get("explanation") or reason),
+                    "reason_code": str(detail.get("code") or "REPAIR_INPUT_BLOCKED"),
+                    "next_task": "RESOLVE_REPAIR_INPUT",
+                    "action_label": str(detail.get("action_label") or "Hoàn tất đầu vào bản thay thế"),
+                    "target": str(detail.get("target") or "repair"),
+                    "assignment_focus": detail.get("assignment_focus"),
+                })
+            continue
         if state in {
             "READY_TO_PREPARE",
             "COMPLETE",
             "PREPARED",
             "RENDERING_OR_PAUSED",
             "RENDERED_NOT_QA",
-            "REPAIR_REQUIRED",
         }:
             continue
         queue = queue_by_chapter.get(int(row["chapter_id"]), {})

@@ -186,6 +186,32 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertNotIn("commandType:'PREPARE'", section)
         self.assertNotIn("commandType:'START_RENDER'", section)
 
+    def test_assignment_has_one_preflight_primary_and_secondary_step_link(self) -> None:
+        section = self.js[
+            self.js.index("function renderBookVoiceRegistryPage("):
+            self.js.index("function speakerSuggestionScopeKey")
+        ]
+        self.assertEqual(section.count("data-open-production-preflight ${preflightReady"), 1)
+        self.assertIn("data-jump-to-assignment-preflight", section)
+        self.assertIn("repairContextBlockers.length===0", section)
+        self.assertIn("data-assignment-repair-focus", section)
+        self.assertIn("Xem điều kiện để tiếp tục", section)
+        self.assertIn("Quay lại chuẩn bị bản thay thế", section)
+
+    def test_repair_working_context_preserves_exact_assignment_focus_and_return(self) -> None:
+        for token in (
+            "assignmentFocus",
+            "assignment_focus",
+            "returnTask:'REPAIR_PREFLIGHT'",
+            "sourceTask:'REPAIR_REQUIRED'",
+            "fromChapter:number,toChapter:number",
+        ):
+            self.assertIn(token, self.js)
+        self.assertIn(
+            "if(context.returnTask==='REPAIR_PREFLIGHT')await loadProductionTaskProjection({silent:true})",
+            self.js,
+        )
+
     def test_exact_assignment_range_url_remains_supported_by_working_context(self) -> None:
         self.assertIn("#/assignment", self.js)
         self.assertIn("book=1&from=1&to=10&skip_completed=1", "#/assignment?book=1&from=1&to=10&skip_completed=1")
