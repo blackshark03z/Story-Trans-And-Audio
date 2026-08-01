@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import subprocess
 import threading
-from importlib import resources
+from importlib import resources, util
 from pathlib import Path
 from typing import Any
 
@@ -32,6 +32,18 @@ class TtsService:
         self._preset_voice_metadata: list[dict[str, str]] | None = None
         self.status = "not_loaded"
         self.error: str | None = None
+
+    def provider_available(self) -> bool:
+        """Report whether lazy VieNeu loading can be attempted safely."""
+        with self._lock:
+            if self.status == "error":
+                return False
+            if self._engine is not None or self.status == "ready":
+                return True
+            try:
+                return util.find_spec("vieneu") is not None
+            except (ImportError, ValueError):
+                return False
 
     def _validate_synthesized_audio(self, wav_path: Path, text: str) -> None:
         """

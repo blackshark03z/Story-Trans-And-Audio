@@ -259,7 +259,7 @@ def _production_runtime_readiness() -> dict[str, Any]:
         output_root=settings.output_dir,
         # Read-only catalog fixtures intentionally expose no provider status.
         # Treat that as unavailable instead of failing the readiness endpoint.
-        provider_configured=getattr(tts_service, "status", None) == "ready",
+        provider_configured=tts_service.provider_available(),
         mutation_service_constructed=batch_prepare_api_service is not None,
     )
 

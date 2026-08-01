@@ -75,6 +75,21 @@ class TestTtsSnapshotIntegration(unittest.TestCase):
         )
         self.assertEqual(self.service.status, "not_loaded")
 
+    def test_installed_lazy_provider_is_available_without_loading_the_engine(self):
+        with patch("story_audio.tts.util.find_spec", return_value=object()):
+            self.assertTrue(self.service.provider_available())
+
+        self.assertEqual(self.service.status, "not_loaded")
+        self.assertIsNone(self.service._engine)
+
+    def test_missing_or_failed_provider_is_not_available(self):
+        with patch("story_audio.tts.util.find_spec", return_value=None):
+            self.assertFalse(self.service.provider_available())
+
+        self.service.status = "error"
+        with patch("story_audio.tts.util.find_spec", return_value=object()):
+            self.assertFalse(self.service.provider_available())
+
     def _make_preset_input(self, is_final=False):
         """Create a valid preset SegmentSynthesisInput."""
         settings = SynthesisSettings(0.8, 25, 256, 0.15, "vieneu:v3turbo")
