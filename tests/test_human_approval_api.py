@@ -110,6 +110,36 @@ class HumanApprovalApiTests(IsolatedTestCase):
         self.assertEqual(data["chapter"]["human_qa_status"], "needs_fixes")
         self.assertEqual(data["chapter"]["human_approval_label"], "Cần sửa")
 
+    def test_needs_fixes_persists_structured_feedback_and_reuses_exact_submission(self) -> None:
+        feedback = {
+            "global_speed_target": 1.25,
+            "repeated_words": True,
+            "local_pacing_adjustment_required": True,
+            "issue_types": ["repeated_words", "overall_pacing", "local_pacing"],
+            "operator_note": "Một số đoạn còn lặp chữ.",
+            "position_markers": [],
+        }
+        payload = {
+            "status": "needs_fixes",
+            "notes": feedback["operator_note"],
+            "qa_feedback": feedback,
+        }
+        first = self.client.put(
+            f"/api/chapters/{self.chapter_id}/human-approval", json=payload
+        )
+        self.assertEqual(first.status_code, 200)
+        self.assertEqual(first.json()["human_approval"]["qa_feedback"], feedback)
+        second = self.client.put(
+            f"/api/chapters/{self.chapter_id}/human-approval", json=payload
+        )
+        self.assertEqual(second.status_code, 200)
+        self.assertTrue(second.json()["idempotent_reused"])
+        audit = self.db.fetch_one(
+            "SELECT details_json FROM audit_events WHERE chapter_id=?",
+            (self.chapter_id,),
+        )
+        self.assertEqual(json.loads(audit["details_json"])["qa_feedback"], feedback)
+
     def test_chapter_detail_prefers_audit_note_over_placeholder_snapshot(self) -> None:
         response = self.client.put(
             f"/api/chapters/{self.chapter_id}/human-approval",

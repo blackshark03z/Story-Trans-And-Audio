@@ -92,6 +92,28 @@ class AudioLibraryUiTests(unittest.TestCase):
         unknown_tail = block[block.index("return{label:'Chưa xác định'") :]
         self.assertNotIn("accepted", unknown_tail)
 
+    def test_repair_feedback_separates_playback_and_replacement_speed(self) -> None:
+        for value in (
+            'id="audioQaPlaybackSpeed"',
+            'id="audioQaReplacementSpeed"',
+            'id="audioQaRepeatedWords"',
+            'id="audioQaLocalPacing"',
+            'id="audioQaMarkPosition"',
+            'id="audioQaResult"',
+            "Gửi yêu cầu sửa",
+        ):
+            self.assertIn(value, self.html)
+        self.assertIn("Xem kế hoạch sửa", self.js)
+        self.assertIn("audio.playbackRate=Number(event.target.value||1)", self.js)
+        self.assertIn("global_speed_target:speed", self.js)
+        self.assertIn("repeated_words:repeated", self.js)
+        self.assertIn("local_pacing_adjustment_required:local", self.js)
+        self.assertIn("position_markers:state.audioQa.markers", self.js)
+        self.assertIn("if(changed)state.audioQa.markers=[]", self.js)
+        self.assertIn("submit.disabled=true", self.js)
+        self.assertIn("Đang lưu phản hồi…", self.js)
+        self.assertIn("qa_feedback", self.js)
+
     def test_playback_and_download_use_only_api_safe_relative_url(self) -> None:
         safe_block = self._function_block("safeAudioLibraryUrl")
         self.assertIn(r"^\/api\/artifacts\/\d+\/file$", safe_block)
@@ -192,9 +214,10 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertIn("HUMAN_QA_ACCEPT", self.js)
         self.assertIn("HUMAN_QA_NEEDS_FIXES", self.js)
         self.assertIn("/api/production/commands", self.js)
-        self.assertIn("runProductionCommand", audio_related)
-        self.assertIn("window.confirm", audio_related)
-        self.assertIn("notes", audio_related)
+        submit = self._function_block("submitAudioQa")
+        self.assertIn("runProductionCommand", submit)
+        self.assertNotIn("window.confirm", submit)
+        self.assertIn("notes", submit)
         self.assertNotIn("Chapter 369", self.html + self.js + self.css)
         self.assertNotIn("chapter 369", self.html + self.js + self.css)
 

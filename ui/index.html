@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Story Audio</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=20260801-repair-preflight-1">
+  <link rel="stylesheet" href="/assets/styles.css?v=20260802-audio-repair-feedback-1">
 </head>
 <body>
   <header class="topbar">
@@ -546,17 +546,46 @@
         <section id="audioLibraryQaPanel" class="audio-library-qa-panel hidden" aria-labelledby="audioQaHeading">
           <div>
             <p class="eyebrow">Human QA</p>
-            <h3 id="audioQaHeading">Đánh giá active artifact</h3>
+            <h3 id="audioQaHeading">Nghe và gửi phản hồi sửa</h3>
             <p id="audioQaIdentity" class="muted"></p>
-            <div id="audioQaVoiceSummary" class="muted"></div>
+            <details>
+              <summary>Chi tiết kỹ thuật</summary>
+              <div id="audioQaVoiceSummary" class="muted"></div>
+            </details>
           </div>
-          <label>Ghi chú QA
-            <textarea id="audioQaNote" rows="3" maxlength="4000" placeholder="Bắt buộc khi chọn Needs fixes" required></textarea>
+          <label>Tốc độ nghe thử
+            <select id="audioQaPlaybackSpeed" aria-label="Tốc độ nghe thử">
+              <option value="0.75">0.75x</option>
+              <option value="1" selected>1.0x</option>
+              <option value="1.25">1.25x</option>
+              <option value="1.5">1.5x</option>
+            </select>
           </label>
+          <fieldset class="audio-qa-feedback-options">
+            <legend>Vấn đề cần sửa</legend>
+            <label><input id="audioQaRepeatedWords" type="checkbox"> Lặp chữ hoặc lặp cụm từ</label>
+            <label><input id="audioQaSlowOverall" type="checkbox"> Tốc độ tổng thể quá chậm</label>
+            <label><input id="audioQaLocalPacing" type="checkbox"> Có đoạn cần nhanh hoặc chậm riêng</label>
+            <label><input id="audioQaOther" type="checkbox"> Lỗi khác</label>
+          </fieldset>
+          <label>Tốc độ mong muốn cho bản thay thế
+            <select id="audioQaReplacementSpeed" aria-label="Tốc độ mong muốn cho bản thay thế">
+              <option value="1">1.0x</option>
+              <option value="1.1">1.1x</option>
+              <option value="1.25" selected>1.25x</option>
+              <option value="1.5">1.5x</option>
+            </select>
+            <small>Áp dụng làm tốc độ trung bình; từng đoạn vẫn có thể được điều chỉnh riêng.</small>
+          </label>
+          <button id="audioQaMarkPosition" class="ghost" type="button">Đánh dấu vị trí đang nghe</button>
+          <label>Ghi chú phản hồi
+            <textarea id="audioQaNote" rows="3" maxlength="4000" placeholder="Mô tả vấn đề cần sửa" required></textarea>
+          </label>
+          <div id="audioQaMarkerList" class="muted"></div>
           <div class="audio-qa-actions">
-            <button id="audioQaAccept" class="primary" type="button" data-runtime-mutation-control>Accept</button>
-            <button id="audioQaNeedsFixes" class="danger" type="button" data-runtime-mutation-control>Needs fixes</button>
+            <button id="audioQaNeedsFixes" class="primary" type="button" data-runtime-mutation-control>Gửi yêu cầu sửa</button>
           </div>
+          <div id="audioQaResult" class="audio-qa-result hidden" aria-live="polite"></div>
           <div>
             <strong>Lịch sử QA</strong>
             <div id="audioQaHistory" class="qa-history muted">Chưa tải lịch sử.</div>
@@ -1042,7 +1071,7 @@
   </dialog>
   <div id="toast" class="toast hidden"></div>
   <script src="/assets/production_state.js?v=20260727-production-preflight-1"></script>
-  <script src="/assets/app.js?v=20260801-repair-preflight-1"></script>
+  <script src="/assets/app.js?v=20260802-audio-repair-feedback-5"></script>
   <script src="/assets/casting_voice_map.js?v=20260726-vietnamese-flow-3"></script>
   <script src="/assets/contextual_voice_detour.js?v=20260720-daily-prod-2b2"></script>
 </body>

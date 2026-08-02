@@ -473,9 +473,35 @@ class SpeakerReviewCastingPlanDraftRequest(BaseModel):
     operator_note: str | None = Field(default=None, max_length=4000)
 
 
+class HumanQaPositionMarker(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    timestamp: float = Field(ge=0)
+    segment_id: int | None = Field(default=None, gt=0)
+    utterance_id: str | None = Field(default=None, max_length=100)
+    issue_type: str | None = Field(default=None, max_length=100)
+    note: str | None = Field(default=None, max_length=1000)
+
+
+class HumanQaFeedback(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    global_speed_target: float | None = Field(default=None, ge=0.5, le=2.0)
+    repeated_words: bool = False
+    local_pacing_adjustment_required: bool = False
+    issue_types: list[
+        Literal["repeated_words", "overall_pacing", "local_pacing", "other"]
+    ] = Field(default_factory=list, max_length=4)
+    operator_note: str | None = Field(default=None, max_length=4000)
+    position_markers: list[HumanQaPositionMarker] = Field(
+        default_factory=list, max_length=50
+    )
+
+
 class HumanApprovalRequest(BaseModel):
     status: str = Field(pattern="^(approved|needs_fixes)$")
     notes: str | None = Field(default=None, max_length=4000)
+    qa_feedback: HumanQaFeedback | None = None
 
 
 class StorageCleanupRequest(BaseModel):
@@ -901,6 +927,7 @@ def audio_library() -> dict[str, Any]:
             "human_approval_status": chapter_data["human_approval_status"],
             "human_approval_label": chapter_data["human_approval_label"],
             "human_approval_warning": chapter_data["human_approval_warning"],
+            "qa_feedback": (human_approval or {}).get("qa_feedback", {}),
             "human_approval_matches_active_artifact": (
                 human_approval.get("matches_active_artifact") if human_approval else None
             ),
@@ -2607,7 +2634,11 @@ def _production_command_executor(
             )
             result = set_human_approval(
                 chapter_id,
-                HumanApprovalRequest(status=status, notes=payload.get("notes")),
+                HumanApprovalRequest(
+                    status=status,
+                    notes=payload.get("notes"),
+                    qa_feedback=payload.get("qa_feedback") or {},
+                ),
             )
             artifact_id = result.get("human_approval", {}).get("artifact_id")
             chapter_number = result.get("chapter", {}).get("chapter_number") or chapter_id
@@ -2993,12 +3024,18 @@ def set_human_approval(chapter_id: int, request: HumanApprovalRequest) -> dict[s
             },
         )
     existing_approval = _parse_human_approval(chapter_data["human_approval_json"])
+    qa_feedback = (
+        request.qa_feedback.model_dump(exclude_none=True)
+        if request.qa_feedback is not None
+        else {}
+    )
     if (
         existing_approval
         and existing_approval.get("status") == request.status
         and (existing_approval.get("notes") or "") == notes
         and int(existing_approval.get("artifact_id") or 0)
         == int(snapshot["artifact_id"])
+        and dict(existing_approval.get("qa_feedback") or {}) == qa_feedback
     ):
         active_output = get_active_output_bindings(db, [chapter_id]).get(chapter_id, {})
         chapter_view, human_approval = _decorate_human_approval(
@@ -3021,6 +3058,7 @@ def set_human_approval(chapter_id: int, request: HumanApprovalRequest) -> dict[s
         "output_path": snapshot["output_path"],
         "sha256": snapshot["sha256"],
         "duration_ms": snapshot["duration_ms"],
+        "qa_feedback": qa_feedback,
     }
     with db.transaction() as connection:
         connection.execute(
@@ -3044,6 +3082,7 @@ def set_human_approval(chapter_id: int, request: HumanApprovalRequest) -> dict[s
                         "job_id": snapshot["job_id"],
                         "sha256": snapshot["sha256"],
                         "duration_ms": snapshot["duration_ms"],
+                        "qa_feedback": qa_feedback,
                     },
                     ensure_ascii=False,
                 ),
@@ -3096,6 +3135,7 @@ def human_approval_history(chapter_id: int) -> dict[str, Any]:
                 "job_id": details.get("job_id") or row["job_id"],
                 "sha256": details.get("sha256"),
                 "duration_ms": details.get("duration_ms"),
+                "qa_feedback": details.get("qa_feedback") or {},
                 "recorded_at": row["created_at"],
                 "source": "audit",
             }
@@ -3115,6 +3155,7 @@ def human_approval_history(chapter_id: int) -> dict[str, Any]:
                 "job_id": current.get("job_id"),
                 "sha256": current.get("sha256"),
                 "duration_ms": current.get("duration_ms"),
+                "qa_feedback": current.get("qa_feedback") or {},
                 "recorded_at": current.get("recorded_at"),
                 "source": "legacy_snapshot",
             }

@@ -72,7 +72,7 @@ def resolve_authoritative_human_approval(
             continue
 
         resolved = dict(current)
-        for key in ("artifact_id", "job_id", "sha256", "duration_ms"):
+        for key in ("artifact_id", "job_id", "sha256", "duration_ms", "qa_feedback"):
             if key in details and details.get(key) is not None:
                 resolved[key] = details[key]
         resolved["notes"] = str(details.get("notes") or "")
