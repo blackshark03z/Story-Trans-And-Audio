@@ -275,16 +275,16 @@ try {
 
   const repairReady = await evaluate(`(() => {
     const projection=JSON.parse(JSON.stringify(window.__repairProjection)),task=projection.canonical_task;
-    task.repair.input_blockers=[];task.repair.input_blocker_details=[];task.repair.prepare_ready=true;task.blocker=null;projection.blocker=null;
+    task.repair.input_blockers=[];task.repair.input_blocker_details=[];task.repair.qa_evidence_id=312;task.repair.qa_feedback={repeated_words:true,global_speed_target:1.25,local_pacing_adjustment_required:true,operator_note:'Đổi giọng narrator'};task.repair.prepare_ready=true;task.blocker=null;projection.blocker=null;
     projection.phases=projection.phases.map((phase,index)=>({...phase,current:index===2,complete:index<2,locked:index>2,state:index<2?'complete':index===2?'current':'locked'}));
     state.productionProjection=projection;state.productionRepair={taskKey:null,mode:null};state.productionRange={bookId:1,fromChapter:1,toChapter:1,skipCompleted:false};setAppRoute('production');renderProductionShell();
-    return {blockers:document.querySelectorAll('[data-repair-blocker]').length,nextAction:document.querySelector('#repairSameData')?.textContent,prepareButton:!!document.querySelector('#repairPrepare'),commandsBefore:0};
+    return {blockers:document.querySelectorAll('[data-repair-blocker]').length,nextAction:document.querySelector('#repairOpenPlan')?.textContent,applyButton:!!document.querySelector('#repairApplyPlan'),commandsBefore:0};
   })()`);
-  await waitFor(`(() => { const button=document.querySelector('#repairSameData'); if(!button)return false; button.click(); return true; })()`);
-  const replacementPreflight = await waitFor(`(() => {
-    const heading=document.querySelector('.production-repair-same-data h3')?.textContent;
-    if(window.storyAudioAppState.productionRepair.mode !== "same_data" || !heading)return null;
-    return {mode:window.storyAudioAppState.productionRepair.mode,heading,pins:document.querySelector('.production-repair-pins')?.innerText,prepareDisabled:document.querySelector('#repairPrepare')?.disabled};
+  await waitFor(`(() => { const button=document.querySelector('#repairOpenPlan'); if(!button)return false; button.click(); return true; })()`);
+  const repairPlan = await waitFor(`(() => {
+    const heading=document.querySelector('.production-repair-plan h3')?.textContent;
+    if(window.storyAudioAppState.productionRepair.mode !== "plan" || !heading)return null;
+    return {mode:window.storyAudioAppState.productionRepair.mode,heading,repeatedWords:document.querySelector('#repairPlanRepeatedWords')?.checked,speed:document.querySelector('#repairPlanSpeed')?.value,localPacing:document.querySelector('#repairPlanLocalPacing')?.checked,confirmDisabled:document.querySelector('#repairConfirmPlan')?.disabled};
   })()`);
   const commandsAfterRepairChecks = await evaluate(`fetch('/api/fixture/commands').then(response => response.json())`);
 
@@ -305,7 +305,7 @@ try {
     speakerRepairNavigation,
     voiceRepairNavigation,
     repairReady,
-    replacementPreflight,
+    repairPlan,
     repairCheckCommands: commandsAfterRepairChecks.slice(commandsAfterPreflight.length),
     renderCommands: commandsAfterPreflight.filter(command => /PREPARE|START_RENDER/.test(command.command_type || "")),
   }));

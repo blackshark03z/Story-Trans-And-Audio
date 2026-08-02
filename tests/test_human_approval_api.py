@@ -140,6 +140,91 @@ class HumanApprovalApiTests(IsolatedTestCase):
         )
         self.assertEqual(json.loads(audit["details_json"])["qa_feedback"], feedback)
 
+    def test_confirm_repair_plan_is_artifact_scoped_and_idempotent(self) -> None:
+        feedback = {
+            "global_speed_target": 1.25,
+            "repeated_words": True,
+            "local_pacing_adjustment_required": True,
+            "issue_types": ["repeated_words", "overall_pacing", "local_pacing"],
+            "operator_note": "Cần sửa lặp chữ và tốc độ.",
+            "position_markers": [],
+        }
+        qa = self.client.put(
+            f"/api/chapters/{self.chapter_id}/human-approval",
+            json={
+                "status": "needs_fixes",
+                "notes": feedback["operator_note"],
+                "qa_feedback": feedback,
+            },
+        )
+        self.assertEqual(qa.status_code, 200)
+        qa_event = self.db.fetch_one(
+            """
+            SELECT id FROM audit_events
+            WHERE chapter_id=? AND event_code='human_qa_recorded'
+            ORDER BY id DESC LIMIT 1
+            """,
+            (self.chapter_id,),
+        )
+        chapter = self.db.fetch_one(
+            "SELECT book_id,chapter_number FROM chapters WHERE id=?",
+            (self.chapter_id,),
+        )
+        command = {
+            "command_type": "CONFIRM_REPAIR_PLAN",
+            "idempotency_key": "repair-plan-confirm-0001",
+            "scope": {"chapter": {"id": self.chapter_id}},
+            "payload": {
+                "chapter_id": self.chapter_id,
+                "artifact_id": self.old_artifact_id,
+                "qa_evidence_id": int(qa_event["id"]),
+                "repeated_words": True,
+                "global_speed_target": 1.25,
+                "local_pacing_adjustment_required": True,
+                "operator_note": "",
+            },
+        }
+        jobs_before = self.db.fetch_one("SELECT COUNT(*) AS count FROM jobs")["count"]
+        artifacts_before = self.db.fetch_one("SELECT COUNT(*) AS count FROM artifacts")["count"]
+        projected = ({"canonical_task": {"task_key": "fixture"}}, None)
+        with patch("story_audio.api._project_production_command", return_value=projected):
+            first = self.client.post("/api/production/commands", json=command)
+            self.assertEqual(first.status_code, 200)
+            first_payload = first.json()
+            self.assertEqual(first_payload["outcome"], "APPLIED")
+            evidence_id = first_payload["applied_items"][0]["repair_plan_evidence_id"]
+            self.assertFalse(first_payload["applied_items"][0]["reused"])
+
+            second = self.client.post("/api/production/commands", json=command)
+            self.assertEqual(second.status_code, 200)
+            self.assertEqual(second.json()["outcome"], "APPLIED")
+        self.assertEqual(
+            self.db.fetch_one(
+                """
+                SELECT COUNT(*) AS count FROM audit_events
+                WHERE chapter_id=? AND event_code='repair_plan_confirmed'
+                """,
+                (self.chapter_id,),
+            )["count"],
+            1,
+        )
+        evidence = self.db.fetch_one(
+            "SELECT details_json FROM audit_events WHERE id=?", (evidence_id,)
+        )
+        details = json.loads(evidence["details_json"])
+        self.assertEqual(details["artifact_id"], self.old_artifact_id)
+        self.assertEqual(details["qa_evidence_id"], int(qa_event["id"]))
+        self.assertTrue(details["repeated_words"])
+        self.assertEqual(details["global_speed_target"], 1.25)
+        self.assertTrue(details["local_pacing_adjustment_required"])
+        self.assertEqual(
+            self.db.fetch_one("SELECT COUNT(*) AS count FROM jobs")["count"], jobs_before
+        )
+        self.assertEqual(
+            self.db.fetch_one("SELECT COUNT(*) AS count FROM artifacts")["count"], artifacts_before
+        )
+
+
     def test_chapter_detail_prefers_audit_note_over_placeholder_snapshot(self) -> None:
         response = self.client.put(
             f"/api/chapters/{self.chapter_id}/human-approval",

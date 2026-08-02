@@ -50,15 +50,16 @@ class DailyUseV1UiTests(unittest.TestCase):
         self.assertIn("copyJobSummary", self.js)
 
     def test_qa_is_explicit_and_rejection_requires_note(self) -> None:
-        self.assertIn('id="audioQaAccept"', self.html)
-        self.assertIn('id="audioQaNeedsFixes"', self.html)
+        self.assertIn('id="productionQaAccept"', self.html)
+        self.assertIn('id="productionQaNeedsFixes"', self.html)
         self.assertIn('id="audioQaNote"', self.html)
         self.assertIn("required></textarea>", self.html)
-        self.assertIn("if(status==='needs_fixes'&&!notes)", self.js)
+        self.assertIn("if(status==='needs_fixes'&&!notes.trim())", self.js)
         self.assertIn("window.confirm", self.js)
         self.assertIn("/human-approval-history", self.js)
-        self.assertEqual(self.js.count("$('#audioQaAccept').onclick"), 1)
-        self.assertEqual(self.js.count("$('#audioQaNeedsFixes').onclick"), 1)
+        self.assertEqual(self.js.count("const accept=$('#productionQaAccept'),needs=$('#productionQaNeedsFixes')"), 1)
+        self.assertEqual(self.js.count("accept.onclick=()=>updateProductionQa('approved')"), 1)
+        self.assertEqual(self.js.count("needs.onclick=()=>updateProductionQa('needs_fixes')"), 1)
 
     def test_range_archive_is_readiness_gated_and_get_only(self) -> None:
         self.assertIn("/api/audio-library/range-archive-readiness", self.js)

@@ -96,7 +96,10 @@ from .diagnostics import (
     retry_job_chapter,
     retry_segment,
 )
-from .human_approval import resolve_authoritative_human_approval
+from .human_approval import (
+    resolve_authoritative_human_approval,
+    resolve_repair_plan_evidence,
+)
 from .epub import import_epub
 from .gemini import GeminiSpeakerAssignmentError, GeminiSpeakerReviewSuggestionError
 from .pipeline import (
@@ -502,6 +505,18 @@ class HumanApprovalRequest(BaseModel):
     status: str = Field(pattern="^(approved|needs_fixes)$")
     notes: str | None = Field(default=None, max_length=4000)
     qa_feedback: HumanQaFeedback | None = None
+
+
+class RepairPlanConfirmationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    chapter_id: int = Field(gt=0)
+    artifact_id: int = Field(gt=0)
+    qa_evidence_id: int = Field(gt=0)
+    repeated_words: bool = False
+    global_speed_target: float | None = Field(default=None, ge=0.5, le=2.0)
+    local_pacing_adjustment_required: bool = False
+    operator_note: str | None = Field(default=None, max_length=4000)
 
 
 class StorageCleanupRequest(BaseModel):
@@ -1398,6 +1413,123 @@ def _range_command_mutation(
     )
 
 
+def _confirm_repair_plan(
+    request: RepairPlanConfirmationRequest,
+    *,
+    scope: dict[str, Any],
+) -> dict[str, Any]:
+    """Persist one editable, artifact-scoped repair decision as audit evidence."""
+
+    command_range = _production_command_range(scope)
+    if command_range["from_chapter"] != command_range["to_chapter"]:
+        raise ProductionCommandError("Kế hoạch sửa chỉ áp dụng cho đúng một chương.")
+    chapter = db.fetch_one(
+        """
+        SELECT id,book_id,chapter_number,active_audio_artifact_id,human_approval_json
+        FROM chapters WHERE id=?
+        """,
+        (request.chapter_id,),
+    )
+    if not chapter:
+        raise LookupError("Không tìm thấy chương cần lập kế hoạch sửa.")
+    if (
+        int(chapter["book_id"]) != int(command_range["book_id"])
+        or int(chapter["chapter_number"]) != int(command_range["from_chapter"])
+    ):
+        raise ProductionCommandError("Phạm vi xác nhận không khớp với Chương cần sửa.")
+    if int(chapter["active_audio_artifact_id"] or 0) != int(request.artifact_id):
+        raise ProductionCommandError("Artifact cần sửa không còn là audio hiện tại của chương.")
+
+    approval = resolve_authoritative_human_approval(
+        db,
+        int(request.chapter_id),
+        active_artifact_id=int(request.artifact_id),
+    )
+    if (
+        not approval
+        or str(approval.get("status") or "").lower() != "needs_fixes"
+        or int(approval.get("artifact_id") or 0) != int(request.artifact_id)
+    ):
+        raise ProductionCommandError("Cần một kết quả Human QA 'Cần sửa' cho Artifact hiện tại.")
+
+    qa_event = db.fetch_one(
+        """
+        SELECT id,details_json FROM audit_events
+        WHERE id=? AND chapter_id=? AND event_code='human_qa_recorded'
+        """,
+        (int(request.qa_evidence_id), int(request.chapter_id)),
+    )
+    if not qa_event:
+        raise ProductionCommandError("Không tìm thấy bằng chứng Human QA nguồn.")
+    try:
+        qa_details = json.loads(qa_event["details_json"] or "{}")
+    except (TypeError, ValueError) as exc:
+        raise ProductionCommandError("Bằng chứng Human QA nguồn không hợp lệ.") from exc
+    if (
+        not isinstance(qa_details, dict)
+        or str(qa_details.get("status") or "").lower() != "needs_fixes"
+        or int(qa_details.get("artifact_id") or 0) != int(request.artifact_id)
+    ):
+        raise ProductionCommandError("Bằng chứng Human QA không khớp Artifact cần sửa.")
+
+    selection = {
+        "repeated_words": bool(request.repeated_words),
+        "global_speed_target": request.global_speed_target,
+        "local_pacing_adjustment_required": bool(
+            request.local_pacing_adjustment_required
+        ),
+        "operator_note": (request.operator_note or "").strip() or None,
+    }
+    if not (
+        selection["repeated_words"]
+        or selection["global_speed_target"] is not None
+        or selection["local_pacing_adjustment_required"]
+        or selection["operator_note"]
+    ):
+        raise ProductionCommandError("Chọn ít nhất một nội dung sửa trước khi xác nhận.")
+
+    existing = resolve_repair_plan_evidence(
+        db,
+        int(request.chapter_id),
+        active_artifact_id=int(request.artifact_id),
+    )
+    if existing and {
+        key: existing.get(key) for key in selection
+    } == selection and int(existing.get("qa_evidence_id") or 0) == int(request.qa_evidence_id):
+        return {"repair_plan": existing, "idempotent_reused": True}
+
+    details = {
+        "artifact_id": int(request.artifact_id),
+        "qa_evidence_id": int(request.qa_evidence_id),
+        **selection,
+    }
+    if existing:
+        details["supersedes_evidence_id"] = int(existing["evidence_id"])
+    recorded_at = utcnow()
+    with db.transaction() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO audit_events(event_code,job_id,chapter_id,details_json,created_at)
+            VALUES(?,?,?,?,?)
+            """,
+            (
+                "repair_plan_confirmed",
+                approval.get("job_id"),
+                int(request.chapter_id),
+                json.dumps(details, ensure_ascii=False),
+                recorded_at,
+            ),
+        )
+    return {
+        "repair_plan": {
+            "evidence_id": int(cursor.lastrowid),
+            "recorded_at": recorded_at,
+            **details,
+        },
+        "idempotent_reused": False,
+    }
+
+
 def _production_command_executor(
     request: ProductionCommandRequest,
     *,
@@ -1408,6 +1540,25 @@ def _production_command_executor(
     scope = dict(request.scope)
 
     def execute() -> ProductionCommandMutation:
+        if command_type == "CONFIRM_REPAIR_PLAN":
+            result = _confirm_repair_plan(
+                RepairPlanConfirmationRequest.model_validate(payload),
+                scope=scope,
+            )
+            plan = result["repair_plan"]
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=(
+                    {
+                        "chapter_id": int(payload["chapter_id"]),
+                        "artifact_id": int(plan["artifact_id"]),
+                        "repair_plan_evidence_id": int(plan["evidence_id"]),
+                        "reused": bool(result["idempotent_reused"]),
+                    },
+                ),
+                operator_message="Kế hoạch sửa đã được xác nhận.",
+            )
         if command_type == "PREPARE_RANGE_INPUTS":
             result = production_prepare_range_inputs(
                 RangeInputScopeRequest.model_validate(payload)

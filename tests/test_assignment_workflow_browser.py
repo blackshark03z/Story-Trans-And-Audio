@@ -208,11 +208,14 @@ class AssignmentWorkflowBrowserTests(unittest.TestCase):
             "Quay lại chuẩn bị bản thay thế",
         )
         self.assertEqual(evidence["repairReady"]["blockers"], 0)
-        self.assertIn("Mở Preflight bản thay thế", evidence["repairReady"]["nextAction"])
-        self.assertFalse(evidence["repairReady"]["prepareButton"])
-        self.assertEqual(evidence["replacementPreflight"]["mode"], "same_data")
-        self.assertIn("Chuẩn bị bản thay thế", evidence["replacementPreflight"]["heading"])
-        self.assertIn("Artifact cũ #39", evidence["replacementPreflight"]["pins"])
+        self.assertEqual(evidence["repairReady"]["nextAction"], "Xem kế hoạch sửa")
+        self.assertFalse(evidence["repairReady"]["applyButton"])
+        self.assertEqual(evidence["repairPlan"]["mode"], "plan")
+        self.assertEqual(evidence["repairPlan"]["heading"], "Xác nhận kế hoạch sửa")
+        self.assertTrue(evidence["repairPlan"]["repeatedWords"])
+        self.assertEqual(evidence["repairPlan"]["speed"], "1.25")
+        self.assertTrue(evidence["repairPlan"]["localPacing"])
+        self.assertFalse(evidence["repairPlan"]["confirmDisabled"])
         self.assertEqual(evidence["repairCheckCommands"], [])
 
 

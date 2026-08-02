@@ -114,6 +114,26 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertIn("Đang lưu phản hồi…", self.js)
         self.assertIn("qa_feedback", self.js)
 
+    def test_repair_plan_confirmation_is_a_separate_single_action(self) -> None:
+        block = self._function_block("productionRepairPlanContent")
+        for value in (
+            "Kế hoạch sửa Chương",
+            "Khắc phục đoạn bị lặp chữ",
+            "Xác nhận kế hoạch sửa",
+            "Quay lại nghe audio",
+            "Áp dụng sửa chữa",
+            "Chi tiết kỹ thuật",
+        ):
+            self.assertIn(value, block)
+        self.assertIn("CONFIRM_REPAIR_PLAN", self.js)
+        self.assertIn("repairPlanRequestedFromHash", self.js)
+        self.assertIn("repair_plan=1", self.js)
+        self.assertIn("openAudioQaRepairPlan", self.js)
+        self.assertIn("data-audio-qa-repair-plan", self.js)
+        self.assertIn("REPAIR_PLAN_OPEN_STORAGE_KEY", self.js)
+        self.assertIn("consumeRepairPlanOpen", self.js)
+        self.assertNotIn("PREPARE", block)
+
     def test_playback_and_download_use_only_api_safe_relative_url(self) -> None:
         safe_block = self._function_block("safeAudioLibraryUrl")
         self.assertIn(r"^\/api\/artifacts\/\d+\/file$", safe_block)

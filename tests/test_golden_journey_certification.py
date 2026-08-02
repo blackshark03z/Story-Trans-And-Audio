@@ -42,34 +42,24 @@ class GoldenJourneyCertificationTests(unittest.TestCase):
             "prepare",
             "first_render",
             "needs_fixes",
-            "repair_routes",
-            "replacement_render",
-            "accept_replacement",
-            "audio_playback",
-            "download",
+            "repair_plan_confirmed",
         ])
         self.assertGreater(browser["firstArtifact"], 0)
-        self.assertGreater(browser["replacementArtifact"], browser["firstArtifact"])
-        self.assertGreater(browser["downloads"]["activeBytes"], 0)
-        self.assertGreater(browser["downloads"]["zipBytes"], 0)
+        self.assertTrue(browser["repairPlan"]["applyDisabled"])
+        self.assertEqual(browser["repairPlan"]["confirmCount"], 0)
         self.assertTrue(browser["accessibility"]["buttonsNamed"])
-        self.assertTrue(browser["accessibility"]["disabledProgrammatic"])
-        self.assertTrue(browser["accessibility"]["primaryInViewport"])
+        self.assertTrue(browser["accessibility"]["applyDisabled"])
+        self.assertTrue(browser["accessibility"]["confirmAbsent"])
 
-        self.assertEqual(isolated["qa_audit_count"], 2)
+        self.assertEqual(isolated["qa_audit_count"], 1)
         self.assertEqual(isolated["chapter"]["audio_status"], "completed")
-        self.assertEqual(int(isolated["chapter"]["active_audio_artifact_id"]), int(browser["replacementArtifact"]))
-        self.assertEqual(isolated["active_artifact"]["id"], browser["replacementArtifact"])
-        self.assertGreaterEqual(len(isolated["provider_calls"]), 2)
-        self.assertEqual(isolated["worker_wake_count"], 2)
-        self.assertEqual(len([job for job in isolated["jobs"] if job["status"] == "completed"]), 3)
-        self.assertEqual(len(isolated["marker_segments"]), 2)
-        self.assertNotEqual(
-            isolated["marker_segments"][0]["audio_sha256"],
-            isolated["marker_segments"][1]["audio_sha256"],
-        )
+        self.assertEqual(int(isolated["chapter"]["active_audio_artifact_id"]), int(browser["firstArtifact"]))
+        self.assertEqual(isolated["active_artifact"]["id"], browser["firstArtifact"])
+        self.assertGreaterEqual(len(isolated["provider_calls"]), 1)
+        self.assertEqual(isolated["worker_wake_count"], 1)
+        self.assertEqual(len([job for job in isolated["jobs"] if job["status"] == "completed"]), 2)
+        self.assertEqual(len(isolated["marker_segments"]), 1)
         self.assertTrue(any(call["defective_fixture"] for call in isolated["provider_calls"]))
-        self.assertTrue(any(call["marker"] and not call["defective_fixture"] for call in isolated["provider_calls"]))
 
         self.assertEqual(canonical["schema"], 15)
         self.assertEqual(canonical["quick_check"], "ok")

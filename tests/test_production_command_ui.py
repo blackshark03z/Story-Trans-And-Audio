@@ -205,7 +205,8 @@ class ProductionCommandUiTests(unittest.TestCase):
             "Bản audio này cần sửa",
             "Xác nhận nội dung và người nói",
             "Hoàn tất cấu hình giọng",
-            "Mở Preflight bản thay thế",
+            "Kế hoạch sửa Chương",
+            "Xác nhận kế hoạch sửa",
             "Duyệt người nói Chương",
             "Hoàn tất giọng cho Chương",
             "openRepairAssignment",
@@ -227,16 +228,18 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertIn("classList.toggle('hidden',hideVerdicts)", self.js)
         self.assertIn("productionCommandBusy()", self.js)
 
-    def test_repair_prepare_replaces_handlers_and_blocks_busy_resubmission(self) -> None:
+    def test_repair_plan_confirmation_replaces_handlers_and_blocks_busy_resubmission(self) -> None:
         start = self.js.index("function bindProductionRepairActions")
-        end = self.js.index("async function prepareReplacementArtifact", start)
+        end = self.js.index("async function confirmRepairPlan", start)
         bindings = self.js[start:end]
-        prepare_start = end
-        prepare_end = self.js.index("function productionRenderTaskContent", prepare_start)
-        prepare = self.js[prepare_start:prepare_end]
-        self.assertIn("prepare.onclick=()=>prepareReplacementArtifact(vm)", bindings)
-        self.assertNotIn("repairPrepare')?.addEventListener", bindings)
-        self.assertIn("if(productionCommandBusy())return;", prepare)
+        confirm_start = end
+        confirm_end = self.js.index("async function prepareReplacementArtifact", confirm_start)
+        confirm = self.js[confirm_start:confirm_end]
+        self.assertIn("confirmPlan.onclick=()=>confirmRepairPlan(vm)", bindings)
+        self.assertNotIn("repairConfirmPlan')?.addEventListener", bindings)
+        self.assertIn("if(productionCommandBusy())return;", confirm)
+        self.assertIn("CONFIRM_REPAIR_PLAN", confirm)
+        self.assertIn("journey==='REPAIR_REQUIRED'?null:primary", self.js)
 
 
 if __name__ == "__main__":

@@ -83,3 +83,37 @@ def resolve_authoritative_human_approval(
             return resolved
 
     return fallback or current
+
+
+def resolve_repair_plan_evidence(
+    db: Database,
+    chapter_id: int,
+    *,
+    active_artifact_id: int | None = None,
+) -> dict[str, Any] | None:
+    """Return the newest confirmed repair plan for the current rejected artifact."""
+
+    rows = db.fetch_all(
+        """
+        SELECT id,details_json,created_at
+        FROM audit_events
+        WHERE chapter_id=? AND event_code='repair_plan_confirmed'
+        ORDER BY id DESC
+        """,
+        (chapter_id,),
+    )
+    for row in rows:
+        try:
+            details = json.loads(row["details_json"] or "{}")
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(details, dict):
+            continue
+        if active_artifact_id and int(details.get("artifact_id") or 0) != int(active_artifact_id):
+            continue
+        return {
+            "evidence_id": int(row["id"]),
+            "recorded_at": row["created_at"],
+            **details,
+        }
+    return None

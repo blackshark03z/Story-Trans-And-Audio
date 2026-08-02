@@ -8,7 +8,10 @@ from typing import Any, Iterable
 
 from .casting import get_plan
 from .db import Database
-from .human_approval import resolve_authoritative_human_approval
+from .human_approval import (
+    resolve_authoritative_human_approval,
+    resolve_repair_plan_evidence,
+)
 from .pipeline import JOB_ACTIVE_STATUSES, JOB_PREPARED_STATUS
 from .range_input import get_range_input_snapshot
 from .range_readiness import get_range_readiness
@@ -593,6 +596,9 @@ def _typed_task_sections(
             "created_at": source.get("artifact_created_at"),
             "qa_note": source.get("human_qa_note"),
             "qa_recorded_at": source.get("human_qa_recorded_at"),
+            "qa_evidence_id": source.get("human_qa_evidence_id"),
+            "qa_feedback": dict(source.get("human_qa_feedback") or {}),
+            "repair_plan": dict(source.get("repair_plan") or {}),
             "active_text_revision_id": source.get("active_text_revision_id"),
             "active_output_text_revision_id": source.get(
                 "active_output_text_revision_id"
@@ -1423,6 +1429,25 @@ def get_production_task_projection(
             if approval and int(approval.get("artifact_id") or 0) == int(artifact_id or 0):
                 item["human_qa_note"] = str(approval.get("notes") or "")
                 item["human_qa_recorded_at"] = approval.get("recorded_at")
+                item["human_qa_feedback"] = dict(approval.get("qa_feedback") or {})
+                evidence = db.fetch_one(
+                    """
+                    SELECT id FROM audit_events
+                    WHERE chapter_id=? AND event_code='human_qa_recorded'
+                      AND json_extract(details_json,'$.artifact_id')=?
+                      AND json_extract(details_json,'$.status')='needs_fixes'
+                    ORDER BY id DESC LIMIT 1
+                    """,
+                    (int(item["chapter_id"]), int(artifact_id or 0)),
+                )
+                item["human_qa_evidence_id"] = int(evidence["id"]) if evidence else None
+                plan = resolve_repair_plan_evidence(
+                    db,
+                    int(item["chapter_id"]),
+                    active_artifact_id=int(artifact_id or 0),
+                )
+                if plan:
+                    item["repair_plan"] = plan
             if store is not None:
                 current_summary = _safe_effective_voice_summary(
                     db,

@@ -594,6 +594,38 @@ class ProductionTaskProjectionAuditTests(IsolatedTestCase):
             )
 
     def test_repair_projection_uses_audit_note_when_snapshot_contains_placeholder(self) -> None:
+        qa_event_id = self.db.fetch_one(
+            """
+            SELECT id FROM audit_events
+            WHERE chapter_id=? AND event_code='human_qa_recorded'
+            ORDER BY id ASC LIMIT 1
+            """,
+            (self.chapter_id,),
+        )["id"]
+        with self.db.transaction() as connection:
+            repair_plan_id = connection.execute(
+                """
+                INSERT INTO audit_events(event_code,job_id,chapter_id,details_json,created_at)
+                VALUES(?,?,?,?,?)
+                """,
+                (
+                    "repair_plan_confirmed",
+                    self.output_job_id,
+                    self.chapter_id,
+                    json.dumps(
+                        {
+                            "artifact_id": self.artifact_id,
+                            "qa_evidence_id": qa_event_id,
+                            "repeated_words": True,
+                            "global_speed_target": 1.25,
+                            "local_pacing_adjustment_required": True,
+                            "operator_note": None,
+                        },
+                        ensure_ascii=False,
+                    ),
+                    utcnow(),
+                ),
+            ).lastrowid
         readiness = {
             "scope": {
                 "book_id": self.book_id,
@@ -653,6 +685,10 @@ class ProductionTaskProjectionAuditTests(IsolatedTestCase):
             projection["canonical_task"]["repair"]["qa_recorded_at"],
             self.full_recorded_at,
         )
+        plan = projection["canonical_task"]["repair"]["repair_plan"]
+        self.assertEqual(plan["evidence_id"], repair_plan_id)
+        self.assertEqual(plan["qa_evidence_id"], qa_event_id)
+        self.assertEqual(plan["global_speed_target"], 1.25)
 
 
 if __name__ == "__main__":

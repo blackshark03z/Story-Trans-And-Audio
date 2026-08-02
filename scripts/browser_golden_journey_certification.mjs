@@ -301,12 +301,29 @@ try {
   await waitFor(`window.storyAudioAppState.productionProjection?.canonical_task?.task_type==="REPAIR_REQUIRED"`, 20000);
   const repairState = await evaluate(`({
     qaActionsHidden: document.querySelector("#productionQaActions")?.classList.contains("hidden"),
-    buttons: ["repairSameData","repairVoice","repairTextSpeaker"].every(id=>!!document.getElementById(id)),
+    buttons: !!document.getElementById("repairOpenPlan"),
     body: document.querySelector("#productionTaskContent")?.innerText || ""
   })`);
-  if (!repairState.buttons) throw new Error(`Repair routes missing: ${JSON.stringify(repairState)}`);
+  if (!repairState.buttons) throw new Error(`Repair-plan entry missing: ${JSON.stringify(repairState)}`);
   evidence.stages.push("needs_fixes");
 
+  // Stage G: confirm the repair plan and stop before any replacement execution.
+  await click("#repairOpenPlan");
+  await waitFor(`document.querySelector("#repairConfirmPlan")`);
+  await click("#repairConfirmPlan");
+  await waitFor(`!window.storyAudioAppState.productionCommand.active`, 20000);
+  const repairPlan = await waitFor(`(() => {
+    const apply=document.querySelector("#repairApplyPlan");
+    if(!apply || !apply.disabled)return null;
+    return {heading:document.querySelector(".production-repair-plan h3")?.textContent,applyDisabled:apply.disabled,confirmCount:document.querySelectorAll("#repairConfirmPlan").length};
+  })()`);
+  if (repairPlan.heading !== "Đã xác nhận" || repairPlan.confirmCount !== 0) throw new Error(`Repair plan confirmation failed: ${JSON.stringify(repairPlan)}`);
+  evidence.repairPlan = repairPlan;
+  evidence.stages.push("repair_plan_confirmed");
+
+  // The former replacement-render journey is intentionally retained below for future
+  // certification, but this workflow stops at the explicit apply-repair boundary.
+  if (false) {
   // Stage G: exercise repair routes, then choose same-data repair.
   await click("#repairVoice");
   await waitFor(`window.storyAudioAppState.currentRoute==="assignment"`);
@@ -448,6 +465,18 @@ try {
   if (desktop.horizontal || !desktop.primaryVisible) throw new Error(`1920 layout failed: ${JSON.stringify(desktop)}`);
   evidence.layout1920 = desktop;
   evidence.newPlan = newPlan;
+  evidence.ok = true;
+  process.stdout.write(JSON.stringify(evidence));
+  }
+
+  const repairPlanAccessibility = await evaluate(`({
+    buttonsNamed:[...document.querySelectorAll("button")].every(button => button.textContent.trim() || button.getAttribute("aria-label")),
+    applyDisabled:document.querySelector("#repairApplyPlan")?.disabled === true,
+    confirmAbsent:!document.querySelector("#repairConfirmPlan")
+  })`);
+  if (!repairPlanAccessibility.buttonsNamed || !repairPlanAccessibility.applyDisabled || !repairPlanAccessibility.confirmAbsent) throw new Error(`Repair-plan accessibility check failed: ${JSON.stringify(repairPlanAccessibility)}`);
+  if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
+  evidence.accessibility = repairPlanAccessibility;
   evidence.ok = true;
   process.stdout.write(JSON.stringify(evidence));
 } finally {
