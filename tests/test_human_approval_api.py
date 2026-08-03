@@ -224,6 +224,34 @@ class HumanApprovalApiTests(IsolatedTestCase):
             self.db.fetch_one("SELECT COUNT(*) AS count FROM artifacts")["count"], artifacts_before
         )
 
+    def test_apply_repair_plan_creates_one_review_draft_without_media(self) -> None:
+        feedback = {"repeated_words": True, "global_speed_target": 1.25, "local_pacing_adjustment_required": True, "operator_note": "Review repair locations.", "issue_types": ["repeated_words", "overall_pacing", "local_pacing"], "position_markers": []}
+        self.assertEqual(self.client.put(f"/api/chapters/{self.chapter_id}/human-approval", json={"status": "needs_fixes", "notes": feedback["operator_note"], "qa_feedback": feedback}).status_code, 200)
+        qa_id = int(self.db.fetch_one("SELECT id FROM audit_events WHERE chapter_id=? AND event_code='human_qa_recorded' ORDER BY id DESC LIMIT 1", (self.chapter_id,))["id"])
+        scope = {"chapter": {"id": self.chapter_id}}
+        confirm = {"command_type": "CONFIRM_REPAIR_PLAN", "idempotency_key": "repair-plan-confirm-apply", "scope": scope, "payload": {"chapter_id": self.chapter_id, "artifact_id": self.old_artifact_id, "qa_evidence_id": qa_id, **{key: feedback[key] for key in ("repeated_words", "global_speed_target", "local_pacing_adjustment_required", "operator_note")}}}
+        projected = ({"canonical_task": {"task_key": "fixture"}}, None)
+        with patch("story_audio.api._project_production_command", return_value=projected):
+            confirmed = self.client.post("/api/production/commands", json=confirm).json()
+            plan_id = confirmed["applied_items"][0]["repair_plan_evidence_id"]
+            apply = {"command_type": "APPLY_REPAIR_PLAN", "idempotency_key": "repair-plan-apply-0001", "scope": scope, "payload": {"chapter_id": self.chapter_id, "artifact_id": self.old_artifact_id, "qa_evidence_id": qa_id, "repair_plan_evidence_id": plan_id}}
+            jobs_before = self.db.fetch_one("SELECT COUNT(*) AS count FROM jobs")["count"]
+            artifacts_before = self.db.fetch_one("SELECT COUNT(*) AS count FROM artifacts")["count"]
+            first = self.client.post("/api/production/commands", json=apply)
+            self.assertEqual(first.status_code, 200)
+            self.assertFalse(first.json()["applied_items"][0]["reused"])
+            second = self.client.post("/api/production/commands", json=apply)
+            self.assertEqual(second.status_code, 200)
+        draft = self.db.fetch_one("SELECT details_json FROM audit_events WHERE chapter_id=? AND event_code='repair_draft_created'", (self.chapter_id,))
+        self.assertIsNotNone(draft)
+        details = json.loads(draft["details_json"])
+        self.assertEqual(details["repair_plan_evidence_id"], plan_id)
+        self.assertEqual(details["global_speed_target"], 1.25)
+        self.assertTrue(details["repeated_words"])
+        self.assertTrue(details["local_pacing_adjustment_required"])
+        self.assertEqual(self.db.fetch_one("SELECT COUNT(*) AS count FROM jobs")["count"], jobs_before)
+        self.assertEqual(self.db.fetch_one("SELECT COUNT(*) AS count FROM artifacts")["count"], artifacts_before)
+
 
     def test_chapter_detail_prefers_audit_note_over_placeholder_snapshot(self) -> None:
         response = self.client.put(

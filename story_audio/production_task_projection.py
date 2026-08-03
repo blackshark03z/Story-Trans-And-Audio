@@ -10,6 +10,7 @@ from .casting import get_plan
 from .db import Database
 from .human_approval import (
     resolve_authoritative_human_approval,
+    resolve_repair_draft_evidence,
     resolve_repair_plan_evidence,
 )
 from .pipeline import JOB_ACTIVE_STATUSES, JOB_PREPARED_STATUS
@@ -599,6 +600,7 @@ def _typed_task_sections(
             "qa_evidence_id": source.get("human_qa_evidence_id"),
             "qa_feedback": dict(source.get("human_qa_feedback") or {}),
             "repair_plan": dict(source.get("repair_plan") or {}),
+            "repair_draft": dict(source.get("repair_draft") or {}),
             "active_text_revision_id": source.get("active_text_revision_id"),
             "active_output_text_revision_id": source.get(
                 "active_output_text_revision_id"
@@ -1448,6 +1450,13 @@ def get_production_task_projection(
                 )
                 if plan:
                     item["repair_plan"] = plan
+                    draft = resolve_repair_draft_evidence(
+                        db,
+                        int(item["chapter_id"]),
+                        active_artifact_id=int(artifact_id or 0),
+                    )
+                    if draft:
+                        item["repair_draft"] = draft
             if store is not None:
                 current_summary = _safe_effective_voice_summary(
                     db,

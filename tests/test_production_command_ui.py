@@ -117,6 +117,15 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertNotIn("fetch('/api/production/batch-prepare", self.js)
         self.assertNotIn("api('/api/production/range-inputs/", self.js)
 
+    def test_apply_repair_plan_is_a_separate_review_only_command(self) -> None:
+        source = self._function_source("applyRepairPlan")
+        self.assertIn("commandType:'APPLY_REPAIR_PLAN'", source)
+        self.assertIn("runProductionCommand", source)
+        self.assertIn("Đang áp dụng kế hoạch sửa…", source)
+        self.assertIn("repairReviewDraft", self.js)
+        self.assertIn("Đã tạo bản sửa để kiểm tra.", self.js)
+        self.assertNotIn("prepareReplacementArtifact(vm)", source)
+
     def test_visible_status_is_not_toast_only(self) -> None:
         self.assertEqual(self.html.count('id="productionCommandStatus"'), 1)
         for state in (
