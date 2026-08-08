@@ -400,6 +400,22 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertEqual(render["repair_summary"]["global_speed_target"], 1.25)
         self.assertTrue(render["repair_summary"]["repeated_words"])
 
+    def test_current_qa_output_precedes_historical_recovery_job(self) -> None:
+        current = _row(1, "RENDERED_NOT_QA", active_artifact_id=114)
+        projection = project_production_task({
+            "readiness": _readiness(current),
+            "range_jobs": [{"id": 7, "status": "completed_with_errors", "all_chapters_match": True}],
+        })
+        self.assertEqual(projection["task_type"], "HUMAN_QA")
+        self.assertEqual(projection["canonical_task"]["qa"]["artifact_id"], 114)
+
+    def test_recoverable_job_remains_current_without_output(self) -> None:
+        projection = project_production_task({
+            "readiness": _readiness(_row(1)),
+            "range_jobs": [{"id": 44, "status": "failed", "chapter_count": 1, "all_chapters_match": True}],
+        })
+        self.assertEqual(projection["task_type"], "RECOVER_RENDER")
+
     def test_multiple_exact_jobs_never_offer_start_or_prepare(self) -> None:
         projection = project_production_task(
             {

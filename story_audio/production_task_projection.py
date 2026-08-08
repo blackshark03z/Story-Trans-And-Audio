@@ -1190,7 +1190,16 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
             range_task=True,
         ))
 
-    if exact_job:
+    # A current output awaiting Human QA is the next actionable state. A
+    # historical failed exact-range job remains visible in technical history,
+    # but must not displace that newer output with recovery work.
+    has_current_qa_output = any(
+        (task := _chapter_task(row)) and task["task_type"] == "HUMAN_QA"
+        for row in rows
+    )
+    exact_status = str((exact_job or {}).get("status") or "").lower()
+    historical_recovery = exact_status in {"failed", "completed_with_errors"}
+    if exact_job and not (has_current_qa_output and historical_recovery):
         job_id = int(exact_job.get("id") or exact_job.get("job_id"))
         status = str(exact_job.get("status") or "").lower()
         repair_row = next(
