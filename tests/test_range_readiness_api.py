@@ -400,10 +400,34 @@ class RangeReadinessApiTests(IsolatedTestCase):
         )
 
         self._speaker_draft(1, "approved")
+        draft_id = int(
+            self._execute(
+                "INSERT INTO audit_events(event_code,chapter_id,details_json,created_at) VALUES(?,?,?,?)",
+                (
+                    "repair_draft_created",
+                    chapter_id,
+                    json.dumps({"artifact_id": artifact_id}),
+                    utcnow(),
+                ),
+            ).lastrowid
+        )
+        awaiting_review = self._readiness(1, 1)["chapters"][0]
+        self.assertFalse(awaiting_review["repair_prepare_ready"])
+        self.assertFalse(awaiting_review["repair_draft_reviewed"])
+        self._execute(
+            "INSERT INTO audit_events(event_code,chapter_id,details_json,created_at) VALUES(?,?,?,?)",
+            (
+                "repair_draft_reviewed",
+                chapter_id,
+                json.dumps({"artifact_id": artifact_id, "repair_draft_evidence_id": draft_id}),
+                utcnow(),
+            ),
+        )
         ready = self._readiness(1, 1)["chapters"][0]
         self.assertEqual(ready["state"], "REPAIR_REQUIRED")
         self.assertEqual(ready["replacement_for_artifact_id"], artifact_id)
         self.assertTrue(ready["repair_prepare_ready"])
+        self.assertTrue(ready["repair_draft_reviewed"])
         with self.db.connect() as connection:
             chapter = connection.execute(
                 "SELECT * FROM chapters WHERE id=?",

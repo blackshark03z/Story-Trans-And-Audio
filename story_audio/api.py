@@ -528,6 +528,27 @@ class ApplyRepairPlanRequest(BaseModel):
     repair_plan_evidence_id: int = Field(gt=0)
 
 
+class RepairMarkerRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    timestamp_seconds: float | None = Field(default=None, ge=0)
+    nearest_utterance: str | None = Field(default=None, max_length=1000)
+    issue: Literal["repeated_words", "too_slow", "too_fast", "needs_pause"]
+    note: str | None = Field(default=None, max_length=2000)
+    local_pace: float | None = Field(default=None, ge=0.5, le=2.0)
+
+
+class RepairDraftReviewConfirmationRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    chapter_id: int = Field(gt=0)
+    artifact_id: int = Field(gt=0)
+    qa_evidence_id: int = Field(gt=0)
+    repair_plan_evidence_id: int = Field(gt=0)
+    repair_draft_evidence_id: int = Field(gt=0)
+    markers: list[RepairMarkerRequest] = Field(default_factory=list, max_length=100)
+
+
 class StorageCleanupRequest(BaseModel):
     confirmation: str = Field(min_length=1, max_length=100)
 
@@ -1639,6 +1660,147 @@ def _apply_repair_plan(
     }
 
 
+def _confirm_repair_draft(
+    request: RepairDraftReviewConfirmationRequest,
+    *,
+    scope: dict[str, Any],
+) -> dict[str, Any]:
+    """Record one final human review of an immutable repair draft without rendering."""
+
+    command_range = _production_command_range(scope)
+    if command_range["from_chapter"] != command_range["to_chapter"]:
+        raise ProductionCommandError("Chỉ có thể kiểm tra bản sửa của đúng một chương.")
+    chapter = db.fetch_one(
+        """
+        SELECT id,book_id,chapter_number,active_text_revision_id,active_audio_artifact_id
+        FROM chapters WHERE id=?
+        """,
+        (int(request.chapter_id),),
+    )
+    if not chapter:
+        raise LookupError("Không tìm thấy chương cần kiểm tra bản sửa.")
+    if (
+        int(chapter["book_id"]) != int(command_range["book_id"])
+        or int(chapter["chapter_number"]) != int(command_range["from_chapter"])
+        or int(chapter["active_audio_artifact_id"] or 0) != int(request.artifact_id)
+    ):
+        raise ProductionCommandError("Phạm vi hoặc Artifact không còn khớp bản sửa cần kiểm tra.")
+
+    approval = resolve_authoritative_human_approval(
+        db, int(request.chapter_id), active_artifact_id=int(request.artifact_id)
+    )
+    if (
+        not approval
+        or str(approval.get("status") or "").lower() != "needs_fixes"
+        or int(approval.get("artifact_id") or 0) != int(request.artifact_id)
+    ):
+        raise ProductionCommandError("Artifact hiện tại không còn ở trạng thái Human QA cần sửa.")
+
+    from .human_approval import (
+        resolve_repair_draft_evidence,
+        resolve_repair_draft_review_evidence,
+        resolve_repair_plan_evidence,
+    )
+
+    plan = resolve_repair_plan_evidence(
+        db, int(request.chapter_id), active_artifact_id=int(request.artifact_id)
+    )
+    if (
+        not plan
+        or int(plan.get("evidence_id") or 0) != int(request.repair_plan_evidence_id)
+        or int(plan.get("qa_evidence_id") or 0) != int(request.qa_evidence_id)
+    ):
+        raise ProductionCommandError("Kế hoạch sửa đã xác nhận không còn khớp bằng chứng QA.")
+    draft = resolve_repair_draft_evidence(
+        db, int(request.chapter_id), active_artifact_id=int(request.artifact_id)
+    )
+    if (
+        not draft
+        or int(draft.get("evidence_id") or 0) != int(request.repair_draft_evidence_id)
+        or int(draft.get("repair_plan_evidence_id") or 0)
+        != int(request.repair_plan_evidence_id)
+        or int(draft.get("qa_evidence_id") or 0) != int(request.qa_evidence_id)
+        or int(draft.get("text_revision_id") or 0)
+        != int(chapter["active_text_revision_id"] or 0)
+    ):
+        raise ProductionCommandError("Bản sửa không còn khớp nội dung hoặc bằng chứng hiện tại.")
+    current_casting_plan = db.fetch_one(
+        """
+        SELECT id,plan_revision FROM casting_plans
+        WHERE chapter_id=? AND status='approved' AND archived_at IS NULL
+        ORDER BY plan_revision DESC,id DESC LIMIT 1
+        """,
+        (int(request.chapter_id),),
+    )
+    if (
+        not current_casting_plan
+        or int(current_casting_plan["id"]) != int(draft.get("casting_plan_id") or 0)
+        or int(current_casting_plan["plan_revision"])
+        != int(draft.get("casting_plan_revision") or 0)
+    ):
+        raise ProductionCommandError("Bản đồ giọng đã duyệt không còn khớp bản sửa.")
+
+    existing = resolve_repair_draft_review_evidence(
+        db,
+        int(request.chapter_id),
+        repair_draft_evidence_id=int(request.repair_draft_evidence_id),
+        active_artifact_id=int(request.artifact_id),
+    )
+    if existing:
+        return {"repair_draft_review": existing, "idempotent_reused": True}
+
+    markers = [
+        {
+            "timestamp_seconds": marker.timestamp_seconds,
+            "nearest_utterance": (marker.nearest_utterance or "").strip() or None,
+            "issue": marker.issue,
+            "note": (marker.note or "").strip() or None,
+            "local_pace": marker.local_pace,
+        }
+        for marker in request.markers
+    ]
+    details = {
+        "artifact_id": int(request.artifact_id),
+        "qa_evidence_id": int(request.qa_evidence_id),
+        "repair_plan_evidence_id": int(request.repair_plan_evidence_id),
+        "repair_draft_evidence_id": int(request.repair_draft_evidence_id),
+        "text_revision_id": int(draft["text_revision_id"]),
+        "casting_plan_id": int(draft["casting_plan_id"]),
+        "casting_plan_revision": int(draft["casting_plan_revision"]),
+        "repeated_words": bool(draft.get("repeated_words")),
+        "global_speed_target": draft.get("global_speed_target"),
+        "local_pacing_adjustment_required": bool(
+            draft.get("local_pacing_adjustment_required")
+        ),
+        "markers": markers,
+        "marker_count": len(markers),
+        "status": "reviewed_confirmed",
+    }
+    recorded_at = utcnow()
+    with db.transaction() as connection:
+        cursor = connection.execute(
+            """
+            INSERT INTO audit_events(event_code,job_id,chapter_id,details_json,created_at)
+            VALUES(?,?,?,?,?)
+            """,
+            (
+                "repair_draft_reviewed",
+                approval.get("job_id"),
+                int(request.chapter_id),
+                json.dumps(details, ensure_ascii=False),
+                recorded_at,
+            ),
+        )
+    return {
+        "repair_draft_review": {
+            "evidence_id": int(cursor.lastrowid),
+            "recorded_at": recorded_at,
+            **details,
+        },
+        "idempotent_reused": False,
+    }
+
+
 def _production_command_executor(
     request: ProductionCommandRequest,
     *,
@@ -1649,6 +1811,28 @@ def _production_command_executor(
     scope = dict(request.scope)
 
     def execute() -> ProductionCommandMutation:
+        if command_type == "CONFIRM_REPAIR_DRAFT":
+            result = _confirm_repair_draft(
+                RepairDraftReviewConfirmationRequest.model_validate(payload),
+                scope=scope,
+            )
+            review = result["repair_draft_review"]
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=(
+                    {
+                        "chapter_id": int(payload["chapter_id"]),
+                        "artifact_id": int(review["artifact_id"]),
+                        "repair_draft_evidence_id": int(
+                            review["repair_draft_evidence_id"]
+                        ),
+                        "repair_draft_review_evidence_id": int(review["evidence_id"]),
+                        "reused": bool(result["idempotent_reused"]),
+                    },
+                ),
+                operator_message="Bản sửa đã được kiểm tra và xác nhận.",
+            )
         if command_type == "APPLY_REPAIR_PLAN":
             result = _apply_repair_plan(ApplyRepairPlanRequest.model_validate(payload), scope=scope)
             draft = result["repair_draft"]

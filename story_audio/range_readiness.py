@@ -265,6 +265,7 @@ def _latest_casting_payloads(db: Database, chapter_ids: list[int]) -> dict[int, 
 
 def _state_item(
     *,
+    db: Database,
     chapter: dict[str, Any],
     approved_text_ids: set[int],
     active_binding: dict[str, Any],
@@ -296,6 +297,7 @@ def _state_item(
     )
 
     repair_prepare_ready = False
+    repair_draft_reviewed = False
     repair_input_blockers: list[str] = []
 
     if active_binding.get("active_audio_artifact_id") and not active_binding.get("active_output_artifact_id"):
@@ -349,7 +351,28 @@ def _state_item(
             )
             if voice_blocker:
                 repair_input_blockers.append(voice_blocker)
-        repair_prepare_ready = not repair_input_blockers
+        draft = db.fetch_one(
+            """
+            SELECT id FROM audit_events
+            WHERE chapter_id=? AND event_code='repair_draft_created'
+              AND json_extract(details_json,'$.artifact_id')=?
+            ORDER BY id DESC LIMIT 1
+            """,
+            (chapter_id, int(active_artifact_id)),
+        )
+        if draft:
+            reviewed = db.fetch_one(
+                """
+                SELECT id FROM audit_events
+                WHERE chapter_id=? AND event_code='repair_draft_reviewed'
+                  AND json_extract(details_json,'$.artifact_id')=?
+                  AND json_extract(details_json,'$.repair_draft_evidence_id')=?
+                ORDER BY id DESC LIMIT 1
+                """,
+                (chapter_id, int(active_artifact_id), int(draft["id"])),
+            )
+            repair_draft_reviewed = reviewed is not None
+        repair_prepare_ready = not repair_input_blockers and repair_draft_reviewed
         blockers.extend(repair_input_blockers)
     elif active_artifact_id:
         state = "RENDERED_NOT_QA"
@@ -454,6 +477,7 @@ def _state_item(
         ),
         "replacement_revision_ready": replacement_revision_ready,
         "repair_prepare_ready": repair_prepare_ready,
+        "repair_draft_reviewed": repair_draft_reviewed,
         "repair_input_blockers": repair_input_blockers,
         "speaker_state": dict(speaker_state) if speaker_state else None,
     }
@@ -540,6 +564,7 @@ def get_range_readiness(
             latest_plan.update(latest_plan_bindings.get(chapter_id, {}))
         items.append(
             _state_item(
+                db=db,
                 chapter=chapter,
                 approved_text_ids=approved_text_ids,
                 active_binding=active_bindings.get(chapter_id, {}),

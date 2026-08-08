@@ -126,6 +126,21 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertIn("Đã tạo bản sửa để kiểm tra.", self.js)
         self.assertNotIn("prepareReplacementArtifact(vm)", source)
 
+    def test_repair_draft_review_uses_one_confirm_command_and_a_storage_gated_next_cta(self) -> None:
+        source = self._function_source("confirmRepairDraft")
+        self.assertIn("commandType:'CONFIRM_REPAIR_DRAFT'", source)
+        self.assertIn("runProductionCommand", source)
+        self.assertIn("Đang lưu bản sửa…", source)
+        self.assertIn("repairDraftReviewContent", self.js)
+        self.assertIn("Kiểm tra bản sửa Chương", self.js)
+        self.assertIn("Xác nhận bản sửa", self.js)
+        self.assertIn("Chuẩn bị bản thay thế", self.js)
+        self.assertIn("Chưa đủ dung lượng để chuẩn bị bản thay thế", self.js)
+        self.assertIn("Tốc độ phát lại để nghe audio không làm thay đổi", self.js)
+        self.assertIn("repairAddMarker", self.js)
+        self.assertIn("'repairConfirmDraft'", self.js)
+        self.assertIn("'repairPrepareReplacement'", self.js)
+
     def test_visible_status_is_not_toast_only(self) -> None:
         self.assertEqual(self.html.count('id="productionCommandStatus"'), 1)
         for state in (

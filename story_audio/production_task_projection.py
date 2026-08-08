@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import Counter
 import json
+import shutil
 from typing import Any, Iterable
 
 from .casting import get_plan
@@ -11,6 +12,7 @@ from .db import Database
 from .human_approval import (
     resolve_authoritative_human_approval,
     resolve_repair_draft_evidence,
+    resolve_repair_draft_review_evidence,
     resolve_repair_plan_evidence,
 )
 from .pipeline import JOB_ACTIVE_STATUSES, JOB_PREPARED_STATUS
@@ -601,6 +603,7 @@ def _typed_task_sections(
             "qa_feedback": dict(source.get("human_qa_feedback") or {}),
             "repair_plan": dict(source.get("repair_plan") or {}),
             "repair_draft": dict(source.get("repair_draft") or {}),
+            "repair_draft_review": dict(source.get("repair_draft_review") or {}),
             "active_text_revision_id": source.get("active_text_revision_id"),
             "active_output_text_revision_id": source.get(
                 "active_output_text_revision_id"
@@ -617,6 +620,8 @@ def _typed_task_sections(
                 "active_output_casting_plan_revision"
             ),
             "prepare_ready": bool(source.get("repair_prepare_ready")),
+            "draft_reviewed": bool(source.get("repair_draft_reviewed")),
+            "storage": dict(source.get("repair_storage") or {}),
             "input_blockers": list(source.get("repair_input_blockers") or []),
             "input_blocker_details": blocker_details,
             "effective_voice_map": list(source.get("effective_voice_map") or []),
@@ -1457,31 +1462,50 @@ def get_production_task_projection(
                     )
                     if draft:
                         item["repair_draft"] = draft
-            if store is not None:
-                current_summary = _safe_effective_voice_summary(
-                    db,
-                    store,
-                    item.get("latest_casting_plan_id"),
-                    voice_catalog,
-                )
-                rejected_summary = _safe_effective_voice_summary(
-                    db,
-                    store,
-                    item.get("active_output_casting_plan_id"),
-                    voice_catalog,
-                )
-                item["effective_voice_map"] = [
-                    {
-                        key: value
-                        for key, value in row.items()
-                        if key != "speaker_key"
-                    }
-                    for row in current_summary
-                ]
-                item["voice_map_diff"] = _voice_map_diff(
-                    rejected_summary,
-                    current_summary,
-                )
+                        review = resolve_repair_draft_review_evidence(
+                            db,
+                            int(item["chapter_id"]),
+                            repair_draft_evidence_id=int(draft["evidence_id"]),
+                            active_artifact_id=int(artifact_id or 0),
+                        )
+                        if review:
+                            item["repair_draft_review"] = review
+        if item.get("human_qa_status") == "needs_fixes" and config is not None:
+            try:
+                usage = shutil.disk_usage(config.data_dir)
+                required_free_bytes = int(config.minimum_free_gb * 1024**3)
+                item["repair_storage"] = {
+                    "free_bytes": int(usage.free),
+                    "required_free_bytes": required_free_bytes,
+                    "prepare_allowed": int(usage.free) >= required_free_bytes,
+                }
+            except OSError:
+                item["repair_storage"] = {"prepare_allowed": False}
+        if item.get("human_qa_status") == "needs_fixes" and store is not None:
+            current_summary = _safe_effective_voice_summary(
+                db,
+                store,
+                item.get("latest_casting_plan_id"),
+                voice_catalog,
+            )
+            rejected_summary = _safe_effective_voice_summary(
+                db,
+                store,
+                item.get("active_output_casting_plan_id"),
+                voice_catalog,
+            )
+            item["effective_voice_map"] = [
+                {
+                    key: value
+                    for key, value in row.items()
+                    if key != "speaker_key"
+                }
+                for row in current_summary
+            ]
+            item["voice_map_diff"] = _voice_map_diff(
+                rejected_summary,
+                current_summary,
+            )
     range_jobs = _exact_range_jobs(
         db,
         book_id=book_id,
