@@ -200,6 +200,7 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertIn("const preparedJob=String(vm?.render?.job_status", self.js)
         self.assertIn("journeyVm.journey_state==='READY_TO_RENDER'&&!startRenderAllowed()", self.js)
         self.assertIn("Audio đã được chuẩn bị. Sẵn sàng bắt đầu tạo audio.", self.js)
+        self.assertIn("Bản thay thế đã được chuẩn bị. Sẵn sàng tạo audio.", self.js)
 
     def test_approval_evidence_is_human_readable(self) -> None:
         for evidence in (
