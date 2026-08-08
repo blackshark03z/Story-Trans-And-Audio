@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from typing import Any, Iterable
 
 from .db import Database
+from .render_progress import build_render_progress
 
 
 def _placeholders(count: int) -> str:
@@ -142,6 +144,23 @@ def annotate_job_rows(
     job_ids = [int(row["id"]) for row in job_rows]
     if not job_ids:
         return job_rows
+    progress_rows = db.fetch_all(
+        f"""
+        SELECT jc.job_id,
+               COUNT(s.id) AS total_segments,
+               SUM(CASE WHEN s.status='verified' THEN 1 ELSE 0 END) AS completed_segments,
+               SUM(CASE WHEN s.status IN ('failed','interrupted') THEN 1 ELSE 0 END) AS failed_segments,
+               SUM(CASE WHEN s.status='running' THEN 1 ELSE 0 END) AS running_segments,
+               MIN(CASE WHEN s.status='verified' THEN s.verified_at END) AS first_segment_completed_at,
+               MAX(CASE WHEN s.status='verified' THEN s.verified_at END) AS last_segment_completed_at
+        FROM job_chapters jc
+        LEFT JOIN segments s ON s.job_chapter_id=jc.id
+        WHERE jc.job_id IN ({_placeholders(len(job_ids))})
+        GROUP BY jc.job_id
+        """,
+        tuple(job_ids),
+    )
+    progress_by_job = {int(row["job_id"]): dict(row) for row in progress_rows}
     active_rows = db.fetch_all(
         f"""
         SELECT jc.job_id,
@@ -176,6 +195,14 @@ def annotate_job_rows(
             "active_output_casting_plan_revision": int(row["casting_plan_revision"]) if row["casting_plan_revision"] else None,
         })
     for row in job_rows:
+        # The client receives only a display projection; Job and Segment rows remain authoritative.
+        row.update(progress_by_job.get(int(row["id"]), {}))
+        try:
+            settings = json.loads(str(row.get("settings_json") or "{}"))
+            row["planned_segment_total"] = int(settings.get("planned_segment_total") or 0)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            row["planned_segment_total"] = 0
+        row["render_progress"] = build_render_progress(row)
         active_chapters = by_job.get(int(row["id"]), [])
         row["active_output_chapters"] = active_chapters
         row["active_output_chapter_count"] = len(active_chapters)

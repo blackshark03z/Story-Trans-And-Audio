@@ -149,6 +149,18 @@ class ProductionTaskWorkbenchTests(unittest.TestCase):
         self.assertNotIn("await approveSpeakerReview();await createSpeakerReviewCastingPlan()", self.js)
         self.assertIn("restoreProductionRangeScope({...state.productionRange,chapterId:null})", self.js)
 
+    def test_render_monitor_uses_persisted_progress_and_stall_actions(self) -> None:
+        for marker in (
+            "render_progress",
+            "estimated_remaining_seconds",
+            "Render đang chậm hơn bình thường",
+            "Kiểm tra trạng thái",
+            "data-render-status-check",
+            "Bạn có thể rời trang và quay lại",
+        ):
+            self.assertIn(marker, self.js)
+        self.assertIn("production-render-progress", self.css)
+
 
 if __name__ == "__main__":
     unittest.main()

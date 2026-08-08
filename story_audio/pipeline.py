@@ -104,6 +104,58 @@ def _validate_chapter_text_inputs(
         )
 
 
+def _planned_segment_total(
+    db: Database,
+    store: ContentStore | None,
+    chapters: list[Any],
+    casting_snapshot: dict[str, Any] | None,
+    settings_snapshot: dict[str, Any],
+) -> int | None:
+    """Count the exact future TTS units without creating executable Segment rows."""
+
+    if store is None:
+        return None
+    if not chapters:
+        return 0
+    revision_ids = {
+        int(casting_snapshot["text_revision_id"])
+        if casting_snapshot is not None
+        else int(chapter["active_text_revision_id"] or 0)
+        for chapter in chapters
+    }
+    revisions = {
+        int(row["id"]): row
+        for row in db.fetch_all(
+            f"SELECT * FROM text_revisions WHERE id IN ({','.join('?' for _ in revision_ids)})",
+            tuple(revision_ids),
+        )
+    }
+    texts = {
+        revision_id: load_validated_text_revision(
+            store,
+            revision,
+            field=f"Text Revision #{revision_id}",
+        )
+        for revision_id, revision in revisions.items()
+    }
+    maximum = int(settings_snapshot["max_chars"])
+    target = int(settings_snapshot["target_chars"])
+    if casting_snapshot is not None:
+        text = texts[int(casting_snapshot["text_revision_id"])]
+        return sum(
+            len(split_tts_segments(
+                text[int(utterance["start_offset"]):int(utterance["end_offset"])],
+                maximum=maximum,
+                target=target,
+            ))
+            for utterance in casting_snapshot["utterances"]
+        )
+    return sum(
+        len(split_tts_segments(texts[int(chapter["active_text_revision_id"])], maximum=maximum, target=target))
+        for chapter in chapters
+    )
+
+
 def _validate_prepared_job_text_inputs(
     db: Database,
     store: ContentStore,
@@ -297,6 +349,15 @@ def create_job(
         )
         if issue:
             raise VoiceEligibilityBlocked((issue,))
+    planned_segment_total = _planned_segment_total(
+        db,
+        store,
+        selected,
+        casting_snapshot,
+        settings_snapshot,
+    )
+    if planned_segment_total is not None:
+        settings_snapshot["planned_segment_total"] = planned_segment_total
     conflict = _find_conflicting_job(db, chapter_ids=[int(row["id"]) for row in selected])
     if conflict:
         if (
@@ -430,7 +491,9 @@ def start_prepared_job(
     _validate_prepared_job_text_inputs(db, store, job_id=job_id)
     require_prepared_job_eligible(db, job_id=job_id, catalog=voice_catalog)
     now = datetime.now(timezone.utc)
-    scheduled = now + timedelta(seconds=config.undo_seconds)
+    # START_RENDER is already an explicit second user action after PREPARE.
+    # Do not add the legacy create-and-undo delay before the worker can pick it up.
+    scheduled = now
     with db.transaction() as connection:
         job = connection.execute("SELECT * FROM jobs WHERE id=?", (job_id,)).fetchone()
         if not job:
@@ -452,7 +515,7 @@ def start_prepared_job(
                     return {
                         "job_id": job_id,
                         "status": str(job["status"]),
-                        "undo_until": job["scheduled_at"],
+                        "undo_until": None,
                         "idempotent_reused": True,
                     }
         if str(job["status"]) != JOB_PREPARED_STATUS:
@@ -498,11 +561,11 @@ def start_prepared_job(
                     utcnow(),
                 ),
             )
-    db.audit("job_start_requested", job_id=job_id, details={"undo_until": scheduled.isoformat()})
+    db.audit("job_start_requested", job_id=job_id, details={"scheduled_at": scheduled.isoformat()})
     return {
         "job_id": job_id,
         "status": "scheduled",
-        "undo_until": scheduled.isoformat(),
+        "undo_until": None,
         "idempotent_reused": False,
     }
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from datetime import datetime, timedelta, timezone
 from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
@@ -106,6 +107,8 @@ class PreparedJobLifecycleTests(IsolatedTestCase):
         self.assertEqual(chapter["chapter_id"], self.chapter_id)
         self.assertEqual(chapter["text_revision_id"], self.text_revision_id)
         self.assertEqual(chapter["casting_plan_id"], self.plan_id)
+        settings = json.loads(job["settings_json"])
+        self.assertGreater(settings["planned_segment_total"], 0)
         self.assertEqual(self.db.fetch_one("SELECT COUNT(*) AS n FROM jobs")["n"], 1)
         self.assertEqual(self.db.fetch_one("SELECT COUNT(*) AS n FROM job_chapters")["n"], 1)
         self.assertEqual(self.db.fetch_one("SELECT COUNT(*) AS n FROM segments")["n"], 0)
@@ -237,6 +240,11 @@ class PreparedJobLifecycleTests(IsolatedTestCase):
         )
         self.assertEqual(started["job_id"], prepared["job_id"])
         self.assertEqual(started["status"], "scheduled")
+        self.assertIsNone(started["undo_until"])
+        scheduled_at = datetime.fromisoformat(
+            self.db.fetch_one("SELECT scheduled_at FROM jobs WHERE id=?", (prepared["job_id"],))["scheduled_at"]
+        )
+        self.assertLess(abs((scheduled_at - datetime.now(timezone.utc)).total_seconds()), 2)
         self.assertEqual(
             self.db.fetch_one("SELECT status FROM jobs WHERE id=?", (prepared["job_id"],))["status"],
             "scheduled",
@@ -310,8 +318,16 @@ class PreparedJobLifecycleTests(IsolatedTestCase):
         self.assertEqual(self.db.fetch_one("SELECT COUNT(*) AS n FROM jobs")["n"], 0)
 
     def test_legacy_create_job_still_creates_one_executable_job(self) -> None:
+        before = datetime.now(timezone.utc)
         result = create_job(self.db, self.config, store=self.store, **self._payload())
         self.assertEqual(result["status"], "scheduled")
+        scheduled_at = datetime.fromisoformat(
+            self.db.fetch_one("SELECT scheduled_at FROM jobs WHERE id=?", (result["job_id"],))["scheduled_at"]
+        )
+        self.assertGreaterEqual(
+            scheduled_at,
+            before + timedelta(seconds=self.config.undo_seconds - 1),
+        )
         self.assertEqual(self.db.fetch_one("SELECT COUNT(*) AS n FROM jobs")["n"], 1)
         self.assertEqual(
             self.db.fetch_one("SELECT status FROM jobs WHERE id=?", (result["job_id"],))["status"],
@@ -429,6 +445,48 @@ class PreparedJobApiTests(IsolatedTestCase):
             JOB_PREPARED_STATUS,
         )
         self.api_module.worker.wake.assert_not_called()
+
+    def test_jobs_api_exposes_persisted_render_progress(self) -> None:
+        prepared = self.client.post("/api/jobs/prepare", json=self.payload)
+        self.assertEqual(prepared.status_code, 200, prepared.text)
+        job_id = int(prepared.json()["job_id"])
+        job_chapter = self.db.fetch_one("SELECT id FROM job_chapters WHERE job_id=?", (job_id,))
+        started = "2026-08-09T12:00:00+00:00"
+        completed_at = "2026-08-09T12:00:30+00:00"
+        with self.db.transaction() as connection:
+            connection.execute(
+                "UPDATE jobs SET status='running',current_stage='tts',started_at=? WHERE id=?",
+                (started, job_id),
+            )
+            for index in range(1, 4):
+                connection.execute(
+                    """INSERT INTO segments(
+                        job_chapter_id,segment_index,text_path,text_sha256,status,attempt_count,
+                        created_at,verified_at,voice_snapshot_version
+                    ) VALUES(?,?,?,?,?,?,?,?,?)""",
+                    (job_chapter["id"], index, f"text/{index}", str(index) * 64, "verified", 1,
+                     started, completed_at, 1),
+                )
+            connection.execute(
+                """INSERT INTO segments(
+                    job_chapter_id,segment_index,text_path,text_sha256,status,attempt_count,
+                    created_at,voice_snapshot_version
+                ) VALUES(?,?,?,?,?,?,?,?)""",
+                (job_chapter["id"], 4, "text/4", "4" * 64, "running", 0, started, 1),
+            )
+
+        response = self.client.get("/api/jobs")
+        self.assertEqual(response.status_code, 200, response.text)
+        job = next(row for row in response.json() if int(row["id"]) == job_id)
+        progress = job["render_progress"]
+        self.assertEqual(progress["source"], "persisted_job_and_segment_state")
+        self.assertEqual(progress["phase"], "synthesizing")
+        self.assertEqual(progress["unit_total"], 4)
+        self.assertEqual(progress["unit_completed"], 3)
+        self.assertEqual(progress["unit_running"], 1)
+        self.assertEqual(progress["unit_pending"], 0)
+        self.assertEqual(progress["percent_complete"], 75)
+        self.assertIsNotNone(progress["estimated_remaining_seconds"])
 
     def test_prepare_command_returns_exact_pinned_chapter_without_waking_worker(self) -> None:
         command = {
