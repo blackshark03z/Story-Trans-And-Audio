@@ -44,6 +44,10 @@ from .batch_prepare_transaction_revalidator import (
 )
 from .config import Settings, canonical_production_db_path
 from .db import Database, utcnow
+from .human_approval import (
+    resolve_repair_draft_evidence,
+    resolve_repair_draft_review_evidence,
+)
 from .storage import ContentStore
 from .voice_eligibility import EffectiveVoiceCatalog, require_casting_plan_eligible
 
@@ -201,6 +205,61 @@ class DatabaseAuthoritativeSnapshotProvider:
             )
         self.voice_catalog_loader = voice_catalog_loader
 
+    def _repair_instruction(
+        self,
+        *,
+        chapter_id: int,
+        active_artifact_id: int,
+        text_revision_id: int,
+        casting_plan_id: int,
+        casting_plan_revision: int,
+    ) -> dict[str, Any]:
+        """Resolve the reviewed repair intent without changing source text."""
+
+        draft = resolve_repair_draft_evidence(
+            self.db,
+            chapter_id,
+            active_artifact_id=active_artifact_id,
+        )
+        if not draft:
+            raise IsolatedAdapterError("replacement PREPARE requires a repair draft")
+        review = resolve_repair_draft_review_evidence(
+            self.db,
+            chapter_id,
+            repair_draft_evidence_id=int(draft["evidence_id"]),
+            active_artifact_id=active_artifact_id,
+        )
+        if not review:
+            raise IsolatedAdapterError("replacement PREPARE requires a reviewed repair draft")
+        if (
+            int(review.get("text_revision_id") or 0) != int(text_revision_id)
+            or int(review.get("casting_plan_id") or 0) != int(casting_plan_id)
+            or int(review.get("casting_plan_revision") or 0)
+            != int(casting_plan_revision)
+        ):
+            raise IsolatedAdapterError("reviewed repair draft no longer matches prepared inputs")
+        markers = list(review.get("markers") or [])
+        return {
+            "schema": "story-audio-repair-instruction/v1",
+            "replacement_for_artifact_id": active_artifact_id,
+            "qa_evidence_id": int(review.get("qa_evidence_id") or 0),
+            "repair_plan_evidence_id": int(review.get("repair_plan_evidence_id") or 0),
+            "repair_draft_evidence_id": int(draft["evidence_id"]),
+            "repair_draft_review_evidence_id": int(review["evidence_id"]),
+            "text_revision_id": text_revision_id,
+            "casting_plan_id": casting_plan_id,
+            "casting_plan_revision": casting_plan_revision,
+            "repeated_words": bool(review.get("repeated_words")),
+            "global_speed_target": review.get("global_speed_target"),
+            "local_pacing_adjustment_required": bool(
+                review.get("local_pacing_adjustment_required")
+            ),
+            "markers": markers,
+            "marker_count": len(markers),
+            "handling": "render_remediation_instruction",
+            "source_text_mutated": False,
+        }
+
     def __call__(
         self,
         *,
@@ -255,6 +314,15 @@ class DatabaseAuthoritativeSnapshotProvider:
                     code.startswith("REJECTED_ARTIFACT:") for code in reason_codes
                 ):
                     tts_settings["tts_attempt_limit"] = 1
+                    active_artifact_id = int(chapter["active_audio_artifact_id"] or 0)
+                    if active_artifact_id:
+                        tts_settings["repair_instruction"] = self._repair_instruction(
+                            chapter_id=chapter_id,
+                            active_artifact_id=active_artifact_id,
+                            text_revision_id=int(plan_row["text_revision_id"]),
+                            casting_plan_id=int(plan_row["id"]),
+                            casting_plan_revision=int(plan_row["plan_revision"]),
+                        )
                 character_ids = sorted(
                     {int(utterance["character_id"]) for utterance in approved_plan["utterances"] if utterance["role"] == "character" and utterance.get("character_id")}
                 )

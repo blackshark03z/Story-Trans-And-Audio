@@ -98,6 +98,8 @@ from .diagnostics import (
 )
 from .human_approval import (
     resolve_authoritative_human_approval,
+    resolve_repair_draft_evidence,
+    resolve_repair_draft_review_evidence,
     resolve_repair_plan_evidence,
 )
 from .epub import import_epub
@@ -2705,6 +2707,34 @@ def _production_command_executor(
                 ):
                     raise ProductionCommandError(
                         "Replacement PREPARE requires a durable needs_fixes verdict."
+                    )
+                repair_draft = resolve_repair_draft_evidence(
+                    db,
+                    int(replacement["chapter_id"]),
+                    active_artifact_id=replacement_artifact_id,
+                )
+                repair_review = (
+                    resolve_repair_draft_review_evidence(
+                        db,
+                        int(replacement["chapter_id"]),
+                        repair_draft_evidence_id=int(repair_draft["evidence_id"]),
+                        active_artifact_id=replacement_artifact_id,
+                    )
+                    if repair_draft
+                    else None
+                )
+                if (
+                    not repair_draft
+                    or not repair_review
+                    or int(repair_review.get("text_revision_id") or 0)
+                    != int(repair_draft.get("text_revision_id") or 0)
+                    or int(repair_review.get("casting_plan_id") or 0)
+                    != int(repair_draft.get("casting_plan_id") or 0)
+                    or int(repair_review.get("casting_plan_revision") or 0)
+                    != int(repair_draft.get("casting_plan_revision") or 0)
+                ):
+                    raise ProductionCommandError(
+                        "Replacement PREPARE requires the current reviewed repair draft."
                     )
             if "plan_fingerprint" in payload:
                 parsed = BatchPrepareApiRequest.model_validate(payload)

@@ -140,6 +140,9 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertIn("repairAddMarker", self.js)
         self.assertIn("'repairConfirmDraft'", self.js)
         self.assertIn("'repairPrepareReplacement'", self.js)
+        self.assertIn("Chuẩn bị bản thay thế chưa tạo audio và chưa sử dụng TTS.", self.js)
+        self.assertIn("Đang chuẩn bị bản thay thế…", self.js)
+        self.assertIn("repair.storage?.prepare_allowed!==true", self.js)
 
     def test_visible_status_is_not_toast_only(self) -> None:
         self.assertEqual(self.html.count('id="productionCommandStatus"'), 1)

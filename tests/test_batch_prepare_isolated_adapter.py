@@ -17,6 +17,7 @@ from story_audio.batch_prepare_isolated_adapter import (
 )
 from story_audio.batch_prepare_orchestrator import STATUS_ACCEPTED, STATUS_CONFLICT, STATUS_FAILED, STATUS_REJECTED
 from story_audio.batch_prepare_persistence_contract import PrepareRequestBinding
+from story_audio.db import utcnow
 from story_audio.files import sha256_text
 from story_audio.text import split_tts_segments
 from tests.batch_prepare_phase10_fixture import Phase10FixtureMixin
@@ -136,6 +137,109 @@ class BatchPrepareIsolatedAdapterTests(Phase10FixtureMixin):
         self.assertEqual(snapshots[0].eligibility_evidence[-2:], ("REPAIR_REQUIRED", "REJECTED_ARTIFACT:93"))
         pin = json.loads(snapshots[0].voice_snapshot_json)
         self.assertEqual(pin["tts_settings"]["tts_attempt_limit"], 1)
+        self.assertNotIn("repair_instruction", pin["tts_settings"])
+
+    def test_reviewed_repair_snapshot_pins_render_instruction_without_text_mutation(self) -> None:
+        prepare_plan = copy.deepcopy(self.plan(from_chapter=10, to_chapter=10))
+        with self.database.transaction() as connection:
+            chapter = connection.execute(
+                "SELECT * FROM chapters WHERE book_id=? AND chapter_number=10",
+                (self.book_id,),
+            ).fetchone()
+            plan = connection.execute(
+                "SELECT * FROM casting_plans WHERE chapter_id=?",
+                (int(chapter["id"]),),
+            ).fetchone()
+            now = utcnow()
+            artifact_id = int(
+                connection.execute(
+                    """INSERT INTO artifacts(
+                        chapter_id,job_chapter_id,text_revision_id,artifact_type,synthesis_hash,
+                        export_hash,path,sha256,size_bytes,duration_ms,status,created_at
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)""",
+                    (
+                        int(chapter["id"]), None, int(chapter["active_text_revision_id"]),
+                        "chapter_audio", "repair-test", "repair-test", "fixture.m4a",
+                        "repair-test", 1, 1, "active", now,
+                    ),
+                ).lastrowid
+            )
+            connection.execute(
+                """UPDATE chapters
+                   SET active_audio_artifact_id=?,human_approval_json=?,audio_status='complete'
+                   WHERE id=?""",
+                (
+                    artifact_id,
+                    json.dumps({"status": "needs_fixes", "artifact_id": artifact_id}),
+                    int(chapter["id"]),
+                ),
+            )
+            plan_evidence_id = int(
+                connection.execute(
+                    "INSERT INTO audit_events(event_code,chapter_id,details_json,created_at) VALUES(?,?,?,?)",
+                    (
+                        "repair_plan_confirmed", int(chapter["id"]), json.dumps({
+                            "artifact_id": artifact_id, "qa_evidence_id": 501,
+                            "repeated_words": True, "global_speed_target": 1.25,
+                            "local_pacing_adjustment_required": True,
+                        }), now,
+                    ),
+                ).lastrowid
+            )
+            draft_evidence_id = int(
+                connection.execute(
+                    "INSERT INTO audit_events(event_code,chapter_id,details_json,created_at) VALUES(?,?,?,?)",
+                    (
+                        "repair_draft_created", int(chapter["id"]), json.dumps({
+                            "artifact_id": artifact_id, "qa_evidence_id": 501,
+                            "repair_plan_evidence_id": plan_evidence_id,
+                            "text_revision_id": int(chapter["active_text_revision_id"]),
+                            "casting_plan_id": int(plan["id"]),
+                            "casting_plan_revision": int(plan["plan_revision"]),
+                            "repeated_words": True, "global_speed_target": 1.25,
+                            "local_pacing_adjustment_required": True,
+                        }), now,
+                    ),
+                ).lastrowid
+            )
+            review_evidence_id = int(connection.execute(
+                "INSERT INTO audit_events(event_code,chapter_id,details_json,created_at) VALUES(?,?,?,?)",
+                (
+                    "repair_draft_reviewed", int(chapter["id"]), json.dumps({
+                        "artifact_id": artifact_id, "qa_evidence_id": 501,
+                        "repair_plan_evidence_id": plan_evidence_id,
+                        "repair_draft_evidence_id": draft_evidence_id,
+                        "text_revision_id": int(chapter["active_text_revision_id"]),
+                        "casting_plan_id": int(plan["id"]),
+                        "casting_plan_revision": int(plan["plan_revision"]),
+                        "repeated_words": True, "global_speed_target": 1.25,
+                        "local_pacing_adjustment_required": True, "markers": [], "marker_count": 0,
+                    }), now,
+                ),
+            ).lastrowid)
+        prepare_plan["included"][0]["reason_codes"] = [
+            "PREPARE_ELIGIBLE", "REPAIR_REQUIRED", f"REJECTED_ARTIFACT:{artifact_id}",
+        ]
+        provider = DatabaseAuthoritativeSnapshotProvider(
+            self.database, self.content_store, self.config, temporary_root=self.temp_root,
+        )
+        binding = PrepareRequestBinding(
+            client_request_id="reviewed-repair-pin-1", request_identity="b" * 64,
+            target_phase="PREPARE", book_id=self.book_id, from_chapter=10, to_chapter=10,
+            plan_fingerprint=prepare_plan["plan_fingerprint"],
+        )
+
+        snapshot = json.loads(provider(binding=binding, plan=prepare_plan)[0].voice_snapshot_json)
+        instruction = snapshot["tts_settings"]["repair_instruction"]
+
+        self.assertEqual(instruction["repair_draft_review_evidence_id"], review_evidence_id)
+        self.assertEqual(instruction["replacement_for_artifact_id"], artifact_id)
+        self.assertTrue(instruction["repeated_words"])
+        self.assertEqual(instruction["global_speed_target"], 1.25)
+        self.assertTrue(instruction["local_pacing_adjustment_required"])
+        self.assertEqual(instruction["marker_count"], 0)
+        self.assertEqual(instruction["handling"], "render_remediation_instruction")
+        self.assertFalse(instruction["source_text_mutated"])
 
     def test_large_committed_evidence_uses_compact_bounded_references(self) -> None:
         count = 100
