@@ -202,6 +202,13 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertIn("Audio đã được chuẩn bị. Sẵn sàng bắt đầu tạo audio.", self.js)
         self.assertIn("Bản thay thế đã được chuẩn bị. Sẵn sàng tạo audio.", self.js)
 
+    def test_prepared_replacement_shows_confirmed_repair_summary_before_render(self) -> None:
+        self.assertIn("Bản sửa đã xác nhận", self.js)
+        self.assertIn("Tốc độ mục tiêu", self.js)
+        self.assertIn("Xử lý lặp chữ", self.js)
+        self.assertIn("Điều chỉnh theo đoạn", self.js)
+        self.assertIn("production-prepared-repair-summary", self.js)
+
     def test_approval_evidence_is_human_readable(self) -> None:
         for evidence in (
             "proposal_source",

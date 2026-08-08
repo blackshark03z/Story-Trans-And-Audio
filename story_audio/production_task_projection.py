@@ -578,6 +578,7 @@ def _typed_task_sections(
                 "replacement_for_artifact_id"
             ),
             "replacement": bool(source.get("replacement_for_artifact_id")),
+            "repair_summary": dict(source.get("repair_summary") or {}),
         }
     elif task_type == "HUMAN_QA":
         sections["qa"] = {
@@ -1347,7 +1348,7 @@ def _exact_range_jobs(
 ) -> list[dict[str, Any]]:
     rows = db.fetch_all(
         """
-        SELECT id,status,book_id,from_chapter,to_chapter
+        SELECT id,status,book_id,from_chapter,to_chapter,casting_snapshot_json
         FROM jobs
         WHERE book_id=? AND from_chapter=? AND to_chapter=?
         ORDER BY id DESC
@@ -1367,6 +1368,37 @@ def _exact_range_jobs(
         item = dict(row)
         item["chapter_count"] = len(assigned_ids)
         item["all_chapters_match"] = assigned_ids == chapter_ids
+        # The prepared snapshot is immutable. Expose only the human-facing
+        # repair choices needed to explain a replacement render before start.
+        try:
+            snapshot = json.loads(str(item.pop("casting_snapshot_json") or "{}"))
+        except (TypeError, ValueError):
+            snapshot = {}
+        repair_instructions = [
+            chapter.get("casting_snapshot", {})
+            .get("tts_settings", {})
+            .get("repair_instruction")
+            for chapter in snapshot.get("chapters", [])
+            if isinstance(chapter, dict)
+        ]
+        repair_instruction = next(
+            (
+                instruction
+                for instruction in repair_instructions
+                if isinstance(instruction, dict)
+                and instruction.get("schema") == "story-audio-repair-instruction/v1"
+            ),
+            None,
+        )
+        if repair_instruction:
+            item["repair_summary"] = {
+                "repeated_words": bool(repair_instruction.get("repeated_words")),
+                "global_speed_target": repair_instruction.get("global_speed_target"),
+                "local_pacing_adjustment_required": bool(
+                    repair_instruction.get("local_pacing_adjustment_required")
+                ),
+                "marker_count": int(repair_instruction.get("marker_count") or 0),
+            }
         result.append(item)
     return result
 

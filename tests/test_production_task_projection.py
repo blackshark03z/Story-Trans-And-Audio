@@ -374,6 +374,32 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertEqual(projection["primary_action"]["key"], "START_RENDER_RANGE")
         self.assertIn("job:44", projection["task_key"])
 
+    def test_prepared_replacement_exposes_human_repair_summary(self) -> None:
+        projection = project_production_task(
+            {
+                "readiness": _readiness(_row(1)),
+                "range_jobs": [
+                    {
+                        "id": 44,
+                        "status": "prepared",
+                        "chapter_count": 1,
+                        "all_chapters_match": True,
+                        "replacement_for_artifact_id": 39,
+                        "repair_summary": {
+                            "repeated_words": True,
+                            "global_speed_target": 1.25,
+                            "local_pacing_adjustment_required": True,
+                            "marker_count": 0,
+                        },
+                    }
+                ],
+            }
+        )
+        render = projection["canonical_task"]["render"]
+        self.assertTrue(render["replacement"])
+        self.assertEqual(render["repair_summary"]["global_speed_target"], 1.25)
+        self.assertTrue(render["repair_summary"]["repeated_words"])
+
     def test_multiple_exact_jobs_never_offer_start_or_prepare(self) -> None:
         projection = project_production_task(
             {
