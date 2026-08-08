@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from story_audio.active_output import annotate_chapter_rows, annotate_job_rows, get_active_output_bindings
+from story_audio.active_output import _pinned_segment_total, annotate_chapter_rows, annotate_job_rows, get_active_output_bindings
 from story_audio.db import utcnow
 from story_audio.files import sha256_file
 from story_audio.diagnostics import get_job_diagnostics
@@ -178,6 +178,19 @@ def seed_active_output(root: Path):
 
 
 class ActiveOutputTests(IsolatedTestCase):
+    def test_pinned_snapshot_total_supports_older_prepared_jobs(self) -> None:
+        self.assertEqual(
+            _pinned_segment_total(
+                {
+                    "casting_snapshot_json": """{
+                        "chapters":[{"casting_snapshot":{"tts_settings":{"max_chars":256},
+                        "utterances":[{"start_offset":0,"end_offset":50},{"start_offset":51,"end_offset":110}]}}]
+                    }"""
+                }
+            ),
+            2,
+        )
+
     def test_binding_uses_active_artifact_not_newest_completed_job(self) -> None:
         seeded = seed_active_output(self.temp_root)
         binding = get_active_output_bindings(seeded["db"], [seeded["chapter_one"]])[seeded["chapter_one"]]

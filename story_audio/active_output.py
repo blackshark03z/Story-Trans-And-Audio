@@ -12,6 +12,26 @@ def _placeholders(count: int) -> str:
     return ",".join("?" for _ in range(count))
 
 
+def _pinned_segment_total(job: dict[str, Any]) -> int:
+    """Read a pre-progress-snapshot job's exact simple utterance segment count."""
+
+    try:
+        pinned = json.loads(str(job.get("casting_snapshot_json") or "{}"))
+        chapters = pinned.get("chapters", [{"casting_snapshot": pinned}])
+        total = 0
+        for chapter in chapters:
+            snapshot = chapter.get("casting_snapshot", chapter)
+            maximum = int(snapshot["tts_settings"]["max_chars"])
+            utterances = snapshot["utterances"]
+            # Longer utterances need text-aware splitting; wait for real Segment rows instead.
+            if any(int(item["end_offset"]) - int(item["start_offset"]) > maximum for item in utterances):
+                return 0
+            total += len(utterances)
+        return total
+    except (KeyError, TypeError, ValueError, json.JSONDecodeError):
+        return 0
+
+
 def get_active_output_bindings(
     db: Database, chapter_ids: Iterable[int]
 ) -> dict[int, dict[str, Any]]:
@@ -202,6 +222,8 @@ def annotate_job_rows(
             row["planned_segment_total"] = int(settings.get("planned_segment_total") or 0)
         except (TypeError, ValueError, json.JSONDecodeError):
             row["planned_segment_total"] = 0
+        if not row["planned_segment_total"]:
+            row["planned_segment_total"] = _pinned_segment_total(row)
         row["render_progress"] = build_render_progress(row)
         active_chapters = by_job.get(int(row["id"]), [])
         row["active_output_chapters"] = active_chapters
