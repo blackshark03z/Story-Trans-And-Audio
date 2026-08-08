@@ -91,6 +91,8 @@ function parseProductionPreflight(payload){
 async function loadProductionTaskProjection({silent=false}={}){
   const scope=productionProjectionScope();
   if(!scope){state.productionProjection=null;state.productionProjectionKey=null;state.productionPreflight=null;state.productionPreflightError=null;renderProductionShell();return null}
+  // Background job polling must not repeatedly abort a slow projection while TTS is active.
+  if(silent&&state.productionProjectionAbortController)return null;
   const requestId=++state.productionProjectionRequestId,epoch=state.productionInteractionEpoch,controller=new AbortController(),baseParams=new URLSearchParams({book_id:String(scope.bookId),from_chapter:String(scope.fromChapter),to_chapter:String(scope.toChapter)}),taskParams=new URLSearchParams(baseParams),preflightParams=new URLSearchParams(baseParams);
   state.productionProjectionAbortController?.abort();state.productionProjectionAbortController=controller;
   preflightParams.set('skip_completed',state.productionRange?.skipCompleted===false?'false':'true');

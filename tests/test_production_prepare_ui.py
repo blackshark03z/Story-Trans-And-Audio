@@ -84,6 +84,15 @@ class ProductionPrepareUiTests(IsolatedTestCase):
             task_source,
         )
 
+    def test_background_job_polling_does_not_abort_a_slow_projection(self):
+        task_start = self.js.index("async function loadProductionTaskProjection")
+        task_end = self.js.index("function stableProductionCommandValue", task_start)
+        task_source = self.js[task_start:task_end]
+        self.assertIn(
+            "if(silent&&state.productionProjectionAbortController)return null;",
+            task_source,
+        )
+
     def test_prepared_batch_job_resumes_from_each_covered_chapter(self):
         start = self.js.index("function preparedCastingJob(")
         end = self.js.index("function recommendedChapterAction(", start)
