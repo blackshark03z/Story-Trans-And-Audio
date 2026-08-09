@@ -8,6 +8,41 @@ Current application state: the production backend and existing browser UI are fu
 
 Canonical target workflow: [docs/DAILY_PRODUCTION_WORKFLOW.md](docs/DAILY_PRODUCTION_WORKFLOW.md).
 
+## Operator quick start
+
+Run these commands from the repository root. They are the only canonical
+operator paths for the local production runtime.
+
+| Task | Command |
+| --- | --- |
+| Start | `./run_app.ps1` |
+| Restart | `./scripts/restart_canonical_launcher.ps1` |
+| Health / Doctor | `& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\doctor.py` |
+| Focused operational checks | `& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' -m unittest tests.test_operational_scripts tests.test_canonical_launcher_restart_helper tests.test_storage_cleanup -v` |
+| List safe cleanup candidates | `& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\storage_cleanup.py --dry-run` |
+
+The canonical runtime is `http://127.0.0.1:8772`. `run_app.ps1` is the only
+production launcher; the restart helper verifies that it is restarting the
+canonical Story Audio process before it acts. Do not use a raw Python command
+to start the canonical database.
+
+`storage_cleanup.py` is list-only by default and refuses unknown, tracked,
+protected, or DB-referenced paths. Its destructive mode requires an explicit
+confirmation and refuses to run while the canonical runtime is listening:
+
+```powershell
+& 'D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe' scripts\storage_cleanup.py `
+  --execute --confirm DELETE_PROVEN_ORPHANED_STORAGE
+```
+
+Never delete or stage `data/`, `backups/`, `runs/`, or
+`experiment_b_transcript/` as cleanup. `data/` contains canonical production
+metadata and evidence; it is deliberately visible in Git status so it cannot
+be hidden accidentally.
+
+Deeper operational detail is in [docs/RUNBOOK.md](docs/RUNBOOK.md); architecture,
+data-model, and test references are linked below.
+
 ## Chạy
 
 ```powershell

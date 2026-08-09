@@ -10,6 +10,7 @@ from contextlib import closing
 from pathlib import Path
 from unittest import mock
 
+import story_audio.storage_cleanup as storage_cleanup
 from story_audio.storage_cleanup import (
     CONFIRMATION,
     StorageCleanupError,
@@ -257,6 +258,20 @@ class StorageCleanupTests(unittest.TestCase):
             item["path"]: item["category"] for item in report["retained"]
         }
         self.assertEqual("UNKNOWN_KEEP", retained["backups/pre"])
+
+    def test_backup_reparse_point_is_reported_without_resolving_outside_root(self) -> None:
+        relocated = self.root / "backups" / "relocated"
+        relocated.mkdir()
+        original_is_reparse = storage_cleanup._is_reparse
+
+        with mock.patch(
+            "story_audio.storage_cleanup._is_reparse",
+            side_effect=lambda path: path == relocated or original_is_reparse(path),
+        ):
+            report = build_report(self.root, include_largest=False)
+
+        retained = {item["path"]: item["category"] for item in report["retained"]}
+        self.assertEqual("UNKNOWN_KEEP", retained["backups/relocated"])
 
     def test_unrecognized_data_clone_is_retained_unknown(self) -> None:
         unknown = self.root / "data" / "app-owner.db"

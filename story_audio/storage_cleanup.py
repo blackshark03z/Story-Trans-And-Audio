@@ -456,7 +456,11 @@ def build_report(
             if _is_reparse(item):
                 retained.append(
                     InventoryItem(
-                        _relative(item, root),
+                        # Keep the lexical repository-relative name. Resolving a
+                        # junction first can point outside the repository and
+                        # would make a read-only dry-run fail before it can
+                        # report the protected entry.
+                        item.relative_to(root).as_posix(),
                         0,
                         "UNKNOWN_KEEP",
                         "backup entry is a reparse point",

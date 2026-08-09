@@ -1,9 +1,15 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-07-30 (Asia/Saigon)
+**Cập nhật:** 2026-08-09 (Asia/Saigon)
 **Milestone:** Real User Media Golden Journey Certified
 **Strategic state:** `REAL_USER_MEDIA_GOLDEN_JOURNEY_PASS`
 **Trạng thái hiện tại:** The complete browser journey is certified on an isolated Book 1 Chapter 2 clone: bounded Gemini analysis, reversible review, intentional wrong-voice render and rejection, corrected replacement render, automated audio-content QA, Human QA acceptance, active-audio download, deterministic MP4 export/download, and browser playback. Canonical schema-15 production remained read-only.
+
+**Repository operation:** Root README now names the sole canonical start and
+verified restart paths, Doctor, focused operational checks, and a fail-closed
+storage cleanup dry-run. Canonical data, backups, source books, artifacts, and
+logs are intentionally visible in Git status; cleanup retains unknown external
+backup junctions rather than failing its read-only report.
 
 **Last verified implementation starting baseline:** `ab9aacd2ea68d555f69eb2f2e4e3f3bddded4271`
 **Last verified branch:** `main`

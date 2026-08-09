@@ -35,7 +35,14 @@ Current daily-production safety boundaries:
 
 ```powershell
 cd 'D:\Youtube\Story Trans And Audio'
-.\run_app.ps1 --host 127.0.0.1 --port 8772 --no-browser
+.\run_app.ps1
+```
+
+The root [README](../README.md) is the canonical short operator path. Restart
+only through the verified helper:
+
+```powershell
+.\scripts\restart_canonical_launcher.ps1
 ```
 
 Story Audio production UI: `http://127.0.0.1:8772`

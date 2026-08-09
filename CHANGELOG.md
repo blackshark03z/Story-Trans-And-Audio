@@ -4,6 +4,15 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Repository operation and hygiene
+
+- Documented one canonical root-level operator path for start, verified
+  restart, Doctor, focused operational checks, and safe cleanup dry-run.
+- Narrowed generated-file ignores so canonical data, backups, source books,
+  artifacts, and logs remain visible rather than being silently hidden.
+- Fixed the storage-cleanup dry-run to retain and report an external backup
+  junction by its lexical repository-relative path instead of crashing.
+
 ### Speaker Review Mutation Reconciliation
 
 - Recovered the canonical Book 1 Chapters 1-10 batch attempt as a server-side

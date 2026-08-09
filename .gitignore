@@ -3,15 +3,14 @@
 secrets/
 gemini_api_key.txt
 *.key
-*.epub
-*.wav
-*.m4a
-*.mp3
-*.mp4
-*.log
-data/
-logs/
-backups/
+
+# Reproducible Python/test by-products only. Canonical data, source EPUBs,
+# artifacts, logs, and backups intentionally remain visible to Git status.
 __pycache__/
 *.pyc
 .pytest_cache/
+.coverage
+coverage/
+htmlcov/
+test-results/
+playwright-report/
