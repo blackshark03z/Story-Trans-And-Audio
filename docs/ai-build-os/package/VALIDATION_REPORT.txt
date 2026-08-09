@@ -1,0 +1,58 @@
+Senior AI Build OS v1.16 — validation report
+
+Release intent
+- Keep stateless/simple work effectively unchanged while reducing rework/debug time for stateful, async, polling, persistence, hydration, cache and competing-writer tasks.
+- Add production hardening found by adversarial v1.15 review without turning the OS into a new layer of ceremony.
+
+Primary v1.16 changes validated
+- Identifier/path confinement rejects traversal for Task IDs, Goal IDs, node IDs and managed evidence/history/goal paths.
+- Lifecycle lock recovery clears locks whose recorded process is dead; live/fresh ambiguous locks still fail closed.
+- Evidence redaction covers bearer/basic auth, cookies, JWTs, private-key PEM blocks, common API/cloud/GitHub token forms, credential key/value pairs and credential-bearing URLs.
+- A2–A4 assurance output explicitly reports TRUSTED_RUNTIME_ENV_CLAIM when isolation/merge/external-Guardian properties are supplied by the trusted outer runtime rather than independently proven by the repo kernel.
+- Lightweight State Hazard classification: S0 has no extra gate, S1 signal-only, S2 requires a minimal frozen authority/transition/invariant contract + transition proof, S3+ adds temporal/competing-writer proof.
+- State Contract hash is frozen into the task baseline and validated again at finish/validation time.
+- State proof reuse binds contract hash + exact command + declared dependency fingerprint and points back to an immutable accepted evidence manifest.
+- Fast-debug failure signatures are bounded structured records, not global state/event tracing.
+- Evidence-infrastructure stop-loss recommends changing acceptance method after two consecutive failures of the same verifier without requiring another Worker retry.
+- Current prompt/Goal trust wording is aligned with the v1.15+ default: triggered R2 and all R3 require SIGNED_GUARDIAN.
+
+Focused red-team coverage in scripts/self_test_v116.py
+1. Traversal Task IDs are rejected and cannot create evidence/history outside the managed namespace.
+2. Traversal Goal IDs are rejected.
+3. Dead-PID lifecycle locks recover for the next mutation command.
+4. Durable evidence sanitizer removes representative credential/JWT/private-key/URL secret forms.
+5. Stateless CSS-style work auto-classifies S0 and gains no new acceptance ceremony.
+6. Draft + polling/background refresh auto-classifies S3 and cannot start without the minimal pre-code contract.
+7. S3 tasks require transition + temporal proof.
+8. A second task with unchanged contract/dependencies/exact proof commands reuses prior accepted proofs instead of rerunning them.
+9. State failure signatures are bounded and machine-readable.
+10. Two same-method evidence-infrastructure failures activate the acceptance-method-change stop-loss.
+
+Regression results observed in this workspace
+- scripts/validate_ai_os.py --template: PASS
+- scripts/validate_ai_os.py --strict: PASS on idle template (warnings only)
+- python -m compileall scripts: PASS
+- scripts/self_test_fast.py: PASS
+- scripts/self_test_v116.py: PASS
+- scripts/self_test.py (fast + current): PASS, observed 17.80 s
+- scripts/self_test_v115.py: PASS
+- scripts/self_test_v114.py: PASS
+- scripts/self_test_v113.py: PASS
+- scripts/self_test_v112.py: PASS
+- scripts/self_test_v112_trust.py: PASS
+
+Lightweight budget check vs supplied v1.15 package
+- Production Python modules (excluding self-test files): 23 -> 24 files.
+- Production Python source: 6,220 -> 6,741 lines (+521 lines, ~8.4%). Most added logic is isolated in state_hazard_support.py plus small lifecycle/evidence hooks.
+- Prompts: +14 lines total across the existing 11 prompt files; no new agent or phase.
+- Documentation: one focused state/debug guide; runtime behavior remains opt-in/risk-triggered.
+- Default bounded regression remains below the existing 30-second target in this workspace (17.80 s observed).
+
+Historical full matrix
+- scripts/self_test_full.py remains the broad sequential release/nightly matrix. It is intentionally not part of the ordinary Worker feedback loop because historical execution can run for several minutes. v1.16 keeps the default fast/current pyramid bounded instead of forcing this cost onto normal tasks.
+
+Threat-model limitations intentionally retained and surfaced
+- Repo-local governance cannot stop an actor with unrestricted repository/process authority from rewriting repo-local code/evidence. Signed Guardian trust only becomes external when signer/private-key/invocation authority is actually outside Worker control.
+- A2–A4 outer-runtime flags remain deployment claims; v1.16 labels their basis rather than pretending the repo kernel independently proves process/container/merge isolation. Replacing them with a fully signed runtime-attestation protocol would add deployment complexity and is not required for the intended personal-production profile.
+- State Hazard auto-detection is deliberately conservative/high-signal, not semantic omniscience. Operators can explicitly set S0–S4 when project knowledge is stronger.
+- Reused proof is invalidated by declared dependency fingerprints; dependency declarations must include relevant state/API/schema surfaces to avoid overly narrow reuse.

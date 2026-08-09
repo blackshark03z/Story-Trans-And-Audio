@@ -1,0 +1,356 @@
+# Continuity Decisions
+
+Updated: 2026-07-30
+
+## CONT-025 - Video export derives only from the active accepted audio Artifact
+
+The active Human-QA-accepted audio Artifact is the sole authority for chapter
+video export. A rejected, stale, inactive, missing, hash-mismatched, or
+duration-invalid Artifact must fail closed and cannot be selected through
+fallback.
+
+Video export remains a derived filesystem object rather than a new SQLite
+entity. Its deterministic identity binds source Artifact identity/hash and
+export configuration. A verified manifest pins the output hash, codec,
+resolution, duration, and source authority; identical valid requests reuse the
+same export, while an active Artifact/configuration change creates a new
+identity. Invalid partial output is removed.
+
+Static-visual encoding must use an explicit source-audio duration cap because
+encoder lookahead can otherwise extend an infinite color source beyond the
+audio despite `-shortest`. Export, validation, playback, and download are
+offline boundaries and never authorize PREPARE, START_RENDER, worker wake,
+Gemini, or TTS.
+
+## CONT-024 - Chapter/range voice overrides use approved Casting Plan revisions
+
+Chapter/range voice overrides are durable future-render inputs, not UI-only
+state and not a new hidden range rule. The system represents each selected
+chapter override by creating a new immutable approved `CastingPlanRevision`,
+archiving the prior approved plan for that chapter, and preserving every
+existing Job, Artifact, accepted audio output, Text Revision, and historical
+snapshot.
+
+Effective voice precedence for newly prepared/rendered work is:
+chapter Casting Plan override, then book/character saved default, then existing
+supported fallback, then unresolved blocker. Clearing an override creates a new
+approved plan revision that removes only the selected speaker override and
+restores inheritance. Range writes must be exact, transactional, idempotent, and
+must include current registry state in the command identity so a later apply
+after a clear cannot replay a stale success response.
+
+## CONT-023 - Bounded production tasks have standing Gemini and TTS cost approval
+
+The operator grants standing approval for Gemini and TTS costs required by
+bounded Story Audio production tasks. Do not request per-call or per-Job cost
+approval again. Every START_RENDER task must still name an explicit Job or
+chapter range, must never expand beyond that scope automatically, and remains
+subject to existing validation, idempotency, retry, authentication, and kill
+switch boundaries.
+
+## CONT-022 - PREPARE mutation API requires clone-only authenticated acceptance first
+
+The Phase 13 disabled clone runtime and operator-authentication boundary are
+necessary but insufficient for production activation. The first mutation API
+acceptance must run only in an authenticated external-clone test process, remain
+disabled by default, and prove that kill switch, feature flags, operator window,
+schema readiness, literal confirmation, idempotency, and plan fingerprint all
+override authentication success when any gate is closed.
+
+That clone-only acceptance may exercise the isolated adapter and dormant
+request/linkage/attempt state, including response-loss, restart, concurrency,
+and redaction. Production credential provisioning and canonical activation are
+separate future decisions. UI, worker wake, provider/Gemini/TTS, and
+`START_RENDER` remain separate and unauthorized.
+
+## CONT-021 - Production PREPARE requires clone-runtime proof and operator authentication
+
+Phase 12 clone migration and full-file rollback are required but insufficient for
+production activation. The disabled wiring must next be proven inside a
+clone-backed process across startup and restart without constructing mutation
+services. Operator authentication must be explicit and must preserve
+`AUTH_MISSING_BLOCKS_PRODUCTION` until accepted evidence exists.
+
+Enabled PREPARE routes, canonical activation, production Job creation, UI
+mutation, worker wake, and START_RENDER remain unauthorized. START_RENDER stays
+a separate lifecycle permission.
+
+## CONT-020 - Canonical PREPARE rollout requires clone rehearsal and disabled wiring proof
+
+Isolated PREPARE acceptance and the Phase 11 rollout design are necessary but are
+not sufficient to authorize canonical activation or production PREPARE.
+
+Before any later activation decision, a verified external clone must prove exact
+schema 12 -> 13 -> 14 -> 15 migration, preserved legacy/protected state, complete
+postflight, and full restoration of the original clone hash/schema. Runtime wiring
+must be hard-default-off, unreachable, and construct no mutation service when
+disabled.
+
+Phase 12 authorizes only that clone rehearsal and disabled skeleton proof. It does
+not authorize canonical activation, an enabled PREPARE route, production Job
+creation, UI mutation, worker wake, provider/TTS, or START_RENDER. START_RENDER
+remains a separate service and permission, and the legacy start route is not safe
+for future batch-linked Jobs without a dedicated linkage/authorization guard.
+
+## CONT-001 - Real state outranks checkpoint
+
+Git, runtime, database, artifacts, and test output have higher authority than continuity documentation.
+
+Checkpoint files guide takeover, but they do not replace verifying the real state.
+
+## CONT-002 - Compact checkpoint inside repository
+
+`.ai/PROJECT.md`, `.ai/STATE.md`, and `.ai/DECISIONS.md` are the first-read continuity layer for a new Tech Lead.
+
+Detailed documentation and history remain in the existing canonical documentation.
+
+## CONT-003 - Detailed mutable state lives in external capsule
+
+Session/worker details, command logs, worker identity, and interruption recovery live at:
+
+`D:\Youtube_AI_HANDOFFS\Story Audio`
+
+The external capsule does not control strategic direction and does not outrank Git/runtime.
+
+## CONT-004 - Audio Library uses active artifact binding
+
+Audio Library must get chapter output from:
+
+`chapters.active_audio_artifact_id`
+
+It must not select output by newest Job, highest Job ID, or latest completion time.
+
+## CONT-005 - Runtime QA state is displayed as-is
+
+QA state displayed in Audio Library must come from runtime/API/database.
+
+Historical documentation that records Human QA PASS must not be used to auto-upgrade or repair runtime QA state.
+
+Mismatches must be recorded, not fixed in production data during DAILY-PROD-3A.
+
+## CONT-006 - Audio Library is read-only retrieval
+
+Loading, listing, filtering, playback, and download/open-file must not:
+
+- create jobs;
+- create previews;
+- call provider/TTS;
+- modify QA;
+- create or replace active artifacts;
+- regenerate audio.
+
+## CONT-007 - Chapter 369 remains outside current task
+
+Chapter 369 is a paused production operation.
+
+DAILY-PROD-3A must not approve a plan, prepare a job, render, or create artifacts for Chapter 369.
+
+## CONT-008 - No schema migration without proof and approval
+
+Do not create a migration for Audio Library if the existing schema/API/helpers are sufficient.
+
+If a migration is genuinely required, stop and ask for a decision first.
+
+## CONT-009 - Batch mutation requires a reviewed read-only plan
+
+`DAILY-PROD-4` is complete with read-only range readiness and exception queue.
+
+`DAILY-PROD-5` may not begin with mutation. It must first define a deterministic batch scope plan, eligibility and exclusion rules, explicit operator confirmation, idempotency, retry, partial-failure, and recovery semantics.
+
+Until that contract exists, do not implement or use batch approval, batch prepare, batch render, batch QA, provider/TTS execution, or any batch mutation endpoint.
+
+## CONT-010 - Batch PREPARE must be isolated from render start
+
+The first batch mutation contract may cover PREPARE only.
+
+It must require:
+
+- deterministic plan fingerprint;
+- stale-plan rejection;
+- explicit operator confirmation;
+- idempotency;
+- duplicate-request handling;
+- per-chapter results;
+- partial-failure semantics;
+- retry semantics.
+
+PREPARE must create durable prepared work only.
+
+It must not automatically start synthesis.
+
+START_RENDER, RESUME, and QA mutation require separate bounded tasks and separate review.
+
+## CONT-011 - PREPARE execution requires durable request idempotency
+
+The pure PREPARE contract is complete, but execution remains unauthorized.
+
+Before PREPARE mutation can be implemented, the system must define:
+
+- durable request identity;
+- client request ID binding;
+- plan fingerprint binding;
+- request state transitions;
+- duplicate in-progress behavior;
+- duplicate completed-result replay;
+- retry after ambiguous client timeout;
+- atomicity policy;
+- per-chapter durable audit/result evidence.
+
+A database transaction alone is not sufficient as the external idempotency contract.
+
+START_RENDER remains separate.
+
+## CONT-012 - Persistence may be implemented before PREPARE execution
+
+The PREPARE idempotency design is complete.
+
+Schema migration and durable request-store implementation may proceed in isolated development and temporary databases.
+
+The implementation must provide:
+
+- unique client request binding;
+- canonical request identity;
+- state constraints;
+- atomic transitions;
+- historical result replay;
+- stale APPLYING reconciliation evidence;
+- bounded versioned result payloads.
+
+This authorization does not permit:
+
+- canonical production migration;
+- PREPARE execution endpoint;
+- prepare_job invocation;
+- Job or JobChapter creation;
+- START_RENDER.
+
+## CONT-013 - Schema 13 must pass isolated restart and concurrency acceptance
+
+The dormant schema-13 migration and PREPARE request store are implemented.
+
+Before canonical activation or PREPARE execution can be considered, an isolated production-like database must verify:
+
+- explicit schema-12 to schema-13 migration;
+- legacy-data preservation;
+- restart persistence;
+- historical result replay;
+- request uniqueness across concurrent connections;
+- atomic transition races;
+- stale APPLYING detection;
+- migration and store failure recovery.
+
+This authorization applies only to temporary or isolated databases.
+
+Canonical schema activation, PREPARE execution, and START_RENDER remain unauthorized.
+
+## CONT-014 - PREPARE orchestration must be reviewed before execution integration
+
+The dormant request store and isolated schema-13 persistence acceptance are complete.
+
+The next phase may define and test an isolated orchestration contract that coordinates:
+
+- current plan validation;
+- durable create-or-replay;
+- atomic APPLYING ownership;
+- pre-mutation fingerprint revalidation;
+- future Job-transaction dependency;
+- durable APPLIED, REJECTED, and FAILED recording;
+- timeout replay;
+- stale APPLYING reconciliation.
+
+The future Job dependency must remain injected or fake. This decision does not authorize canonical schema activation, API route registration, `prepare_job` or `create_job` invocation, real Job/JobChapter creation, UI controls, START_RENDER, provider/Gemini/TTS calls, or Chapter 369 production action.
+
+## CONT-015 - Job transaction adapter requires a reviewed durable boundary
+
+The PREPARE orchestration contract is complete.
+
+The next phase may design an isolated adapter contract between an `APPLYING`
+request and the existing Job/JobChapter preparation transaction.
+
+The design must establish:
+
+- one request to at most one Job;
+- atomic Job and JobChapter creation;
+- durable request-to-Job linkage;
+- committed-success evidence;
+- deterministic conflict mapping;
+- ambiguous-outcome recovery evidence;
+- protection against duplicate adapter invocation;
+- no worker wake or render start.
+
+This authorization permits design and isolated model testing only.
+
+Real pipeline invocation, Job creation, canonical schema activation, API
+integration, PREPARE execution, and START_RENDER remain unauthorized.
+
+## CONT-016 - Request-to-Job linkage must be durable before adapter integration
+
+The PREPARE Job transaction adapter design is complete.
+
+Before pipeline integration can be considered, the repository must provide a
+durable request-to-Job linkage that enforces:
+
+- one request to at most one Job;
+- one Job to at most one request;
+- transaction evidence metadata;
+- chapter snapshot and plan fingerprint binding;
+- duplicate invocation conflict detection;
+- committed-result recovery evidence.
+
+The linkage migration and repository may be implemented and tested only on
+temporary or isolated databases.
+
+The migration must remain dormant.
+
+Pipeline integration, real Job creation, canonical schema activation, API
+integration, PREPARE execution, and START_RENDER remain unauthorized.
+
+## CONT-017 - Same-transaction prerequisites must close before runtime PREPARE wiring
+
+Phase 8 accepted a design/model contract but concluded `IMPLEMENTATION_NOT_READY`.
+
+Phase 9 is authorized only to resolve and test these prerequisites on temporary or isolated databases:
+
+- one caller-owned SQLite write transaction and transaction-scoped repositories;
+- authoritative chapter eligibility, active Text Revision, approved Casting Plan, and immutable-pin revalidation inside that transaction;
+- durable owner token, monotonic fencing generation, lease/execution-attempt evidence, and guarded terminal writes;
+- overlap conflict inspection after `BEGIN IMMEDIATE`, with exactly-one-winner concurrency evidence;
+- one matching transaction reference across prepared Job, JobChapter, linkage, and post-commit evidence;
+- observed rollback/absence before `ROLLBACK_CONFIRMED`;
+- evidence-gated APPLIED handoff and non-authoritative post-commit audit failure semantics.
+
+Behavior-preserving seam extraction and later dormant migration artifacts are allowed only as needed for isolated proof. Runtime adapter/orchestrator wiring, active migration registration, canonical activation, batch PREPARE API/UI, production Job/JobChapter creation, worker wake, provider/Gemini/TTS, and START_RENDER remain unauthorized.
+
+## CONT-018 - Runtime PREPARE wiring requires isolated end-to-end adapter acceptance
+
+Phase 9 implemented the transaction prerequisites only as dormant, isolated infrastructure. Dormant schema 15, owner token hashing, fencing generation, lease evidence, caller-owned `BEGIN IMMEDIATE`, authoritative revalidation, prepared Job/JobChapter/linkage writes, overlap serialization, and rollback/recovery tests do not authorize runtime use.
+
+Phase 10 must assemble the existing orchestrator, request store, owner-fenced transaction service, Job/JobChapter writer, linkage, and terminal result persistence on temporary schema-15 databases. It must prove full historical replay, stale-plan rejection, fencing, duplicate concurrency, response-loss recovery, failure injection, and process restart before runtime integration may be considered.
+
+Canonical migration, runtime import/wiring, production PREPARE execution, API/UI controls, worker wake, provider/Gemini/TTS, and START_RENDER remain unauthorized.
+
+## CONT-019 - Production PREPARE requires a reviewed runtime wiring and rollout boundary
+
+Phase 10 proves isolated behavior only. Its adapter creates synthetic prepared
+Jobs inside disposable schema-15 databases and is not imported by runtime/API/UI
+or the production worker.
+
+Canonical activation must be planned separately. Runtime feature flag default-off
+behavior, operator confirmation, audit visibility, redaction, maintenance mode,
+backup/hash/rollback, recovery, and a kill switch must be reviewed as one Phase 11
+deployment boundary before any production mutation is considered.
+
+START_RENDER remains a separate lifecycle and authorization gate. Runtime
+implementation, canonical schema activation, production PREPARE, API/UI mutation,
+worker wake, provider/Gemini/TTS, and Chapter 369 production action remain
+unauthorized.
+
+## References
+
+- `docs/AI_TECH_LEAD_PROTOCOL.md`
+- `docs/DECISIONS.md`
+- `docs/DATA_MODEL.md`
+- `docs/DAILY_PRODUCTION_WORKFLOW.md`
+- `ROADMAP.md`
+- `PROJECT_STATUS.md`
+- `NEXT_TASK.md`
