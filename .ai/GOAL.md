@@ -1,26 +1,36 @@
 # Active Goal
 
-Goal ID: NONE
-Goal Status: NONE
+Goal ID: STORY_AUDIO_PRODUCT_GOAL
+Goal Status: ACTIVE
 Goal Type: product
 Risk Ceiling: R2
-Updated: NONE
+Updated: 2026-08-09T05:11:25+00:00
 
 ## Outcome
 
-NONE
+Story Audio enables a local operator to create, review, repair, accept, and download trustworthy audiobook-style chapter audio from multiple EPUB books with book-scoped characters, casting, and voices.
 
 ## Acceptance
 
-- [ ] UNSET
+- [ ] A representative EPUB chapter can follow the frozen North Star journey from import through explicit human acceptance and downloadable MP3, with WAV available when requested.
+- [ ] Known book characters reuse established identity and casting; uncertain unknown-character proposals remain operator-reviewable and editable.
+- [ ] Missing required voice or casting clearly blocks production readiness before paid rendering.
+- [ ] Multi-chapter analysis or rendering preserves independent chapter production, QA, acceptance, and download status.
 
 ## Acceptance Quality
 
 - Falsifiability heuristic: no high-confidence warnings
 
+## Goal Acceptance Contract
+
+- Status: UNFROZEN
+- Criterion mappings: 4/4
+
 ## Non-Goals
 
-- NONE
+- Translation, rewriting, or editorial story-content changes.
+- Video creation, thumbnails, YouTube metadata, or YouTube upload.
+- General-purpose audio editing or multi-user SaaS behavior.
 
 ## Budget
 
@@ -29,8 +39,9 @@ NONE
 - Maximum consecutive non-shipping tasks: 2
 - Maximum revisions per task before stop-loss: 2
 - Scope growth limit: 30%
-- Maximum auto Scouts: 2
-- Scout summary token budget: 350
+- Scout input budget: 24000 tokens
+- Scout wall budget: 5.0 minutes
+- Scout provider-cost budget: 0.0 (0 = unbounded/unavailable)
 
 ## Task Graph
 

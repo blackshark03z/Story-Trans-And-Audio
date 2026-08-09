@@ -73,7 +73,7 @@
   },
   "architecture_policy": {
     "require_explicit_decision_for_executable": true,
-    "no_boundaries_reason": "",
+    "no_boundaries_reason": "Story Audio retains its documented modular monolith; this product-intent freeze adds no new architecture boundary or executable capability.",
     "minimum_waiver_reason_chars": 24
   }
 }

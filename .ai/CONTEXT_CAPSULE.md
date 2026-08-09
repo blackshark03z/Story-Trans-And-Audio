@@ -1,7 +1,7 @@
 # Worker Packet
 
-Generated: 2026-08-08T16:42:59+00:00
-Capsule Revision: 6
+Generated: 2026-08-09T05:08:09+00:00
+Capsule Revision: 7
 
 ## Task
 
@@ -18,6 +18,10 @@ Capsule Revision: 6
 UNSET
 
 ## Goal Context
+
+NONE
+
+## Scout Handoff
 
 NONE
 

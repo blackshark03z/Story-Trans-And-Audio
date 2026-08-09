@@ -41,11 +41,11 @@ UNSET
 
 ## Continuity Fingerprint at Authorization
 
-- Project ID: UNSET
-- Branch: UNSET
-- HEAD: UNSET
-- Worktree: CLEAN_OR_UNKNOWN
-- Starting Snapshot SHA256: UNSET
+- Project ID: story-audio
+- Branch: main
+- HEAD: b2726a971b0a5c7120c56e6f41be1488a03e4d53
+- Worktree: CLEAN
+- Starting Snapshot SHA256: 0aa78e9d52766907f45b07a33a196bbe3d411d0063ce75e946a6d35489adb332
 - Verified Snapshot SHA256: NONE
 - State Revision: 0
 - Context Capsule Revision: 0
