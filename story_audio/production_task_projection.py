@@ -588,6 +588,10 @@ def _typed_task_sections(
             "human_qa_status": source.get("human_qa_status"),
             "duration_ms": source.get("artifact_duration_ms"),
             "size_bytes": source.get("artifact_size_bytes"),
+            "created_at": source.get("artifact_created_at"),
+            "replacement": bool(source.get("qa_replacement")),
+            "previous_artifact": dict(source.get("qa_previous_artifact") or {}),
+            "repair_goals": dict(source.get("qa_repair_goals") or {}),
         }
     elif task_type == "REPAIR_REQUIRED":
         blocker_details = _repair_blocker_details(source)
@@ -1412,6 +1416,89 @@ def _exact_range_jobs(
     return result
 
 
+def _qa_replacement_context(
+    db: Database,
+    *,
+    chapter_id: int,
+    artifact_id: int,
+) -> dict[str, Any]:
+    """Return immutable replacement provenance for a pending QA artifact."""
+
+    row = db.fetch_one(
+        """
+        SELECT j.settings_json
+        FROM artifacts a
+        JOIN job_chapters jc ON jc.id=a.job_chapter_id
+        JOIN jobs j ON j.id=jc.job_id
+        WHERE a.id=? AND a.chapter_id=? AND a.artifact_type='chapter_m4a'
+        """,
+        (artifact_id, chapter_id),
+    )
+    if not row:
+        return {}
+    try:
+        settings = json.loads(str(row["settings_json"] or "{}"))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return {}
+    instruction = settings.get("repair_instruction")
+    if not isinstance(instruction, dict):
+        return {}
+    previous_artifact_id = int(instruction.get("replacement_for_artifact_id") or 0)
+    if not previous_artifact_id:
+        return {}
+    previous = db.fetch_one(
+        """
+        SELECT id,created_at,duration_ms,size_bytes
+        FROM artifacts
+        WHERE id=? AND chapter_id=? AND artifact_type='chapter_m4a'
+        """,
+        (previous_artifact_id, chapter_id),
+    )
+    if not previous:
+        return {}
+    qa_event = db.fetch_one(
+        """
+        SELECT details_json
+        FROM audit_events
+        WHERE chapter_id=? AND event_code='human_qa_recorded'
+          AND json_extract(details_json,'$.artifact_id')=?
+          AND json_extract(details_json,'$.status')='needs_fixes'
+        ORDER BY id DESC LIMIT 1
+        """,
+        (chapter_id, previous_artifact_id),
+    )
+    try:
+        qa_details = json.loads(
+            str(qa_event["details_json"] if qa_event else "{}")
+        )
+    except (TypeError, ValueError, json.JSONDecodeError):
+        qa_details = {}
+    feedback = dict(qa_details.get("qa_feedback") or {})
+    note = str(qa_details.get("notes") or "").casefold()
+    repeated_words = bool(
+        instruction.get("repeated_words")
+        or feedback.get("repeated_words")
+        or "lặp chữ" in note
+        or "lặp từ" in note
+    )
+    return {
+        "previous_artifact": {
+            "artifact_id": int(previous["id"]),
+            "created_at": previous["created_at"],
+            "duration_ms": previous["duration_ms"],
+            "size_bytes": previous["size_bytes"],
+            "human_qa_status": "needs_fixes" if qa_event else None,
+        },
+        "repair_goals": {
+            "repeated_words": repeated_words,
+            "global_speed_target": instruction.get("global_speed_target"),
+            "local_pacing_adjustment_required": bool(
+                instruction.get("local_pacing_adjustment_required")
+            ),
+        },
+    }
+
+
 def get_production_task_projection(
     db: Database,
     *,
@@ -1468,6 +1555,16 @@ def get_production_task_projection(
                 item["artifact_duration_ms"] = artifact["duration_ms"]
                 item["artifact_size_bytes"] = artifact["size_bytes"]
                 item["artifact_created_at"] = artifact["created_at"]
+            if item.get("human_qa_status") == "pending":
+                replacement = _qa_replacement_context(
+                    db,
+                    chapter_id=int(item["chapter_id"]),
+                    artifact_id=int(artifact_id),
+                )
+                if replacement:
+                    item["qa_replacement"] = True
+                    item["qa_previous_artifact"] = replacement["previous_artifact"]
+                    item["qa_repair_goals"] = replacement["repair_goals"]
         if item.get("human_qa_status") == "needs_fixes":
             approval = resolve_authoritative_human_approval(
                 db,

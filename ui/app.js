@@ -1862,6 +1862,18 @@ function productionQaTaskContent(vm=currentProductionViewModel()){
   const player=artifactId?`<audio id="productionQaAudio" controls preload="metadata" src="/api/artifacts/${artifactId}/file"></audio><p class="muted">${formatDurationMs(qa.duration_ms)} · ${bytes(qa.size_bytes||0)}</p>`:'<p class="muted">Chưa có file audio để nghe.</p>';
   return `<div class="production-qa-player">${player}</div><div class="production-result-note"><strong>Trước khi chốt</strong><span>Nghe toàn bộ bản audio. Nếu chọn Cần sửa, ghi rõ vấn đề để tạo hướng xử lý tiếp theo.</span></div><label class="production-qa-note-label">Ghi chú QA<textarea id="productionQaNote" rows="3" placeholder="Bắt buộc khi chọn Cần sửa."></textarea></label><details><summary>Lịch sử QA</summary>${history.map(item=>`<p>${esc(item.status||'Chưa có kết luận')} · ${esc(item.notes||'Không có ghi chú')}</p>`).join('')||'<p class="muted">Chưa có kết luận trước đó.</p>'}</details>`;
 }
+function productionQaPlaybackArtifact(qa){const previous=qa?.previous_artifact||{},currentId=Number(qa?.artifact_id||0),previousId=Number(previous.artifact_id||0),comparison=previousId>0&&Number(state.productionQaComparisonArtifactId)===previousId;return{comparison,artifactId:comparison?previousId:currentId,metadata:comparison?previous:qa}}
+function productionQaTimestamp(value){const date=value?new Date(value):null;return date&&!Number.isNaN(date.getTime())?new Intl.DateTimeFormat('vi-VN',{dateStyle:'short',timeStyle:'short'}).format(date):'Chưa xác định'}
+function setProductionQaComparison(comparison){const note=$('#productionQaNote')?.value;if(note!==undefined)state.productionQaNoteDraft=note;const qa=currentProductionViewModel()?.qa||{},previousId=Number(qa.previous_artifact?.artifact_id||0);state.productionQaComparisonArtifactId=comparison&&previousId?previousId:null;const content=$('#productionTaskContent');if(content)content.dataset.productionTaskKey='';renderProductionShell()}
+function bindProductionQaComparison(){const compare=$('[data-production-qa-compare]'),current=$('[data-production-qa-current]');if(compare)compare.onclick=()=>setProductionQaComparison(true);if(current)current.onclick=()=>setProductionQaComparison(false)}
+productionQaTaskContent=function(vm=currentProductionViewModel()){
+  const qa=vm?.qa||{},chapter=vm?.affected_chapter||{},previous=qa.previous_artifact||{},hasPrevious=Number(previous.artifact_id||0)>0,playback=productionQaPlaybackArtifact(qa),metadata=playback.metadata||{},history=state.dialog?.human_approval?[state.dialog.human_approval]:[],goals=qa.repair_goals||{};
+  const player=playback.artifactId?`<audio id="productionQaAudio" controls preload="metadata" src="/api/artifacts/${playback.artifactId}/file"></audio><p class="muted">${formatDurationMs(metadata.duration_ms)} · ${bytes(metadata.size_bytes||0)}</p>`:'<p class="muted">Chưa có file audio để nghe.</p>';
+  const identity=playback.comparison?`<div class="production-qa-comparison-banner"><strong>Bản cũ — chỉ để so sánh</strong><span>Đánh giá bên dưới vẫn áp dụng cho bản thay thế mới nhất.</span></div>`:`<section class="production-qa-identity"><strong>${qa.replacement?'Bản thay thế mới nhất':'Bản audio mới nhất'}</strong><span>Chương ${Number(chapter.number)||''} · tạo lúc ${productionQaTimestamp(qa.created_at)} · Đang chờ bạn duyệt</span></section>`;
+  const replacement=hasPrevious?`<section class="production-qa-replacement"><strong>Thay cho bản trước đã được đánh dấu Cần sửa</strong><span>Bản này được tạo để xử lý:</span><ul>${goals.repeated_words?'<li>Sửa lỗi lặp chữ</li>':''}${goals.global_speed_target?`<li>Tốc độ mục tiêu: ${Number(goals.global_speed_target).toFixed(2).replace(/0$/,'')}x</li>`:''}${goals.local_pacing_adjustment_required?'<li>Điều chỉnh nhịp theo đoạn</li>':''}</ul></section>`:'';
+  const comparisonAction=hasPrevious?(playback.comparison?'<button type="button" class="secondary" data-production-qa-current>Quay lại bản mới nhất</button>':'<button type="button" class="secondary" data-production-qa-compare>Nghe bản trước để so sánh</button>'):'';
+  return `${identity}<div class="production-qa-player">${player}</div>${replacement}${comparisonAction}<div class="production-result-note"><strong>Trước khi chốt</strong><span>Bản audio mới đang chờ bạn nghe và duyệt. Nếu chọn Cần sửa, ghi rõ vấn đề để tạo hướng xử lý tiếp theo.</span></div><label class="production-qa-note-label">Ghi chú QA<textarea id="productionQaNote" rows="3" placeholder="Bắt buộc khi chọn Cần sửa.">${esc(state.productionQaNoteDraft||'')}</textarea></label><details><summary>Lịch sử QA</summary>${history.map(item=>`<p>${esc(item.status||'Chưa có kết luận')} · ${esc(item.notes||'Không có ghi chú')}</p>`).join('')||'<p class="muted">Chưa có kết luận trước đó.</p>'}</details>`;
+}
 async function syncCanonicalProductionContext(projection){
   const task=projection?.canonical_task,chapterId=Number(task?.affected_chapter?.id||0);
   if(!chapterId){
@@ -2407,6 +2419,20 @@ renderProductionShell=function(vm=currentProductionViewModel()){
   }
   document.querySelectorAll('#productionTaskContent .primary,#productionQaActions .primary').forEach(control=>{if(['repairOpenPlan','repairConfirmPlan','repairApplyPlan','repairReviewDraft','repairConfirmDraft','repairPrepareReplacement'].includes(control.id))return;control.classList.remove('primary');control.classList.add('secondary')});
   document.querySelectorAll('#productionTaskContent [data-render-status-check]').forEach(button=>button.onclick=()=>loadJobs());
+  return result;
+};
+const refreshProductionTaskBusinessQaIdentity=refreshProductionTaskBusiness;
+refreshProductionTaskBusiness=function(vm){
+  refreshProductionTaskBusinessQaIdentity(vm);
+  const audio=$('#productionQaAudio'),playback=productionQaPlaybackArtifact(vm?.qa||{});
+  if(audio&&playback.artifactId){const url=`/api/artifacts/${playback.artifactId}/file`;if(audio.src!==new URL(url,window.location.href).href)audio.src=url}
+};
+const renderProductionShellQaIdentity=renderProductionShell;
+renderProductionShell=function(vm=currentProductionViewModel()){
+  const result=renderProductionShellQaIdentity(vm),task=vm?.task_type||currentProductionViewModel()?.task_type;
+  if(task==='HUMAN_QA')bindProductionQaComparison();
+  const blocker=$('#productionBlockerReason');
+  if(task==='HUMAN_QA'&&blocker){blocker.textContent='Bản audio mới đang chờ bạn nghe và duyệt.';blocker.classList.remove('hidden')}
   return result;
 };
 const runProductionPrimaryActionM1=runProductionPrimaryAction;

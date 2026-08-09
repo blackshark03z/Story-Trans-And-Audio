@@ -5,6 +5,7 @@ import unittest
 from unittest.mock import patch
 
 from story_audio.db import utcnow
+from story_audio.production_task_projection import _qa_replacement_context
 from story_audio.production_task_projection import get_production_task_projection
 from story_audio.production_task_projection import project_production_task
 from tests.base import IsolatedTestCase
@@ -158,6 +159,27 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertEqual(projection["task_type"], "START_RENDER_RANGE")
         self.assertEqual(projection["canonical_task"]["render"]["job_id"], 44)
         self.assert_typed_section(projection, "render")
+
+    def test_human_qa_keeps_current_target_when_comparison_is_available(self) -> None:
+        qa = _row(
+            1,
+            "RENDERED_NOT_QA",
+            active_artifact_id=117,
+            active_output_job_id=33,
+            artifact_duration_ms=334080,
+            artifact_size_bytes=5407866,
+            qa_replacement=True,
+            qa_previous_artifact={"artifact_id": 114, "duration_ms": 324800},
+            qa_repair_goals={"repeated_words": True, "global_speed_target": 1.25},
+        )
+
+        projection = project_production_task({"readiness": _readiness(qa)})
+
+        details = projection["canonical_task"]["qa"]
+        self.assertEqual(details["artifact_id"], 117)
+        self.assertTrue(details["replacement"])
+        self.assertEqual(details["previous_artifact"]["artifact_id"], 114)
+        self.assertTrue(details["repair_goals"]["repeated_words"])
 
     def test_ready_range_is_the_only_prepare_gate(self) -> None:
         projection = project_production_task(
@@ -558,7 +580,9 @@ class ProductionTaskProjectionAuditTests(IsolatedTestCase):
         self.db = seeded["db"]
         self.chapter_id = seeded["chapter_one"]
         self.artifact_id = seeded["old_artifact_id"]
+        self.new_artifact_id = seeded["new_artifact_id"]
         self.output_job_id = seeded["job_old"]
+        self.new_job_id = seeded["job_new"]
         self.book_id = int(
             self.db.fetch_one(
                 "SELECT book_id FROM chapters WHERE id=?",
@@ -634,6 +658,52 @@ class ProductionTaskProjectionAuditTests(IsolatedTestCase):
                     self.placeholder_recorded_at,
                 ),
             )
+
+    def test_pending_replacement_uses_pinned_predecessor_and_repair_goals(self) -> None:
+        instruction = {
+            "schema": "story-audio-repair-instruction/v1",
+            "replacement_for_artifact_id": self.artifact_id,
+            "repeated_words": False,
+            "global_speed_target": 1.25,
+            "local_pacing_adjustment_required": True,
+        }
+        with self.db.transaction() as connection:
+            connection.execute(
+                "UPDATE jobs SET settings_json=? WHERE id=?",
+                (json.dumps({"repair_instruction": instruction}), self.new_job_id),
+            )
+            connection.execute(
+                """
+                INSERT INTO audit_events(event_code,job_id,chapter_id,details_json,created_at)
+                VALUES(?,?,?,?,?)
+                """,
+                (
+                    "human_qa_recorded",
+                    self.output_job_id,
+                    self.chapter_id,
+                    json.dumps(
+                        {
+                            "status": "needs_fixes",
+                            "artifact_id": self.artifact_id,
+                            "notes": "Có lặp chữ ở đoạn giữa.",
+                        },
+                        ensure_ascii=False,
+                    ),
+                    utcnow(),
+                ),
+            )
+
+        result = _qa_replacement_context(
+            self.db,
+            chapter_id=self.chapter_id,
+            artifact_id=self.new_artifact_id,
+        )
+
+        self.assertEqual(result["previous_artifact"]["artifact_id"], self.artifact_id)
+        self.assertEqual(result["previous_artifact"]["human_qa_status"], "needs_fixes")
+        self.assertTrue(result["repair_goals"]["repeated_words"])
+        self.assertEqual(result["repair_goals"]["global_speed_target"], 1.25)
+        self.assertTrue(result["repair_goals"]["local_pacing_adjustment_required"])
 
     def test_repair_projection_uses_audit_note_when_snapshot_contains_placeholder(self) -> None:
         qa_event_id = self.db.fetch_one(
