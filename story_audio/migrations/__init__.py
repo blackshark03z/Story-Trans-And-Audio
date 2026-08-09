@@ -9,6 +9,7 @@ from pathlib import Path
 
 MIGRATION_PATTERN = re.compile(r"^(\d{4})_([a-z0-9_]+)\.sql$")
 MIGRATIONS_DIR = Path(__file__).resolve().parent
+BASE_SCHEMA_VERSION = 12
 
 
 class SchemaMigrationError(RuntimeError):
@@ -32,11 +33,17 @@ class Migration:
     sql: str
 
 
-def discover_migrations() -> list[Migration]:
+def discover_migrations(*, include_preserved_history: bool = False) -> list[Migration]:
     migrations: list[Migration] = []
-    for path in sorted(MIGRATIONS_DIR.glob("[0-9][0-9][0-9][0-9]_*.sql")):
+    paths = MIGRATIONS_DIR.rglob("[0-9][0-9][0-9][0-9]_*.sql") if include_preserved_history else MIGRATIONS_DIR.glob("[0-9][0-9][0-9][0-9]_*.sql")
+    for path in paths:
         match = MIGRATION_PATTERN.match(path.name)
         if not match:
+            continue
+        if not include_preserved_history and int(match.group(1)) > BASE_SCHEMA_VERSION:
+            # PREPARE owns the preserved 13-15 activation chain. Keep its base
+            # list stable while the normal runtime can include that lineage and
+            # the forward product migration below.
             continue
         sql = path.read_text(encoding="utf-8")
         migrations.append(
@@ -48,6 +55,7 @@ def discover_migrations() -> list[Migration]:
                 sql=sql,
             )
         )
+    migrations.sort(key=lambda migration: migration.version)
     versions = [migration.version for migration in migrations]
     if not migrations or versions != list(range(1, len(migrations) + 1)):
         raise SchemaMigrationError(
@@ -57,7 +65,8 @@ def discover_migrations() -> list[Migration]:
 
 
 MIGRATIONS = discover_migrations()
-LATEST_SCHEMA_VERSION = MIGRATIONS[-1].version
+RUNTIME_MIGRATIONS = discover_migrations(include_preserved_history=True)
+LATEST_SCHEMA_VERSION = RUNTIME_MIGRATIONS[-1].version
 
 
 def _execute_script_transactionally(connection: sqlite3.Connection, sql: str) -> None:
@@ -76,7 +85,10 @@ def _execute_script_transactionally(connection: sqlite3.Connection, sql: str) ->
 
 class MigrationRunner:
     def __init__(self, migrations: list[Migration] | None = None):
-        self.migrations = migrations or MIGRATIONS
+        # An explicit chain is a bounded rehearsal contract and must not silently
+        # acquire later runtime migrations.  The historic default remains the
+        # schema-12 base chain; runtime callers opt into RUNTIME_MIGRATIONS.
+        self.migrations = list(MIGRATIONS if migrations is None else migrations)
         self.latest_version = self.migrations[-1].version
 
     @staticmethod
@@ -156,6 +168,7 @@ class MigrationRunner:
 __all__ = [
     "FutureSchemaVersionError",
     "LATEST_SCHEMA_VERSION",
+    "RUNTIME_MIGRATIONS",
     "MigrationChecksumError",
     "MigrationRunner",
     "SchemaMigrationError",

@@ -1,4 +1,5 @@
 {
+  "abort_reason": "GOVERNANCE_CONFIGURATION_DEADLOCK: required owner-authorized scope growth exceeds immutable 30% active Goal ceiling; kernel has no in-place update/replan; Guardian P1 remediation needs legitimate surfaces; bypass prohibited.",
   "acceptance": [
     "A representative EPUB chapter can follow the frozen North Star journey from import through explicit human acceptance and downloadable MP3, with WAV available when requested.",
     "Known book characters reuse established identity and casting; uncertain unknown-character proposals remain operator-reviewable and editable.",
@@ -80,8 +81,8 @@
   "decisions_required": [],
   "discoveries": [],
   "goal_acceptance_contract": {
-    "contract_sha256": "",
-    "frozen_at": null,
+    "contract_sha256": "1a7e23b71d9c484711d1494115c0f4f6e0d223579c4649b033f4889988b21803",
+    "frozen_at": "2026-08-09T06:33:22+00:00",
     "mappings": [
       {
         "command": "",
@@ -133,9 +134,96 @@
     "General-purpose audio editing or multi-user SaaS behavior."
   ],
   "outcome": "Story Audio enables a local operator to create, review, repair, accept, and download trustworthy audiobook-style chapter audio from multiple EPUB books with book-scoped characters, casting, and voices.",
-  "risk_ceiling": "R2",
+  "risk_ceiling": "R3",
   "schema_version": 1,
-  "status": "ACTIVE",
-  "tasks": {},
-  "updated_at": "2026-08-09T05:11:25+00:00"
+  "status": "ABORTED",
+  "tasks": {
+    "BOOK_SCOPED_CUSTOM_VOICE": {
+      "acceptance": [
+        "Browser Book A: add a named sample-backed VOICE, save, and see it after reload.",
+        "Browser Book B: the Book A VOICE is absent from its normal voice library.",
+        "Focused isolated-DB tests prove book ownership and legacy reference resolution.",
+        "No provider/render/QA action and canonical Jobs, JobChapters, Artifacts, casting, and Chapter 369 remain unchanged."
+      ],
+      "acceptance_contract": {
+        "commands": [
+          "D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_book_scoped_custom_voices tests.test_custom_voice_api tests.test_custom_voice"
+        ],
+        "contract_sha256": "f8e25404d6f31f722a218f4513ece4354dc1c286c966bffa9a997e7bcd9a4f16",
+        "effective_risk_at_freeze": "R3",
+        "expected_outputs": [
+          "Book A shows the created VOICE after reload; Book B does not offer it."
+        ],
+        "frozen_at": "2026-08-09T06:33:22+00:00",
+        "probe_files": [],
+        "probe_hashes": {}
+      },
+      "agent_role": "WORKER",
+      "artifact_operation": "CREATE_NEW_VERSION",
+      "create": "story_audio/migrations/0013_book_scoped_custom_voices.sql,tests/test_book_scoped_custom_voices.py,scripts/browser_book_custom_voice_acceptance.mjs",
+      "data_operation": "CREATE_NEW_VERSION",
+      "delegation": {
+        "action": "MAIN_WORKER",
+        "hard": true,
+        "model_class": "STRONG_WORKER",
+        "reasons": [
+          "delegation policy explicitly disables pre-scouting"
+        ],
+        "summary_token_budget": null
+      },
+      "delegation_policy": "main",
+      "delivery_delta": "USER_VISIBLE_BEHAVIOR",
+      "depends_on": [],
+      "initial_create_scope": "story_audio/migrations/0013_book_scoped_custom_voices.sql,tests/test_book_scoped_custom_voices.py,scripts/browser_book_custom_voice_acceptance.mjs",
+      "initial_modify_scope": "story_audio/custom_voice.py,story_audio/custom_voice_api.py,story_audio/api.py,story_audio/voice_eligibility.py,story_audio/voice_ref.py,ui/index.html,ui/app.js,tests",
+      "initial_scope_count": 18,
+      "initial_scope_footprint": [
+        "PATTERN:scripts/browser_book_custom_voice_acceptance.mjs",
+        "PATTERN:story_audio/api.py",
+        "PATTERN:story_audio/custom_voice.py",
+        "PATTERN:story_audio/custom_voice_api.py",
+        "PATTERN:story_audio/migrations/0013_book_scoped_custom_voices.sql",
+        "PATTERN:story_audio/voice_eligibility.py",
+        "PATTERN:story_audio/voice_ref.py",
+        "PATTERN:tests",
+        "PATTERN:tests/test_book_scoped_custom_voices.py",
+        "PATTERN:ui/app.js",
+        "PATTERN:ui/index.html",
+        "story_audio/api.py",
+        "story_audio/custom_voice.py",
+        "story_audio/custom_voice_api.py",
+        "story_audio/voice_eligibility.py",
+        "story_audio/voice_ref.py",
+        "ui/app.js",
+        "ui/index.html"
+      ],
+      "last_abort_reason": "task aborted with zero delta",
+      "modify": "story_audio/custom_voice.py,story_audio/custom_voice_api.py,story_audio/api.py,story_audio/voice_eligibility.py,story_audio/voice_ref.py,ui/index.html,ui/app.js,tests",
+      "negative_required": true,
+      "node_id": "BOOK_SCOPED_CUSTOM_VOICE",
+      "outcome": "ADD CUSTOM VOICE TO SELECTED BOOK",
+      "replaces": [],
+      "result": null,
+      "review_policy": "auto",
+      "risk": "R2",
+      "state_authority": "custom_voices.book_id and custom_voice_revisions",
+      "state_dependencies": [
+        "story_audio/custom_voice.py,story_audio/custom_voice_api.py,story_audio/api.py,story_audio/voice_eligibility.py,story_audio/voice_ref.py,ui/index.html,ui/app.js,story_audio/migrations/*.sql"
+      ],
+      "state_hazard": "S2",
+      "state_invariants": [
+        "A normal custom voice has exactly one owning book; legacy references remain resolvable."
+      ],
+      "state_signals": [
+        "voice creation and book-scoped catalog reload"
+      ],
+      "state_transitions": [
+        "Book A add voice -> save -> reload -> Book A visible, Book B absent"
+      ],
+      "status": "PLANNED",
+      "success_criterion": "A normal user can add sample-backed custom voice from one BOOK, it persists on reload, appears only for that BOOK, and existing custom voice references still resolve.",
+      "task_id": "STORY_AUDIO_PRODUCT_GOAL-BOOK_SCOPED_CUSTOM_VOICE"
+    }
+  },
+  "updated_at": "2026-08-09T08:12:54+00:00"
 }

@@ -12,13 +12,14 @@ from story_audio.batch_prepare_clone_rehearsal import (
     validate_external_destination,
 )
 from story_audio.db import Database
+from story_audio.migrations import MIGRATIONS, MigrationRunner
 from tests.base import IsolatedTestCase
 
 
 class CloneRehearsalTests(IsolatedTestCase):
     def _source(self) -> Path:
         source = self.config.db_path
-        Database(source).initialize()
+        Database(source, migration_runner=MigrationRunner(MIGRATIONS)).initialize()
         connection = sqlite3.connect(source)
         try:
             connection.execute("PRAGMA wal_checkpoint(TRUNCATE)")

@@ -153,7 +153,7 @@ class CustomVoiceContext:
         return cid in self._by_id
     
     @classmethod
-    def from_repository(cls, repository) -> "CustomVoiceContext":
+    def from_repository(cls, repository, *, book_id: int | None = None) -> "CustomVoiceContext":
         """
         Build a CustomVoiceContext from a CustomVoiceRepository.
         Only includes active custom voices that have at least one revision.
@@ -163,7 +163,10 @@ class CustomVoiceContext:
         2. Latest revision by revision_number DESC (fallback)
         """
         entries = []
-        for voice in repository.list_custom_voices(active_only=True):
+        voices = repository.list_custom_voices(active_only=True)
+        if book_id is not None:
+            voices = [*voices, *repository.list_custom_voices(active_only=True, book_id=book_id)]
+        for voice in voices:
             # Try preferred revision first
             selected_revision = None
             if voice.preferred_synthesis_revision_id is not None:

@@ -379,7 +379,7 @@ class BatchPreparePersistenceContractTests(unittest.TestCase):
 
     def test_no_migration_files_changed_by_design_module(self) -> None:
         migration_files = sorted(path.name for path in Path("story_audio/migrations").glob("*.sql"))
-        self.assertEqual(migration_files[-1], "0012_speaker_draft_reviews.sql")
+        self.assertEqual(migration_files[-1], "0016_book_scoped_custom_voices.sql")
 
     def test_missing_request_id_is_rejected(self) -> None:
         with self.assertRaises(PreparePersistenceContractError):

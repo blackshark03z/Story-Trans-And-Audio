@@ -6,13 +6,20 @@ import os
 import unittest
 from pathlib import Path
 
-from story_audio.db import Database, utcnow
+from story_audio.db import Database as BaseDatabase, utcnow
 from story_audio.migrations import (
     MIGRATIONS,
     FutureSchemaVersionError,
     LATEST_SCHEMA_VERSION,
+    MigrationRunner,
     MigrationChecksumError,
+    RUNTIME_MIGRATIONS,
 )
+
+
+def Database(path: Path) -> BaseDatabase:
+    return BaseDatabase(path, migration_runner=MigrationRunner(RUNTIME_MIGRATIONS))
+
 
 class MigrationTests(unittest.TestCase):
 

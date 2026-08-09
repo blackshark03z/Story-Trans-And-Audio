@@ -33,7 +33,7 @@ from story_audio.batch_prepare_store import (
 )
 from story_audio.config import canonical_production_db_path
 from story_audio.db import Database, utcnow
-from story_audio.migrations import LATEST_SCHEMA_VERSION, SchemaMigrationError
+from story_audio.migrations import LATEST_SCHEMA_VERSION, MIGRATIONS, MigrationRunner, SchemaMigrationError
 from tests.test_batch_prepare_migration import DORMANT_MIGRATION_PATH, schema_13_runner
 
 
@@ -57,7 +57,7 @@ class BatchPrepareIsolatedIntegrationTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.db_path = Path(self.temp.name).resolve() / "isolated_phase4.db"
         _assert_isolated_db_path(self.db_path)
-        self.database = Database(self.db_path)
+        self.database = Database(self.db_path, migration_runner=MigrationRunner(MIGRATIONS))
         self.assertEqual(self.database.initialize(), 12)
         self.fixture_ids = self._insert_production_like_fixture(self.database)
 
@@ -196,7 +196,7 @@ class BatchPrepareIsolatedIntegrationTests(unittest.TestCase):
             "artifacts",
         ]}
         self.assertEqual(self.database.schema_version(), 12)
-        self.assertEqual(LATEST_SCHEMA_VERSION, 12)
+        self.assertEqual(LATEST_SCHEMA_VERSION, 16)
         self.assertFalse(Path("story_audio/migrations/0013_batch_prepare_requests.sql").exists())
 
         database_13 = self._upgrade_to_schema_13()

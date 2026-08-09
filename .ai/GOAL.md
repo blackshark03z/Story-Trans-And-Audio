@@ -1,10 +1,10 @@
 # Active Goal
 
-Goal ID: STORY_AUDIO_PRODUCT_GOAL
+Goal ID: STORY_AUDIO_PRODUCT_GOAL_R3
 Goal Status: ACTIVE
 Goal Type: product
-Risk Ceiling: R2
-Updated: 2026-08-09T05:11:25+00:00
+Risk Ceiling: R3
+Updated: 2026-08-09T08:14:22+00:00
 
 ## Outcome
 
@@ -23,7 +23,7 @@ Story Audio enables a local operator to create, review, repair, accept, and down
 
 ## Goal Acceptance Contract
 
-- Status: UNFROZEN
+- Status: FROZEN c47f0646951a
 - Criterion mappings: 4/4
 
 ## Non-Goals
@@ -38,7 +38,7 @@ Story Audio enables a local operator to create, review, repair, accept, and down
 - Maximum parallel writers: 1
 - Maximum consecutive non-shipping tasks: 2
 - Maximum revisions per task before stop-loss: 2
-- Scope growth limit: 30%
+- Scope growth limit: 60%
 - Scout input budget: 24000 tokens
 - Scout wall budget: 5.0 minutes
 - Scout provider-cost budget: 0.0 (0 = unbounded/unavailable)
@@ -47,7 +47,7 @@ Story Audio enables a local operator to create, review, repair, accept, and down
 
 | Node | Status | Agent | Risk | Delivery Delta | Depends On | Outcome |
 |---|---|---|---|---|---|---|
-| - | - | - | - | - | - | No planned tasks yet |
+| BOOK_SCOPED_CUSTOM_VOICE | ACTIVE | WORKER | R3 | USER_VISIBLE_BEHAVIOR | - | ADD CUSTOM VOICE TO SELECTED BOOK |
 
 ## Human Interrupt Policy
 

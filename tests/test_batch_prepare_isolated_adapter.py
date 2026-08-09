@@ -20,6 +20,7 @@ from story_audio.batch_prepare_persistence_contract import PrepareRequestBinding
 from story_audio.db import utcnow
 from story_audio.files import sha256_text
 from story_audio.text import split_tts_segments
+from story_audio.voice_eligibility import EffectiveVoiceCatalog, VoiceEligibilityBlocked
 from tests.batch_prepare_phase10_fixture import Phase10FixtureMixin
 
 
@@ -46,6 +47,72 @@ class SequencePlanProvider:
 
 
 class BatchPrepareIsolatedAdapterTests(Phase10FixtureMixin):
+    def test_snapshot_catalog_is_scoped_to_each_prepare_book(self) -> None:
+        """Book-owned custom voices are eligible only for their selected Book."""
+        book_a = self.book_id
+        now = utcnow()
+        with self.database.transaction() as connection:
+            book_b = int(connection.execute(
+                """INSERT INTO books(
+                    title,source_path,source_sha256,chapter_count,created_at,updated_at
+                ) VALUES(?,?,?,?,?,?)""",
+                ("Book B", "book-b.epub", "b" * 64, 4, now, now),
+            ).lastrowid)
+        plan_a = self.plan(from_chapter=10, to_chapter=10)
+        requested_books: list[int] = []
+
+        def scoped_catalog(book_id: int) -> EffectiveVoiceCatalog:
+            requested_books.append(book_id)
+            # The legacy voice is compatible with every book; Voice A is not.
+            voice_ids = ["custom:27"]
+            if book_id == book_a:
+                voice_ids.append("custom:26")
+            return EffectiveVoiceCatalog.from_ids(*voice_ids)
+
+        provider = DatabaseAuthoritativeSnapshotProvider(
+            self.database,
+            self.content_store,
+            self.config,
+            temporary_root=self.temp_root,
+            voice_catalog_loader=scoped_catalog,
+        )
+        binding_a = PrepareRequestBinding(
+            client_request_id="book-a-scoped-catalog",
+            request_identity="a" * 64,
+            target_phase="PREPARE",
+            book_id=book_a,
+            from_chapter=10,
+            to_chapter=10,
+            plan_fingerprint=plan_a["plan_fingerprint"],
+        )
+        snapshots = provider(binding=binding_a, plan=plan_a)
+        self.assertEqual(len(snapshots), 1)
+        self.assertIn("custom:26", scoped_catalog(book_a).selectable_ids)
+        self.assertIn("custom:27", scoped_catalog(book_a).selectable_ids)
+        self.assertIn("custom:27", scoped_catalog(book_b).selectable_ids)
+        self.assertNotIn("custom:26", scoped_catalog(book_b).selectable_ids)
+
+        with self.database.transaction() as connection:
+            # Reuse the disposable chapter facts to exercise the Book B PREPARE
+            # path after Book A has already resolved its custom voice.
+            connection.execute("UPDATE chapters SET book_id=? WHERE book_id=?", (book_b, book_a))
+        self.book_id = book_b
+        plan_b = self.plan(from_chapter=10, to_chapter=10)
+
+        binding_b = PrepareRequestBinding(
+            client_request_id="book-b-scoped-catalog",
+            request_identity="b" * 64,
+            target_phase="PREPARE",
+            book_id=book_b,
+            from_chapter=10,
+            to_chapter=10,
+            plan_fingerprint=plan_b["plan_fingerprint"],
+        )
+        with self.assertRaises(VoiceEligibilityBlocked):
+            provider(binding=binding_b, plan=plan_b)
+        self.assertIn(book_a, requested_books)
+        self.assertIn(book_b, requested_books)
+
     def test_happy_path_creates_one_atomic_prepared_job_and_applied_result(self) -> None:
         plan = self.plan()
         orchestrator, _adapter = self.orchestrator()

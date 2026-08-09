@@ -37,6 +37,7 @@ class InvalidAudioError(CustomVoiceError):
 @dataclass(frozen=True)
 class CustomVoice:
     id: int
+    book_id: int | None
     display_name: str
     description: str | None
     is_active: bool
@@ -87,19 +88,37 @@ class CustomVoiceRepository:
         self,
         display_name: str,
         description: str | None = None,
+        *,
+        book_id: int | None = None,
     ) -> CustomVoice:
         """Create a new custom voice."""
+        if book_id is not None and int(book_id) <= 0:
+            raise CustomVoiceError("Book is invalid.")
         if not display_name or not display_name.strip():
             raise CustomVoiceError("Display name cannot be empty.")
         
         now = utcnow()
         try:
             with self.db.transaction() as conn:
-                cursor = conn.execute(
-                    "INSERT INTO custom_voices(display_name,description,is_active,created_at,updated_at) "
-                    "VALUES(?,?,1,?,?)",
-                    (display_name.strip(), description, now, now),
-                )
+                supports_book_scope = self._book_scope_supported(conn)
+                if supports_book_scope and book_id is None:
+                    raise CustomVoiceError("Book is required when creating a custom voice.")
+                if book_id is not None and not supports_book_scope:
+                    raise CustomVoiceError("Book-scoped custom voices require schema version 16.")
+                if book_id is not None and not conn.execute("SELECT 1 FROM books WHERE id=?", (int(book_id),)).fetchone():
+                    raise CustomVoiceError("Book not found.")
+                if supports_book_scope:
+                    cursor = conn.execute(
+                        "INSERT INTO custom_voices(book_id,display_name,description,is_active,created_at,updated_at) "
+                        "VALUES(?,?,?,1,?,?)",
+                        (int(book_id) if book_id is not None else None, display_name.strip(), description, now, now),
+                    )
+                else:
+                    cursor = conn.execute(
+                        "INSERT INTO custom_voices(display_name,description,is_active,created_at,updated_at) "
+                        "VALUES(?,?,1,?,?)",
+                        (display_name.strip(), description, now, now),
+                    )
                 voice_id = cursor.lastrowid
                 return self._row_to_voice(
                     conn.execute("SELECT * FROM custom_voices WHERE id=?", (voice_id,)).fetchone()
@@ -116,14 +135,46 @@ class CustomVoiceRepository:
             raise CustomVoiceNotFoundError(f"Custom voice {voice_id} not found.")
         return self._row_to_voice(row)
 
-    def list_custom_voices(self, active_only: bool = False) -> list[CustomVoice]:
-        """List all custom voices, optionally filtering to active only."""
+    def list_custom_voices(self, active_only: bool = False, book_id: int | None = None) -> list[CustomVoice]:
+        """List voices, optionally limited to the normal library of one book."""
+        where: list[str] = []
+        params: list[object] = []
         if active_only:
-            rows = self.db.fetch_all(
-                "SELECT * FROM custom_voices WHERE is_active=1 ORDER BY display_name"
-            )
-        else:
-            rows = self.db.fetch_all("SELECT * FROM custom_voices ORDER BY display_name")
+            where.append("is_active=1")
+        if book_id is not None:
+            if int(book_id) <= 0:
+                raise CustomVoiceError("Book is required for a custom voice library.")
+            if not self._book_scope_supported():
+                return []
+            where.append("book_id=?")
+            params.append(int(book_id))
+        elif self._book_scope_supported():
+            # NULL ownership is reserved for voices created before schema 16.
+            # Unscoped callers may inspect legacy history but cannot receive a
+            # voice belonging to a different book.
+            where.append("book_id IS NULL")
+        clause = f" WHERE {' AND '.join(where)}" if where else ""
+        rows = self.db.fetch_all(
+            f"SELECT * FROM custom_voices{clause} ORDER BY display_name", tuple(params)
+        )
+        return [self._row_to_voice(row) for row in rows]
+
+    def list_effective_custom_voices(
+        self, *, book_id: int | None, active_only: bool = False
+    ) -> list[CustomVoice]:
+        """Return the synthesis context: legacy voices plus one selected book."""
+        if book_id is None:
+            return self.list_custom_voices(active_only=active_only)
+        if int(book_id) <= 0:
+            raise CustomVoiceError("Book is required for an effective custom voice context.")
+        if not self._book_scope_supported():
+            return self.list_custom_voices(active_only=active_only)
+        where = "is_active=1 AND " if active_only else ""
+        rows = self.db.fetch_all(
+            f"SELECT * FROM custom_voices WHERE {where}(book_id IS NULL OR book_id=?) "
+            "ORDER BY display_name",
+            (int(book_id),),
+        )
         return [self._row_to_voice(row) for row in rows]
 
     def deactivate_custom_voice(self, voice_id: int) -> CustomVoice:
@@ -256,6 +307,25 @@ class CustomVoiceRepository:
                 conn.execute("SELECT * FROM custom_voice_revisions WHERE id=?", (revision_id,)).fetchone()
             )
 
+    def create_custom_voice_with_revision(
+        self,
+        book_id: int,
+        display_name: str,
+        audio_bytes: bytes,
+        reference_transcript: str,
+        description: str | None = None,
+    ) -> tuple[CustomVoice, CustomVoiceRevision]:
+        """Create a book-owned voice and its first immutable revision together."""
+        voice = self.create_custom_voice(display_name, description, book_id=book_id)
+        try:
+            return voice, self.create_revision(voice.id, audio_bytes, reference_transcript)
+        except Exception:
+            # This cleanup is only for the just-created, unreferenced logical
+            # voice. Historical/referenced voices are never deleted here.
+            with self.db.transaction() as conn:
+                conn.execute("DELETE FROM custom_voices WHERE id=?", (voice.id,))
+            raise
+
     def get_revision(self, revision_id: int) -> CustomVoiceRevision:
         """Get a revision by ID."""
         row = self.db.fetch_one("SELECT * FROM custom_voice_revisions WHERE id=?", (revision_id,))
@@ -281,10 +351,17 @@ class CustomVoiceRepository:
         )
         return [self._row_to_revision(row) for row in rows]
 
+    def _book_scope_supported(self, connection: sqlite3.Connection | None = None) -> bool:
+        rows = (connection.execute("PRAGMA table_info(custom_voices)").fetchall()
+                if connection is not None else self.db.fetch_all("PRAGMA table_info(custom_voices)"))
+        return any(row["name"] == "book_id" for row in rows)
+
     @staticmethod
     def _row_to_voice(row: sqlite3.Row) -> CustomVoice:
+        row_keys = set(row.keys())
         return CustomVoice(
             id=int(row["id"]),
+            book_id=int(row["book_id"]) if "book_id" in row_keys and row["book_id"] is not None else None,
             display_name=str(row["display_name"]),
             description=row["description"],
             is_active=bool(row["is_active"]),

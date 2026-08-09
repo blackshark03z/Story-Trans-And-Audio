@@ -41,12 +41,15 @@ def create_custom_voice_handler(
     repo: CustomVoiceRepository,
     display_name: str,
     description: str | None = None,
+    *,
+    book_id: int | None = None,
 ) -> dict[str, Any]:
     """Create a new custom voice."""
     try:
-        voice = repo.create_custom_voice(display_name, description)
+        voice = repo.create_custom_voice(display_name, description, book_id=book_id)
         return {
             "id": voice.id,
+            "book_id": voice.book_id,
             "display_name": voice.display_name,
             "description": voice.description,
             "is_active": voice.is_active,
@@ -60,12 +63,15 @@ def create_custom_voice_handler(
 def list_custom_voices_handler(
     repo: CustomVoiceRepository,
     active_only: bool = False,
+    *,
+    book_id: int | None = None,
 ) -> list[dict[str, Any]]:
     """List all custom voices."""
-    voices = repo.list_custom_voices(active_only=active_only)
+    voices = repo.list_custom_voices(active_only=active_only, book_id=book_id)
     return [
         {
             "id": v.id,
+            "book_id": v.book_id,
             "display_name": v.display_name,
             "description": v.description,
             "is_active": v.is_active,
@@ -75,6 +81,50 @@ def list_custom_voices_handler(
         }
         for v in voices
     ]
+
+
+def create_book_custom_voice_handler(
+    repo: CustomVoiceRepository,
+    book_id: int,
+    display_name: str,
+    audio_file: UploadFile,
+    transcript: str,
+    description: str | None = None,
+) -> dict[str, Any]:
+    """Create one book-owned voice with its required first sample revision."""
+    try:
+        if not transcript or not transcript.strip():
+            raise HTTPException(400, "Transcript cannot be empty.")
+        clean_transcript = transcript.strip()
+        if len(clean_transcript) > MAX_TRANSCRIPT_LENGTH:
+            raise HTTPException(400, f"Transcript too long ({len(clean_transcript)} chars, max {MAX_TRANSCRIPT_LENGTH}).")
+        audio_bytes = audio_file.file.read()
+        if not audio_bytes:
+            raise HTTPException(400, "Audio file is empty.")
+        if len(audio_bytes) > MAX_AUDIO_SIZE_BYTES:
+            raise HTTPException(400, f"Audio file too large ({len(audio_bytes)} bytes, max {MAX_AUDIO_SIZE_BYTES}).")
+        if audio_file.filename:
+            filename = Path(audio_file.filename).name
+            if filename != audio_file.filename or ".." in audio_file.filename:
+                raise HTTPException(400, "Invalid filename.")
+        voice, revision = repo.create_custom_voice_with_revision(
+            int(book_id), display_name, audio_bytes, clean_transcript, description
+        )
+        return {
+            "id": voice.id,
+            "book_id": voice.book_id,
+            "display_name": voice.display_name,
+            "description": voice.description,
+            "is_active": voice.is_active,
+            "preferred_synthesis_revision_id": voice.preferred_synthesis_revision_id,
+            "created_at": voice.created_at,
+            "updated_at": voice.updated_at,
+            "initial_revision": _revision_payload(revision),
+        }
+    except HTTPException:
+        raise
+    except CustomVoiceError as exc:
+        raise _custom_voice_error_handler(exc) from exc
 
 def get_custom_voice_handler(
     repo: CustomVoiceRepository,
@@ -308,6 +358,7 @@ def build_voice_catalog_handler(
     preset_voices: Iterable[dict[str, Any]],
     *,
     include_unavailable_custom: bool = True,
+    book_id: int | None = None,
 ) -> dict[str, Any]:
     """Return a read-only catalog for assignment selectors."""
     items: list[dict[str, Any]] = []
@@ -341,7 +392,10 @@ def build_voice_catalog_handler(
             }
         )
 
-    for voice in repo.list_custom_voices(active_only=not include_unavailable_custom):
+    for voice in repo.list_effective_custom_voices(
+        active_only=not include_unavailable_custom,
+        book_id=book_id,
+    ):
         key = f"custom:{voice.id}"
         if key in seen:
             continue
@@ -378,6 +432,7 @@ def build_voice_catalog_handler(
                 "usable": usable,
                 "selectable": usable,
                 "custom_voice_id": voice.id,
+                "book_id": voice.book_id,
                 "preferred_synthesis_revision_id": voice.preferred_synthesis_revision_id,
                 "effective_synthesis_revision_id": rev_payload["id"] if rev_payload else None,
                 "effective_revision_number": revision_number,
@@ -386,7 +441,7 @@ def build_voice_catalog_handler(
                 "reference_audio_url": f"/api/custom-voice-revisions/{rev_payload['id']}/audio" if rev_payload else None,
                 "provenance_summary": provenance,
                 "unavailability_reason": reason,
-                "legacy": False,
+                "legacy": voice.book_id is None,
             }
         )
         seen.add(key)

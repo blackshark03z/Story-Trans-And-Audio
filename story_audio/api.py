@@ -71,11 +71,13 @@ from .runtime_operator_session import (
     RuntimeOperatorSession,
     mutation_service_construction_allowed,
 )
-from .batch_prepare_schema import PREPARE_SCHEMA_VERSION, prepare_migration_runner
+from .batch_prepare_schema import PREPARE_SCHEMA_VERSION
 from .book_voice_registry import BookVoiceRegistryError, get_book_voice_registry
 from .custom_voice import CustomVoiceRepository
+from .migrations import RUNTIME_MIGRATIONS, MigrationRunner
 from .custom_voice_api import (
     build_voice_catalog_handler,
+    create_book_custom_voice_handler,
     create_custom_voice_handler,
     create_custom_voice_revision_handler,
     deactivate_custom_voice_handler,
@@ -186,7 +188,7 @@ from .video_export import (
     inspect_video_export,
     load_video_export_file,
 )
-from .voice_ref import CustomVoiceContext, is_custom_ref, resolve_custom_ref
+from .voice_ref import CustomVoiceContext, is_custom_ref, parse_custom_ref, resolve_custom_ref
 from .voice_eligibility import (
     VoiceCatalogAuthority,
     VoiceCatalogUnavailable,
@@ -203,8 +205,8 @@ def _build_runtime_database(path: Path, integration):
     ):
         return CloneReadOnlyDatabase(path)
     migration_runner = (
-        prepare_migration_runner()
-        if integration.schema_version == PREPARE_SCHEMA_VERSION
+        MigrationRunner(RUNTIME_MIGRATIONS)
+        if integration.schema_version is not None and integration.schema_version >= PREPARE_SCHEMA_VERSION
         else None
     )
     return Database(path, migration_runner=migration_runner)
@@ -228,12 +230,12 @@ store = ContentStore(settings)
 custom_voice_repo = CustomVoiceRepository(db, store)
 
 
-def _voice_catalog_payload() -> dict[str, Any]:
-    return build_voice_catalog_handler(custom_voice_repo, tts_service.voices())
+def _voice_catalog_payload(book_id: int | None = None) -> dict[str, Any]:
+    return build_voice_catalog_handler(custom_voice_repo, tts_service.voices(), book_id=book_id)
 
 
-def _load_voice_catalog():
-    return VoiceCatalogAuthority(_voice_catalog_payload).load()
+def _load_voice_catalog(book_id: int | None = None):
+    return VoiceCatalogAuthority(lambda: _voice_catalog_payload(book_id)).load()
 
 
 _prepare_service_construction_allowed = mutation_service_construction_allowed(
@@ -282,17 +284,67 @@ def _serialized_production_mutation(function):
     return wrapped
 
 
-def _build_custom_voice_context() -> CustomVoiceContext | None:
+def _build_custom_voice_context(book_id: int | None = None) -> CustomVoiceContext | None:
     """Build Custom Voice context from the global repository.
     
     Returns context with active custom voices that have revisions,
     or None if no custom voices are available.
     """
     try:
-        return CustomVoiceContext.from_repository(custom_voice_repo)
+        return CustomVoiceContext.from_repository(custom_voice_repo, book_id=book_id)
     except Exception:
         # If context building fails, return None to allow preset-only operation
         return None
+
+
+def _book_id_for_chapter(chapter_id: int) -> int:
+    row = db.fetch_one("SELECT book_id FROM chapters WHERE id=?", (int(chapter_id),))
+    if not row:
+        raise CastingError("Chapter was not found")
+    return int(row["book_id"])
+
+
+def _book_id_for_character(character_id: int) -> int:
+    row = db.fetch_one("SELECT book_id FROM characters WHERE id=?", (int(character_id),))
+    if not row:
+        raise CastingError("Character was not found")
+    return int(row["book_id"])
+
+
+def _book_id_for_casting_plan(casting_plan_id: int) -> int:
+    row = db.fetch_one(
+        """SELECT c.book_id FROM casting_plans cp
+           JOIN chapters c ON c.id=cp.chapter_id WHERE cp.id=?""",
+        (int(casting_plan_id),),
+    )
+    if not row:
+        raise CastingError("Casting plan was not found")
+    return int(row["book_id"])
+
+
+def _book_id_for_job(job_id: int) -> int:
+    row = db.fetch_one("SELECT book_id FROM jobs WHERE id=?", (int(job_id),))
+    if not row:
+        raise CastingError("Job was not found")
+    return int(row["book_id"])
+
+
+def _book_id_for_custom_ref(voice_ref: str) -> int | None:
+    """Derive a logical custom voice's owner for global endpoints.
+
+    A NULL owner is an intentional legacy voice and therefore returns the
+    legacy-only context. Book-owned voices always resolve in their own book
+    context; callers without a book selector cannot accidentally aggregate
+    every book's custom voices.
+    """
+    try:
+        voice_id = parse_custom_ref(voice_ref)
+        row = db.fetch_one("SELECT book_id FROM custom_voices WHERE id=?", (voice_id,))
+    except Exception:
+        return None
+    if not row:
+        raise CastingError("Custom voice was not found")
+    return int(row["book_id"]) if row["book_id"] is not None else None
 
 
 class ImportRequest(BaseModel):
@@ -1068,7 +1120,7 @@ def production_range_readiness(
     to_chapter: int = Query(..., ge=0),
 ) -> dict[str, Any]:
     try:
-        voice_catalog = _load_voice_catalog()
+        voice_catalog = _load_voice_catalog(book_id)
         return get_range_readiness(
             db,
             book_id=book_id,
@@ -1095,7 +1147,7 @@ def production_task_projection(
     """Return the canonical read-only task projection for the workbench."""
 
     try:
-        voice_catalog = _load_voice_catalog()
+        voice_catalog = _load_voice_catalog(book_id)
         return get_production_task_projection(
             db,
             book_id=book_id,
@@ -1105,7 +1157,7 @@ def production_task_projection(
             voice_catalog=voice_catalog,
             store=store,
             config=settings,
-            custom_voice_context=_build_custom_voice_context(),
+            custom_voice_context=_build_custom_voice_context(book_id),
         )
     except VoiceCatalogUnavailable as exc:
         raise _job_http_error(exc) from exc
@@ -1125,7 +1177,7 @@ def production_preflight(
     """Return one read-only review of production data and execution gates."""
 
     try:
-        voice_catalog = _load_voice_catalog()
+        voice_catalog = _load_voice_catalog(book_id)
         runtime_readiness = _production_runtime_readiness()
         return get_production_preflight(
             db,
@@ -1137,7 +1189,7 @@ def production_preflight(
             store=store,
             config=settings,
             runtime_readiness=runtime_readiness,
-            custom_voice_context=_build_custom_voice_context(),
+            custom_voice_context=_build_custom_voice_context(book_id),
         )
     except VoiceCatalogUnavailable as exc:
         raise _job_http_error(exc) from exc
@@ -1165,8 +1217,8 @@ def production_book_voice_registry(
             from_chapter=from_chapter,
             to_chapter=to_chapter,
             skip_completed=skip_completed,
-            voice_catalog=_load_voice_catalog(),
-            custom_voice_context=_build_custom_voice_context(),
+            voice_catalog=_load_voice_catalog(book_id),
+            custom_voice_context=_build_custom_voice_context(book_id),
         )
     except VoiceCatalogUnavailable as exc:
         raise _job_http_error(exc) from exc
@@ -1190,10 +1242,10 @@ def production_speaker_review_suggestions(
         total_started = time.perf_counter()
         with collect_query_metrics() as query_metrics:
             started = time.perf_counter()
-            voice_catalog = _load_voice_catalog()
+            voice_catalog = _load_voice_catalog(book_id)
             timings["voice_catalog"] = time.perf_counter() - started
             started = time.perf_counter()
-            custom_voice_context = _build_custom_voice_context()
+            custom_voice_context = _build_custom_voice_context(book_id)
             timings["custom_voice_context"] = time.perf_counter() - started
             started = time.perf_counter()
             registry = get_book_voice_registry(
@@ -1357,8 +1409,8 @@ def _speaker_review_command_context(
             raise ProductionCommandError("Speaker review payload does not match command scope")
     if "skip_completed" in payload and bool(payload["skip_completed"]) != expected["skip_completed"]:
         raise ProductionCommandError("Speaker review skip_completed does not match command scope")
-    voice_catalog = _load_voice_catalog()
-    custom_voice_context = _build_custom_voice_context()
+    voice_catalog = _load_voice_catalog(expected["book_id"])
+    custom_voice_context = _build_custom_voice_context(expected["book_id"])
     registry = get_book_voice_registry(
         db,
         store,
@@ -1385,8 +1437,8 @@ def _project_production_command(
     scope: dict[str, Any],
 ) -> tuple[dict[str, Any], dict[str, Any] | None]:
     command_range = _production_command_range(scope)
-    voice_catalog = _load_voice_catalog()
-    custom_context = _build_custom_voice_context()
+    voice_catalog = _load_voice_catalog(command_range["book_id"])
+    custom_context = _build_custom_voice_context(command_range["book_id"])
     task = get_production_task_projection(
         db,
         book_id=command_range["book_id"],
@@ -2417,9 +2469,9 @@ def _production_command_executor(
                 speaker_key=parsed.speaker_key,
                 character_id=parsed.character_id,
                 aliases=parsed.aliases,
-                voice_catalog=_load_voice_catalog(),
+                voice_catalog=_load_voice_catalog(parsed.book_id),
                 idempotency_key=request.idempotency_key,
-                custom_voice_context=_build_custom_voice_context(),
+                custom_voice_context=_build_custom_voice_context(parsed.book_id),
             )
             applied_items = tuple(
                 {
@@ -2449,9 +2501,9 @@ def _production_command_executor(
                 from_chapter=int(command_range["from_chapter"]),
                 to_chapter=int(command_range["to_chapter"]),
                 speaker_key=parsed.speaker_key,
-                voice_catalog=_load_voice_catalog(),
+                voice_catalog=_load_voice_catalog(parsed.book_id),
                 idempotency_key=request.idempotency_key,
-                custom_voice_context=_build_custom_voice_context(),
+                custom_voice_context=_build_custom_voice_context(parsed.book_id),
             )
             applied_items = tuple(
                 {
@@ -2561,9 +2613,9 @@ def _production_command_executor(
                 speaker_key=str(payload["speaker_key"]).strip(),
                 operation="clear" if is_clear else "set",
                 voice_id=voice_id,
-                voice_catalog=_load_voice_catalog(),
+                voice_catalog=_load_voice_catalog(int(payload.get("book_id") or command_range["book_id"])),
                 idempotency_key=request.idempotency_key,
-                custom_voice_context=_build_custom_voice_context(),
+                custom_voice_context=_build_custom_voice_context(int(payload.get("book_id") or command_range["book_id"])),
             )
             applied_items = tuple(
                 {
@@ -2820,7 +2872,7 @@ def _production_command_executor(
                 db,
                 settings,
                 job_id=job_id,
-                voice_catalog=_load_voice_catalog(),
+                voice_catalog=_load_voice_catalog(_book_id_for_job(job_id)),
                 store=store,
                 command_idempotency_key=request.idempotency_key,
             )
@@ -3241,7 +3293,7 @@ def _range_input_state(
     to_chapter: int,
     skip_completed: bool,
 ) -> dict[str, Any]:
-    voice_catalog = _load_voice_catalog()
+    voice_catalog = _load_voice_catalog(book_id)
     return get_range_input_snapshot(
         db,
         store,
@@ -3250,7 +3302,7 @@ def _range_input_state(
         from_chapter=from_chapter,
         to_chapter=to_chapter,
         voice_catalog=voice_catalog,
-        custom_voice_context=_build_custom_voice_context(),
+        custom_voice_context=_build_custom_voice_context(book_id),
         skip_completed=skip_completed,
     )
 
@@ -3283,7 +3335,7 @@ def production_prepare_range_inputs(
     request: RangeInputScopeRequest,
 ) -> dict[str, Any]:
     try:
-        voice_catalog = _load_voice_catalog()
+        voice_catalog = _load_voice_catalog(request.book_id)
         return prepare_range_inputs(
             db,
             store,
@@ -3293,7 +3345,7 @@ def production_prepare_range_inputs(
             to_chapter=request.to_chapter,
             voice_catalog=voice_catalog,
             allowed_voice_ids=_preset_voice_ids(),
-            custom_voice_context=_build_custom_voice_context(),
+            custom_voice_context=_build_custom_voice_context(request.book_id),
             skip_completed=request.skip_completed,
         )
     except VoiceCatalogUnavailable as exc:
@@ -3344,8 +3396,8 @@ def production_approve_range_casting_plans(
     request: RangeCastingApprovalRequest,
 ) -> dict[str, Any]:
     try:
-        voice_catalog = _load_voice_catalog()
-        custom_context = _build_custom_voice_context()
+        voice_catalog = _load_voice_catalog(request.book_id)
+        custom_context = _build_custom_voice_context(request.book_id)
         snapshot = get_range_input_snapshot(
             db,
             store,
@@ -3394,7 +3446,7 @@ def production_batch_plan(
     target_phase: str = Query(..., min_length=1),
 ) -> dict[str, Any]:
     try:
-        voice_catalog = _load_voice_catalog()
+        voice_catalog = _load_voice_catalog(book_id)
         readiness = get_range_readiness(
             db,
             book_id=book_id,
@@ -3699,9 +3751,11 @@ def list_voices() -> dict[str, Any]:
 
 
 @app.get("/api/voice-catalog")
-def voice_catalog() -> dict[str, Any]:
+def voice_catalog(book_id: int | None = None) -> dict[str, Any]:
     try:
-        return _load_voice_catalog().public_payload()
+        if book_id is not None and book_id <= 0:
+            raise HTTPException(422, "Book identifier is invalid")
+        return _load_voice_catalog(book_id).public_payload()
     except VoiceCatalogUnavailable as exc:
         raise _job_http_error(exc) from exc
 
@@ -3745,7 +3799,7 @@ def add_character(book_id: int, request: CharacterCreateRequest) -> dict[str, An
         voice_id = request.voice_override_id or request.default_voice_id
         if voice_id is not None:
             if is_custom_ref(voice_id):
-                ctx = _build_custom_voice_context()
+                ctx = _build_custom_voice_context(book_id)
                 if ctx is None or not ctx.is_available(voice_id):
                     raise CastingError("Custom voice does not exist or is not usable")
             elif voice_id not in _preset_voice_ids():
@@ -3786,7 +3840,7 @@ def read_book_voice_profile(book_id: int) -> dict[str, Any]:
     profile = get_book_voice_profile(db, book_id)
     if not profile:
         return {"configured": False, "profile": None, "valid": False, "missing_preset_ids": []}
-    custom_context = _build_custom_voice_context()
+    custom_context = _build_custom_voice_context(book_id)
     return {
         "configured": True,
         "profile": profile,
@@ -3802,7 +3856,7 @@ def write_book_voice_profile(book_id: int, request: BookVoiceProfileRequest) -> 
             db,
             book_id,
             allowed_voice_ids=_preset_voice_ids(),
-            custom_voice_context=_build_custom_voice_context(),
+            custom_voice_context=_build_custom_voice_context(book_id),
             **request.model_dump()
         )
     except VoiceProfileError as exc:
@@ -3816,7 +3870,7 @@ def write_character_voice_override(
     try:
         if request.gender is not None and request.gender not in {"male", "female", "unknown"}:
             raise VoiceProfileError("Character gender is invalid")
-        custom_context = _build_custom_voice_context()
+        custom_context = _build_custom_voice_context(_book_id_for_character(character_id))
         valid_voices = _preset_voice_ids()
         if request.voice_override_id is not None:
             # Check both preset and custom voices
@@ -3867,7 +3921,7 @@ def resolve_voice_preview(book_id: int, request: VoiceResolveRequest) -> dict[st
                 character["gender"] = request.gender
         
         # Build custom voice context for resolution
-        custom_context = _build_custom_voice_context()
+        custom_context = _build_custom_voice_context(book_id)
         
         # Validate preview override (preset or custom)
         if request.voice_override_id is not None:
@@ -3913,7 +3967,7 @@ def remove_character(character_id: int) -> dict[str, bool]:
 def chapter_casting(chapter_id: int) -> dict[str, Any]:
     try:
         return casting_context(
-            db, store, chapter_id, _preset_voice_ids(), custom_voice_context=_build_custom_voice_context()
+            db, store, chapter_id, _preset_voice_ids(), custom_voice_context=_build_custom_voice_context(_book_id_for_chapter(chapter_id))
         )
     except CastingError as exc:
         raise HTTPException(400, str(exc)) from exc
@@ -3931,7 +3985,7 @@ def save_casting_draft(chapter_id: int, request: CastingDraftRequest) -> dict[st
             assignments=[item.model_dump() for item in request.assignments],
             allowed_voice_ids=_preset_voice_ids(),
             maximum=settings.tts_max_chars,
-            custom_voice_context=_build_custom_voice_context(),
+            custom_voice_context=_build_custom_voice_context(_book_id_for_chapter(chapter_id)),
         )
     except CastingError as exc:
         raise HTTPException(400, str(exc)) from exc
@@ -4052,7 +4106,7 @@ def approve_speaker_assignment_review(
             decisions=[item.model_dump() for item in request.decisions],
             idempotency_key=request.idempotency_key,
             allowed_voice_ids=_preset_voice_ids(),
-            custom_voice_context=_build_custom_voice_context(),
+            custom_voice_context=_build_custom_voice_context(_book_id_for_chapter(chapter_id)),
         )
     except SpeakerReviewConflict as exc:
         raise HTTPException(409, str(exc)) from exc
@@ -4078,7 +4132,7 @@ def create_speaker_review_casting_plan_draft(
             idempotency_key=request.idempotency_key,
             operator_note=request.operator_note,
             allowed_voice_ids=_preset_voice_ids(),
-            custom_voice_context=_build_custom_voice_context(),
+            custom_voice_context=_build_custom_voice_context(_book_id_for_chapter(chapter_id)),
         )
     except SpeakerReviewNotFound as exc:
         raise HTTPException(404, str(exc)) from exc
@@ -4092,7 +4146,10 @@ def create_speaker_review_casting_plan_draft(
 def approve_casting(casting_plan_id: int) -> dict[str, Any]:
     try:
         candidate = get_plan(db, store, casting_plan_id, include_text=True)
-        voice_catalog = _load_voice_catalog()
+        chapter = db.fetch_one("SELECT book_id FROM chapters WHERE id=?", (int(candidate["chapter_id"]),))
+        if not chapter:
+            raise CastingError("Casting plan chapter was not found")
+        voice_catalog = _load_voice_catalog(int(chapter["book_id"]))
         require_casting_plan_eligible(
             candidate["plan"],
             voice_catalog,
@@ -4104,7 +4161,7 @@ def approve_casting(casting_plan_id: int) -> dict[str, Any]:
             store,
             casting_plan_id,
             set(voice_catalog.preset_ids),
-            custom_voice_context=_build_custom_voice_context(),
+            custom_voice_context=_build_custom_voice_context(int(chapter["book_id"])),
         )
         return result
     except (VoiceCatalogUnavailable, VoiceEligibilityBlocked) as exc:
@@ -4122,7 +4179,7 @@ def read_casting_plan(casting_plan_id: int) -> dict[str, Any]:
             store,
             casting_plan_id,
             _preset_voice_ids(),
-            custom_voice_context=_build_custom_voice_context(),
+            custom_voice_context=_build_custom_voice_context(_book_id_for_casting_plan(casting_plan_id)),
         )
         return result
     except CastingError as exc:
@@ -4156,7 +4213,7 @@ def create_voice_preview(request: VoicePreviewRequest) -> dict[str, Any]:
             # Check if voice_id is a custom logical reference (e.g., "custom:25")
             if is_custom_ref(request.voice_id):
                 # Resolve logical custom voice reference to preferred revision
-                ctx = CustomVoiceContext.from_repository(custom_voice_repo)
+                ctx = _build_custom_voice_context(_book_id_for_custom_ref(request.voice_id))
                 resolved = resolve_custom_ref(request.voice_id, ctx, repository=custom_voice_repo)
                 revision_id = resolved["custom_voice_revision_id"]
 
@@ -4243,7 +4300,7 @@ def _legacy_validated_job_payload(request: JobRequest) -> dict[str, Any]:
 
     voice_name = payload["voice_name"]
     if is_custom_ref(voice_name):
-        ctx = CustomVoiceContext.from_repository(custom_voice_repo)
+        ctx = _build_custom_voice_context(int(payload["book_id"]))
         try:
             resolve_custom_ref(voice_name, ctx, repository=custom_voice_repo)
         except Exception as exc:
@@ -4259,7 +4316,7 @@ def _legacy_validated_job_payload(request: JobRequest) -> dict[str, Any]:
             store,
             int(payload["casting_plan_id"]),
             _preset_voice_ids(),
-            custom_voice_context=_build_custom_voice_context(),
+            custom_voice_context=_build_custom_voice_context(int(payload["book_id"])),
         )
     return payload
 
@@ -4267,7 +4324,7 @@ def _legacy_validated_job_payload(request: JobRequest) -> dict[str, Any]:
 def _validated_job_payload(request: JobRequest) -> dict[str, Any]:
     payload = request.model_dump()
     payload["voice_name"] = unicodedata.normalize("NFC", payload["voice_name"]).strip()
-    voice_catalog = _load_voice_catalog()
+    voice_catalog = _load_voice_catalog(int(payload["book_id"]))
     issue = inspect_voice_ref(
         payload["voice_name"],
         voice_catalog,
@@ -4318,7 +4375,7 @@ def submit_job(request: JobRequest) -> dict[str, Any]:
         voice_name = payload["voice_name"]
         if is_custom_ref(voice_name):
             # Validate custom logical reference
-            ctx = CustomVoiceContext.from_repository(custom_voice_repo)
+            ctx = _build_custom_voice_context(int(payload["book_id"]))
             try:
                 # This will raise if voice is inactive, missing, or has no preferred revision
                 resolve_custom_ref(voice_name, ctx, repository=custom_voice_repo)
@@ -4336,7 +4393,7 @@ def submit_job(request: JobRequest) -> dict[str, Any]:
                 store,
                 int(payload["casting_plan_id"]),
                 _preset_voice_ids(),
-                custom_voice_context=_build_custom_voice_context(),
+                custom_voice_context=_build_custom_voice_context(int(payload["book_id"])),
             )
         result = create_job(db, settings, store=store, **payload)
         worker.wake()
@@ -4412,7 +4469,7 @@ def start_job(job_id: int) -> dict[str, Any]:
             db,
             settings,
             job_id=job_id,
-            voice_catalog=_load_voice_catalog(),
+            voice_catalog=_load_voice_catalog(_book_id_for_job(job_id)),
             store=store,
         )
     except Exception as exc:
@@ -4867,17 +4924,40 @@ def cleanup_preview_cache() -> dict[str, int]:
 
 # Custom Voice API Endpoints
 
+@app.post("/api/books/{book_id}/custom-voices")
+async def create_book_custom_voice(
+    book_id: int,
+    display_name: str = Form(...),
+    audio: UploadFile = File(...),
+    transcript: str = Form(...),
+    description: str | None = Form(None),
+) -> dict[str, Any]:
+    return create_book_custom_voice_handler(
+        custom_voice_repo, book_id, display_name, audio, transcript, description
+    )
+
+
+@app.get("/api/books/{book_id}/custom-voices")
+def list_book_custom_voices(
+    book_id: int,
+    active_only: bool = Query(False),
+) -> list[dict[str, Any]]:
+    return list_custom_voices_handler(custom_voice_repo, active_only, book_id=book_id)
+
 @app.post("/api/custom-voices")
 def create_custom_voice(
     display_name: str = Body(..., min_length=1, max_length=120),
     description: str | None = Body(None),
+    book_id: int | None = Body(None, gt=0),
 ) -> dict[str, Any]:
-    return create_custom_voice_handler(custom_voice_repo, display_name, description)
+    return create_custom_voice_handler(custom_voice_repo, display_name, description, book_id=book_id)
 
 
 @app.get("/api/custom-voices")
-def list_custom_voices(active_only: bool = Query(False)) -> list[dict[str, Any]]:
-    return list_custom_voices_handler(custom_voice_repo, active_only)
+def list_custom_voices(
+    active_only: bool = Query(False), book_id: int | None = Query(None, gt=0)
+) -> list[dict[str, Any]]:
+    return list_custom_voices_handler(custom_voice_repo, active_only, book_id=book_id)
 
 
 @app.get("/api/custom-voices/{voice_id}")

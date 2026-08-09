@@ -184,7 +184,7 @@ class DatabaseAuthoritativeSnapshotProvider:
         *,
         temporary_root: Path,
         allow_canonical: bool = False,
-        voice_catalog_loader: Callable[[], EffectiveVoiceCatalog] | None = None,
+        voice_catalog_loader: Callable[[int], EffectiveVoiceCatalog] | None = None,
     ):
         self.db = db
         self.store = store
@@ -273,7 +273,6 @@ class DatabaseAuthoritativeSnapshotProvider:
             raise IsolatedAdapterError("PREPARE scope exceeds the bounded historical result capacity")
         ordered = sorted(rows, key=lambda row: (int(row.get("chapter_number") or 0), int(row.get("chapter_id") or 0)))
         snapshots: list[AuthoritativeChapterSnapshot] = []
-        voice_catalog = self.voice_catalog_loader() if self.voice_catalog_loader else None
         with self.db.connect() as connection:
             for order, item in enumerate(ordered, start=1):
                 chapter_id = int(item.get("chapter_id") or 0)
@@ -284,6 +283,11 @@ class DatabaseAuthoritativeSnapshotProvider:
                 ).fetchone()
                 if chapter is None or plan_row is None:
                     raise IsolatedAdapterError("eligible chapter authority is missing")
+                voice_catalog = (
+                    self.voice_catalog_loader(int(chapter["book_id"]))
+                    if self.voice_catalog_loader
+                    else None
+                )
                 expected = (
                     int(chapter["book_id"]) == binding.book_id,
                     binding.from_chapter <= int(chapter["chapter_number"]) <= binding.to_chapter,

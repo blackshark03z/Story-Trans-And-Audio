@@ -13,8 +13,12 @@ from . import __version__
 from .config import Settings
 from .db import Database
 from .files import atomic_write_json, sha256_file
-from .migrations import LATEST_SCHEMA_VERSION
-from .batch_prepare_schema import PREPARE_SCHEMA_VERSION, prepare_migration_runner
+from .migrations import (
+    LATEST_SCHEMA_VERSION,
+    MigrationRunner,
+    RUNTIME_MIGRATIONS,
+    SchemaMigrationError,
+)
 
 
 MANIFEST_SCHEMA_VERSION = 1
@@ -66,6 +70,20 @@ def _sqlite_schema_version(path: Path) -> int:
         connection.close()
 
 
+def _runtime_schema_version(path: Path) -> int:
+    """Validate an existing database against the full runtime migration chain.
+
+    This opens SQLite in read-only mode: backup verification/recovery must never
+    normalize, migrate, or rewrite ownership/provenance merely to inspect it.
+    """
+    connection = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
+    connection.row_factory = sqlite3.Row
+    try:
+        return MigrationRunner(RUNTIME_MIGRATIONS).current_version(connection)
+    finally:
+        connection.close()
+
+
 def _backup_sqlite(source: Path, destination: Path) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
     source_connection = sqlite3.connect(source)
@@ -103,13 +121,18 @@ def create_backup(
     if not config.db_path.exists():
         raise BackupError(f"Database does not exist: {config.db_path}")
 
-    database = Database(config.db_path, migration_runner=prepare_migration_runner())
+    # Backups are a runtime recovery boundary, so they must understand every
+    # migration accepted by the application, including forward data migrations.
+    database = Database(
+        config.db_path,
+        migration_runner=MigrationRunner(RUNTIME_MIGRATIONS),
+    )
     schema_version = database.schema_version()
-    supported = schema_version <= LATEST_SCHEMA_VERSION or schema_version == PREPARE_SCHEMA_VERSION
+    supported = schema_version <= LATEST_SCHEMA_VERSION
     if schema_version < 1 or not supported:
         raise BackupError(
             f"Database schema {schema_version} is not supported by this backup version "
-            f"(supported: 1-{LATEST_SCHEMA_VERSION} or {PREPARE_SCHEMA_VERSION})."
+            f"(supported: 1-{LATEST_SCHEMA_VERSION})."
         )
     placeholders = ",".join("?" for _ in ACTIVE_JOB_STATUSES)
     active_count = int(
@@ -221,7 +244,12 @@ def verify_backup(backup_dir: Path) -> dict[str, Any]:
         raise BackupVerificationError("Backup is missing files/app.db.")
     if _sqlite_quick_check(database_path) != "ok":
         raise BackupVerificationError("Backup database failed PRAGMA quick_check.")
-    database_version = _sqlite_schema_version(database_path)
+    try:
+        database_version = _runtime_schema_version(database_path)
+    except (SchemaMigrationError, sqlite3.Error) as exc:
+        raise BackupVerificationError(
+            f"Backup database is not valid for the current runtime migration chain: {exc}"
+        ) from exc
     if database_version != int(manifest.get("schema_version", -1)):
         raise BackupVerificationError(
             f"Database schema version {database_version} does not match manifest."
@@ -301,9 +329,14 @@ def restore_backup(
         )
         if _sqlite_quick_check(database_path) != "ok":
             raise BackupError("Restored database failed PRAGMA quick_check.")
-        restored_schema = _sqlite_schema_version(database_path)
-        if restored_schema > LATEST_SCHEMA_VERSION and restored_schema != PREPARE_SCHEMA_VERSION:
-            raise BackupError("Restored database is newer than this application.")
+        try:
+            restored_schema = _runtime_schema_version(database_path)
+        except (SchemaMigrationError, sqlite3.Error) as exc:
+            raise BackupError(
+                f"Restored database is not valid for the current runtime migration chain: {exc}"
+            ) from exc
+        if restored_schema != int(manifest["schema_version"]):
+            raise BackupError("Restored database schema does not match the verified backup manifest.")
 
         if destination_data_dir.exists():
             timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")

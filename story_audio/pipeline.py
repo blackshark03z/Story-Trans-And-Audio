@@ -618,6 +618,16 @@ class PipelineWorker:
     def wake(self) -> None:
         self._wake.set()
 
+    def _custom_voice_context_for_book(self, book_id: int) -> CustomVoiceContext:
+        """Return a per-book context without allowing cross-book cache reuse."""
+        contexts = self.__dict__.setdefault("_custom_ctx_cache_by_book", {})
+        context = contexts.get(book_id)
+        if context is None:
+            repo = CustomVoiceRepository(self.db, self.store)
+            context = CustomVoiceContext.from_repository(repo, book_id=book_id)
+            contexts[book_id] = context
+        return context
+
     def _loop(self) -> None:
         while not self._stop.is_set():
             try:
@@ -790,6 +800,7 @@ class PipelineWorker:
             settings_snapshot,
             chapter=chapter,
             fallback_voice=str(job["voice_name"]),
+            book_id=int(job["book_id"]),
         )
         self._set_job(job_id, "synthesizing", "tts", current_chapter_number=chapter["chapter_number"])
         chapter_work = self.config.work_dir / f"job_{job_id}" / f"chapter_{int(chapter['chapter_number']):04d}"
@@ -1232,12 +1243,23 @@ class PipelineWorker:
         *,
         chapter: dict[str, Any] | None = None,
         fallback_voice: str = "",
+        book_id: int | None = None,
     ) -> list[dict[str, Any]]:
         existing = self.db.fetch_all(
             "SELECT * FROM segments WHERE job_chapter_id=? ORDER BY segment_index", (job_chapter_id,)
         )
         if existing:
             return [dict(row) for row in existing]
+
+        if book_id is None:
+            row = self.db.fetch_one(
+                """SELECT c.book_id FROM job_chapters jc
+                   JOIN chapters c ON c.id=jc.chapter_id WHERE jc.id=?""",
+                (job_chapter_id,),
+            )
+            if not row:
+                raise ValueError("Book identity is required for custom voice resolution")
+            book_id = int(row["book_id"])
 
         specs: list[dict[str, Any]] = []
         snapshot = json.loads(chapter["voice_snapshot_json"]) if chapter and chapter.get("voice_snapshot_json") else None
@@ -1324,10 +1346,9 @@ class PipelineWorker:
 
                     # Resolve custom ref first
                     custom_voice_id = parse_custom_ref(voice_id)
-                    if not hasattr(self, "_custom_ctx_cache"):
-                        repo = CustomVoiceRepository(self.db, self.store)
-                        self._custom_ctx_cache = CustomVoiceContext.from_repository(repo)
-                    resolved = resolve_custom_ref(voice_id, self._custom_ctx_cache)
+                    resolved = resolve_custom_ref(
+                        voice_id, self._custom_voice_context_for_book(book_id)
+                    )
 
                     # Validate completeness
                     if not resolved.get("audio_sha256") or not resolved.get("audio_storage_key"):
@@ -1413,8 +1434,9 @@ class PipelineWorker:
                         snap_version,
                     ),
                 )
-        # Clear custom voice context cache
-        self.__dict__.pop("_custom_ctx_cache", None)
+        # Contexts are book-scoped. Clear all of them after this job so a
+        # future worker cycle refreshes immutable voice/revision availability.
+        self.__dict__.pop("_custom_ctx_cache_by_book", None)
 
         return [
             dict(row)

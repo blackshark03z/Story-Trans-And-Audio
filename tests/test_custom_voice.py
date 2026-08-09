@@ -20,7 +20,7 @@ from story_audio.custom_voice import (
 )
 from story_audio.db import Database
 from story_audio.files import sha256_bytes, sha256_text
-from story_audio.migrations import LATEST_SCHEMA_VERSION
+from story_audio.migrations import LATEST_SCHEMA_VERSION, MigrationRunner, RUNTIME_MIGRATIONS
 from story_audio.storage import ContentStore
 
 
@@ -42,7 +42,7 @@ class CustomVoiceMigrationTests(unittest.TestCase):
         """Test that migration 0006 creates custom_voices and custom_voice_revisions tables."""
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "app.db"
-            database = Database(path)
+            database = Database(path, migration_runner=MigrationRunner(RUNTIME_MIGRATIONS))
             version = database.initialize()
             
             self.assertEqual(version, LATEST_SCHEMA_VERSION)

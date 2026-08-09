@@ -32,7 +32,7 @@ class RangeReadinessApiTests(IsolatedTestCase):
         self._original_db = api_module.db
         self._original_voice_catalog_loader = api_module._load_voice_catalog
         api_module.db = self.db
-        api_module._load_voice_catalog = lambda: EffectiveVoiceCatalog.from_ids(
+        api_module._load_voice_catalog = lambda book_id=None: EffectiveVoiceCatalog.from_ids(
             "ngoc_lan"
         )
         from story_audio.api import app

@@ -39,7 +39,7 @@ from tests.batch_prepare_phase10_fixture import Phase10FixtureMixin
 TOKEN = "production-prepare-synthetic-token"
 
 
-def production_voice_catalog() -> EffectiveVoiceCatalog:
+def production_voice_catalog(_book_id: int) -> EffectiveVoiceCatalog:
     return EffectiveVoiceCatalog.from_ids("custom:26")
 
 
@@ -71,7 +71,7 @@ class ProductionRuntimeGateTests(Phase10FixtureMixin):
             canonical_db_path=target,
         )
 
-    def test_normal_runtime_uses_activated_schema15_without_auto_migration(self):
+    def test_normal_runtime_upgrades_schema15_to_runtime_schema_without_data_mutation(self):
         from story_audio.api import _build_runtime_database
 
         before = self.counts()
@@ -79,8 +79,8 @@ class ProductionRuntimeGateTests(Phase10FixtureMixin):
             self.db_path,
             SimpleNamespace(runtime_mode="DISABLED", schema_version=15),
         )
-        self.assertEqual(database.latest_schema_version, 15)
-        self.assertEqual(database.initialize(), 15)
+        self.assertEqual(database.latest_schema_version, 16)
+        self.assertEqual(database.initialize(), 16)
         self.assertEqual(self.counts(), before)
 
     def test_schema15_production_constructs_same_authenticated_prepare_service(self):
@@ -88,6 +88,12 @@ class ProductionRuntimeGateTests(Phase10FixtureMixin):
         descriptor = self.descriptor(config)
         self.assertEqual(descriptor.status, "PRODUCTION_AUTHENTICATED_READY")
         self.assertTrue(descriptor.production_mutation_enabled)
+        catalog_books: list[int] = []
+
+        def book_scoped_catalog(book_id: int) -> EffectiveVoiceCatalog:
+            catalog_books.append(book_id)
+            return production_voice_catalog(book_id)
+
         with (
             patch(
                 "story_audio.batch_prepare_transaction_manager.canonical_production_db_path",
@@ -102,7 +108,7 @@ class ProductionRuntimeGateTests(Phase10FixtureMixin):
                 settings=self.config,
                 config=config,
                 descriptor=descriptor,
-                voice_catalog_loader=production_voice_catalog,
+                voice_catalog_loader=book_scoped_catalog,
             )
             self.assertIsNotNone(service)
             plan = self.plan()
@@ -136,6 +142,8 @@ class ProductionRuntimeGateTests(Phase10FixtureMixin):
         self.assertEqual(self.counts()["job_chapters"], 2)
         self.assertEqual(self.counts()["segments"], 0)
         self.assertEqual(self.counts()["artifacts"], 0)
+        self.assertTrue(catalog_books)
+        self.assertEqual(set(catalog_books), {self.book_id})
 
     def test_production_canary_rejects_more_than_three_chapters_without_rows(self):
         config = parse_runtime_integration_config(production_values())

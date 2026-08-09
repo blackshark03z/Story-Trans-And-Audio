@@ -32,7 +32,7 @@ class BatchPrepareExecutionAttemptMigrationTests(unittest.TestCase):
 
     def test_dormant_migration_is_not_auto_discovered(self) -> None:
         self.assertTrue(DORMANT_EXECUTION_MIGRATION_PATH.exists())
-        self.assertEqual(LATEST_SCHEMA_VERSION, 12)
+        self.assertEqual(LATEST_SCHEMA_VERSION, 16)
         self.assertEqual(MIGRATIONS[-1].version, 12)
         self.assertFalse(Path("story_audio/migrations/0015_batch_prepare_execution_attempts.sql").exists())
 

@@ -45,7 +45,7 @@ class SpeakerReviewDraftApiTests(IsolatedTestCase):
         api_module.store = self.store
         api_module.settings = self.config
         api_module._preset_voice_ids = lambda: set(self.voices)
-        api_module._build_custom_voice_context = lambda: None
+        api_module._build_custom_voice_context = lambda book_id=None: None
         from story_audio.api import app
 
         self.client = TestClient(app)

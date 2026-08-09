@@ -249,7 +249,7 @@ def build_prepare_api_service(
     settings: Settings,
     config: RuntimeIntegrationConfig,
     descriptor: RuntimeIntegrationDescriptor,
-    voice_catalog_loader: Callable[[], EffectiveVoiceCatalog] | None = None,
+    voice_catalog_loader: Callable[[int], EffectiveVoiceCatalog] | None = None,
 ) -> BatchPrepareApiService | None:
     if (
         not descriptor.prepare_mutation_enabled
@@ -278,7 +278,7 @@ def build_prepare_api_service(
             book_id=book_id,
             from_chapter=from_chapter,
             to_chapter=to_chapter,
-            voice_catalog=voice_catalog_loader() if voice_catalog_loader else None,
+            voice_catalog=voice_catalog_loader(book_id) if voice_catalog_loader else None,
             store=store,
         )
         return build_batch_plan(readiness, target_phase=target_phase)

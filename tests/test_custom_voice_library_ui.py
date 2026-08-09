@@ -221,12 +221,12 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
 
     # API integration tests
     def test_refresh_library_fetches_custom_voices(self):
-        """refreshLibrary fetches /api/custom-voices with active_only param."""
-        pattern = r"await api\(`\/api\/custom-voices\?active_only=\$\{activeOnly\}`\)"
+        """refreshLibrary fetches the selected BOOK library with active_only."""
+        pattern = r"await api\(`\/api\/books\/\$\{bookId\}\/custom-voices\?active_only=\$\{activeOnly\}`\)"
         self.assertRegex(self.js, pattern)
 
     def test_create_library_voice_posts_to_custom_voices(self):
-        """createLibraryVoice posts to /api/custom-voices."""
+        """createLibraryVoice posts one sample-backed VOICE to its BOOK."""
         create_section = re.search(
             r"async function createLibraryVoice\(\).*?}catch",
             self.js,
@@ -234,11 +234,11 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         )
         self.assertIsNotNone(create_section)
         section_text = create_section.group(0)
-        self.assertIn("/api/custom-voices", section_text)
+        self.assertIn("/api/books/${bookId}/custom-voices", section_text)
         self.assertIn("method:'POST'", section_text)
 
     def test_create_sends_display_name_and_description(self):
-        """createLibraryVoice sends display_name and description fields."""
+        """createLibraryVoice sends name, description, sample audio, and transcript."""
         create_section = re.search(
             r"async function createLibraryVoice\(\).*?}catch",
             self.js,
@@ -246,8 +246,10 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         )
         self.assertIsNotNone(create_section)
         section_text = create_section.group(0)
-        self.assertIn("display_name:", section_text)
-        self.assertIn("description:", section_text)
+        self.assertIn("formData.append('display_name',name)", section_text)
+        self.assertIn("formData.append('description',description)", section_text)
+        self.assertIn("formData.append('audio',file)", section_text)
+        self.assertIn("formData.append('transcript',transcript)", section_text)
 
     def test_deactivate_patches_deactivate_route(self):
         """deactivateLibraryVoice patches /api/custom-voices/{id}/deactivate."""
@@ -1457,10 +1459,10 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         self.assertIn('class="voice-description-input"', self.html)
 
     def test_create_new_voice_not_using_form_grid(self):
-        """Create New Voice section does not use broken inline form-grid layout."""
-        # Find the Create New Voice section
+        """Add Voice section does not use broken inline form-grid layout."""
+        # Find the Add Voice section
         create_section = re.search(
-            r'<h3>Create New Voice</h3>.*?<button id="libraryCreate"',
+            r'<h3>Add Voice</h3>.*?<button id="libraryCreate"',
             self.html,
             re.DOTALL,
         )
@@ -1472,9 +1474,9 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         self.assertIn('class="create-voice-form"', section_text)
 
     def test_create_voice_name_and_description_separate_groups(self):
-        """Name and Description are in separate form groups."""
+        """Name, description, and sample inputs use separate form groups."""
         create_section = re.search(
-            r'<h3>Create New Voice</h3>.*?<button id="libraryCreate"',
+            r'<h3>Add Voice</h3>.*?<button id="libraryCreate"',
             self.html,
             re.DOTALL,
         )
@@ -1482,12 +1484,12 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         section_text = create_section.group(0)
         # Should have multiple voice-form-group instances
         form_groups = re.findall(r'class="voice-form-group"', section_text)
-        self.assertGreaterEqual(len(form_groups), 2)
+        self.assertGreaterEqual(len(form_groups), 4)
 
     def test_create_voice_labels_block_level(self):
-        """Labels in Create New Voice are block-level above controls."""
+        """Labels in Add Voice are block-level above controls."""
         create_section = re.search(
-            r'<h3>Create New Voice</h3>.*?<button id="libraryCreate"',
+            r'<h3>Add Voice</h3>.*?<button id="libraryCreate"',
             self.html,
             re.DOTALL,
         )
@@ -1496,6 +1498,8 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         # Labels should have for attribute and be separate from input
         self.assertIn('for="libraryNewName"', section_text)
         self.assertIn('for="libraryNewDescription"', section_text)
+        self.assertIn('for="libraryNewAudioFile"', section_text)
+        self.assertIn('for="libraryNewTranscript"', section_text)
 
     def test_create_voice_description_has_dedicated_class(self):
         """Description textarea has voice-description-input class."""

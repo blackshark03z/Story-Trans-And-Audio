@@ -47,7 +47,7 @@ class BatchPrepareMigrationTests(unittest.TestCase):
         self.assertNotEqual(path.resolve(), canonical_production_db_path().resolve())
 
     def test_dormant_migration_is_not_auto_discovered_by_default(self) -> None:
-        self.assertEqual(LATEST_SCHEMA_VERSION, 12)
+        self.assertEqual(LATEST_SCHEMA_VERSION, 16)
         self.assertEqual(MIGRATIONS[-1].version, 12)
         self.assertFalse(Path("story_audio/migrations/0013_batch_prepare_requests.sql").exists())
 
@@ -55,7 +55,7 @@ class BatchPrepareMigrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "schema13.db"
             self._assert_not_canonical(path)
-            database = Database(path)
+            database = Database(path, migration_runner=MigrationRunner(MIGRATIONS))
             self.assertEqual(database.initialize(), 12)
             database_13 = Database(path, migration_runner=schema_13_runner())
             self.assertEqual(database_13.initialize(), 13)
@@ -69,7 +69,7 @@ class BatchPrepareMigrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "legacy.db"
             self._assert_not_canonical(path)
-            database = Database(path)
+            database = Database(path, migration_runner=MigrationRunner(MIGRATIONS))
             database.initialize()
             now = utcnow()
             with database.transaction() as connection:
@@ -253,7 +253,7 @@ class BatchPrepareMigrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "rollback.db"
             self._assert_not_canonical(path)
-            database = Database(path)
+            database = Database(path, migration_runner=MigrationRunner(MIGRATIONS))
             database.initialize()
             broken = Database(path, migration_runner=schema_13_runner(bad_sql))
             with self.assertRaises(SchemaMigrationError):

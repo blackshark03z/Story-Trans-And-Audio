@@ -1,22 +1,22 @@
 # Current State
 
 Updated: 2026-08-09
-State Revision: 1
+State Revision: 3
 
 ## Continuity Fingerprint
 
 - Project ID: story-audio
 - Branch: main
-- HEAD: b2726a971b0a5c7120c56e6f41be1488a03e4d53
-- Worktree: PRODUCT_GOAL_FREEZE_IN_PROGRESS
-- Active Task ID: NONE
+- HEAD: 46d74ce59ce87ad03438bb9ffcc720e06a632f15
+- Worktree: CLEAN
+- Active Task ID: STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE
 - Last Known Good Commit: b2726a971b0a5c7120c56e6f41be1488a03e4d53
 - Runtime/Data Fingerprint: schema 15; canonical inspection read-only
 
 ## Current Product Position
 
-- Current milestone: PRODUCT-GOAL-001
-- Success criterion: SC-001
+- Current milestone: M-001
+- Success criterion: A normal user can add a sample-backed custom voice to one Book, it persists on reload, resolves in that Book runtime context, and cannot be seen or resolved by another Book.
 - Last demonstrated behavior/capability: Product intent frozen in Build OS
 - Demo evidence: Owner-approved Product Contract and Active Goal
 - Current user-visible limitation: No implementation task selected
@@ -32,11 +32,11 @@ State Revision: 1
 
 ## Active Work
 
-- Status: IDLE
-- Task ID: NONE
-- Writer session: NONE
-- What is changing: NOTHING
-- Current checkpoint: PRODUCT_GOAL_FROZEN
+- Status: ACTIVE
+- Task ID: STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE
+- Writer session: product-task-1-book-custom-voice-r3
+- What is changing: ADD CUSTOM VOICE TO SELECTED BOOK
+- Current checkpoint: RESUMED
 
 ## Completed and Verified
 
@@ -67,7 +67,8 @@ State Revision: 1
 
 ## Next Exact Action
 
-Select one bounded, explicitly authorized task against `STORY_AUDIO_PRODUCT_GOAL`.
+1. Read the compact context capsule and current task delta.
+2. Continue from the last evidence-producing checkpoint.
 
 ## Do Not Do
 

@@ -45,9 +45,9 @@ class RangeInputApiTests(IsolatedTestCase):
         api_module.db = self.db
         api_module.store = self.store
         api_module.settings = self.config
-        api_module._load_voice_catalog = lambda: self.catalog
+        api_module._load_voice_catalog = lambda book_id=None: self.catalog
         api_module._preset_voice_ids = lambda: set(self.catalog.preset_ids)
-        api_module._build_custom_voice_context = lambda: None
+        api_module._build_custom_voice_context = lambda book_id=None: None
         self.client = TestClient(api_module.app)
 
     def tearDown(self) -> None:

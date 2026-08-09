@@ -19,6 +19,7 @@ from story_audio.batch_prepare_runtime_integration import (
     require_clone_runtime,
 )
 from story_audio.db import Database
+from story_audio.migrations import MIGRATIONS, MigrationRunner
 from tests.base import IsolatedTestCase
 
 
@@ -32,7 +33,7 @@ class RuntimeIntegrationTests(IsolatedTestCase):
         self.external = self.temp_root / "external"
         self.external.mkdir()
         source = self.temp_root / "source" / "app.db"
-        Database(source).initialize()
+        Database(source, migration_runner=MigrationRunner(MIGRATIONS)).initialize()
         self.clone = self.external / "app.db"
         shutil.copyfile(source, self.clone)
         apply_dormant_migration(self.clone, 13)

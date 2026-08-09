@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import json
+import sqlite3
 import tempfile
 import os
 import unittest
@@ -14,9 +16,10 @@ from story_audio.backup import (
     verify_backup,
 )
 from story_audio.config import settings
-from story_audio.db import Database, utcnow
+from story_audio.db import Database as BaseDatabase, utcnow
 from story_audio.files import sha256_file
-from story_audio.migrations import LATEST_SCHEMA_VERSION
+from story_audio.integrity import check_data_integrity, has_errors
+from story_audio.migrations import LATEST_SCHEMA_VERSION, MigrationRunner, RUNTIME_MIGRATIONS
 from story_audio.storage import ContentStore
 
 
@@ -32,6 +35,10 @@ def make_config(root: Path):
         log_dir=root / "logs",
         minimum_free_gb=0,
     )
+
+
+def Database(path: Path) -> BaseDatabase:
+    return BaseDatabase(path, migration_runner=MigrationRunner(RUNTIME_MIGRATIONS))
 
 
 def seed_data(config) -> tuple[Database, Path]:
@@ -160,6 +167,33 @@ class BackupRestoreTests(unittest.TestCase):
             with self.assertRaises(BackupVerificationError):
                 verify_backup(backup_dir)
 
+    def test_verify_rejects_tampered_schema16_migration_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = make_config(root / "source")
+            seed_data(config)
+            backup_dir = root / "backup"
+            create_backup(config, backup_dir)
+            database_path = backup_dir / "files" / "app.db"
+            connection = sqlite3.connect(database_path)
+            try:
+                connection.execute(
+                    "UPDATE schema_migrations SET checksum=? WHERE version=16",
+                    ("0" * 64,),
+                )
+                connection.commit()
+            finally:
+                connection.close()
+            manifest_path = backup_dir / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            db_entry = next(entry for entry in manifest["files"] if entry["path"] == "files/app.db")
+            db_entry["size"] = database_path.stat().st_size
+            db_entry["sha256"] = sha256_file(database_path)
+            manifest["total_size"] = sum(int(entry["size"]) for entry in manifest["files"])
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(BackupVerificationError, "runtime migration chain"):
+                verify_backup(backup_dir)
+
     def test_backup_refuses_active_job_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -177,6 +211,63 @@ class BackupRestoreTests(unittest.TestCase):
                 )
             with self.assertRaises(BackupError):
                 create_backup(config, root / "backup")
+
+    def test_schema16_backup_restore_and_integrity_preserve_voice_ownership(self) -> None:
+        """Current runtime recovery retains both legacy and book-owned voice provenance."""
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = make_config(root / "source")
+            database, _ = seed_data(config)
+            now = utcnow()
+            book_id = int(database.fetch_one("SELECT id FROM books")["id"])
+            with database.transaction() as connection:
+                legacy_id = int(connection.execute(
+                    """INSERT INTO custom_voices(
+                        book_id,display_name,description,is_active,created_at,updated_at
+                    ) VALUES(NULL,?,?,1,?,?)""",
+                    ("Legacy recovery voice", "historical compatibility", now, now),
+                ).lastrowid)
+                owned_id = int(connection.execute(
+                    """INSERT INTO custom_voices(
+                        book_id,display_name,description,is_active,created_at,updated_at
+                    ) VALUES(?,?,?,?,?,?)""",
+                    (book_id, "Book recovery voice", "book-owned", 1, now, now),
+                ).lastrowid)
+                for voice_id, suffix in ((legacy_id, "legacy"), (owned_id, "owned")):
+                    connection.execute(
+                        """INSERT INTO custom_voice_revisions(
+                            custom_voice_id,revision_number,audio_storage_key,audio_sha256,
+                            reference_transcript,transcript_sha256,duration_ms,sample_rate,
+                            channels,audio_format,created_at
+                        ) VALUES(?,?,?,?,?,?,?,?,?,?,?)""",
+                        (voice_id, 1, f"voices/{suffix}.wav", suffix * 8, suffix,
+                         suffix * 9, 1000, 24000, 1, "wav", now),
+                    )
+
+            self.assertEqual(database.schema_version(), LATEST_SCHEMA_VERSION)
+            self.assertFalse(has_errors(check_data_integrity(config)))
+            backup_dir = root / "backup"
+            create_backup(config, backup_dir)
+            restored_data = root / "restored" / "data"
+            restore_backup(backup_dir, restored_data)
+            restored_config = make_config(root / "restored")
+            restored = Database(restored_data / "app.db")
+
+            self.assertEqual(restored.schema_version(), LATEST_SCHEMA_VERSION)
+            self.assertFalse(has_errors(check_data_integrity(restored_config)))
+            voices = {
+                int(row["id"]): row["book_id"]
+                for row in restored.fetch_all("SELECT id,book_id FROM custom_voices ORDER BY id")
+            }
+            self.assertEqual(voices[legacy_id], None)
+            self.assertEqual(voices[owned_id], book_id)
+            revisions = restored.fetch_all(
+                "SELECT custom_voice_id,revision_number FROM custom_voice_revisions ORDER BY custom_voice_id"
+            )
+            self.assertEqual(
+                [(int(row["custom_voice_id"]), int(row["revision_number"])) for row in revisions],
+                [(legacy_id, 1), (owned_id, 1)],
+            )
 
 
 if __name__ == "__main__":

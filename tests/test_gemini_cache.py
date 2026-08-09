@@ -9,7 +9,8 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
-from story_audio.db import Database, utcnow
+from story_audio.db import Database as BaseDatabase, utcnow
+from story_audio.migrations import MigrationRunner, RUNTIME_MIGRATIONS
 from story_audio.files import sha256_text
 from story_audio.gemini import RepairResult, repair_punctuation
 from story_audio.gemini_cache import GeminiRepairCache
@@ -22,6 +23,10 @@ from tests.test_recovery import FakeTts, make_config
 
 SOURCE = "Trời đã tối anh bước về nhà"
 REPAIRED = "Trời đã tối, anh bước về nhà."
+
+
+def Database(path: Path) -> BaseDatabase:
+    return BaseDatabase(path, migration_runner=MigrationRunner(RUNTIME_MIGRATIONS))
 
 
 class GeminiCacheTests(unittest.TestCase):

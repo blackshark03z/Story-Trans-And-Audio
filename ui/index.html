@@ -312,14 +312,15 @@
 
       <section class="panel custom-voice-library-panel">
         <div>
-          <h2>Custom Voice Library</h2>
-          <p class="muted">Manage custom reference voices for VieNeu synthesis.</p>
+          <h2>Book Voice Library</h2>
+          <p class="muted">Add and manage custom reference voices for the selected BOOK.</p>
         </div>
         <div class="row">
+          <label for="libraryBookSelect">BOOK<select id="libraryBookSelect"></select></label>
           <button id="refreshLibrary" class="secondary">Refresh Voices</button>
           <label class="check"><input id="showInactiveVoices" type="checkbox"> Show inactive voices</label>
         </div>
-        <div id="libraryStatus" class="muted">Click Refresh to load voices.</div>
+        <div id="libraryStatus" class="muted">Choose a BOOK to load its voices.</div>
         <div id="libraryVoiceList" class="voice-library-list"></div>
         <div id="librarySelectedDetails" class="library-selected-details hidden">
         <h3>Voice Details</h3>
@@ -389,7 +390,7 @@
         </details>
       </div>
       <details class="create-voice-section">
-        <summary><h3>Create New Voice</h3></summary>
+        <summary><h3>Add Voice</h3></summary>
         <div class="create-voice-form">
           <div class="voice-form-group">
             <label for="libraryNewName">Name</label>
@@ -399,8 +400,16 @@
             <label for="libraryNewDescription">Description (optional)</label>
             <textarea id="libraryNewDescription" class="voice-description-input" placeholder="Optional description" rows="3"></textarea>
           </div>
+          <div class="voice-form-group">
+            <label for="libraryNewAudioFile">Sample audio</label>
+            <input id="libraryNewAudioFile" type="file" accept="audio/wav,audio/x-wav,audio/mp3,audio/mpeg">
+          </div>
+          <div class="voice-form-group">
+            <label for="libraryNewTranscript">Exact transcript</label>
+            <textarea id="libraryNewTranscript" placeholder="Exact words spoken in the sample audio" rows="3" maxlength="10000"></textarea>
+          </div>
         </div>
-        <button id="libraryCreate" class="primary">Create Voice</button>
+        <button id="libraryCreate" class="primary">Save Voice</button>
       </details>
         <div id="libraryError" class="issue error hidden"></div>
       </section>

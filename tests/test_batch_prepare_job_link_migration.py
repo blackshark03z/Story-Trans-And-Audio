@@ -147,7 +147,7 @@ class BatchPrepareJobLinkMigrationTests(unittest.TestCase):
 
     def test_dormant_schema_14_is_not_auto_discovered(self) -> None:
         self.assertTrue(DORMANT_LINK_MIGRATION_PATH.exists())
-        self.assertEqual(LATEST_SCHEMA_VERSION, 12)
+        self.assertEqual(LATEST_SCHEMA_VERSION, 16)
         self.assertEqual(MIGRATIONS[-1].version, 12)
         self.assertFalse(Path("story_audio/migrations/0014_batch_prepare_job_links.sql").exists())
 
@@ -178,7 +178,7 @@ class BatchPrepareJobLinkMigrationTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "chain.db"
             _assert_not_canonical(path)
-            database = Database(path)
+            database = Database(path, migration_runner=MigrationRunner(MIGRATIONS))
             self.assertEqual(database.initialize(), 12)
             database_14 = Database(path, migration_runner=schema_14_runner())
             self.assertEqual(database_14.initialize(), 14)
