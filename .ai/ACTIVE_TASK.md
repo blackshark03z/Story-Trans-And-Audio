@@ -1,6 +1,6 @@
 # Task Template — DEEP
 
-Task Status: ACTIVE
+Task Status: COMPLETED
 Task Mode: DEEP
 Task ID: STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE
 Task Revision: 1
@@ -50,7 +50,7 @@ ADD CUSTOM VOICE TO SELECTED BOOK
 - HEAD: 46d74ce59ce87ad03438bb9ffcc720e06a632f15
 - Worktree: CLEAN
 - Starting Snapshot SHA256: 031315d182020b7127cd6f719c11097e956eabb2e8763845e7feedb3283cae73
-- Verified Snapshot SHA256: NONE
+- Verified Snapshot SHA256: 083073f70cb9ad6595429201f2cac84b74e8b185a9af1a4a05fa0b4d3331761c
 - State Revision: 3
 - Context Capsule Revision: 10
 
@@ -129,15 +129,15 @@ ADD CUSTOM VOICE TO SELECTED BOOK
 
 ## Execution Lease
 
-- Lease Status: CLAIMED
+- Lease Status: RELEASED
 - Writer Role: WORKER
 - Platform: ChatGPT
 - Model Claimed: UNSPECIFIED
 - Identity Verification: VERIFIED
 - Session Label: product-task-1-book-custom-voice-r3
 - Claimed At: 2026-08-09T08:27:54+00:00
-- Last Heartbeat: 2026-08-09T08:27:54+00:00
-- Released At: 2026-08-09T08:24:00+00:00
+- Last Heartbeat: 2026-08-09T09:10:02+00:00
+- Released At: 2026-08-09T09:10:02+00:00
 - Takeover From: NONE
 
 ## Lifecycle Timing
@@ -145,17 +145,17 @@ ADD CUSTOM VOICE TO SELECTED BOOK
 - Started At: 2026-08-09T08:14:09+00:00
 - First Runnable At: NONE
 - First Runnable Evidence: NONE
-- Completed At: NONE
+- Completed At: 2026-08-09T09:10:02+00:00
 
 ## Completion
 
-- Outcome: NONE
-- Evidence index: NONE
-- Evidence Bundle: NONE
-- Worker report: NONE
-- Review report: NONE
-- Ending HEAD: UNSET
-- Lease release: PENDING
+- Outcome: ADD CUSTOM VOICE TO SELECTED BOOK
+- Evidence index: .ai/evidence/STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001/EVIDENCE_INDEX.md
+- Evidence Bundle: .ai/evidence/STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001
+- Worker report: .ai/evidence/STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001/WORKER_REPORT.md
+- Review report: .ai/evidence/STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001/review/guardian_r3_book_scoped_custom_voice_final_review.md
+- Ending HEAD: 0189b0ae34e1831929fa4b8b9746c199fdbc1896
+- Lease release: RELEASED
 
 ## Replacement Contract
 

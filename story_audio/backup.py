@@ -79,7 +79,12 @@ def _runtime_schema_version(path: Path) -> int:
     connection = sqlite3.connect(f"{path.resolve().as_uri()}?mode=ro", uri=True)
     connection.row_factory = sqlite3.Row
     try:
-        return MigrationRunner(RUNTIME_MIGRATIONS).current_version(connection)
+        version = MigrationRunner(RUNTIME_MIGRATIONS).current_version(connection)
+        if version < 1:
+            raise SchemaMigrationError(
+                "Database has no applied runtime migrations and cannot be verified or restored."
+            )
+        return version
     finally:
         connection.close()
 

@@ -4,7 +4,7 @@ Goal ID: STORY_AUDIO_PRODUCT_GOAL_R3
 Goal Status: ACTIVE
 Goal Type: product
 Risk Ceiling: R3
-Updated: 2026-08-09T08:14:22+00:00
+Updated: 2026-08-09T09:10:04+00:00
 
 ## Outcome
 
@@ -47,7 +47,7 @@ Story Audio enables a local operator to create, review, repair, accept, and down
 
 | Node | Status | Agent | Risk | Delivery Delta | Depends On | Outcome |
 |---|---|---|---|---|---|---|
-| BOOK_SCOPED_CUSTOM_VOICE | ACTIVE | WORKER | R3 | USER_VISIBLE_BEHAVIOR | - | ADD CUSTOM VOICE TO SELECTED BOOK |
+| BOOK_SCOPED_CUSTOM_VOICE | DONE | WORKER | R3 | USER_VISIBLE_BEHAVIOR | - | ADD CUSTOM VOICE TO SELECTED BOOK |
 
 ## Human Interrupt Policy
 

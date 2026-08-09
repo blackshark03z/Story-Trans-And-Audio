@@ -1,0 +1,100 @@
+{
+  "files": [
+    {
+      "path": "EVIDENCE_INDEX.md",
+      "sha256": "ffa7041cba10bb624ca6b8376379799b6e6070bb1f16ca4f6fd67bc26fcc4baf",
+      "size": 4611
+    },
+    {
+      "path": "logs/EV-001-focused.stderr.txt",
+      "sha256": "36947370388d5486444634c8699782665cad8f52818f0653394de584c68692a3",
+      "size": 516
+    },
+    {
+      "path": "logs/EV-001-focused.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "logs/EV-002-negative.stderr.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "logs/EV-002-negative.stdout.txt",
+      "sha256": "03e7701f786c2099ceb4f645b2e3671e090eec749180a495e26fb3004b70b942",
+      "size": 73
+    },
+    {
+      "path": "logs/EV-003-integration.stderr.txt",
+      "sha256": "fb471c404401ffa924552809628222a695d8ff4322b72344a37da53cae0e7773",
+      "size": 170
+    },
+    {
+      "path": "logs/EV-003-integration.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "logs/EV-004-state_transition.stderr.txt",
+      "sha256": "6468378e6100359f274ecdcde4e999b96c35563fc13ff1ea9eb9dc2a2dcd15ec",
+      "size": 98
+    },
+    {
+      "path": "logs/EV-004-state_transition.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "logs/EV-005-acceptance_contract.stderr.txt",
+      "sha256": "ce2e129ff651702981db12b560bddc236768929a890d15141fac9144703ee9f7",
+      "size": 186
+    },
+    {
+      "path": "logs/EV-005-acceptance_contract.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "logs/EV-006-rollback.stderr.txt",
+      "sha256": "1ad13de8256d7626d2a1d58f6035f2fb139de650265ca384ab64ed92a4b63b64",
+      "size": 98
+    },
+    {
+      "path": "logs/EV-006-rollback.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "logs/EV-007-full_suite.stderr.txt",
+      "sha256": "d96c6be1686f5a78c0556f2c9492eb32e7cb4858eec180939c1719b2bf8a44fe",
+      "size": 331
+    },
+    {
+      "path": "logs/EV-007-full_suite.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "manifest.json",
+      "sha256": "5ec9b37fbdcf9e2b518ca142d09d41a22967e4288759e4fb1555db4ddd635dcf",
+      "size": 12627
+    },
+    {
+      "path": "review/attestation.json",
+      "sha256": "2d819678896735a8c04e6b589e65e815029b3c32f4553c145abb0a851f252c46",
+      "size": 854
+    },
+    {
+      "path": "review/guardian_r3_book_scoped_custom_voice_final_review.md",
+      "sha256": "d315c3a4822bc87ca77a701cc1f37b18968f119cd7fcdc127b98fd34aea84dd6",
+      "size": 3460
+    },
+    {
+      "path": "WORKER_REPORT.md",
+      "sha256": "a975f1069c49bd369dfda353aeafe1ab1a08599361fb26e9bf781fcabfcdc77b",
+      "size": 805
+    }
+  ],
+  "schema_version": 1
+}

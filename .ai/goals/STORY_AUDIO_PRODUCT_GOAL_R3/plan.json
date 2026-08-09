@@ -126,7 +126,7 @@
   },
   "goal_id": "STORY_AUDIO_PRODUCT_GOAL_R3",
   "goal_type": "product",
-  "last_task_id": null,
+  "last_task_id": "STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE",
   "non_goals": [
     "Translation, rewriting, or editorial story-content changes.",
     "Video creation, thumbnails, YouTube metadata, or YouTube upload.",
@@ -208,7 +208,16 @@
       "replaces": [
         "STORY_AUDIO_PRODUCT_GOAL-BOOK_SCOPED_CUSTOM_VOICE"
       ],
-      "result": null,
+      "result": {
+        "completed_at": "2026-08-09T09:10:04+00:00",
+        "delivery_delta": "USER_VISIBLE_BEHAVIOR",
+        "evidence_bundle": ".ai/evidence/STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001",
+        "first_pass_accepted": "no",
+        "outcome": "ADD CUSTOM VOICE TO SELECTED BOOK",
+        "risk_tier": "R3",
+        "task_id": "STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE",
+        "task_revision": 1
+      },
       "review_policy": "required",
       "risk": "R3",
       "started_at": "2026-08-09T08:14:22+00:00",
@@ -226,11 +235,11 @@
       "state_transitions": [
         "Book A add voice -> save -> reload -> Book A visible, Book B absent"
       ],
-      "status": "ACTIVE",
+      "status": "DONE",
       "success_criterion": "A normal user can add a sample-backed custom voice to one Book, it persists on reload, resolves in that Book runtime context, and cannot be seen or resolved by another Book.",
       "task_id": "STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE",
       "task_revision": 1
     }
   },
-  "updated_at": "2026-08-09T08:14:22+00:00"
+  "updated_at": "2026-08-09T09:10:04+00:00"
 }

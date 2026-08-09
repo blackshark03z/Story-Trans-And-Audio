@@ -12,6 +12,7 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
+from story_audio.migrations import LATEST_SCHEMA_VERSION
 from tests.test_production_scope_browser import ROOT
 from tests.test_speaker_review_workspace_browser import (
     SpeakerReviewWorkspaceFixtureHandler,
@@ -108,7 +109,7 @@ class AssignmentWorkflowBrowserTests(unittest.TestCase):
                 destination.execute(
                     "SELECT MAX(version) FROM schema_migrations"
                 ).fetchone()[0],
-                15,
+                LATEST_SCHEMA_VERSION,
             )
             self.assertEqual(destination.execute("PRAGMA quick_check").fetchone()[0], "ok")
             self.assertEqual(destination.execute("PRAGMA foreign_key_check").fetchall(), [])

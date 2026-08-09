@@ -1,12 +1,12 @@
 # Worker Packet
 
-Generated: 2026-08-09T08:27:54+00:00
-Capsule Revision: 14
+Generated: 2026-08-09T09:10:03+00:00
+Capsule Revision: 15
 
 ## Task
 
 - ID: STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001
-- Status: ACTIVE
+- Status: COMPLETED
 - Goal: STORY_AUDIO_PRODUCT_GOAL_R3 / node BOOK_SCOPED_CUSTOM_VOICE
 - Milestone / criterion: M-001 / A normal user can add a sample-backed custom voice to one Book, it persists on reload, resolves in that Book runtime context, and cannot be seen or resolved by another Book.
 - Risk / profile: R3 / DEEP
@@ -31,7 +31,7 @@ NONE
 - Create: story_audio/migrations/0016_book_scoped_custom_voices.sql,tests/test_book_scoped_custom_voices.py,scripts/browser_book_custom_voice_acceptance.mjs
 - External calls: NONE
 - Pre-existing dirty files: 0 (not part of task unless changed again)
-- Current task delta: scripts/browser_book_custom_voice_acceptance.mjs, story_audio/api.py, story_audio/custom_voice.py, story_audio/custom_voice_api.py, story_audio/migrations/0016_book_scoped_custom_voices.sql, story_audio/migrations/__init__.py, story_audio/pipeline.py, story_audio/voice_ref.py, tests/test_backup_restore.py, tests/test_batch_prepare_clone_migration.py, tests/test_batch_prepare_clone_rehearsal.py, tests/test_batch_prepare_execution_attempt_migration.py, tests/test_batch_prepare_isolated_integration.py, tests/test_batch_prepare_job_link_migration.py, tests/test_batch_prepare_migration.py, tests/test_batch_prepare_persistence_contract.py, tests/test_batch_prepare_runtime_integration.py, tests/test_book_scoped_custom_voices.py, tests/test_custom_voice.py, tests/test_custom_voice_library_ui.py, tests/test_gemini_cache.py, tests/test_migrations.py, tests/test_prepare_production_activation.py, tests/test_range_input_api.py, tests/test_range_readiness_api.py, tests/test_speaker_assignment.py, tests/test_speaker_review_api.py, ui/app.js, ui/index.html
+- Current task delta: NONE
 
 ## Acceptance
 

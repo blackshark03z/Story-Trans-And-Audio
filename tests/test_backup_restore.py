@@ -194,6 +194,30 @@ class BackupRestoreTests(unittest.TestCase):
             with self.assertRaisesRegex(BackupVerificationError, "runtime migration chain"):
                 verify_backup(backup_dir)
 
+    def test_verify_rejects_backup_without_runtime_migrations(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            config = make_config(root / "source")
+            seed_data(config)
+            backup_dir = root / "backup"
+            create_backup(config, backup_dir)
+            database_path = backup_dir / "files" / "app.db"
+            connection = sqlite3.connect(database_path)
+            try:
+                connection.execute("DELETE FROM schema_migrations")
+                connection.commit()
+            finally:
+                connection.close()
+            manifest_path = backup_dir / "manifest.json"
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            db_entry = next(entry for entry in manifest["files"] if entry["path"] == "files/app.db")
+            db_entry["size"] = database_path.stat().st_size
+            db_entry["sha256"] = sha256_file(database_path)
+            manifest["total_size"] = sum(int(entry["size"]) for entry in manifest["files"])
+            manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+            with self.assertRaisesRegex(BackupVerificationError, "runtime migration chain"):
+                verify_backup(backup_dir)
+
     def test_backup_refuses_active_job_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
