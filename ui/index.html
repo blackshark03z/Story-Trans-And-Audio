@@ -96,6 +96,7 @@
             <span id="productionRangeProgressText">0 / 0 chương hoàn tất</span>
             <div class="progress"><span id="productionRangeProgressBar" style="width:0%"></span></div>
           </div>
+          <button id="openCharacterReview" class="secondary hidden" type="button">Xem nhân vật</button>
           <button id="productionChangeScope" class="text-action hidden" type="button">Đổi phạm vi</button>
         </div>
 
@@ -164,6 +165,23 @@
           </main>
         </div>
       </section>
+
+    <section id="characterReviewView" class="app-view" data-app-view="character-review" aria-labelledby="characterReviewHeading" hidden>
+      <section class="panel character-review-page">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Phạm vi đã chọn</p>
+            <h2 id="characterReviewHeading">Nhân vật đã phát hiện</h2>
+          </div>
+          <button id="characterReviewChangeScope" class="secondary" type="button">Đổi phạm vi</button>
+        </div>
+        <p id="characterReviewScope" class="character-review-scope">Chưa chọn sách và chương.</p>
+        <p class="section-guide">Danh sách này dùng dữ liệu đã có của Sách để cho biết ai xuất hiện trong đúng các chương bạn đã chọn. Không có thay đổi nào được lưu ở đây.</p>
+        <div id="characterReviewSummary" class="character-review-summary" aria-live="polite"></div>
+        <p id="characterReviewNotice" class="character-review-notice hidden" role="status"></p>
+        <div id="characterReviewRoster" class="character-review-roster" aria-live="polite"></div>
+      </section>
+    </section>
 
       <section id="workspace" class="workspace hidden">
         <aside class="panel chapter-panel">
