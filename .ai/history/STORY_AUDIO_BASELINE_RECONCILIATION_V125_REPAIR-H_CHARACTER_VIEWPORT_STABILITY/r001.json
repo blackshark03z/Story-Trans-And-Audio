@@ -1,0 +1,29 @@
+{
+  "acceptance_contract_sha256": "NONE",
+  "actual_risk_floor": "R0",
+  "actual_risk_reasons": [],
+  "breaker_override": true,
+  "breaker_override_reason": "Mandatory full-suite acceptance is blocked by this single non-shipping harness race; completing it directly unlocks the Goal's frozen baseline criterion.",
+  "completed_at": "2026-08-25T10:36:38+00:00",
+  "delivery_delta": "RISK_RETIREMENT",
+  "evidence_bundle": ".ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY/r001",
+  "evidence_manifest_sha256": "cfb4ee7b97735107c1abd2cce8b65ac1b34a0d56a4c1b3c4bac56d547e9db122",
+  "first_pass_accepted": "no",
+  "goal_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR",
+  "goal_node": "H_CHARACTER_VIEWPORT_STABILITY",
+  "outcome": "Character-assignment browser evidence now waits for local suggestion completion within the integration budget, records actionable timeout diagnostics, and waits two animation frames after 1920x1080 emulation before enforcing full primary-action visibility and zero horizontal overflow.",
+  "quality_reconciliation": {
+    "escaped_defect": "unknown",
+    "later_rework": "unknown",
+    "rollback_required": "no"
+  },
+  "review_reasons": [],
+  "review_required": false,
+  "risk_tier": "R1",
+  "schema_version": 1,
+  "state_contract_sha256": "737ddc8598ef6f7e044acd5b5a8880bcf51215da8f3b75ec47a499e315836aeb",
+  "state_hazard_level": "S1",
+  "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY",
+  "task_revision": 1,
+  "verified_snapshot_sha256": "19572d6373df16ba8a80977e373bd3d37bb3c8cad76b607a7b132777bf4ceff0"
+}

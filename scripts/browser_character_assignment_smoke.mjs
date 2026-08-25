@@ -163,7 +163,18 @@ try {
   } else {
     await evaluate(`generateSpeakerSuggestions(false)`);
   }
-  await waitFor(`document.querySelectorAll('[data-speaker-suggestion-card]').length === 3`);
+  try {
+    await waitFor(`document.querySelectorAll('[data-speaker-suggestion-card]').length === 3`, 30000);
+  } catch (error) {
+    const diagnostic = await evaluate(`({
+      cards: document.querySelectorAll('[data-speaker-suggestion-card]').length,
+      command: window.storyAudioAppState?.productionCommand,
+      reviewStatus: window.storyAudioAppState?.bookVoiceRegistry?.speakerSuggestions?.status,
+      reviewLoading: window.storyAudioAppState?.bookVoiceRegistry?.speakerSuggestions?.loading,
+      reviewError: window.storyAudioAppState?.bookVoiceRegistry?.speakerSuggestions?.error,
+    })`);
+    throw new Error(`${error.message} ${JSON.stringify(diagnostic)}`);
+  }
   const reviewQueue = await evaluate(`(() => {
     const cards = [...document.querySelectorAll('[data-speaker-suggestion-card]')];
     return {
@@ -190,7 +201,14 @@ try {
     deviceScaleFactor: 1,
     mobile: false,
   });
-  await evaluate(`document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:25"))})?.scrollIntoView({ block: "center" })`);
+  await waitFor(`(async () => {
+    const action = document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:25"))});
+    if (!action) return false;
+    action.scrollIntoView({ block: "center" });
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const rect = document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:25"))})?.getBoundingClientRect();
+    return !!rect && rect.top >= 0 && rect.bottom <= innerHeight;
+  })()`, 5000);
   const layout1920 = await evaluate(`(() => {
     const action = document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:25"))})?.getBoundingClientRect();
     return {

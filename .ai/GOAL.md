@@ -4,7 +4,7 @@ Goal ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR
 Goal Status: ACTIVE
 Goal Type: risk
 Risk Ceiling: R3
-Updated: 2026-08-25T10:15:02+00:00
+Updated: 2026-08-25T10:36:39+00:00
 
 ## Outcome
 
@@ -55,6 +55,7 @@ Repair blockers discovered by the parent baseline Goal, restore a truthful green
 | G_BROWSER_POLL_STABILITY | DEFERRED | WORKER | R1 | RISK_RETIREMENT | D_GOLDEN_CERTIFICATION | Remove the full-suite-order race in assignment polling evidence without weakening DOM identity, focus, draft, or scroll stability assertions. |
 | G_BROWSER_POLL_STABILITY_V2 | DEFERRED | WORKER | R1 | RISK_RETIREMENT | D_GOLDEN_CERTIFICATION | Remove the full-suite-order race in assignment polling evidence without weakening DOM identity, focus, draft, or scroll stability assertions. |
 | G_BROWSER_POLL_STABILITY_V3 | DONE | WORKER | R1 | RISK_RETIREMENT | D_GOLDEN_CERTIFICATION | Certify and preserve the validated bounded assignment browser polling-race repair without weakening DOM identity, focus, draft, or scroll assertions. |
+| H_CHARACTER_VIEWPORT_STABILITY | DONE | WORKER | R1 | RISK_RETIREMENT | G_BROWSER_POLL_STABILITY_V3 | Make 1920x1080 character-assignment viewport evidence wait for post-emulation layout settlement while preserving exact primary-action visibility and horizontal-overflow acceptance. |
 
 ## Human Interrupt Policy
 

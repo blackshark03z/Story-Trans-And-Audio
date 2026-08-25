@@ -1,21 +1,21 @@
 # Worker Packet
 
-Generated: 2026-08-25T10:15:01+00:00
-Capsule Revision: 30
+Generated: 2026-08-25T10:36:38+00:00
+Capsule Revision: 32
 
 ## Task
 
-- ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3/r001
+- ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY/r001
 - Status: COMPLETED
-- Goal: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR / node G_BROWSER_POLL_STABILITY_V3
-- Milestone / criterion: M-001 / Five consecutive isolated real-browser assignment journeys pass and preserve the exact polling stability assertions; then the independent full offline review may rerun.
+- Goal: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR / node H_CHARACTER_VIEWPORT_STABILITY
+- Milestone / criterion: M-001 / SC-001
 - Risk / profile: R1 / LEAN
 - Negative path required: no
-- Shipping breaker: ACTIVE (3/3 non-shipping)
+- Shipping breaker: ACTIVE (4/3 non-shipping)
 
 ## Outcome
 
-Certify and preserve the validated bounded assignment browser polling-race repair without weakening DOM identity, focus, draft, or scroll assertions.
+Make 1920x1080 character-assignment viewport evidence wait for post-emulation layout settlement while preserving exact primary-action visibility and horizontal-overflow acceptance.
 
 ## Goal Context
 
@@ -27,7 +27,7 @@ NONE
 
 ## Scope
 
-- Modify: scripts/browser_assignment_flow_smoke.mjs
+- Modify: scripts/browser_character_assignment_smoke.mjs
 - Create: NONE
 - External calls: NONE
 - Pre-existing dirty files: 0 (not part of task unless changed again)
@@ -35,17 +35,15 @@ NONE
 
 ## Acceptance
 
-- [ ] Observable outcome exists.
-- [ ] Critical negative path is checked when `Negative path required: yes`.
-- [ ] Final output and task-scoped diff are inspected.
+- [ ] Five consecutive real-browser character-assignment journeys pass with the primary action fully visible and no horizontal overflow at 1920x1080.
 
 ## Verify
 
 1. Focused check.
 2. Negative-path check only when the task has a real failure behavior.
 3. Runtime/output and diff inspection.
-- Acceptance contract: 8b290c2fb46727240666b59f9d16ccb7f0cd2d2e43eb44b45f568064be453cba (predeclared commands=1, locked probes=0)
-- Review policy: none
+- Acceptance contract: NONE (predeclared commands=0, locked probes=0)
+- Review policy: auto
 
 ## Stop
 

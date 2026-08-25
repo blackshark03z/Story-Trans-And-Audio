@@ -1,0 +1,110 @@
+{
+  "acceptance_contract_sha256": "NONE",
+  "accepted_outcome": "Character-assignment browser evidence now waits for local suggestion completion within the integration budget, records actionable timeout diagnostics, and waits two animation frames after 1920x1080 emulation before enforcing full primary-action visibility and zero horizontal overflow.",
+  "artifacts": [],
+  "checks": [
+    {
+      "command": "D:/Youtube/VieNeu-TTS/.venv/Scripts/python.exe -m unittest tests.test_character_assignment_browser",
+      "completed_at": "2026-08-25T10:36:37+00:00",
+      "execution_mode": "argv",
+      "exit_code": 0,
+      "id": "EV-001",
+      "inspected_by": "agent:orchestrator",
+      "inspection_status": "AGENT_INSPECTED",
+      "kind": "focused",
+      "result": "PASS",
+      "satisfies": [
+        "focused"
+      ],
+      "started_at": "2026-08-25T10:36:32+00:00",
+      "stderr": {
+        "original_bytes": 98,
+        "path": "EV-001-focused.stderr.txt",
+        "sha256": "3ca6674665afea6d099c32f8aceaf75d4fde97a61cd8b903c33d111e510aa47c",
+        "stored_bytes": 98,
+        "truncated": false
+      },
+      "stdout": {
+        "original_bytes": 0,
+        "path": "EV-001-focused.stdout.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stored_bytes": 0,
+        "truncated": false
+      }
+    }
+  ],
+  "cleanup_note": "Browser runner terminates its exact child and removes only its unique disposable profile; retry/warning behavior remains bounded for Windows file locks.",
+  "evidence_mode": "COMPACT",
+  "execution_profile": "LEAN",
+  "final_verdict": "PASS",
+  "generated_at": "2026-08-25T10:36:37+00:00",
+  "goal_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR",
+  "goal_node": "H_CHARACTER_VIEWPORT_STABILITY",
+  "known_limits": "Full-suite direct rerun remains assigned to E reviewer; five consecutive focused runs pass.",
+  "output_assertions": [
+    {
+      "matched": true,
+      "text": "OK"
+    }
+  ],
+  "review": null,
+  "review_policy": "auto",
+  "risk_tier": "R1",
+  "schema_version": 4,
+  "starting_snapshot": {
+    "branch": "goal/story-audio-baseline-v125",
+    "changed_files": [
+      "scripts/browser_character_assignment_smoke.mjs"
+    ],
+    "git": true,
+    "head": "40edfa20569fa8c37ffda4e5e4d3e21fbd40338e",
+    "snapshot_sha256": "19572d6373df16ba8a80977e373bd3d37bb3c8cad76b607a7b132777bf4ceff0",
+    "status_lines": [
+      " M scripts/browser_character_assignment_smoke.mjs"
+    ],
+    "tracked_diff_sha256": "7479ecd73fe597488c15076db624a5d39aeb779fe14840981cfff0e46b710386",
+    "untracked_manifest_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "worktree": "DIRTY"
+  },
+  "state_contract": {
+    "authority": "",
+    "contract_sha256": "737ddc8598ef6f7e044acd5b5a8880bcf51215da8f3b75ec47a499e315836aeb",
+    "dependencies": [
+      "scripts/browser_character_assignment_smoke.mjs"
+    ],
+    "invariants": [],
+    "level": "S1",
+    "schema_version": 1,
+    "signals": [
+      "explicit:S1",
+      "viewport"
+    ],
+    "transitions": []
+  },
+  "state_contract_sha256": "737ddc8598ef6f7e044acd5b5a8880bcf51215da8f3b75ec47a499e315836aeb",
+  "state_hazard_level": "S1",
+  "success_criterion": "SC-001",
+  "task_delta_file_hashes": {
+    "scripts/browser_character_assignment_smoke.mjs": "FILE:7e9d165297e55fa5fdf042678ee709ecfa65237ec75404567729b8ab5ed7c00b"
+  },
+  "task_delta_files": [
+    "scripts/browser_character_assignment_smoke.mjs"
+  ],
+  "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY",
+  "task_revision": 1,
+  "verified_snapshot": {
+    "branch": "goal/story-audio-baseline-v125",
+    "changed_files": [
+      "scripts/browser_character_assignment_smoke.mjs"
+    ],
+    "git": true,
+    "head": "40edfa20569fa8c37ffda4e5e4d3e21fbd40338e",
+    "snapshot_sha256": "19572d6373df16ba8a80977e373bd3d37bb3c8cad76b607a7b132777bf4ceff0",
+    "status_lines": [
+      " M scripts/browser_character_assignment_smoke.mjs"
+    ],
+    "tracked_diff_sha256": "7479ecd73fe597488c15076db624a5d39aeb779fe14840981cfff0e46b710386",
+    "untracked_manifest_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "worktree": "DIRTY"
+  }
+}

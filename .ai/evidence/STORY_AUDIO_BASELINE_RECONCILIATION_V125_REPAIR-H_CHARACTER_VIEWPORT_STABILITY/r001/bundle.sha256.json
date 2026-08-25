@@ -1,0 +1,30 @@
+{
+  "files": [
+    {
+      "path": "EVIDENCE_INDEX.md",
+      "sha256": "353b7da53e053813a3bdfaba874d1a23930bd2a56e4e07074d38c556737fad75",
+      "size": 1660
+    },
+    {
+      "path": "logs/EV-001-focused.stderr.txt",
+      "sha256": "3ca6674665afea6d099c32f8aceaf75d4fde97a61cd8b903c33d111e510aa47c",
+      "size": 98
+    },
+    {
+      "path": "logs/EV-001-focused.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "manifest.json",
+      "sha256": "cfb4ee7b97735107c1abd2cce8b65ac1b34a0d56a4c1b3c4bac56d547e9db122",
+      "size": 4236
+    },
+    {
+      "path": "WORKER_REPORT.md",
+      "sha256": "77a54f1524cb425936190fada7eab21be19e3eefa2283503379cd1cc700bd8bc",
+      "size": 1029
+    }
+  ],
+  "schema_version": 1
+}

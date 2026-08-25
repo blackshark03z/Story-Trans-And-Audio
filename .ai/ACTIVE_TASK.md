@@ -2,7 +2,7 @@
 
 Task Status: COMPLETED
 Task Mode: LEAN
-Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3
+Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY
 Task Revision: 1
 Created: 2026-08-25
 Owner Authorization: NOT_REQUIRED
@@ -10,14 +10,14 @@ Authorization Reference: NONE
 
 ## Single Outcome
 
-Certify and preserve the validated bounded assignment browser polling-race repair without weakening DOM identity, focus, draft, or scroll assertions.
+Make 1920x1080 character-assignment viewport evidence wait for post-emulation layout settlement while preserving exact primary-action visibility and horizontal-overflow acceptance.
 
 ## Product Link
 
 - Milestone ID: M-001
-- Success Criterion: Five consecutive isolated real-browser assignment journeys pass and preserve the exact polling stability assertions; then the independent full offline review may rerun.
+- Success Criterion: SC-001
 - Goal ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR
-- Goal Node: G_BROWSER_POLL_STABILITY_V3
+- Goal Node: H_CHARACTER_VIEWPORT_STABILITY
 - Delivery Delta: RISK_RETIREMENT
 
 ## Risk and Execution Profile
@@ -31,33 +31,33 @@ Certify and preserve the validated bounded assignment browser polling-race repai
 - Execution Profile: LEAN
 - Human review required: no
 - Full suite required: no
-- Review policy: none
-- Acceptance Contract SHA256: 8b290c2fb46727240666b59f9d16ccb7f0cd2d2e43eb44b45f568064be453cba
-- Acceptance Contract JSON: {"commands":["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_assignment_workflow_browser"],"expected_outputs":["OK"],"probe_files":[],"probe_hashes":{},"effective_risk_at_freeze":"R1","frozen_at":"2026-08-25T10:14:19+00:00","contract_sha256":"8b290c2fb46727240666b59f9d16ccb7f0cd2d2e43eb44b45f568064be453cba"}
-- State Hazard Level: S3
-- State Hazard Signals: draft, explicit:S3, polling
-- State Contract SHA256: 697629749538ce4872b6feb0c293fd2eb1f88968d9484109087288729b03b9ca
-- State Contract JSON: {"schema_version":1,"level":"S3","authority":"live assignment DOM plus window.storyAudioAppState","transitions":["settled assignment -> local DIRTY draft -> repeated job polling -> same DOM and DIRTY draft"],"invariants":["deferred background reconciliation never replaces or scrolls an actively edited assignment row"],"dependencies":["ui/app.js","scripts/browser_assignment_flow_smoke.mjs"],"signals":["draft","explicit:S3","polling"],"contract_sha256":"697629749538ce4872b6feb0c293fd2eb1f88968d9484109087288729b03b9ca"}
+- Review policy: auto
+- Acceptance Contract SHA256: NONE
+- Acceptance Contract JSON: {}
+- State Hazard Level: S1
+- State Hazard Signals: explicit:S1, viewport
+- State Contract SHA256: 737ddc8598ef6f7e044acd5b5a8880bcf51215da8f3b75ec47a499e315836aeb
+- State Contract JSON: {"schema_version":1,"level":"S1","authority":"","transitions":[],"invariants":[],"dependencies":["scripts/browser_character_assignment_smoke.mjs"],"signals":["explicit:S1","viewport"],"contract_sha256":"737ddc8598ef6f7e044acd5b5a8880bcf51215da8f3b75ec47a499e315836aeb"}
 
 ## Continuity Fingerprint at Authorization
 
 - Project ID: story-audio
 - Branch: goal/story-audio-baseline-v125
-- HEAD: 801ac72664eb4a8274914b87ab562bd8e9d03968
+- HEAD: 40edfa20569fa8c37ffda4e5e4d3e21fbd40338e
 - Worktree: CLEAN
-- Starting Snapshot SHA256: ed1a01441b68fb7bd770a28fd9df2e81ed7d1429e24ba904166239aae19d3fd1
-- Verified Snapshot SHA256: 5af5167acf43426b96e245fd1c9a5fdddbe220ec5d0f2ef229132f0322ad479e
-- State Revision: 13
-- Context Capsule Revision: 28
+- Starting Snapshot SHA256: fc301b16f274981393d855e3dfa7378011c0ff21083a17e3e3bc92e63a33ddbd
+- Verified Snapshot SHA256: 19572d6373df16ba8a80977e373bd3d37bb3c8cad76b607a7b132777bf4ceff0
+- State Revision: 15
+- Context Capsule Revision: 30
 
 ## Permission Matrix
 
 ### Allowed
 
-- Read: task-relevant repository files
-- Modify: scripts/browser_assignment_flow_smoke.mjs
+- Read: browser character assignment harness and UI layout
+- Modify: scripts/browser_character_assignment_smoke.mjs
 - Create: NONE
-- Commands: focused checks and task-authorized commands
+- Commands: focused browser test and syntax check
 - External calls: NONE
 - Data operation: READ_ONLY
 - Artifact operation: READ_ONLY
@@ -68,9 +68,7 @@ Certify and preserve the validated bounded assignment browser polling-race repai
 
 ## Acceptance Criteria
 
-- [ ] Observable outcome exists.
-- [ ] Critical negative path is checked when `Negative path required: yes`.
-- [ ] Final output and task-scoped diff are inspected.
+- [ ] Five consecutive real-browser character-assignment journeys pass with the primary action fully visible and no horizontal overflow at 1920x1080.
 
 ## Verification Plan
 
@@ -84,8 +82,8 @@ Certify and preserve the validated bounded assignment browser polling-race repai
 - Files overwritten: NONE
 - Data mutated: NONE
 - Expected provider cost: 0.0
-- Process/port: NONE
-- Rollback: revert task-scoped diff and remove new artifacts
+- Process/port: EPHEMERAL
+- Rollback: revert task-scoped harness diff
 
 ## Execution Lease
 
@@ -94,24 +92,29 @@ Certify and preserve the validated bounded assignment browser polling-race repai
 - Platform: CODEX
 - Model Claimed: UNSPECIFIED
 - Identity Verification: VERIFIED
-- Session Label: browser-poll-stability-v3
-- Claimed At: 2026-08-25T10:14:19+00:00
-- Last Heartbeat: 2026-08-25T10:15:01+00:00
-- Released At: 2026-08-25T10:15:01+00:00
+- Session Label: character-viewport-stability
+- Claimed At: 2026-08-25T10:33:34+00:00
+- Last Heartbeat: 2026-08-25T10:36:38+00:00
+- Released At: 2026-08-25T10:36:38+00:00
 
 ## Lifecycle Timing
 
-- Started At: 2026-08-25T10:14:19+00:00
+- Started At: 2026-08-25T10:33:34+00:00
 - First Runnable At: NONE
 - First Runnable Evidence: NONE
-- Completed At: 2026-08-25T10:15:01+00:00
+- Completed At: 2026-08-25T10:36:38+00:00
 
 ## Completion
 
-- Outcome: Assignment browser polling evidence now waits for the real UI to quiesce, preserves active DOM identity/focus/draft/scroll invariants through repeated loadJobs polling, and atomically exercises injected repair controls without route-refresh races.
-- Evidence index: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3/r001/EVIDENCE_INDEX.md
-- Evidence Bundle: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3/r001
-- Worker report: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3/r001/WORKER_REPORT.md
+- Outcome: Character-assignment browser evidence now waits for local suggestion completion within the integration budget, records actionable timeout diagnostics, and waits two animation frames after 1920x1080 emulation before enforcing full primary-action visibility and zero horizontal overflow.
+- Evidence index: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY/r001/EVIDENCE_INDEX.md
+- Evidence Bundle: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY/r001
+- Worker report: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY/r001/WORKER_REPORT.md
 - Review report: NONE
-- Ending HEAD: 801ac72664eb4a8274914b87ab562bd8e9d03968
+- Ending HEAD: 40edfa20569fa8c37ffda4e5e4d3e21fbd40338e
 - Lease release: RELEASED
+
+## Shipping Breaker Override
+
+- Breaker at start: ACTIVE
+- Reason: Mandatory full-suite acceptance is blocked by this single non-shipping harness race; completing it directly unlocks the Goal's frozen baseline criterion.

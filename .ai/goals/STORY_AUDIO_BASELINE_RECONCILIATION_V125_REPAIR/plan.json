@@ -76,7 +76,7 @@
     "tracked_files": 413,
     "tracked_repo_mb": 6.481
   },
-  "completed_non_shipping_streak": 3,
+  "completed_non_shipping_streak": 4,
   "created_at": "2026-08-25T08:46:45+00:00",
   "decisions_required": [],
   "discoveries": [
@@ -165,7 +165,7 @@
   },
   "goal_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR",
   "goal_type": "risk",
-  "last_task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3",
+  "last_task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY",
   "non_goals": [
     "Production PREPARE, production START_RENDER, Gemini or VieNeu/TTS synthesis, Human QA decisions, canonical DB mutation, protected artifact mutation, secret changes, push, merge, deploy, broad refactor, wildcard repository scope, or historical evidence rewrite."
   ],
@@ -797,7 +797,78 @@
       "success_criterion": "Five consecutive isolated real-browser assignment journeys pass and preserve the exact polling stability assertions; then the independent full offline review may rerun.",
       "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3",
       "task_revision": 1
+    },
+    "H_CHARACTER_VIEWPORT_STABILITY": {
+      "acceptance": [],
+      "acceptance_contract": {
+        "commands": [
+          "D:/Youtube/VieNeu-TTS/.venv/Scripts/python.exe -m unittest tests.test_character_assignment_browser"
+        ],
+        "contract_sha256": "30062820602b7d8b9fb8a3b361de6405a77328b0dbabb4c39649315f0d7b6694",
+        "effective_risk_at_freeze": "R1",
+        "expected_outputs": [
+          "OK"
+        ],
+        "frozen_at": "2026-08-25T10:33:11+00:00",
+        "probe_files": [],
+        "probe_hashes": {}
+      },
+      "agent_role": "WORKER",
+      "artifact_operation": "READ_ONLY",
+      "create": "NONE",
+      "data_operation": "READ_ONLY",
+      "delegation": {
+        "action": "MAIN_WORKER",
+        "hard": true,
+        "model_class": "STRONG_WORKER",
+        "reasons": [
+          "delegation policy explicitly disables pre-scouting"
+        ],
+        "summary_token_budget": null
+      },
+      "delegation_policy": "main",
+      "delivery_delta": "RISK_RETIREMENT",
+      "depends_on": [
+        "G_BROWSER_POLL_STABILITY_V3"
+      ],
+      "initial_create_scope": "NONE",
+      "initial_modify_scope": "scripts/browser_character_assignment_smoke.mjs",
+      "initial_scope_count": 2,
+      "initial_scope_footprint": [
+        "PATTERN:scripts/browser_character_assignment_smoke.mjs",
+        "scripts/browser_character_assignment_smoke.mjs"
+      ],
+      "modify": "scripts/browser_character_assignment_smoke.mjs",
+      "negative_required": false,
+      "node_id": "H_CHARACTER_VIEWPORT_STABILITY",
+      "outcome": "Make 1920x1080 character-assignment viewport evidence wait for post-emulation layout settlement while preserving exact primary-action visibility and horizontal-overflow acceptance.",
+      "replaces": [],
+      "result": {
+        "completed_at": "2026-08-25T10:36:39+00:00",
+        "delivery_delta": "RISK_RETIREMENT",
+        "evidence_bundle": ".ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY/r001",
+        "first_pass_accepted": "no",
+        "outcome": "Character-assignment browser evidence now waits for local suggestion completion within the integration budget, records actionable timeout diagnostics, and waits two animation frames after 1920x1080 emulation before enforcing full primary-action visibility and zero horizontal overflow.",
+        "risk_tier": "R1",
+        "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY",
+        "task_revision": 1
+      },
+      "review_policy": "none",
+      "risk": "R1",
+      "started_at": "2026-08-25T10:33:41+00:00",
+      "state_authority": "",
+      "state_dependencies": [],
+      "state_hazard": "S1",
+      "state_invariants": [],
+      "state_signals": [
+        "viewport"
+      ],
+      "state_transitions": [],
+      "status": "DONE",
+      "success_criterion": "Five consecutive real-browser character-assignment journeys pass with the primary action fully visible and no horizontal overflow at 1920x1080.",
+      "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY",
+      "task_revision": 1
     }
   },
-  "updated_at": "2026-08-25T10:15:02+00:00"
+  "updated_at": "2026-08-25T10:36:39+00:00"
 }
