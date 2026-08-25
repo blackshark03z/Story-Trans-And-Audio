@@ -1,10 +1,10 @@
 # Active Goal
 
 Goal ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR
-Goal Status: ACTIVE
+Goal Status: BLOCKED
 Goal Type: risk
 Risk Ceiling: R3
-Updated: 2026-08-25T11:11:16+00:00
+Updated: 2026-08-25T11:13:58+00:00
 
 ## Outcome
 

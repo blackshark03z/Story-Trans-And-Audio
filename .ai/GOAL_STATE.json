@@ -78,7 +78,12 @@
   },
   "completed_non_shipping_streak": 5,
   "created_at": "2026-08-25T08:46:45+00:00",
-  "decisions_required": [],
+  "decisions_required": [
+    {
+      "at": "2026-08-25T11:13:58+00:00",
+      "reason": "Official v1.25 adoption is blocked by an undocumented v1.16-to-v1.25 terminality gap. The repaired green baseline and documentation authority are preserved at commit 8cfcc32; no adoption, executor replacement, lifecycle archive, production action, provider call, canonical DB mutation, or protected Artifact mutation was performed. Owner/upstream must provide a supported cross-version bridge or authorize a fresh post-close adoption Goal."
+    }
+  ],
   "discoveries": [
     {
       "affected_files": [
@@ -183,7 +188,7 @@
   "outcome": "Repair blockers discovered by the parent baseline Goal, restore a truthful green development baseline, reconcile current Story Audio authority, safely adopt the approved Build OS v1.25 RC4 lineage, and prove the new Work Loop without production/provider effects. Supersedes the incomplete execution attempt STORY_AUDIO_BASELINE_RECONCILIATION_V125 without rewriting its evidence.",
   "risk_ceiling": "R3",
   "schema_version": 1,
-  "status": "ACTIVE",
+  "status": "BLOCKED",
   "tasks": {
     "A_FAILURE_INVENTORY": {
       "acceptance": [],
@@ -1057,5 +1062,5 @@
       "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-I_V125_ADOPTION_DECISION"
     }
   },
-  "updated_at": "2026-08-25T11:11:16+00:00"
+  "updated_at": "2026-08-25T11:13:58+00:00"
 }
