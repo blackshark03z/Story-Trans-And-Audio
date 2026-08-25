@@ -107,6 +107,17 @@
         "R2 bounded test/UI repair; R3 lifecycle authority transition due legacy-state archival and v1.25 bootstrap."
       ],
       "summary": "Complete read-only inventory: full offline suite ran 1970 tests in 737s with 6 failures, 16 errors, 1 skip. Errors are four fixture families: worktree-local empty data/app.db assumption; batch-plan voice-catalog lambda signature drift; Human Approval and Production Runner custom_voice_repo binding drift. Failures are shared phase13/14 catalog stub readiness, Golden Journey stale schema/canonical/apply-button expectations, and two real 1366x768 layout regressions. Parent CI and voice-preview repairs remain green. JS syntax passes. v1.25 package/receipt identity is valid at source 595c0f7/frozen b34eb36, but official adoption rejects callable legacy scripts/state and conflicting AGENTS until archived."
+    },
+    {
+      "affected_files": [
+        "scripts/browser_assignment_flow_smoke.mjs",
+        "scripts/browser_character_assignment_smoke.mjs"
+      ],
+      "at": "2026-08-25T10:56:25+00:00",
+      "risk_signals": [
+        "Earlier non-verbose reviewer output misclassified an intermediate failure marker; final verbose unittest summary is authoritative and explicitly OK."
+      ],
+      "summary": "ACCEPT: final instrumented provider-blocked offline suite passed 1970 tests in 421.022s with one expected Windows skip; independent Project CI passed the same 1970-test contract with one skip; all 15 JS/MJS syntax checks, validate_ai_os --ci, and Doctor passed. Canonical schema16 DB SHA remained 4f816add7efea7cd32e5177f10fba03c998362b0d24f6d4fa224ff8873369b55, quick_check ok, FK0; port8772 closed; no provider or production action."
     }
   ],
   "goal_acceptance_contract": {
@@ -165,7 +176,7 @@
   },
   "goal_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR",
   "goal_type": "risk",
-  "last_task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY",
+  "last_task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-E_OFFLINE_BASELINE_REVIEW",
   "non_goals": [
     "Production PREPARE, production START_RENDER, Gemini or VieNeu/TTS synthesis, Human QA decisions, canonical DB mutation, protected artifact mutation, secret changes, push, merge, deploy, broad refactor, wildcard repository scope, or historical evidence rewrite."
   ],
@@ -530,7 +541,31 @@
       "node_id": "E_OFFLINE_BASELINE_REVIEW",
       "outcome": "Independently verify the repaired offline Story Audio baseline across the full project suite, CI contract, JavaScript syntax and read-only Doctor diagnostics.",
       "replaces": [],
-      "result": null,
+      "result": {
+        "affected_files": [
+          "scripts/browser_assignment_flow_smoke.mjs",
+          "scripts/browser_character_assignment_smoke.mjs"
+        ],
+        "completed_at": "2026-08-25T10:56:25+00:00",
+        "confidence": "HIGH",
+        "delegation_usage": {
+          "input_tokens": null,
+          "output_tokens": null,
+          "provider_cost": null,
+          "wall_minutes": null
+        },
+        "entry_point": "D:/Youtube/VieNeu-TTS/.venv/Scripts/python.exe -m unittest discover -s tests -v",
+        "invariants": [
+          "Provider/model environment stayed offline and canonical main DB bytes remained unchanged."
+        ],
+        "recommended_scope": [
+          "Proceed only to documentation authority reconciliation; keep production/runtime mutation prohibited."
+        ],
+        "risk_signals": [
+          "Earlier non-verbose reviewer output misclassified an intermediate failure marker; final verbose unittest summary is authoritative and explicitly OK."
+        ],
+        "summary": "ACCEPT: final instrumented provider-blocked offline suite passed 1970 tests in 421.022s with one expected Windows skip; independent Project CI passed the same 1970-test contract with one skip; all 15 JS/MJS syntax checks, validate_ai_os --ci, and Doctor passed. Canonical schema16 DB SHA remained 4f816add7efea7cd32e5177f10fba03c998362b0d24f6d4fa224ff8873369b55, quick_check ok, FK0; port8772 closed; no provider or production action."
+      },
       "review_policy": "none",
       "risk": "R1",
       "state_authority": "",
@@ -541,7 +576,7 @@
       ],
       "state_signals": [],
       "state_transitions": [],
-      "status": "PLANNED",
+      "status": "DONE",
       "success_criterion": "The complete offline suite and project CI pass with expected single platform skip only, JS syntax passes, and Doctor/canonical checks are classified without mutation.",
       "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-E_OFFLINE_BASELINE_REVIEW"
     },
@@ -870,5 +905,5 @@
       "task_revision": 1
     }
   },
-  "updated_at": "2026-08-25T10:36:39+00:00"
+  "updated_at": "2026-08-25T10:56:25+00:00"
 }
