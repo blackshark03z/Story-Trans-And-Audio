@@ -1,10 +1,10 @@
 # Active Goal
 
 Goal ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125
-Goal Status: BLOCKED
+Goal Status: ABORTED
 Goal Type: risk
 Risk Ceiling: R3
-Updated: 2026-08-25T08:15:10+00:00
+Updated: 2026-08-25T08:45:51+00:00
 
 ## Outcome
 
@@ -47,7 +47,7 @@ Restore one trustworthy Story Audio execution baseline and safely adopt Build OS
 | Node | Status | Agent | Risk | Delivery Delta | Depends On | Outcome |
 |---|---|---|---|---|---|---|
 | A_GROUND_TRUTH_PREFLIGHT | DONE | SCOUT | R1 | NO_DELTA | - | Record authoritative repository, runtime, database, CI and lifecycle grounding plus the migration compatibility map inputs. |
-| B_CI_RECONCILIATION | ACTIVE | WORKER | R2 | RISK_RETIREMENT | A_GROUND_TRUTH_PREFLIGHT | Repair the machine-readable Project Contract command encoding and prove CI command resolution and relevant checks. |
+| B_CI_RECONCILIATION | PLANNED | WORKER | R2 | RISK_RETIREMENT | A_GROUND_TRUTH_PREFLIGHT | Repair the machine-readable Project Contract command encoding and prove CI command resolution and relevant checks. |
 | C_DOCUMENTATION_AUTHORITY | PLANNED | WORKER | R1 | DOCUMENTATION_ONLY | A_GROUND_TRUTH_PREFLIGHT | Reconcile current Story Audio documentation with canonical schema 16 and Artifact 93/96/99 QA truth. |
 | D_V125_ADOPTION | PLANNED | WORKER | R3 | EXECUTABLE_CAPABILITY | B_CI_RECONCILIATION,C_DOCUMENTATION_AUTHORITY | Adopt the promoted v1.25 RC4 Work Loop through one external package authority while quarantining v1.16 controls as immutable history. |
 | E_BASELINE_VERIFICATION | PLANNED | WORKER | R3 | RISK_RETIREMENT | D_V125_ADOPTION | Prove the first bounded no-production Work Loop and verify the resulting Story Audio development baseline. |

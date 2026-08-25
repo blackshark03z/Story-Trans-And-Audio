@@ -7,9 +7,9 @@ State Revision: 5
 
 - Project ID: story-audio
 - Branch: goal/story-audio-baseline-v125
-- HEAD: c9504ddf50c48d1066f3aea4038b63086ffcbf79
+- HEAD: 76f431e70b23ae4c7bc9ac69c3efa05fc08631a6
 - Worktree: CLEAN
-- Active Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125-B_CI_RECONCILIATION
+- Active Task ID: NONE
 - Last Known Good Commit: 0189b0ae34e1831929fa4b8b9746c199fdbc1896
 - Runtime/Data Fingerprint: schema 15; canonical inspection read-only
 
@@ -32,11 +32,11 @@ State Revision: 5
 
 ## Active Work
 
-- Status: PAUSED
-- Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125-B_CI_RECONCILIATION
+- Status: IDLE
+- Task ID: NONE
 - Writer session: NONE
-- What is changing: Repair the machine-readable Project Contract command encoding and prove CI command resolution and relevant checks.
-- Current checkpoint: PAUSED
+- What is changing: NOTHING
+- Current checkpoint: ABORTED
 
 ## Completed and Verified
 
@@ -69,8 +69,8 @@ State Revision: 5
 
 ## Next Exact Action
 
-1. Resume `STORY_AUDIO_BASELINE_RECONCILIATION_V125-B_CI_RECONCILIATION` with `ai_os.py resume` when ready.
-2. Do not absorb its task delta into another task.
+1. Create the next smallest milestone-linked task.
+2. Keep aborted work out of the application worktree.
 
 ## Do Not Do
 

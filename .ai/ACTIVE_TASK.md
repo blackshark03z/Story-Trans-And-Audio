@@ -1,6 +1,6 @@
 # Task Template — STANDARD
 
-Task Status: PAUSED
+Task Status: ABORTED
 Task Mode: STANDARD
 Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125-B_CI_RECONCILIATION
 Task Revision: 1
@@ -131,7 +131,7 @@ Repair the machine-readable Project Contract command encoding and prove CI comma
 - Session Label: story-audio-baseline-ci
 - Claimed At: 2026-08-25T07:48:38+00:00
 - Last Heartbeat: 2026-08-25T08:14:17+00:00
-- Released At: 2026-08-25T08:14:17+00:00
+- Released At: 2026-08-25T08:45:50+00:00
 - Takeover From: NONE
 
 ## Lifecycle Timing
@@ -139,7 +139,7 @@ Repair the machine-readable Project Contract command encoding and prove CI comma
 - Started At: 2026-08-25T07:48:38+00:00
 - First Runnable At: NONE
 - First Runnable Evidence: NONE
-- Completed At: NONE
+- Completed At: 2026-08-25T08:45:50+00:00
 
 ## Completion
 

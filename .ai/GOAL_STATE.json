@@ -1,4 +1,5 @@
 {
+  "abort_reason": "SUPERSEDED_BY_OWNER_AUTHORIZED_REPAIR_GOAL: parent blocked after repeated lifecycle-governance impasse; existing node scope exhausted; installed Build OS has no safe node replan; owner authorized STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR; preserve all historical evidence and partial work.",
   "acceptance": [
     "A durable grounding record proves the repository, Git, worktree, runtime, database/schema, active artifact/QA, CI, lifecycle, and writer/lease facts required by the mission without production mutation.",
     "The CI command contract is machine-readable, install and product-check resolution are regression-covered, and the locally equivalent GitHub workflow checks pass without weakening fail-closed behavior.",
@@ -166,7 +167,7 @@
   "outcome": "Restore one trustworthy Story Audio execution baseline and safely adopt Build OS v1.25 Work Loop authority without laundering v1.16 history.",
   "risk_ceiling": "R3",
   "schema_version": 1,
-  "status": "BLOCKED",
+  "status": "ABORTED",
   "tasks": {
     "A_GROUND_TRUTH_PREFLIGHT": {
       "acceptance": [],
@@ -297,6 +298,7 @@
         "PATTERN:tests/test_project_ci_contract.py",
         "scripts/project_ci.py"
       ],
+      "last_abort_reason": "task aborted with zero delta",
       "modify": ".ai/PROJECT.md,scripts/project_ci.py",
       "negative_required": true,
       "node_id": "B_CI_RECONCILIATION",
@@ -305,7 +307,6 @@
       "result": null,
       "review_policy": "required",
       "risk": "R2",
-      "started_at": "2026-08-25T07:48:39+00:00",
       "state_authority": "",
       "state_dependencies": [],
       "state_hazard": "S1",
@@ -314,10 +315,9 @@
         "CI command contract parsing"
       ],
       "state_transitions": [],
-      "status": "ACTIVE",
+      "status": "PLANNED",
       "success_criterion": "CI install and product-check commands resolve without Markdown delimiter tokens and relevant checks pass.",
-      "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125-B_CI_RECONCILIATION",
-      "task_revision": 1
+      "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125-B_CI_RECONCILIATION"
     },
     "C_DOCUMENTATION_AUTHORITY": {
       "acceptance": [
@@ -495,5 +495,5 @@
       "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125-E_BASELINE_VERIFICATION"
     }
   },
-  "updated_at": "2026-08-25T08:15:10+00:00"
+  "updated_at": "2026-08-25T08:45:51+00:00"
 }

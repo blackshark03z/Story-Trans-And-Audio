@@ -1,12 +1,12 @@
 # Worker Packet
 
-Generated: 2026-08-25T08:14:17+00:00
-Capsule Revision: 18
+Generated: 2026-08-25T08:45:50+00:00
+Capsule Revision: 19
 
 ## Task
 
 - ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125-B_CI_RECONCILIATION/r001
-- Status: PAUSED
+- Status: ABORTED
 - Goal: STORY_AUDIO_BASELINE_RECONCILIATION_V125 / node B_CI_RECONCILIATION
 - Milestone / criterion: M-001 / CI install and product-check commands resolve without Markdown delimiter tokens and relevant checks pass.
 - Risk / profile: R2 / STANDARD
@@ -35,7 +35,7 @@ Scout A_GROUND_TRUTH_PREFLIGHT (HIGH): Git: isolated goal worktree on goal/story
 - Create: tests/test_project_ci_contract.py
 - External calls: NONE
 - Pre-existing dirty files: 0 (not part of task unless changed again)
-- Current task delta: scripts/project_ci.py, tests/test_project_ci_contract.py, tests/test_voice_preview_api.py
+- Current task delta: NONE
 
 ## Acceptance
 
