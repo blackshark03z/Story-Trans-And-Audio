@@ -1,0 +1,6 @@
+test_full_isolated_browser_golden_journey (tests.test_golden_journey_certification.GoldenJourneyCertificationTests.test_full_isolated_browser_golden_journey) ... ok
+
+----------------------------------------------------------------------
+Ran 1 test in 24.776s
+
+OK

@@ -4,7 +4,7 @@ Goal ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR
 Goal Status: ACTIVE
 Goal Type: risk
 Risk Ceiling: R3
-Updated: 2026-08-25T09:27:59+00:00
+Updated: 2026-08-25T09:49:10+00:00
 
 ## Outcome
 
@@ -49,7 +49,7 @@ Repair blockers discovered by the parent baseline Goal, restore a truthful green
 | A_FAILURE_INVENTORY | DONE | SCOUT | R1 | NO_DELTA | - | Build a complete read-only failure inventory across CI command resolution, offline product tests, browser acceptance, Golden Journey, Doctor, JavaScript syntax, v1.16 lifecycle validation, and v1.25 adoption compatibility before any repair writer scope is frozen. |
 | B_FIXTURE_ISOLATION | DONE | WORKER | R2 | RISK_RETIREMENT | A_FAILURE_INVENTORY | Repair all inventory-proven offline fixture/dependency-binding failures without weakening production voice-catalog or live-data guards. |
 | C_RESPONSIVE_LAYOUT | DONE | WORKER | R2 | USER_VISIBLE_BEHAVIOR | A_FAILURE_INVENTORY | Restore the production workbench and preflight viewport hierarchy at 1366x768 without loosening browser acceptance. |
-| D_GOLDEN_CERTIFICATION | PLANNED | WORKER | R2 | RISK_RETIREMENT | B_FIXTURE_ISOLATION,C_RESPONSIVE_LAYOUT | Reconcile Golden Journey with isolated schema-16 representative state and current explicit repair-plan behavior while preserving a read-only canonical non-mutation proof. |
+| D_GOLDEN_CERTIFICATION | DONE | WORKER | R2 | RISK_RETIREMENT | B_FIXTURE_ISOLATION,C_RESPONSIVE_LAYOUT | Reconcile Golden Journey with isolated schema-16 representative state and current explicit repair-plan behavior while preserving a read-only canonical non-mutation proof. |
 | E_OFFLINE_BASELINE_REVIEW | PLANNED | REVIEWER | R1 | NO_DELTA | B_FIXTURE_ISOLATION,C_RESPONSIVE_LAYOUT,D_GOLDEN_CERTIFICATION | Independently verify the repaired offline Story Audio baseline across the full project suite, CI contract, JavaScript syntax and read-only Doctor diagnostics. |
 | F_DOCUMENTATION_AUTHORITY | PLANNED | WORKER | R1 | DOCUMENTATION_ONLY | E_OFFLINE_BASELINE_REVIEW | Reconcile current Story Audio documentation with freshly verified Git/runtime/schema16/Artifact99/Artifact96 authority and exact post-repair boundary. |
 

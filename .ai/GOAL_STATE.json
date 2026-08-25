@@ -76,7 +76,7 @@
     "tracked_files": 413,
     "tracked_repo_mb": 6.481
   },
-  "completed_non_shipping_streak": 1,
+  "completed_non_shipping_streak": 2,
   "created_at": "2026-08-25T08:46:45+00:00",
   "decisions_required": [],
   "discoveries": [
@@ -165,7 +165,7 @@
   },
   "goal_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR",
   "goal_type": "risk",
-  "last_task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION",
+  "last_task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION",
   "non_goals": [
     "Production PREPARE, production START_RENDER, Gemini or VieNeu/TTS synthesis, Human QA decisions, canonical DB mutation, protected artifact mutation, secret changes, push, merge, deploy, broad refactor, wildcard repository scope, or historical evidence rewrite."
   ],
@@ -421,11 +421,12 @@
         "commands": [
           "D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_golden_journey_certification -v"
         ],
-        "contract_sha256": "",
+        "contract_sha256": "387fe03930e69562ddf77b941a9e88544978e7b08c0c98e008b7aa1216e3409a",
+        "effective_risk_at_freeze": "R2",
         "expected_outputs": [
           "OK"
         ],
-        "frozen_at": null,
+        "frozen_at": "2026-08-25T09:28:19+00:00",
         "probe_files": [],
         "probe_hashes": {}
       },
@@ -448,14 +449,35 @@
         "B_FIXTURE_ISOLATION",
         "C_RESPONSIVE_LAYOUT"
       ],
+      "initial_create_scope": "NONE",
+      "initial_modify_scope": "tests/test_golden_journey_certification.py,scripts/run_golden_journey_certification.py,scripts/browser_golden_journey_certification.mjs",
+      "initial_scope_count": 6,
+      "initial_scope_footprint": [
+        "PATTERN:scripts/browser_golden_journey_certification.mjs",
+        "PATTERN:scripts/run_golden_journey_certification.py",
+        "PATTERN:tests/test_golden_journey_certification.py",
+        "scripts/browser_golden_journey_certification.mjs",
+        "scripts/run_golden_journey_certification.py",
+        "tests/test_golden_journey_certification.py"
+      ],
       "modify": "tests/test_golden_journey_certification.py,scripts/run_golden_journey_certification.py,scripts/browser_golden_journey_certification.mjs",
       "negative_required": true,
       "node_id": "D_GOLDEN_CERTIFICATION",
       "outcome": "Reconcile Golden Journey with isolated schema-16 representative state and current explicit repair-plan behavior while preserving a read-only canonical non-mutation proof.",
       "replaces": [],
-      "result": null,
+      "result": {
+        "completed_at": "2026-08-25T09:49:10+00:00",
+        "delivery_delta": "RISK_RETIREMENT",
+        "evidence_bundle": ".ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION/r001",
+        "first_pass_accepted": "no",
+        "outcome": "Golden Journey passes on isolated schema 16 through repair-plan confirmation, self-cleans its bounded run directory, and proves explicit protected-target before/after equality without replacement execution.",
+        "risk_tier": "R3",
+        "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION",
+        "task_revision": 1
+      },
       "review_policy": "required",
       "risk": "R2",
+      "started_at": "2026-08-25T09:28:22+00:00",
       "state_authority": "unique temp run root plus explicit before/after hashes",
       "state_dependencies": [],
       "state_hazard": "S2",
@@ -468,9 +490,10 @@
       "state_transitions": [
         "isolated fixture journey only"
       ],
-      "status": "PLANNED",
+      "status": "DONE",
       "success_criterion": "Golden Journey passes entirely in an isolated non-8772 runtime with fake TTS/prepare boundaries, current schema semantics, no canonical artifact assumptions, and before/after non-mutation evidence.",
-      "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION"
+      "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION",
+      "task_revision": 1
     },
     "E_OFFLINE_BASELINE_REVIEW": {
       "acceptance": [],
@@ -573,5 +596,5 @@
       "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-F_DOCUMENTATION_AUTHORITY"
     }
   },
-  "updated_at": "2026-08-25T09:27:59+00:00"
+  "updated_at": "2026-08-25T09:49:10+00:00"
 }

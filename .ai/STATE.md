@@ -1,31 +1,31 @@
 # Current State
 
 Updated: 2026-08-25
-State Revision: 9
+State Revision: 11
 
 ## Continuity Fingerprint
 
 - Project ID: story-audio
 - Branch: goal/story-audio-baseline-v125
-- HEAD: 4ebc6f498d4e35de8b7d24e30362490e8f777feb
+- HEAD: f2128d3523bdf9a7f8fc0e118e3ed1510ae2d6fa
 - Worktree: DIRTY
 - Active Task ID: NONE
-- Last Known Good Commit: 4ebc6f498d4e35de8b7d24e30362490e8f777feb
+- Last Known Good Commit: f2128d3523bdf9a7f8fc0e118e3ed1510ae2d6fa
 - Runtime/Data Fingerprint: schema 15; canonical inspection read-only
 
 ## Current Product Position
 
 - Current milestone: M-001
-- Success criterion: All assignment, batch-plan, Human Approval, Production Runner, phase13 and phase14 focused tests pass using isolated schema-16/temp dependencies with no provider or canonical mutation.
+- Success criterion: Golden Journey passes entirely in an isolated non-8772 runtime with fake TTS/prepare boundaries, current schema semantics, no canonical artifact assumptions, and before/after non-mutation evidence.
 - Last demonstrated behavior/capability: Responsive production workbench and preflight hierarchy pass at 1366x768 and 1920x1080 without horizontal or nested scrolling.
 - Demo evidence: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001/EVIDENCE_INDEX.md
 - Current user-visible limitation: No implementation task selected
 
 ## Delivery Pulse
 
-- Last completed Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION
+- Last completed Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION
 - Last Delivery Delta: RISK_RETIREMENT
-- Consecutive Non-Shipping Tasks: 1
+- Consecutive Non-Shipping Tasks: 2
 - Shipping Circuit Breaker: INACTIVE
 - Time since last runnable demo: 0
 - Next required demo: SC-001 representative chapter journey
@@ -40,11 +40,11 @@ State Revision: 9
 
 ## Completed and Verified
 
-- `STORY_AUDIO_PRODUCT_GOAL` is ACTIVE with four owner-approved acceptance outcomes.
 - Active Task remains NOT_CREATED/NONE.
 - STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001: ADD CUSTOM VOICE TO SELECTED BOOK | evidence: `.ai/evidence/STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001`
 - STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001: Responsive production workbench and preflight hierarchy pass at 1366x768 and 1920x1080 without horizontal or nested scrolling. | evidence: `.ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001`
 - STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001: All inventory-proven fixture and dependency-binding failures pass against isolated schema-16 and provider-disabled runtime state. | evidence: `.ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001`
+- STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION/r001: Golden Journey passes on isolated schema 16 through repair-plan confirmation, self-cleans its bounded run directory, and proves explicit protected-target before/after equality without replacement execution. | evidence: `.ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION/r001`
 
 ## Current Blocker
 
@@ -56,14 +56,14 @@ State Revision: 9
 
 ## Verification State
 
-- STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001 accepted.
-- Snapshot: `6f1a4e9b7d73c654b9f4f33271a57b4abb382b7eff378b36e9ae6d555ae662d6`.
-- Evidence: `.ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001`.
+- STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION/r001 accepted.
+- Snapshot: `7eaa71686efbb1889e9e92c72963c2512f9eae4d3ba3cd2b866e2068d1c664f7`.
+- Evidence: `.ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION/r001`.
 
 ## Cost Efficiency State
 
 - Expected cost range: task-dependent; no provider cost authorized by this freeze
-- Actual cost signal: ledger:STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION:1
+- Actual cost signal: ledger:STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION:1
 - Marginal value status: ACCEPTED
 - Repeated operations: NONE
 - Economic stop-loss: INACTIVE

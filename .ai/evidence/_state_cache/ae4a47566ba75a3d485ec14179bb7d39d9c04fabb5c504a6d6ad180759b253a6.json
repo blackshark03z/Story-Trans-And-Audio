@@ -1,0 +1,26 @@
+{
+  "command": "\"D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe\" -X utf8 scripts\\run_golden_journey_certification.py --timeout 180 --canonical-db \"D:\\Youtube\\Story Trans And Audio\\data\\app.db\"",
+  "contract_sha256": "cb78e856966777bd614fd818a09956f5017b05559755c950efbd20733968f582",
+  "dependency_fingerprint": {
+    "files": {
+      "scripts/browser_golden_journey_certification.mjs": "FILE:07af252289d6e9d3b9278669d24f6cb6b0da2195aaa3abf4c112fd93d7fd0f22",
+      "scripts/run_golden_journey_certification.py": "FILE:2392870c881dc20ae217309da36ff6ed7428038ca8356cc4f941a480832c1e16",
+      "tests/test_golden_journey_certification.py": "FILE:923ca9ad23a7558cbdc406c9a27ca8bd583982cf255f27f0edafaad2acd2f1f5"
+    },
+    "patterns": [
+      "tests/test_golden_journey_certification.py",
+      "scripts/run_golden_journey_certification.py",
+      "scripts/browser_golden_journey_certification.mjs"
+    ],
+    "sha256": "f026aaf62aeb6267ccff0b065884aee45d0040ef5ef3de797baa0bb0f45eedb5",
+    "unmatched_patterns": []
+  },
+  "dependency_sha256": "f026aaf62aeb6267ccff0b065884aee45d0040ef5ef3de797baa0bb0f45eedb5",
+  "kind": "state_transition",
+  "proof_key": "ae4a47566ba75a3d485ec14179bb7d39d9c04fabb5c504a6d6ad180759b253a6",
+  "schema_version": 1,
+  "source_check_id": "EV-003",
+  "source_manifest": ".ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION/r001/manifest.json",
+  "source_manifest_sha256": "5afa2c33df40ac2bcc0e9162bbc6d9bbbad407df7624518b2fefa804be56305f",
+  "verified_at": "2026-08-25T09:49:13+00:00"
+}

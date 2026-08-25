@@ -1,21 +1,21 @@
 # Worker Packet
 
-Generated: 2026-08-25T09:27:58+00:00
-Capsule Revision: 23
+Generated: 2026-08-25T09:49:08+00:00
+Capsule Revision: 26
 
 ## Task
 
-- ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001
+- ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION/r001
 - Status: COMPLETED
-- Goal: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR / node B_FIXTURE_ISOLATION
-- Milestone / criterion: M-001 / All assignment, batch-plan, Human Approval, Production Runner, phase13 and phase14 focused tests pass using isolated schema-16/temp dependencies with no provider or canonical mutation.
-- Risk / profile: R2 / STANDARD
+- Goal: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR / node D_GOLDEN_CERTIFICATION
+- Milestone / criterion: M-001 / Golden Journey passes entirely in an isolated non-8772 runtime with fake TTS/prepare boundaries, current schema semantics, no canonical artifact assumptions, and before/after non-mutation evidence.
+- Risk / profile: R3 / DEEP
 - Negative path required: yes
-- Shipping breaker: INACTIVE (1/3 non-shipping)
+- Shipping breaker: INACTIVE (2/3 non-shipping)
 
 ## Outcome
 
-Repair all inventory-proven offline fixture/dependency-binding failures without weakening production voice-catalog or live-data guards.
+Reconcile Golden Journey with isolated schema-16 representative state and current explicit repair-plan behavior while preserving a read-only canonical non-mutation proof.
 
 ## Goal Context
 
@@ -23,17 +23,13 @@ Repair blockers discovered by the parent baseline Goal, restore a truthful green
 
 ## Scout Handoff
 
-Scout A_FAILURE_INVENTORY (HIGH): Complete read-only inventory: full offline suite ran 1970 tests in 737s with 6 failures, 16 errors, 1 skip. Errors are four fixture families: worktree-local empty data/app.db assumption; batch-plan voice-catalog lambda signature drift; Human Approval and Production Runner custom_voice_repo binding drift. Failures are shared phase13/14 catalog stub readiness, Golden Journey stale schema/canonical/apply-button expectations, and two real 1366x768 layout regressions. Parent CI and voice-preview repairs remain green. JS syntax passes. v1.25 package/receipt identity is valid at source 595c0f7/frozen b34eb36, but official adoption rejects callable legacy scripts/state and conflicting AGENTS until archived.
-- Affected: tests/test_assignment_workflow_browser.py, tests/test_batch_plan_api.py, tests/test_human_approval_api.py, tests/test_production_runner_api.py, tests/batch_prepare_phase13_runtime_worker.py, tests/test_batch_prepare_phase13_clone_runtime.py, tests/test_batch_prepare_phase14_restart.py, tests/test_golden_journey_certification.py
-- Invariants: Port 8772 remained closed; canonical DB, providers, protected artifacts, secrets, push, merge, and production commands remained untouched.
-- Risk: R2 bounded test/UI repair; R3 lifecycle authority transition due legacy-state archival and v1.25 bootstrap.
-- Entry: D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe -m unittest discover -s tests
+NONE
 
 ## Scope
 
-- Modify: tests/test_assignment_workflow_browser.py,tests/test_batch_plan_api.py,tests/test_human_approval_api.py,tests/test_production_runner_api.py,tests/batch_prepare_phase13_runtime_worker.py
+- Modify: tests/test_golden_journey_certification.py,scripts/run_golden_journey_certification.py,scripts/browser_golden_journey_certification.mjs
 - Create: NONE
-- External calls: NONE
+- External calls: Loopback isolated runtime and headless Chromium only.
 - Pre-existing dirty files: 0 (not part of task unless changed again)
 - Current task delta: NONE
 
@@ -48,7 +44,7 @@ Scout A_FAILURE_INVENTORY (HIGH): Complete read-only inventory: full offline sui
 1. Cheapest focused check.
 2. Affected runtime/integration check.
 3. Inspect final output and Git diff.
-- Acceptance contract: d8ec9d925ceeaef55b579b7ee503afc618a6f6e7f147908b0e989902124e60c8 (predeclared commands=1, locked probes=0)
+- Acceptance contract: 387fe03930e69562ddf77b941a9e88544978e7b08c0c98e008b7aa1216e3409a (predeclared commands=1, locked probes=0)
 - Review policy: required
 
 ## Stop
@@ -61,10 +57,17 @@ Scout A_FAILURE_INVENTORY (HIGH): Complete read-only inventory: full offline sui
 ## Shared/Operational Context
 
 - Product goal: The operator completes the frozen North Star journey from EPUB import through accepted downloadable chapter audio, with explicit control over AI proposals.
-- Data operation: READ_ONLY
+- Data operation: CREATE_NEW_VERSION
 - Artifact operation: CREATE_NEW_VERSION
 - Rollback: revert task-scoped diff and remove new artifacts
 
 ## Relevant Decisions
 
 - NONE_LISTED
+
+## Critical Gates
+
+- Owner authorization: APPROVED / C:\Users\ADMIN\.codex\attachments\b3a8ed2c-bea9-4158-a81e-3054c5b46954\pasted-text-1.txt STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR R3 ceiling and isolated Golden Journey authorization
+- Human review required: yes
+- Full suite required: yes
+- Specialist trigger: UNSET

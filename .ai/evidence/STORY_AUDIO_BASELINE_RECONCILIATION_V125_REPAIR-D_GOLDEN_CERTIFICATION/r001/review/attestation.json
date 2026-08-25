@@ -1,0 +1,15 @@
+{
+  "issuer": "Codex independent reviewer /root/grounding_scout",
+  "key_fingerprint_sha256": "89c228416ca77e0bbc7dbd0ef596d1ea345720f3d7357a1dd3aafb999c8826fa",
+  "review_report_sha256": "6f6eed460aac1d4062357ccc62570ce2261cdb684e9bd8a9891f2f9d261738d8",
+  "reviewed_at": "2026-08-25T09:46:19+00:00",
+  "reviewed_snapshot_sha256": "7eaa71686efbb1889e9e92c72963c2512f9eae4d3ba3cd2b866e2068d1c664f7",
+  "reviewer_session_id": "grounding_scout-independent-readonly-d-r3",
+  "schema_version": 3,
+  "signature_alg": "ed25519-openssl",
+  "signature_b64": "ya3xiiWkMFq1+xCupkcYt6eXQXi7JtfoPiLusgR0UqFSs29GrefEBoLQpr0a8y/D7hYixPsAz96bNHdcXlQGDw==",
+  "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION",
+  "task_revision": 1,
+  "verdict": "PASS",
+  "writer_session_id": "story-audio-v125-golden"
+}

@@ -314,8 +314,8 @@ try {
   await waitFor(`!window.storyAudioAppState.productionCommand.active`, 20000);
   const repairPlan = await waitFor(`(() => {
     const apply=document.querySelector("#repairApplyPlan");
-    if(!apply || !apply.disabled)return null;
-    return {heading:document.querySelector(".production-repair-plan h3")?.textContent,applyDisabled:apply.disabled,confirmCount:document.querySelectorAll("#repairConfirmPlan").length};
+    if(!apply || apply.disabled)return null;
+    return {heading:document.querySelector(".production-repair-plan h3")?.textContent,applyEnabled:!apply.disabled,confirmCount:document.querySelectorAll("#repairConfirmPlan").length};
   })()`);
   if (repairPlan.heading !== "Đã xác nhận" || repairPlan.confirmCount !== 0) throw new Error(`Repair plan confirmation failed: ${JSON.stringify(repairPlan)}`);
   evidence.repairPlan = repairPlan;
@@ -471,10 +471,10 @@ try {
 
   const repairPlanAccessibility = await evaluate(`({
     buttonsNamed:[...document.querySelectorAll("button")].every(button => button.textContent.trim() || button.getAttribute("aria-label")),
-    applyDisabled:document.querySelector("#repairApplyPlan")?.disabled === true,
+    applyEnabled:document.querySelector("#repairApplyPlan")?.disabled === false,
     confirmAbsent:!document.querySelector("#repairConfirmPlan")
   })`);
-  if (!repairPlanAccessibility.buttonsNamed || !repairPlanAccessibility.applyDisabled || !repairPlanAccessibility.confirmAbsent) throw new Error(`Repair-plan accessibility check failed: ${JSON.stringify(repairPlanAccessibility)}`);
+  if (!repairPlanAccessibility.buttonsNamed || !repairPlanAccessibility.applyEnabled || !repairPlanAccessibility.confirmAbsent) throw new Error(`Repair-plan accessibility check failed: ${JSON.stringify(repairPlanAccessibility)}`);
   if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
   evidence.accessibility = repairPlanAccessibility;
   evidence.ok = true;
@@ -482,4 +482,9 @@ try {
 } finally {
   try { socket?.close(); } catch {}
   child.kill();
+  await Promise.race([
+    new Promise(resolve => child.once("exit", resolve)),
+    delay(5000),
+  ]);
+  await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 }
