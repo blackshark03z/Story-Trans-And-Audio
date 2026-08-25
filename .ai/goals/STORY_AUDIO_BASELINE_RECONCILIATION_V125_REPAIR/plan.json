@@ -76,7 +76,7 @@
     "tracked_files": 413,
     "tracked_repo_mb": 6.481
   },
-  "completed_non_shipping_streak": 0,
+  "completed_non_shipping_streak": 1,
   "created_at": "2026-08-25T08:46:45+00:00",
   "decisions_required": [],
   "discoveries": [
@@ -165,7 +165,7 @@
   },
   "goal_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR",
   "goal_type": "risk",
-  "last_task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT",
+  "last_task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION",
   "non_goals": [
     "Production PREPARE, production START_RENDER, Gemini or VieNeu/TTS synthesis, Human QA decisions, canonical DB mutation, protected artifact mutation, secret changes, push, merge, deploy, broad refactor, wildcard repository scope, or historical evidence rewrite."
   ],
@@ -267,11 +267,12 @@
         "commands": [
           "D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_assignment_workflow_browser tests.test_batch_plan_api tests.test_human_approval_api tests.test_production_runner_api tests.test_batch_prepare_phase13_clone_runtime tests.test_batch_prepare_phase14_restart -v"
         ],
-        "contract_sha256": "",
+        "contract_sha256": "d8ec9d925ceeaef55b579b7ee503afc618a6f6e7f147908b0e989902124e60c8",
+        "effective_risk_at_freeze": "R2",
         "expected_outputs": [
           "OK"
         ],
-        "frozen_at": null,
+        "frozen_at": "2026-08-25T09:21:49+00:00",
         "probe_files": [],
         "probe_hashes": {}
       },
@@ -293,14 +294,39 @@
       "depends_on": [
         "A_FAILURE_INVENTORY"
       ],
+      "initial_create_scope": "NONE",
+      "initial_modify_scope": "tests/test_assignment_workflow_browser.py,tests/test_batch_plan_api.py,tests/test_human_approval_api.py,tests/test_production_runner_api.py,tests/batch_prepare_phase13_runtime_worker.py",
+      "initial_scope_count": 10,
+      "initial_scope_footprint": [
+        "PATTERN:tests/batch_prepare_phase13_runtime_worker.py",
+        "PATTERN:tests/test_assignment_workflow_browser.py",
+        "PATTERN:tests/test_batch_plan_api.py",
+        "PATTERN:tests/test_human_approval_api.py",
+        "PATTERN:tests/test_production_runner_api.py",
+        "tests/batch_prepare_phase13_runtime_worker.py",
+        "tests/test_assignment_workflow_browser.py",
+        "tests/test_batch_plan_api.py",
+        "tests/test_human_approval_api.py",
+        "tests/test_production_runner_api.py"
+      ],
       "modify": "tests/test_assignment_workflow_browser.py,tests/test_batch_plan_api.py,tests/test_human_approval_api.py,tests/test_production_runner_api.py,tests/batch_prepare_phase13_runtime_worker.py",
       "negative_required": true,
       "node_id": "B_FIXTURE_ISOLATION",
       "outcome": "Repair all inventory-proven offline fixture/dependency-binding failures without weakening production voice-catalog or live-data guards.",
       "replaces": [],
-      "result": null,
+      "result": {
+        "completed_at": "2026-08-25T09:27:59+00:00",
+        "delivery_delta": "RISK_RETIREMENT",
+        "evidence_bundle": ".ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001",
+        "first_pass_accepted": "yes",
+        "outcome": "All inventory-proven fixture and dependency-binding failures pass against isolated schema-16 and provider-disabled runtime state.",
+        "risk_tier": "R2",
+        "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION",
+        "task_revision": 1
+      },
       "review_policy": "required",
       "risk": "R2",
+      "started_at": "2026-08-25T09:21:51+00:00",
       "state_authority": "temporary fixture DB and localhost test runtime only",
       "state_dependencies": [],
       "state_hazard": "S1",
@@ -311,9 +337,10 @@
         "isolated test database/runtime state"
       ],
       "state_transitions": [],
-      "status": "PLANNED",
+      "status": "DONE",
       "success_criterion": "All assignment, batch-plan, Human Approval, Production Runner, phase13 and phase14 focused tests pass using isolated schema-16/temp dependencies with no provider or canonical mutation.",
-      "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION"
+      "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION",
+      "task_revision": 1
     },
     "C_RESPONSIVE_LAYOUT": {
       "acceptance": [],
@@ -546,5 +573,5 @@
       "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-F_DOCUMENTATION_AUTHORITY"
     }
   },
-  "updated_at": "2026-08-25T09:21:25+00:00"
+  "updated_at": "2026-08-25T09:27:59+00:00"
 }

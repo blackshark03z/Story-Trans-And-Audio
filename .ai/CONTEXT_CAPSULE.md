@@ -1,21 +1,21 @@
 # Worker Packet
 
-Generated: 2026-08-25T09:21:24+00:00
-Capsule Revision: 21
+Generated: 2026-08-25T09:27:58+00:00
+Capsule Revision: 23
 
 ## Task
 
-- ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001
+- ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001
 - Status: COMPLETED
-- Goal: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR / node C_RESPONSIVE_LAYOUT
-- Milestone / criterion: M-001 / The primary production action and required preflight content are usable at 1366x768 with no horizontal or nested overflow, while 1920 layout remains valid.
+- Goal: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR / node B_FIXTURE_ISOLATION
+- Milestone / criterion: M-001 / All assignment, batch-plan, Human Approval, Production Runner, phase13 and phase14 focused tests pass using isolated schema-16/temp dependencies with no provider or canonical mutation.
 - Risk / profile: R2 / STANDARD
 - Negative path required: yes
-- Shipping breaker: INACTIVE (0/3 non-shipping)
+- Shipping breaker: INACTIVE (1/3 non-shipping)
 
 ## Outcome
 
-Restore the production workbench and preflight viewport hierarchy at 1366x768 without loosening browser acceptance.
+Repair all inventory-proven offline fixture/dependency-binding failures without weakening production voice-catalog or live-data guards.
 
 ## Goal Context
 
@@ -31,7 +31,7 @@ Scout A_FAILURE_INVENTORY (HIGH): Complete read-only inventory: full offline sui
 
 ## Scope
 
-- Modify: ui/styles.css
+- Modify: tests/test_assignment_workflow_browser.py,tests/test_batch_plan_api.py,tests/test_human_approval_api.py,tests/test_production_runner_api.py,tests/batch_prepare_phase13_runtime_worker.py
 - Create: NONE
 - External calls: NONE
 - Pre-existing dirty files: 0 (not part of task unless changed again)
@@ -48,7 +48,7 @@ Scout A_FAILURE_INVENTORY (HIGH): Complete read-only inventory: full offline sui
 1. Cheapest focused check.
 2. Affected runtime/integration check.
 3. Inspect final output and Git diff.
-- Acceptance contract: 1f55dd2c0ee9c2df11897d9a0ca95e939647aff84412e7fa03116c8488a568f0 (predeclared commands=1, locked probes=0)
+- Acceptance contract: d8ec9d925ceeaef55b579b7ee503afc618a6f6e7f147908b0e989902124e60c8 (predeclared commands=1, locked probes=0)
 - Review policy: required
 
 ## Stop

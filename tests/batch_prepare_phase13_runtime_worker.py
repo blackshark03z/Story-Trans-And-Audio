@@ -16,6 +16,9 @@ def main() -> None:
 
     if os.environ.get("STORY_AUDIO_TESTING") == "1":
         class _CatalogOnlyTts:
+            def provider_available(self):
+                return False
+
             def voices(self):
                 return [
                     {"id": "custom:26", "label": "Fixture Narrator"},

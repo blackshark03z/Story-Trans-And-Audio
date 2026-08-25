@@ -1,31 +1,31 @@
 # Current State
 
 Updated: 2026-08-25
-State Revision: 7
+State Revision: 9
 
 ## Continuity Fingerprint
 
 - Project ID: story-audio
 - Branch: goal/story-audio-baseline-v125
-- HEAD: da88199671c4259cf6e3ea6d464a3a38a0ec292d
+- HEAD: 4ebc6f498d4e35de8b7d24e30362490e8f777feb
 - Worktree: DIRTY
 - Active Task ID: NONE
-- Last Known Good Commit: da88199671c4259cf6e3ea6d464a3a38a0ec292d
+- Last Known Good Commit: 4ebc6f498d4e35de8b7d24e30362490e8f777feb
 - Runtime/Data Fingerprint: schema 15; canonical inspection read-only
 
 ## Current Product Position
 
 - Current milestone: M-001
-- Success criterion: The primary production action and required preflight content are usable at 1366x768 with no horizontal or nested overflow, while 1920 layout remains valid.
+- Success criterion: All assignment, batch-plan, Human Approval, Production Runner, phase13 and phase14 focused tests pass using isolated schema-16/temp dependencies with no provider or canonical mutation.
 - Last demonstrated behavior/capability: Responsive production workbench and preflight hierarchy pass at 1366x768 and 1920x1080 without horizontal or nested scrolling.
 - Demo evidence: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001/EVIDENCE_INDEX.md
 - Current user-visible limitation: No implementation task selected
 
 ## Delivery Pulse
 
-- Last completed Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT
-- Last Delivery Delta: USER_VISIBLE_BEHAVIOR
-- Consecutive Non-Shipping Tasks: 0
+- Last completed Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION
+- Last Delivery Delta: RISK_RETIREMENT
+- Consecutive Non-Shipping Tasks: 1
 - Shipping Circuit Breaker: INACTIVE
 - Time since last runnable demo: 0
 - Next required demo: SC-001 representative chapter journey
@@ -44,6 +44,7 @@ State Revision: 7
 - Active Task remains NOT_CREATED/NONE.
 - STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001: ADD CUSTOM VOICE TO SELECTED BOOK | evidence: `.ai/evidence/STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001`
 - STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001: Responsive production workbench and preflight hierarchy pass at 1366x768 and 1920x1080 without horizontal or nested scrolling. | evidence: `.ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001`
+- STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001: All inventory-proven fixture and dependency-binding failures pass against isolated schema-16 and provider-disabled runtime state. | evidence: `.ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001`
 
 ## Current Blocker
 
@@ -55,14 +56,14 @@ State Revision: 7
 
 ## Verification State
 
-- STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001 accepted.
-- Snapshot: `68165e9069fdc7d3c7d9d006250ae35cf396b80002fec1c625bc25364ebe3325`.
-- Evidence: `.ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001`.
+- STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001 accepted.
+- Snapshot: `6f1a4e9b7d73c654b9f4f33271a57b4abb382b7eff378b36e9ae6d555ae662d6`.
+- Evidence: `.ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001`.
 
 ## Cost Efficiency State
 
 - Expected cost range: task-dependent; no provider cost authorized by this freeze
-- Actual cost signal: ledger:STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT:1
+- Actual cost signal: ledger:STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION:1
 - Marginal value status: ACCEPTED
 - Repeated operations: NONE
 - Economic stop-loss: INACTIVE

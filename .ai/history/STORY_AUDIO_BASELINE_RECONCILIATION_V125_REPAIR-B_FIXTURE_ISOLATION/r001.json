@@ -1,0 +1,33 @@
+{
+  "acceptance_contract_sha256": "d8ec9d925ceeaef55b579b7ee503afc618a6f6e7f147908b0e989902124e60c8",
+  "actual_risk_floor": "R2",
+  "actual_risk_reasons": [
+    "R2:actual shared/persistence/external code in tests/test_assignment_workflow_browser.py"
+  ],
+  "breaker_override": false,
+  "breaker_override_reason": "",
+  "completed_at": "2026-08-25T09:27:58+00:00",
+  "delivery_delta": "RISK_RETIREMENT",
+  "evidence_bundle": ".ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001",
+  "evidence_manifest_sha256": "84cc3de95560e93434695ad09009570df61f1fe9e79372e84befc9dbcf75b28e",
+  "first_pass_accepted": "yes",
+  "goal_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR",
+  "goal_node": "B_FIXTURE_ISOLATION",
+  "outcome": "All inventory-proven fixture and dependency-binding failures pass against isolated schema-16 and provider-disabled runtime state.",
+  "quality_reconciliation": {
+    "escaped_defect": "unknown",
+    "later_rework": "unknown",
+    "rollback_required": "no"
+  },
+  "review_reasons": [
+    "review policy=required"
+  ],
+  "review_required": true,
+  "risk_tier": "R2",
+  "schema_version": 1,
+  "state_contract_sha256": "5fe7292926c11ca52e72cd5231596209bd4ddc58def445198d923851d3134886",
+  "state_hazard_level": "S1",
+  "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION",
+  "task_revision": 1,
+  "verified_snapshot_sha256": "6f1a4e9b7d73c654b9f4f33271a57b4abb382b7eff378b36e9ae6d555ae662d6"
+}

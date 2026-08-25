@@ -2,7 +2,7 @@
 
 Task Status: COMPLETED
 Task Mode: STANDARD
-Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT
+Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION
 Task Revision: 1
 Created: 2026-08-25
 Owner Authorization: NOT_REQUIRED
@@ -10,15 +10,15 @@ Authorization Reference: NONE
 
 ## Single Outcome
 
-Restore the production workbench and preflight viewport hierarchy at 1366x768 without loosening browser acceptance.
+Repair all inventory-proven offline fixture/dependency-binding failures without weakening production voice-catalog or live-data guards.
 
 ## Product Link
 
 - Milestone ID: M-001
-- Success Criterion: The primary production action and required preflight content are usable at 1366x768 with no horizontal or nested overflow, while 1920 layout remains valid.
+- Success Criterion: All assignment, batch-plan, Human Approval, Production Runner, phase13 and phase14 focused tests pass using isolated schema-16/temp dependencies with no provider or canonical mutation.
 - Goal ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR
-- Goal Node: C_RESPONSIVE_LAYOUT
-- Delivery Delta: USER_VISIBLE_BEHAVIOR
+- Goal Node: B_FIXTURE_ISOLATION
+- Delivery Delta: RISK_RETIREMENT
 - Demonstrable Result: runtime/output evidence listed in task evidence index
 - Unlocks: next ready Goal node
 - Consecutive Non-Shipping Tasks Before This Task: 0
@@ -36,30 +36,30 @@ Restore the production workbench and preflight viewport hierarchy at 1366x768 wi
 - Specialist reviewer trigger: UNSET
 - Full suite required: only-if-gate-requires
 - Review policy: required
-- Acceptance Contract SHA256: 1f55dd2c0ee9c2df11897d9a0ca95e939647aff84412e7fa03116c8488a568f0
-- Acceptance Contract JSON: {"commands":["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_production_preflight_browser tests.test_production_workflow_browser -v"],"expected_outputs":["OK"],"probe_files":[],"probe_hashes":{},"effective_risk_at_freeze":"R2","frozen_at":"2026-08-25T09:12:20+00:00","contract_sha256":"1f55dd2c0ee9c2df11897d9a0ca95e939647aff84412e7fa03116c8488a568f0"}
+- Acceptance Contract SHA256: d8ec9d925ceeaef55b579b7ee503afc618a6f6e7f147908b0e989902124e60c8
+- Acceptance Contract JSON: {"commands":["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_assignment_workflow_browser tests.test_batch_plan_api tests.test_human_approval_api tests.test_production_runner_api tests.test_batch_prepare_phase13_clone_runtime tests.test_batch_prepare_phase14_restart -v"],"expected_outputs":["OK"],"probe_files":[],"probe_hashes":{},"effective_risk_at_freeze":"R2","frozen_at":"2026-08-25T09:21:49+00:00","contract_sha256":"d8ec9d925ceeaef55b579b7ee503afc618a6f6e7f147908b0e989902124e60c8"}
 - State Hazard Level: S1
-- State Hazard Signals: explicit:S1, rendered browser geometry
-- State Contract SHA256: 7c87b9ac3e4143cc012ff62cc76c4022fa5352fac18b05331bb21143ce931e94
-- State Contract JSON: {"schema_version":1,"level":"S1","authority":"Playwright/Chromium smoke evidence at 1366x768 and 1920x1080","transitions":[],"invariants":["No production command, provider call, canonical mutation, or assertion weakening."],"dependencies":["ui/styles.css"],"signals":["explicit:S1","rendered browser geometry"],"contract_sha256":"7c87b9ac3e4143cc012ff62cc76c4022fa5352fac18b05331bb21143ce931e94"}
+- State Hazard Signals: explicit:S1, isolated test database/runtime state
+- State Contract SHA256: 5fe7292926c11ca52e72cd5231596209bd4ddc58def445198d923851d3134886
+- State Contract JSON: {"schema_version":1,"level":"S1","authority":"temporary fixture DB and localhost test runtime only","transitions":[],"invariants":["Production DB, port 8772, providers and fail-closed catalog behavior remain untouched."],"dependencies":["tests/test_assignment_workflow_browser.py","tests/test_batch_plan_api.py","tests/test_human_approval_api.py","tests/test_production_runner_api.py","tests/batch_prepare_phase13_runtime_worker.py"],"signals":["explicit:S1","isolated test database/runtime state"],"contract_sha256":"5fe7292926c11ca52e72cd5231596209bd4ddc58def445198d923851d3134886"}
 
 ## Continuity Fingerprint at Authorization
 
 - Project ID: story-audio
 - Branch: goal/story-audio-baseline-v125
-- HEAD: da88199671c4259cf6e3ea6d464a3a38a0ec292d
+- HEAD: 4ebc6f498d4e35de8b7d24e30362490e8f777feb
 - Worktree: CLEAN
-- Starting Snapshot SHA256: f08ac5544b5f2d644cad6dd730cc1787ee225401f0e71d557cda8d5bc3bfee5e
-- Verified Snapshot SHA256: 68165e9069fdc7d3c7d9d006250ae35cf396b80002fec1c625bc25364ebe3325
-- State Revision: 6
-- Context Capsule Revision: 19
+- Starting Snapshot SHA256: 048035fc855c05eea7f8cfcb26427067054e91ab024b724c01ffeda6dfa164c6
+- Verified Snapshot SHA256: 6f1a4e9b7d73c654b9f4f33271a57b4abb382b7eff378b36e9ae6d555ae662d6
+- State Revision: 8
+- Context Capsule Revision: 21
 
 ## Permission Matrix
 
 ### Allowed
 
 - Read: task-relevant repository files
-- Modify: ui/styles.css
+- Modify: tests/test_assignment_workflow_browser.py,tests/test_batch_plan_api.py,tests/test_human_approval_api.py,tests/test_production_runner_api.py,tests/batch_prepare_phase13_runtime_worker.py
 - Create: NONE
 - Commands: focused checks and task-authorized commands
 - Local services: NONE
@@ -129,25 +129,25 @@ Restore the production workbench and preflight viewport hierarchy at 1366x768 wi
 - Platform: WINDOWS
 - Model Claimed: UNSPECIFIED
 - Identity Verification: VERIFIED
-- Session Label: story-audio-v125-responsive
-- Claimed At: 2026-08-25T09:12:20+00:00
-- Last Heartbeat: 2026-08-25T09:21:24+00:00
-- Released At: 2026-08-25T09:21:24+00:00
+- Session Label: story-audio-v125-fixtures
+- Claimed At: 2026-08-25T09:21:49+00:00
+- Last Heartbeat: 2026-08-25T09:27:58+00:00
+- Released At: 2026-08-25T09:27:58+00:00
 - Takeover From: NONE
 
 ## Lifecycle Timing
 
-- Started At: 2026-08-25T09:12:20+00:00
+- Started At: 2026-08-25T09:21:49+00:00
 - First Runnable At: NONE
 - First Runnable Evidence: NONE
-- Completed At: 2026-08-25T09:21:24+00:00
+- Completed At: 2026-08-25T09:27:58+00:00
 
 ## Completion
 
-- Outcome: Responsive production workbench and preflight hierarchy pass at 1366x768 and 1920x1080 without horizontal or nested scrolling.
-- Evidence index: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001/EVIDENCE_INDEX.md
-- Evidence Bundle: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001
-- Worker report: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001/WORKER_REPORT.md
-- Review report: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001/review/review_story_audio_v125_repair_c_responsive_layout.md
-- Ending HEAD: da88199671c4259cf6e3ea6d464a3a38a0ec292d
+- Outcome: All inventory-proven fixture and dependency-binding failures pass against isolated schema-16 and provider-disabled runtime state.
+- Evidence index: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001/EVIDENCE_INDEX.md
+- Evidence Bundle: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001
+- Worker report: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001/WORKER_REPORT.md
+- Review report: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001/review/review_story_audio_v125_repair_b_fixture_isolation.md
+- Ending HEAD: 4ebc6f498d4e35de8b7d24e30362490e8f777feb
 - Lease release: RELEASED

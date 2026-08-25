@@ -12,7 +12,8 @@ from http.server import ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlparse
 
-from story_audio.migrations import LATEST_SCHEMA_VERSION
+from story_audio.db import Database
+from story_audio.migrations import LATEST_SCHEMA_VERSION, MigrationRunner, RUNTIME_MIGRATIONS
 from tests.test_production_scope_browser import ROOT
 from tests.test_speaker_review_workspace_browser import (
     SpeakerReviewWorkspaceFixtureHandler,
@@ -96,15 +97,14 @@ class AssignmentWorkflowBrowserTests(unittest.TestCase):
         test_root = Path(r"C:\StoryAudio_AssignmentFlow_Test") / timestamp
         test_root.mkdir(parents=True, exist_ok=False)
         clone_path = test_root / "app.db"
-        canonical_path = ROOT / "data" / "app.db"
 
-        source = sqlite3.connect(
-            f"{canonical_path.as_uri()}?mode=ro",
-            uri=True,
+        database = Database(
+            clone_path,
+            migration_runner=MigrationRunner(RUNTIME_MIGRATIONS),
         )
+        self.assertEqual(database.initialize(), LATEST_SCHEMA_VERSION)
         destination = sqlite3.connect(clone_path)
         try:
-            source.backup(destination)
             self.assertEqual(
                 destination.execute(
                     "SELECT MAX(version) FROM schema_migrations"
@@ -115,7 +115,6 @@ class AssignmentWorkflowBrowserTests(unittest.TestCase):
             self.assertEqual(destination.execute("PRAGMA foreign_key_check").fetchall(), [])
         finally:
             destination.close()
-            source.close()
 
         AssignmentWorkflowFixtureHandler.reset()
         server = ThreadingHTTPServer(

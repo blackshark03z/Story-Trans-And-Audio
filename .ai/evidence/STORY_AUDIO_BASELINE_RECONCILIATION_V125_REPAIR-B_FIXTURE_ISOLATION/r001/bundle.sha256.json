@@ -1,0 +1,60 @@
+{
+  "files": [
+    {
+      "path": "EVIDENCE_INDEX.md",
+      "sha256": "27daf6ee7370a09857c67c26d8a5216ec8dcad2d790263b34c26228c2570eeed",
+      "size": 2774
+    },
+    {
+      "path": "logs/EV-001-focused.stderr.txt",
+      "sha256": "b4128e59d99effbbc291e801db1b83f863d1c77fd28f26ecb5603319210e7245",
+      "size": 6575
+    },
+    {
+      "path": "logs/EV-001-focused.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "logs/EV-002-negative.stderr.txt",
+      "sha256": "7f66d55ae3dc51123f3579137dbd89a3dd327efe206e8000c83b70b6be8d2e03",
+      "size": 478
+    },
+    {
+      "path": "logs/EV-002-negative.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "logs/EV-003-integration.stderr.txt",
+      "sha256": "4c81f8fcbfebd168349eeba3ad978f9b377199a5d29dadecf123a47bb1c0a01c",
+      "size": 7375
+    },
+    {
+      "path": "logs/EV-003-integration.stdout.txt",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "size": 0
+    },
+    {
+      "path": "manifest.json",
+      "sha256": "84cc3de95560e93434695ad09009570df61f1fe9e79372e84befc9dbcf75b28e",
+      "size": 8893
+    },
+    {
+      "path": "review/attestation.json",
+      "sha256": "e8e9b19284708c0f2d17f3d7decd57a33333f0acb2f355738211a6c1cebc8852",
+      "size": 819
+    },
+    {
+      "path": "review/review_story_audio_v125_repair_b_fixture_isolation.md",
+      "sha256": "e9eb4ed74869279ada8c1817b8e653ab4e97bdad63c4486a3c4e8fef51dba6a8",
+      "size": 1657
+    },
+    {
+      "path": "WORKER_REPORT.md",
+      "sha256": "339d082e6ec70da46979423e3b723b3f8150bd2e330dc3ee7d0232b40849e760",
+      "size": 807
+    }
+  ],
+  "schema_version": 1
+}

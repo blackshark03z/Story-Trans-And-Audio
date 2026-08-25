@@ -6,6 +6,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+from story_audio.custom_voice import CustomVoiceRepository
 from story_audio.db import utcnow
 from story_audio.storage import ContentStore
 from tests.base import IsolatedTestCase
@@ -29,9 +30,11 @@ class HumanApprovalApiTests(IsolatedTestCase):
         self._original_db = api_module.db
         self._original_store = api_module.store
         self._original_settings = api_module.settings
+        self._original_custom_voice_repo = api_module.custom_voice_repo
         api_module.db = self.db
         api_module.store = self.store
         api_module.settings = self.config
+        api_module.custom_voice_repo = CustomVoiceRepository(self.db, self.store)
         from story_audio.api import app
 
         self.client = TestClient(app)
@@ -42,6 +45,7 @@ class HumanApprovalApiTests(IsolatedTestCase):
         api_module.db = self._original_db
         api_module.store = self._original_store
         api_module.settings = self._original_settings
+        api_module.custom_voice_repo = self._original_custom_voice_repo
         self._multipart_patcher.stop()
         super().tearDown()
 
