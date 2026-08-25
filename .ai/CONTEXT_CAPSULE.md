@@ -1,53 +1,54 @@
 # Worker Packet
 
-Generated: 2026-08-25T08:45:50+00:00
-Capsule Revision: 19
+Generated: 2026-08-25T09:21:24+00:00
+Capsule Revision: 21
 
 ## Task
 
-- ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125-B_CI_RECONCILIATION/r001
-- Status: ABORTED
-- Goal: STORY_AUDIO_BASELINE_RECONCILIATION_V125 / node B_CI_RECONCILIATION
-- Milestone / criterion: M-001 / CI install and product-check commands resolve without Markdown delimiter tokens and relevant checks pass.
+- ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001
+- Status: COMPLETED
+- Goal: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR / node C_RESPONSIVE_LAYOUT
+- Milestone / criterion: M-001 / The primary production action and required preflight content are usable at 1366x768 with no horizontal or nested overflow, while 1920 layout remains valid.
 - Risk / profile: R2 / STANDARD
 - Negative path required: yes
 - Shipping breaker: INACTIVE (0/3 non-shipping)
 
 ## Outcome
 
-Repair the machine-readable Project Contract command encoding and prove CI command resolution and relevant checks.
+Restore the production workbench and preflight viewport hierarchy at 1366x768 without loosening browser acceptance.
 
 ## Goal Context
 
-Restore one trustworthy Story Audio execution baseline and safely adopt Build OS v1.25 Work Loop authority without laundering v1.16 history.
+Repair blockers discovered by the parent baseline Goal, restore a truthful green development baseline, reconcile current Story Audio authority, safely adopt the approved Build OS v1.25 RC4 lineage, and prove the new Work Loop without produc
 
 ## Scout Handoff
 
-Scout A_GROUND_TRUTH_PREFLIGHT (HIGH): Git: isolated goal worktree on goal/story-audio-baseline-v125 at c9504dd, 0/0 with origin/main; dirty sibling main preserved. Lifecycle: v1.16 reconciliation Goal active, no writer; legacy lease released; ignored .buildos v1.22 generation 4 CLOSED/released at c9504dd. Runtime: stopped, port 8772 no listener, identity endpoint unobserved; do not start. Data: canonical data/app.db schema 16, quick_check ok, FK 0; Ch372 Artifact93 stale needs_fixes, Artifact99 active accepted; Ch373 Artifact96 active QA pending. CI: remote run 31463977833 and local reproduction fail on literal backtick-python from .ai/PROJECT.md. Preserve DB/artifacts/history; no provider/runtime/push/merge; never relabel v1.16 history as v1.25.
-- Affected: .ai/PROJECT.md, scripts/project_ci.py, DOCUMENTATION_SOURCES.md, PROJECT_STATUS.md, ROADMAP.md, NEXT_TASK.md, AGENTS.md
-- Invariants: Canonical DB, Artifacts 93/96/99 and all historical lifecycle evidence remain read-only.; No v1.16 history may be represented as v1.25-supervised.
-- Risk: dirty sibling canonical worktree; runtime stopped and identity endpoint unobserved; low disk 0.9 GB; legacy v1.16 and closed v1.22 authorities coexist
-- Entry: scripts/project_ci.py and external v1.25 adoption/initialize.ps1
+Scout A_FAILURE_INVENTORY (HIGH): Complete read-only inventory: full offline suite ran 1970 tests in 737s with 6 failures, 16 errors, 1 skip. Errors are four fixture families: worktree-local empty data/app.db assumption; batch-plan voice-catalog lambda signature drift; Human Approval and Production Runner custom_voice_repo binding drift. Failures are shared phase13/14 catalog stub readiness, Golden Journey stale schema/canonical/apply-button expectations, and two real 1366x768 layout regressions. Parent CI and voice-preview repairs remain green. JS syntax passes. v1.25 package/receipt identity is valid at source 595c0f7/frozen b34eb36, but official adoption rejects callable legacy scripts/state and conflicting AGENTS until archived.
+- Affected: tests/test_assignment_workflow_browser.py, tests/test_batch_plan_api.py, tests/test_human_approval_api.py, tests/test_production_runner_api.py, tests/batch_prepare_phase13_runtime_worker.py, tests/test_batch_prepare_phase13_clone_runtime.py, tests/test_batch_prepare_phase14_restart.py, tests/test_golden_journey_certification.py
+- Invariants: Port 8772 remained closed; canonical DB, providers, protected artifacts, secrets, push, merge, and production commands remained untouched.
+- Risk: R2 bounded test/UI repair; R3 lifecycle authority transition due legacy-state archival and v1.25 bootstrap.
+- Entry: D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe -m unittest discover -s tests
 
 ## Scope
 
-- Modify: .ai/PROJECT.md,scripts/project_ci.py,tests/test_voice_preview_api.py
-- Create: tests/test_project_ci_contract.py
+- Modify: ui/styles.css
+- Create: NONE
 - External calls: NONE
 - Pre-existing dirty files: 0 (not part of task unless changed again)
 - Current task delta: NONE
 
 ## Acceptance
 
-- [ ] Project Contract parsing returns raw executable argv for install and test commands.
-- [ ] Equivalent install and canonical product-check resolution passes locally.
+- [ ] Observable outcome exists.
+- [ ] Critical negative path checked.
+- [ ] Output and side effects match preflight.
 
 ## Verify
 
 1. Cheapest focused check.
 2. Affected runtime/integration check.
 3. Inspect final output and Git diff.
-- Acceptance contract: 162d59ec8d163c954f2e691d0d4e5a25e8effc4f41d5b93fca892472bfdbf613 (predeclared commands=1, locked probes=0)
+- Acceptance contract: 1f55dd2c0ee9c2df11897d9a0ca95e939647aff84412e7fa03116c8488a568f0 (predeclared commands=1, locked probes=0)
 - Review policy: required
 
 ## Stop
@@ -61,7 +62,7 @@ Scout A_GROUND_TRUTH_PREFLIGHT (HIGH): Git: isolated goal worktree on goal/story
 
 - Product goal: The operator completes the frozen North Star journey from EPUB import through accepted downloadable chapter audio, with explicit control over AI proposals.
 - Data operation: READ_ONLY
-- Artifact operation: READ_ONLY
+- Artifact operation: CREATE_NEW_VERSION
 - Rollback: revert task-scoped diff and remove new artifacts
 
 ## Relevant Decisions

@@ -1,0 +1,178 @@
+{
+  "acceptance_contract_sha256": "1f55dd2c0ee9c2df11897d9a0ca95e939647aff84412e7fa03116c8488a568f0",
+  "accepted_outcome": "Responsive production workbench and preflight hierarchy pass at 1366x768 and 1920x1080 without horizontal or nested scrolling.",
+  "artifacts": [],
+  "checks": [
+    {
+      "command": "D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_production_preflight_browser -v",
+      "completed_at": "2026-08-25T09:20:25+00:00",
+      "execution_mode": "shell",
+      "exit_code": 0,
+      "id": "EV-001",
+      "inspected_by": "agent:/root/grounding_scout",
+      "inspection_status": "AGENT_INSPECTED",
+      "kind": "focused",
+      "result": "PASS",
+      "satisfies": [
+        "focused"
+      ],
+      "started_at": "2026-08-25T09:20:19+00:00",
+      "stderr": {
+        "original_bytes": 260,
+        "path": "EV-001-focused.stderr.txt",
+        "sha256": "a4cb82f40fcc6462ce4d5a6b22ecd55c01c50d234232f6928d980258a17d42de",
+        "stored_bytes": 260,
+        "truncated": false
+      },
+      "stdout": {
+        "original_bytes": 0,
+        "path": "EV-001-focused.stdout.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stored_bytes": 0,
+        "truncated": false
+      }
+    },
+    {
+      "command": "D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_production_workflow_browser -v",
+      "completed_at": "2026-08-25T09:20:51+00:00",
+      "execution_mode": "shell",
+      "exit_code": 0,
+      "id": "EV-002",
+      "inspected_by": "agent:/root/grounding_scout",
+      "inspection_status": "AGENT_INSPECTED",
+      "kind": "negative",
+      "result": "PASS",
+      "satisfies": [
+        "negative"
+      ],
+      "started_at": "2026-08-25T09:20:25+00:00",
+      "stderr": {
+        "original_bytes": 451,
+        "path": "EV-002-negative.stderr.txt",
+        "sha256": "081fe29da83db02c1c997b8458a857dc15e5b9803b54770d0cec78a4e8d7d4a8",
+        "stored_bytes": 451,
+        "truncated": false
+      },
+      "stdout": {
+        "original_bytes": 0,
+        "path": "EV-002-negative.stdout.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stored_bytes": 0,
+        "truncated": false
+      }
+    },
+    {
+      "command": "D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_production_preflight_browser tests.test_production_workflow_browser -v",
+      "completed_at": "2026-08-25T09:21:22+00:00",
+      "execution_mode": "shell",
+      "exit_code": 0,
+      "id": "EV-003",
+      "inspected_by": "agent:/root/grounding_scout",
+      "inspection_status": "AGENT_INSPECTED",
+      "kind": "integration",
+      "result": "PASS",
+      "satisfies": [
+        "integration",
+        "acceptance_contract"
+      ],
+      "started_at": "2026-08-25T09:20:51+00:00",
+      "stderr": {
+        "original_bytes": 614,
+        "path": "EV-003-integration.stderr.txt",
+        "sha256": "d194a855e46f954dc5225ccc714cfab8516941c6476a75bbc851c76ff142f559",
+        "stored_bytes": 614,
+        "truncated": false
+      },
+      "stdout": {
+        "original_bytes": 0,
+        "path": "EV-003-integration.stdout.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stored_bytes": 0,
+        "truncated": false
+      }
+    }
+  ],
+  "cleanup_note": "no residual process; rollback remains available",
+  "evidence_mode": "FULL",
+  "execution_profile": "STANDARD",
+  "final_verdict": "PASS",
+  "generated_at": "2026-08-25T09:21:23+00:00",
+  "goal_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR",
+  "goal_node": "C_RESPONSIVE_LAYOUT",
+  "known_limits": "Compact-height rules also reduce global top-bar and main spacing on other desktop views at heights <=800px; low risk, not separately sampled.",
+  "output_assertions": [
+    {
+      "matched": true,
+      "text": "OK"
+    }
+  ],
+  "review": {
+    "attestation_bundle_path": "review/attestation.json",
+    "attestation_sha256": "e3d33f6323eb5472ea5a43c151444fabcb480bb482547dc1bfa1adf238ebfecc",
+    "bundle_path": "review/review_story_audio_v125_repair_c_responsive_layout.md",
+    "sha256": "b713f489ca2c76c24ed1e7b5a613f923892810c5c16d10fabdb4c71e9d30d501",
+    "source_path": ".ai/evidence/review_story_audio_v125_repair_c_responsive_layout.md",
+    "trust": "SIGNED_GUARDIAN"
+  },
+  "review_policy": "required",
+  "risk_tier": "R2",
+  "schema_version": 4,
+  "starting_snapshot": {
+    "branch": "goal/story-audio-baseline-v125",
+    "changed_files": [
+      "ui/styles.css"
+    ],
+    "git": true,
+    "head": "da88199671c4259cf6e3ea6d464a3a38a0ec292d",
+    "snapshot_sha256": "68165e9069fdc7d3c7d9d006250ae35cf396b80002fec1c625bc25364ebe3325",
+    "status_lines": [
+      " M ui/styles.css"
+    ],
+    "tracked_diff_sha256": "50c88aeb53cb17f5b0a3db7c9a70b3569c104c7fd43fff902076f65744bda064",
+    "untracked_manifest_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "worktree": "DIRTY"
+  },
+  "state_contract": {
+    "authority": "Playwright/Chromium smoke evidence at 1366x768 and 1920x1080",
+    "contract_sha256": "7c87b9ac3e4143cc012ff62cc76c4022fa5352fac18b05331bb21143ce931e94",
+    "dependencies": [
+      "ui/styles.css"
+    ],
+    "invariants": [
+      "No production command, provider call, canonical mutation, or assertion weakening."
+    ],
+    "level": "S1",
+    "schema_version": 1,
+    "signals": [
+      "explicit:S1",
+      "rendered browser geometry"
+    ],
+    "transitions": []
+  },
+  "state_contract_sha256": "7c87b9ac3e4143cc012ff62cc76c4022fa5352fac18b05331bb21143ce931e94",
+  "state_hazard_level": "S1",
+  "success_criterion": "The primary production action and required preflight content are usable at 1366x768 with no horizontal or nested overflow, while 1920 layout remains valid.",
+  "task_delta_file_hashes": {
+    "ui/styles.css": "FILE:004c041178eae51e23898ecd0463693645eb2461773b8500af905167232a25b8"
+  },
+  "task_delta_files": [
+    "ui/styles.css"
+  ],
+  "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT",
+  "task_revision": 1,
+  "verified_snapshot": {
+    "branch": "goal/story-audio-baseline-v125",
+    "changed_files": [
+      "ui/styles.css"
+    ],
+    "git": true,
+    "head": "da88199671c4259cf6e3ea6d464a3a38a0ec292d",
+    "snapshot_sha256": "68165e9069fdc7d3c7d9d006250ae35cf396b80002fec1c625bc25364ebe3325",
+    "status_lines": [
+      " M ui/styles.css"
+    ],
+    "tracked_diff_sha256": "50c88aeb53cb17f5b0a3db7c9a70b3569c104c7fd43fff902076f65744bda064",
+    "untracked_manifest_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "worktree": "DIRTY"
+  }
+}

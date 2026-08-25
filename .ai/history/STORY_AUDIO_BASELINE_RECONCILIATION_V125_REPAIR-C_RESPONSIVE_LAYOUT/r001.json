@@ -1,0 +1,31 @@
+{
+  "acceptance_contract_sha256": "1f55dd2c0ee9c2df11897d9a0ca95e939647aff84412e7fa03116c8488a568f0",
+  "actual_risk_floor": "R0",
+  "actual_risk_reasons": [],
+  "breaker_override": false,
+  "breaker_override_reason": "",
+  "completed_at": "2026-08-25T09:21:24+00:00",
+  "delivery_delta": "USER_VISIBLE_BEHAVIOR",
+  "evidence_bundle": ".ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001",
+  "evidence_manifest_sha256": "805aae83fbc550047dfa45c255452e856b9bd15d23f19a7a48dc8a28aab525d5",
+  "first_pass_accepted": "yes",
+  "goal_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR",
+  "goal_node": "C_RESPONSIVE_LAYOUT",
+  "outcome": "Responsive production workbench and preflight hierarchy pass at 1366x768 and 1920x1080 without horizontal or nested scrolling.",
+  "quality_reconciliation": {
+    "escaped_defect": "unknown",
+    "later_rework": "unknown",
+    "rollback_required": "no"
+  },
+  "review_reasons": [
+    "review policy=required"
+  ],
+  "review_required": true,
+  "risk_tier": "R2",
+  "schema_version": 1,
+  "state_contract_sha256": "7c87b9ac3e4143cc012ff62cc76c4022fa5352fac18b05331bb21143ce931e94",
+  "state_hazard_level": "S1",
+  "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT",
+  "task_revision": 1,
+  "verified_snapshot_sha256": "68165e9069fdc7d3c7d9d006250ae35cf396b80002fec1c625bc25364ebe3325"
+}

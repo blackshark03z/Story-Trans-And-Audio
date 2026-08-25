@@ -1,24 +1,24 @@
 # Task Template — STANDARD
 
-Task Status: ABORTED
+Task Status: COMPLETED
 Task Mode: STANDARD
-Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125-B_CI_RECONCILIATION
+Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT
 Task Revision: 1
 Created: 2026-08-25
-Owner Authorization: APPROVED
-Authorization Reference: STORY_AUDIO_BASELINE_RECONCILIATION_AND_BUILDOS_V125_ADOPTION owner brief, 2026-08-25
+Owner Authorization: NOT_REQUIRED
+Authorization Reference: NONE
 
 ## Single Outcome
 
-Repair the machine-readable Project Contract command encoding and prove CI command resolution and relevant checks.
+Restore the production workbench and preflight viewport hierarchy at 1366x768 without loosening browser acceptance.
 
 ## Product Link
 
 - Milestone ID: M-001
-- Success Criterion: CI install and product-check commands resolve without Markdown delimiter tokens and relevant checks pass.
-- Goal ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125
-- Goal Node: B_CI_RECONCILIATION
-- Delivery Delta: RISK_RETIREMENT
+- Success Criterion: The primary production action and required preflight content are usable at 1366x768 with no horizontal or nested overflow, while 1920 layout remains valid.
+- Goal ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR
+- Goal Node: C_RESPONSIVE_LAYOUT
+- Delivery Delta: USER_VISIBLE_BEHAVIOR
 - Demonstrable Result: runtime/output evidence listed in task evidence index
 - Unlocks: next ready Goal node
 - Consecutive Non-Shipping Tasks Before This Task: 0
@@ -36,36 +36,36 @@ Repair the machine-readable Project Contract command encoding and prove CI comma
 - Specialist reviewer trigger: UNSET
 - Full suite required: only-if-gate-requires
 - Review policy: required
-- Acceptance Contract SHA256: 162d59ec8d163c954f2e691d0d4e5a25e8effc4f41d5b93fca892472bfdbf613
-- Acceptance Contract JSON: {"commands":["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_project_ci_contract -v"],"expected_outputs":["OK"],"probe_files":[],"probe_hashes":{},"effective_risk_at_freeze":"R2","frozen_at":"2026-08-25T07:48:38+00:00","contract_sha256":"162d59ec8d163c954f2e691d0d4e5a25e8effc4f41d5b93fca892472bfdbf613"}
+- Acceptance Contract SHA256: 1f55dd2c0ee9c2df11897d9a0ca95e939647aff84412e7fa03116c8488a568f0
+- Acceptance Contract JSON: {"commands":["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_production_preflight_browser tests.test_production_workflow_browser -v"],"expected_outputs":["OK"],"probe_files":[],"probe_hashes":{},"effective_risk_at_freeze":"R2","frozen_at":"2026-08-25T09:12:20+00:00","contract_sha256":"1f55dd2c0ee9c2df11897d9a0ca95e939647aff84412e7fa03116c8488a568f0"}
 - State Hazard Level: S1
-- State Hazard Signals: CI command contract parsing, explicit:S1
-- State Contract SHA256: fa90274bf2b4176ed519e4a23ac6e60c5cbb9e55f594a67682464a58cb1d8d85
-- State Contract JSON: {"schema_version":1,"level":"S1","authority":"","transitions":[],"invariants":[],"dependencies":[".ai/PROJECT.md","scripts/project_ci.py","tests/test_project_ci_contract.py"],"signals":["CI command contract parsing","explicit:S1"],"contract_sha256":"fa90274bf2b4176ed519e4a23ac6e60c5cbb9e55f594a67682464a58cb1d8d85"}
+- State Hazard Signals: explicit:S1, rendered browser geometry
+- State Contract SHA256: 7c87b9ac3e4143cc012ff62cc76c4022fa5352fac18b05331bb21143ce931e94
+- State Contract JSON: {"schema_version":1,"level":"S1","authority":"Playwright/Chromium smoke evidence at 1366x768 and 1920x1080","transitions":[],"invariants":["No production command, provider call, canonical mutation, or assertion weakening."],"dependencies":["ui/styles.css"],"signals":["explicit:S1","rendered browser geometry"],"contract_sha256":"7c87b9ac3e4143cc012ff62cc76c4022fa5352fac18b05331bb21143ce931e94"}
 
 ## Continuity Fingerprint at Authorization
 
 - Project ID: story-audio
 - Branch: goal/story-audio-baseline-v125
-- HEAD: c9504ddf50c48d1066f3aea4038b63086ffcbf79
+- HEAD: da88199671c4259cf6e3ea6d464a3a38a0ec292d
 - Worktree: CLEAN
-- Starting Snapshot SHA256: 861e85b1a25bf9460c39fe53e2e609487a15b9abe8a7fd6d09f98db0efc9f62c
-- Verified Snapshot SHA256: NONE
-- State Revision: 5
-- Context Capsule Revision: 15
+- Starting Snapshot SHA256: f08ac5544b5f2d644cad6dd730cc1787ee225401f0e71d557cda8d5bc3bfee5e
+- Verified Snapshot SHA256: 68165e9069fdc7d3c7d9d006250ae35cf396b80002fec1c625bc25364ebe3325
+- State Revision: 6
+- Context Capsule Revision: 19
 
 ## Permission Matrix
 
 ### Allowed
 
 - Read: task-relevant repository files
-- Modify: .ai/PROJECT.md,scripts/project_ci.py,tests/test_voice_preview_api.py
-- Create: tests/test_project_ci_contract.py
+- Modify: ui/styles.css
+- Create: NONE
 - Commands: focused checks and task-authorized commands
 - Local services: NONE
 - External calls: NONE
 - Data operation: READ_ONLY
-- Artifact operation: READ_ONLY
+- Artifact operation: CREATE_NEW_VERSION
 - Git: status/diff/log; commit only if explicitly authorized
 
 ### Prohibited
@@ -74,8 +74,9 @@ Repair the machine-readable Project Contract command encoding and prove CI comma
 
 ## Acceptance Criteria
 
-- [ ] Project Contract parsing returns raw executable argv for install and test commands.
-- [ ] Equivalent install and canonical product-check resolution passes locally.
+- [ ] Observable outcome exists.
+- [ ] Critical negative path checked.
+- [ ] Output and side effects match preflight.
 
 ## Verification Plan
 
@@ -125,37 +126,28 @@ Repair the machine-readable Project Contract command encoding and prove CI comma
 
 - Lease Status: RELEASED
 - Writer Role: WORKER
-- Platform: Codex
+- Platform: WINDOWS
 - Model Claimed: UNSPECIFIED
-- Identity Verification: PENDING
-- Session Label: story-audio-baseline-ci
-- Claimed At: 2026-08-25T07:48:38+00:00
-- Last Heartbeat: 2026-08-25T08:14:17+00:00
-- Released At: 2026-08-25T08:45:50+00:00
+- Identity Verification: VERIFIED
+- Session Label: story-audio-v125-responsive
+- Claimed At: 2026-08-25T09:12:20+00:00
+- Last Heartbeat: 2026-08-25T09:21:24+00:00
+- Released At: 2026-08-25T09:21:24+00:00
 - Takeover From: NONE
 
 ## Lifecycle Timing
 
-- Started At: 2026-08-25T07:48:38+00:00
+- Started At: 2026-08-25T09:12:20+00:00
 - First Runnable At: NONE
 - First Runnable Evidence: NONE
-- Completed At: 2026-08-25T08:45:50+00:00
+- Completed At: 2026-08-25T09:21:24+00:00
 
 ## Completion
 
-- Outcome: NONE
-- Evidence index: NONE
-- Evidence Bundle: NONE
-- Worker report: NONE
-- Review report: NONE
-- Ending HEAD: UNSET
-- Lease release: PENDING
-
-## Shipping Breaker Override
-
-- Breaker at start: INACTIVE
-- Reason: Goal dependency path to accepted shipping node
-
-## Scope Amendments
-
-- 2026-08-25T08:10:07+00:00: Full Product CI exposed an offline-isolation defect: logical-reference preview tests inject the real global TTS service and can download VieNeu model assets. Add only this test file to replace the provider-capable dependency with a deterministic local test double. | modify+=tests/test_voice_preview_api.py | create+=NONE | risk R2->R2
+- Outcome: Responsive production workbench and preflight hierarchy pass at 1366x768 and 1920x1080 without horizontal or nested scrolling.
+- Evidence index: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001/EVIDENCE_INDEX.md
+- Evidence Bundle: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001
+- Worker report: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001/WORKER_REPORT.md
+- Review report: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001/review/review_story_audio_v125_repair_c_responsive_layout.md
+- Ending HEAD: da88199671c4259cf6e3ea6d464a3a38a0ec292d
+- Lease release: RELEASED

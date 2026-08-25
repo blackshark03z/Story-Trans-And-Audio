@@ -110,8 +110,8 @@
     }
   ],
   "goal_acceptance_contract": {
-    "contract_sha256": "",
-    "frozen_at": null,
+    "contract_sha256": "735a98407decb2fc8f134d9de941347202330a09e34e8f84abb0f56f0f71b6ce",
+    "frozen_at": "2026-08-25T09:12:20+00:00",
     "mappings": [
       {
         "command": "git log --all --format=%H%x09%s --grep=checkpoint blocked baseline reconciliation -n 1",
@@ -165,7 +165,7 @@
   },
   "goal_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR",
   "goal_type": "risk",
-  "last_task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-A_FAILURE_INVENTORY",
+  "last_task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT",
   "non_goals": [
     "Production PREPARE, production START_RENDER, Gemini or VieNeu/TTS synthesis, Human QA decisions, canonical DB mutation, protected artifact mutation, secret changes, push, merge, deploy, broad refactor, wildcard repository scope, or historical evidence rewrite."
   ],
@@ -321,11 +321,12 @@
         "commands": [
           "D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_production_preflight_browser tests.test_production_workflow_browser -v"
         ],
-        "contract_sha256": "",
+        "contract_sha256": "1f55dd2c0ee9c2df11897d9a0ca95e939647aff84412e7fa03116c8488a568f0",
+        "effective_risk_at_freeze": "R2",
         "expected_outputs": [
           "OK"
         ],
-        "frozen_at": null,
+        "frozen_at": "2026-08-25T09:12:20+00:00",
         "probe_files": [],
         "probe_hashes": {}
       },
@@ -347,14 +348,31 @@
       "depends_on": [
         "A_FAILURE_INVENTORY"
       ],
+      "initial_create_scope": "NONE",
+      "initial_modify_scope": "ui/styles.css",
+      "initial_scope_count": 2,
+      "initial_scope_footprint": [
+        "PATTERN:ui/styles.css",
+        "ui/styles.css"
+      ],
       "modify": "ui/styles.css",
       "negative_required": true,
       "node_id": "C_RESPONSIVE_LAYOUT",
       "outcome": "Restore the production workbench and preflight viewport hierarchy at 1366x768 without loosening browser acceptance.",
       "replaces": [],
-      "result": null,
+      "result": {
+        "completed_at": "2026-08-25T09:21:25+00:00",
+        "delivery_delta": "USER_VISIBLE_BEHAVIOR",
+        "evidence_bundle": ".ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001",
+        "first_pass_accepted": "yes",
+        "outcome": "Responsive production workbench and preflight hierarchy pass at 1366x768 and 1920x1080 without horizontal or nested scrolling.",
+        "risk_tier": "R2",
+        "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT",
+        "task_revision": 1
+      },
       "review_policy": "required",
       "risk": "R2",
+      "started_at": "2026-08-25T09:12:22+00:00",
       "state_authority": "Playwright/Chromium smoke evidence at 1366x768 and 1920x1080",
       "state_dependencies": [],
       "state_hazard": "S1",
@@ -365,9 +383,10 @@
         "rendered browser geometry"
       ],
       "state_transitions": [],
-      "status": "PLANNED",
+      "status": "DONE",
       "success_criterion": "The primary production action and required preflight content are usable at 1366x768 with no horizontal or nested overflow, while 1920 layout remains valid.",
-      "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT"
+      "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT",
+      "task_revision": 1
     },
     "D_GOLDEN_CERTIFICATION": {
       "acceptance": [],
@@ -527,5 +546,5 @@
       "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-F_DOCUMENTATION_AUTHORITY"
     }
   },
-  "updated_at": "2026-08-25T09:09:57+00:00"
+  "updated_at": "2026-08-25T09:21:25+00:00"
 }
