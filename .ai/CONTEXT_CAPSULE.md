@@ -1,21 +1,21 @@
 # Worker Packet
 
-Generated: 2026-08-25T09:49:08+00:00
-Capsule Revision: 26
+Generated: 2026-08-25T10:15:01+00:00
+Capsule Revision: 30
 
 ## Task
 
-- ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION/r001
+- ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3/r001
 - Status: COMPLETED
-- Goal: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR / node D_GOLDEN_CERTIFICATION
-- Milestone / criterion: M-001 / Golden Journey passes entirely in an isolated non-8772 runtime with fake TTS/prepare boundaries, current schema semantics, no canonical artifact assumptions, and before/after non-mutation evidence.
-- Risk / profile: R3 / DEEP
-- Negative path required: yes
-- Shipping breaker: INACTIVE (2/3 non-shipping)
+- Goal: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR / node G_BROWSER_POLL_STABILITY_V3
+- Milestone / criterion: M-001 / Five consecutive isolated real-browser assignment journeys pass and preserve the exact polling stability assertions; then the independent full offline review may rerun.
+- Risk / profile: R1 / LEAN
+- Negative path required: no
+- Shipping breaker: ACTIVE (3/3 non-shipping)
 
 ## Outcome
 
-Reconcile Golden Journey with isolated schema-16 representative state and current explicit repair-plan behavior while preserving a read-only canonical non-mutation proof.
+Certify and preserve the validated bounded assignment browser polling-race repair without weakening DOM identity, focus, draft, or scroll assertions.
 
 ## Goal Context
 
@@ -27,25 +27,25 @@ NONE
 
 ## Scope
 
-- Modify: tests/test_golden_journey_certification.py,scripts/run_golden_journey_certification.py,scripts/browser_golden_journey_certification.mjs
+- Modify: scripts/browser_assignment_flow_smoke.mjs
 - Create: NONE
-- External calls: Loopback isolated runtime and headless Chromium only.
+- External calls: NONE
 - Pre-existing dirty files: 0 (not part of task unless changed again)
 - Current task delta: NONE
 
 ## Acceptance
 
 - [ ] Observable outcome exists.
-- [ ] Critical negative path checked.
-- [ ] Output and side effects match preflight.
+- [ ] Critical negative path is checked when `Negative path required: yes`.
+- [ ] Final output and task-scoped diff are inspected.
 
 ## Verify
 
-1. Cheapest focused check.
-2. Affected runtime/integration check.
-3. Inspect final output and Git diff.
-- Acceptance contract: 387fe03930e69562ddf77b941a9e88544978e7b08c0c98e008b7aa1216e3409a (predeclared commands=1, locked probes=0)
-- Review policy: required
+1. Focused check.
+2. Negative-path check only when the task has a real failure behavior.
+3. Runtime/output and diff inspection.
+- Acceptance contract: 8b290c2fb46727240666b59f9d16ccb7f0cd2d2e43eb44b45f568064be453cba (predeclared commands=1, locked probes=0)
+- Review policy: none
 
 ## Stop
 
@@ -53,21 +53,3 @@ NONE
 - Amend scope instead of widening it silently.
 - Final output and task delta must be inspected before acceptance.
 - If shipping breaker is ACTIVE, do not start/continue non-shipping work without an explicit override.
-
-## Shared/Operational Context
-
-- Product goal: The operator completes the frozen North Star journey from EPUB import through accepted downloadable chapter audio, with explicit control over AI proposals.
-- Data operation: CREATE_NEW_VERSION
-- Artifact operation: CREATE_NEW_VERSION
-- Rollback: revert task-scoped diff and remove new artifacts
-
-## Relevant Decisions
-
-- NONE_LISTED
-
-## Critical Gates
-
-- Owner authorization: APPROVED / C:\Users\ADMIN\.codex\attachments\b3a8ed2c-bea9-4158-a81e-3054c5b46954\pasted-text-1.txt STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR R3 ceiling and isolated Golden Journey authorization
-- Human review required: yes
-- Full suite required: yes
-- Specialist trigger: UNSET

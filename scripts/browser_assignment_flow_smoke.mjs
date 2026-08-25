@@ -197,6 +197,30 @@ try {
     loadProductionTaskProjection({ silent: true }),
   ])`);
 
+  // A prior workflow jump intentionally uses smooth scrolling, and registry /
+  // speaker-review refreshes may still have a queued animation-frame restore.
+  // Establish a genuinely quiescent UI before measuring the polling invariant;
+  // otherwise a busy full-suite run can attribute that earlier navigation to
+  // loadJobs(), or capture a node just before the queued reconciliation runs.
+  await waitFor(`(async () => {
+    document.activeElement?.blur?.();
+    applyDeferredSpeakerReviewUpdate();
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    let previous = window.scrollY;
+    let stableSamples = 0;
+    for (let index = 0; index < 20 && stableSamples < 4; index += 1) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+      const current = window.scrollY;
+      stableSamples = Math.abs(current - previous) <= 1 ? stableSamples + 1 : 0;
+      previous = current;
+    }
+    const queue = window.storyAudioAppState.bookVoiceRegistry?.speakerSuggestions;
+    return stableSamples >= 4
+      && !window.storyAudioAppState.bookVoiceRegistry?.loading
+      && !queue?.loading
+      && !queue?.deferredResult;
+  })()`, 5000);
+
   const pollingStability = await evaluate(`(async () => {
     const voice = document.querySelector('[data-registry-voice-key="character:25"]');
     const scope = document.querySelector('[data-registry-scope-key="character:25"]');
@@ -205,11 +229,12 @@ try {
     scope.dispatchEvent(new Event('change', { bubbles: true }));
     voice.value = 'commander';
     voice.dispatchEvent(new Event('change', { bubbles: true }));
-    voice.focus();
+    voice.focus({ preventScroll: true });
     const node = voice;
     const scopeNode = scope;
     const scrollBefore = window.scrollY;
     for (let index = 0; index < 3; index += 1) await loadJobs();
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     return {
       sameVoiceNode: document.querySelector('[data-registry-voice-key="character:25"]') === node,
       sameScopeNode: document.querySelector('[data-registry-scope-key="character:25"]') === scopeNode,
@@ -259,16 +284,18 @@ try {
     state.productionProjection=window.__repairProjection;
     state.productionRepair={taskKey:null,mode:null};
     setAppRoute('production');renderProductionShell();
-    return {heading:document.querySelector('#productionCurrentStepHeading')?.textContent,badge:document.querySelector('#productionStateBadge')?.textContent,blockers:[...document.querySelectorAll('[data-repair-blocker]')].map(card=>card.innerText),sequence:[...document.querySelectorAll('.production-repair-sequence li')].map(item=>item.innerText),prepareEnabled:!!document.querySelector('#repairPrepare:not([disabled])'),qaControlsHidden:document.querySelector('#productionQaActions')?.classList.contains('hidden')};
+    const result={heading:document.querySelector('#productionCurrentStepHeading')?.textContent,badge:document.querySelector('#productionStateBadge')?.textContent,blockers:[...document.querySelectorAll('[data-repair-blocker]')].map(card=>card.innerText),sequence:[...document.querySelectorAll('.production-repair-sequence li')].map(item=>item.innerText),prepareEnabled:!!document.querySelector('#repairPrepare:not([disabled])'),qaControlsHidden:document.querySelector('#productionQaActions')?.classList.contains('hidden')};
+    const button=document.querySelector('[data-repair-blocker-action="0"]');
+    if(!button)throw new Error('Speaker repair blocker action missing from injected projection');
+    button.click();
+    return result;
   })()`);
 
-  await click('[data-repair-blocker-action="0"]');
   await waitFor(`location.hash.startsWith('#/assignment?') && location.hash.includes('from=1') && location.hash.includes('to=1') && location.hash.includes('assignment_focus=review')`);
   await waitFor(`document.querySelector('[data-assignment-section="review"]')`);
   const speakerRepairNavigation = await evaluate(`({hash:location.hash,reviewOpen:document.querySelector('[data-assignment-section="review"]')?.open,returnTask:window.storyAudioAppState.productionWorkingContext?.returnTask,scope:document.querySelector('#assignmentScope')?.textContent})`);
 
-  await evaluate(`(() => { state.productionProjection=window.__repairProjection; state.productionRange={bookId:1,fromChapter:1,toChapter:1,skipCompleted:false}; setAppRoute('production'); renderProductionShell(); return true })()`);
-  await click('[data-repair-blocker-action="1"]');
+  await evaluate(`(() => { state.productionProjection=window.__repairProjection; state.productionRange={bookId:1,fromChapter:1,toChapter:1,skipCompleted:false}; setAppRoute('production'); renderProductionShell(); const button=document.querySelector('[data-repair-blocker-action="1"]'); if(!button)throw new Error('Voice repair blocker action missing from injected projection'); button.click(); return true })()`);
   await waitFor(`location.hash.startsWith('#/assignment?') && location.hash.includes('assignment_focus=voices')`);
   await waitFor(`document.querySelector('[data-assignment-section="voices"]')`);
   const voiceRepairNavigation = await evaluate(`({hash:location.hash,voicesOpen:document.querySelector('[data-assignment-section="voices"]')?.open,returnTask:window.storyAudioAppState.productionWorkingContext?.returnTask,returnLabel:document.querySelector('[data-open-production-preflight]')?.textContent,unresolvedVoiceRows:document.querySelectorAll('[data-voice-library-row^="unresolved-dialogue:"]').length})`);
@@ -278,9 +305,12 @@ try {
     task.repair.input_blockers=[];task.repair.input_blocker_details=[];task.repair.qa_evidence_id=312;task.repair.qa_feedback={repeated_words:true,global_speed_target:1.25,local_pacing_adjustment_required:true,operator_note:'Đổi giọng narrator'};task.repair.prepare_ready=true;task.blocker=null;projection.blocker=null;
     projection.phases=projection.phases.map((phase,index)=>({...phase,current:index===2,complete:index<2,locked:index>2,state:index<2?'complete':index===2?'current':'locked'}));
     state.productionProjection=projection;state.productionRepair={taskKey:null,mode:null};state.productionRange={bookId:1,fromChapter:1,toChapter:1,skipCompleted:false};setAppRoute('production');renderProductionShell();
-    return {blockers:document.querySelectorAll('[data-repair-blocker]').length,nextAction:document.querySelector('#repairOpenPlan')?.textContent,applyButton:!!document.querySelector('#repairApplyPlan'),commandsBefore:0};
+    const result={blockers:document.querySelectorAll('[data-repair-blocker]').length,nextAction:document.querySelector('#repairOpenPlan')?.textContent,applyButton:!!document.querySelector('#repairApplyPlan'),commandsBefore:0};
+    const button=document.querySelector('#repairOpenPlan');
+    if(!button)throw new Error('Repair plan button missing from injected ready projection');
+    button.click();
+    return result;
   })()`);
-  await waitFor(`(() => { const button=document.querySelector('#repairOpenPlan'); if(!button)return false; button.click(); return true; })()`);
   const repairPlan = await waitFor(`(() => {
     const heading=document.querySelector('.production-repair-plan h3')?.textContent;
     if(window.storyAudioAppState.productionRepair.mode !== "plan" || !heading)return null;

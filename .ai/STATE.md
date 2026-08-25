@@ -1,32 +1,32 @@
 # Current State
 
 Updated: 2026-08-25
-State Revision: 11
+State Revision: 14
 
 ## Continuity Fingerprint
 
 - Project ID: story-audio
 - Branch: goal/story-audio-baseline-v125
-- HEAD: f2128d3523bdf9a7f8fc0e118e3ed1510ae2d6fa
+- HEAD: 801ac72664eb4a8274914b87ab562bd8e9d03968
 - Worktree: DIRTY
 - Active Task ID: NONE
-- Last Known Good Commit: f2128d3523bdf9a7f8fc0e118e3ed1510ae2d6fa
+- Last Known Good Commit: 801ac72664eb4a8274914b87ab562bd8e9d03968
 - Runtime/Data Fingerprint: schema 15; canonical inspection read-only
 
 ## Current Product Position
 
 - Current milestone: M-001
-- Success criterion: Golden Journey passes entirely in an isolated non-8772 runtime with fake TTS/prepare boundaries, current schema semantics, no canonical artifact assumptions, and before/after non-mutation evidence.
+- Success criterion: Five consecutive isolated real-browser assignment journeys pass and preserve the exact polling stability assertions; then the independent full offline review may rerun.
 - Last demonstrated behavior/capability: Responsive production workbench and preflight hierarchy pass at 1366x768 and 1920x1080 without horizontal or nested scrolling.
 - Demo evidence: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001/EVIDENCE_INDEX.md
 - Current user-visible limitation: No implementation task selected
 
 ## Delivery Pulse
 
-- Last completed Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION
+- Last completed Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3
 - Last Delivery Delta: RISK_RETIREMENT
-- Consecutive Non-Shipping Tasks: 2
-- Shipping Circuit Breaker: INACTIVE
+- Consecutive Non-Shipping Tasks: 3
+- Shipping Circuit Breaker: ACTIVE
 - Time since last runnable demo: 0
 - Next required demo: SC-001 representative chapter journey
 
@@ -40,11 +40,11 @@ State Revision: 11
 
 ## Completed and Verified
 
-- Active Task remains NOT_CREATED/NONE.
 - STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001: ADD CUSTOM VOICE TO SELECTED BOOK | evidence: `.ai/evidence/STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001`
 - STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001: Responsive production workbench and preflight hierarchy pass at 1366x768 and 1920x1080 without horizontal or nested scrolling. | evidence: `.ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-C_RESPONSIVE_LAYOUT/r001`
 - STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001: All inventory-proven fixture and dependency-binding failures pass against isolated schema-16 and provider-disabled runtime state. | evidence: `.ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-B_FIXTURE_ISOLATION/r001`
 - STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION/r001: Golden Journey passes on isolated schema 16 through repair-plan confirmation, self-cleans its bounded run directory, and proves explicit protected-target before/after equality without replacement execution. | evidence: `.ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION/r001`
+- STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3/r001: Assignment browser polling evidence now waits for the real UI to quiesce, preserves active DOM identity/focus/draft/scroll invariants through repeated loadJobs polling, and atomically exercises injected repair controls without route-refresh races. | evidence: `.ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3/r001`
 
 ## Current Blocker
 
@@ -56,14 +56,14 @@ State Revision: 11
 
 ## Verification State
 
-- STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION/r001 accepted.
-- Snapshot: `7eaa71686efbb1889e9e92c72963c2512f9eae4d3ba3cd2b866e2068d1c664f7`.
-- Evidence: `.ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION/r001`.
+- STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3/r001 accepted.
+- Snapshot: `5af5167acf43426b96e245fd1c9a5fdddbe220ec5d0f2ef229132f0322ad479e`.
+- Evidence: `.ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3/r001`.
 
 ## Cost Efficiency State
 
 - Expected cost range: task-dependent; no provider cost authorized by this freeze
-- Actual cost signal: ledger:STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION:1
+- Actual cost signal: ledger:STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3:1
 - Marginal value status: ACCEPTED
 - Repeated operations: NONE
 - Economic stop-loss: INACTIVE

@@ -1,0 +1,119 @@
+{
+  "acceptance_contract_sha256": "8b290c2fb46727240666b59f9d16ccb7f0cd2d2e43eb44b45f568064be453cba",
+  "accepted_outcome": "Assignment browser polling evidence now waits for the real UI to quiesce, preserves active DOM identity/focus/draft/scroll invariants through repeated loadJobs polling, and atomically exercises injected repair controls without route-refresh races.",
+  "artifacts": [],
+  "checks": [
+    {
+      "command": "D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_assignment_workflow_browser",
+      "completed_at": "2026-08-25T10:14:59+00:00",
+      "execution_mode": "shell",
+      "exit_code": 0,
+      "id": "EV-001",
+      "inspected_by": "agent:orchestrator",
+      "inspection_status": "AGENT_INSPECTED",
+      "kind": "focused",
+      "result": "PASS",
+      "satisfies": [
+        "focused",
+        "state_transition",
+        "state_temporal",
+        "acceptance_contract"
+      ],
+      "started_at": "2026-08-25T10:14:53+00:00",
+      "stderr": {
+        "original_bytes": 98,
+        "path": "EV-001-focused.stderr.txt",
+        "sha256": "5d2b815830155a10aa3fec98cc7e37b59e207e0b60eb4a36bf0bc0977ca0597b",
+        "stored_bytes": 98,
+        "truncated": false
+      },
+      "stdout": {
+        "original_bytes": 0,
+        "path": "EV-001-focused.stdout.txt",
+        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "stored_bytes": 0,
+        "truncated": false
+      }
+    }
+  ],
+  "cleanup_note": "Each browser run removes only its fresh exact timestamped test root and Chromium profile after process shutdown.",
+  "evidence_mode": "COMPACT",
+  "execution_profile": "LEAN",
+  "final_verdict": "PASS",
+  "generated_at": "2026-08-25T10:15:00+00:00",
+  "goal_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR",
+  "goal_node": "G_BROWSER_POLL_STABILITY_V3",
+  "known_limits": "Full-suite and CI gates remain assigned to independent E review; five consecutive focused passes were also observed before lifecycle capture.",
+  "output_assertions": [
+    {
+      "matched": true,
+      "text": "OK"
+    }
+  ],
+  "review": null,
+  "review_policy": "none",
+  "risk_tier": "R1",
+  "schema_version": 4,
+  "starting_snapshot": {
+    "branch": "goal/story-audio-baseline-v125",
+    "changed_files": [
+      "scripts/browser_assignment_flow_smoke.mjs"
+    ],
+    "git": true,
+    "head": "801ac72664eb4a8274914b87ab562bd8e9d03968",
+    "snapshot_sha256": "5af5167acf43426b96e245fd1c9a5fdddbe220ec5d0f2ef229132f0322ad479e",
+    "status_lines": [
+      " M scripts/browser_assignment_flow_smoke.mjs"
+    ],
+    "tracked_diff_sha256": "78f592bbffac62040796c1c3c9322d35d3d9d8dd1eaf2ccf90b4f75e0746d526",
+    "untracked_manifest_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "worktree": "DIRTY"
+  },
+  "state_contract": {
+    "authority": "live assignment DOM plus window.storyAudioAppState",
+    "contract_sha256": "697629749538ce4872b6feb0c293fd2eb1f88968d9484109087288729b03b9ca",
+    "dependencies": [
+      "ui/app.js",
+      "scripts/browser_assignment_flow_smoke.mjs"
+    ],
+    "invariants": [
+      "deferred background reconciliation never replaces or scrolls an actively edited assignment row"
+    ],
+    "level": "S3",
+    "schema_version": 1,
+    "signals": [
+      "draft",
+      "explicit:S3",
+      "polling"
+    ],
+    "transitions": [
+      "settled assignment -> local DIRTY draft -> repeated job polling -> same DOM and DIRTY draft"
+    ]
+  },
+  "state_contract_sha256": "697629749538ce4872b6feb0c293fd2eb1f88968d9484109087288729b03b9ca",
+  "state_hazard_level": "S3",
+  "success_criterion": "Five consecutive isolated real-browser assignment journeys pass and preserve the exact polling stability assertions; then the independent full offline review may rerun.",
+  "task_delta_file_hashes": {
+    "scripts/browser_assignment_flow_smoke.mjs": "FILE:6c92661e5e0d20af2557a788bb76fcd4058d6b93d30d0e27d6108b76c4c91541"
+  },
+  "task_delta_files": [
+    "scripts/browser_assignment_flow_smoke.mjs"
+  ],
+  "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3",
+  "task_revision": 1,
+  "verified_snapshot": {
+    "branch": "goal/story-audio-baseline-v125",
+    "changed_files": [
+      "scripts/browser_assignment_flow_smoke.mjs"
+    ],
+    "git": true,
+    "head": "801ac72664eb4a8274914b87ab562bd8e9d03968",
+    "snapshot_sha256": "5af5167acf43426b96e245fd1c9a5fdddbe220ec5d0f2ef229132f0322ad479e",
+    "status_lines": [
+      " M scripts/browser_assignment_flow_smoke.mjs"
+    ],
+    "tracked_diff_sha256": "78f592bbffac62040796c1c3c9322d35d3d9d8dd1eaf2ccf90b4f75e0746d526",
+    "untracked_manifest_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945",
+    "worktree": "DIRTY"
+  }
+}

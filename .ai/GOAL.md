@@ -4,7 +4,7 @@ Goal ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR
 Goal Status: ACTIVE
 Goal Type: risk
 Risk Ceiling: R3
-Updated: 2026-08-25T09:49:10+00:00
+Updated: 2026-08-25T10:15:02+00:00
 
 ## Outcome
 
@@ -52,6 +52,9 @@ Repair blockers discovered by the parent baseline Goal, restore a truthful green
 | D_GOLDEN_CERTIFICATION | DONE | WORKER | R2 | RISK_RETIREMENT | B_FIXTURE_ISOLATION,C_RESPONSIVE_LAYOUT | Reconcile Golden Journey with isolated schema-16 representative state and current explicit repair-plan behavior while preserving a read-only canonical non-mutation proof. |
 | E_OFFLINE_BASELINE_REVIEW | PLANNED | REVIEWER | R1 | NO_DELTA | B_FIXTURE_ISOLATION,C_RESPONSIVE_LAYOUT,D_GOLDEN_CERTIFICATION | Independently verify the repaired offline Story Audio baseline across the full project suite, CI contract, JavaScript syntax and read-only Doctor diagnostics. |
 | F_DOCUMENTATION_AUTHORITY | PLANNED | WORKER | R1 | DOCUMENTATION_ONLY | E_OFFLINE_BASELINE_REVIEW | Reconcile current Story Audio documentation with freshly verified Git/runtime/schema16/Artifact99/Artifact96 authority and exact post-repair boundary. |
+| G_BROWSER_POLL_STABILITY | DEFERRED | WORKER | R1 | RISK_RETIREMENT | D_GOLDEN_CERTIFICATION | Remove the full-suite-order race in assignment polling evidence without weakening DOM identity, focus, draft, or scroll stability assertions. |
+| G_BROWSER_POLL_STABILITY_V2 | DEFERRED | WORKER | R1 | RISK_RETIREMENT | D_GOLDEN_CERTIFICATION | Remove the full-suite-order race in assignment polling evidence without weakening DOM identity, focus, draft, or scroll stability assertions. |
+| G_BROWSER_POLL_STABILITY_V3 | DONE | WORKER | R1 | RISK_RETIREMENT | D_GOLDEN_CERTIFICATION | Certify and preserve the validated bounded assignment browser polling-race repair without weakening DOM identity, focus, draft, or scroll assertions. |
 
 ## Human Interrupt Policy
 

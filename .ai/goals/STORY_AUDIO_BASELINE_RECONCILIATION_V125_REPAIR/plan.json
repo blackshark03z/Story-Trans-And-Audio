@@ -76,7 +76,7 @@
     "tracked_files": 413,
     "tracked_repo_mb": 6.481
   },
-  "completed_non_shipping_streak": 2,
+  "completed_non_shipping_streak": 3,
   "created_at": "2026-08-25T08:46:45+00:00",
   "decisions_required": [],
   "discoveries": [
@@ -165,7 +165,7 @@
   },
   "goal_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR",
   "goal_type": "risk",
-  "last_task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-D_GOLDEN_CERTIFICATION",
+  "last_task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3",
   "non_goals": [
     "Production PREPARE, production START_RENDER, Gemini or VieNeu/TTS synthesis, Human QA decisions, canonical DB mutation, protected artifact mutation, secret changes, push, merge, deploy, broad refactor, wildcard repository scope, or historical evidence rewrite."
   ],
@@ -594,7 +594,210 @@
       "status": "PLANNED",
       "success_criterion": "Current-state documents agree that Artifact93 is superseded history, Artifact99 is Chapter372 active accepted, Artifact96 is Chapter373 pending QA, runtime truth is explicit, and no operator/product action is falsely authorized.",
       "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-F_DOCUMENTATION_AUTHORITY"
+    },
+    "G_BROWSER_POLL_STABILITY": {
+      "acceptance": [],
+      "acceptance_contract": {
+        "commands": [
+          "D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_assignment_workflow_browser"
+        ],
+        "contract_sha256": "b22a2d08d68467b7ddb1f2f72f8e5aebaa513d866be329585ca4f78c6c6c6cee",
+        "effective_risk_at_freeze": "R1",
+        "expected_outputs": [
+          "OK"
+        ],
+        "frozen_at": "2026-08-25T10:10:19+00:00",
+        "probe_files": [],
+        "probe_hashes": {}
+      },
+      "agent_role": "WORKER",
+      "artifact_operation": "READ_ONLY",
+      "create": "NONE",
+      "data_operation": "READ_ONLY",
+      "defer_reason": "Planning record omitted the mandatory S3 state contract; superseded before execution by G_BROWSER_POLL_STABILITY_V2 with explicit authority, transition, and invariant.",
+      "delegation": {
+        "action": "MAIN_WORKER",
+        "hard": true,
+        "model_class": "STRONG_WORKER",
+        "reasons": [
+          "delegation policy explicitly disables pre-scouting"
+        ],
+        "summary_token_budget": null
+      },
+      "delegation_policy": "main",
+      "delivery_delta": "RISK_RETIREMENT",
+      "depends_on": [
+        "D_GOLDEN_CERTIFICATION"
+      ],
+      "modify": "scripts/browser_assignment_flow_smoke.mjs",
+      "negative_required": false,
+      "node_id": "G_BROWSER_POLL_STABILITY",
+      "outcome": "Remove the full-suite-order race in assignment polling evidence without weakening DOM identity, focus, draft, or scroll stability assertions.",
+      "replaces": [],
+      "result": null,
+      "review_policy": "none",
+      "risk": "R1",
+      "state_authority": "",
+      "state_dependencies": [],
+      "state_hazard": "auto",
+      "state_invariants": [],
+      "state_signals": [],
+      "state_transitions": [],
+      "status": "DEFERRED",
+      "success_criterion": "Five consecutive isolated real-browser assignment journeys pass and preserve the exact polling stability assertions; then the independent full offline review may rerun.",
+      "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY"
+    },
+    "G_BROWSER_POLL_STABILITY_V2": {
+      "acceptance": [],
+      "acceptance_contract": {
+        "commands": [
+          "D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_assignment_workflow_browser"
+        ],
+        "contract_sha256": "993b45af41f2133a69fc32b92a1c67a90eaa2289fdda4a2b6269a8d967a79d81",
+        "effective_risk_at_freeze": "R1",
+        "expected_outputs": [
+          "OK"
+        ],
+        "frozen_at": "2026-08-25T10:10:40+00:00",
+        "probe_files": [],
+        "probe_hashes": {}
+      },
+      "agent_role": "WORKER",
+      "artifact_operation": "READ_ONLY",
+      "create": "NONE",
+      "data_operation": "READ_ONLY",
+      "defer_reason": "Planning metadata mistakenly declared the live harness as obsolete; active attempt aborted cleanly after preserving the validated patch for corrected V3 adoption.",
+      "delegation": {
+        "action": "MAIN_WORKER",
+        "hard": true,
+        "model_class": "STRONG_WORKER",
+        "reasons": [
+          "delegation policy explicitly disables pre-scouting"
+        ],
+        "summary_token_budget": null
+      },
+      "delegation_policy": "main",
+      "delivery_delta": "RISK_RETIREMENT",
+      "depends_on": [
+        "D_GOLDEN_CERTIFICATION"
+      ],
+      "initial_create_scope": "NONE",
+      "initial_modify_scope": "scripts/browser_assignment_flow_smoke.mjs",
+      "initial_scope_count": 2,
+      "initial_scope_footprint": [
+        "PATTERN:scripts/browser_assignment_flow_smoke.mjs",
+        "scripts/browser_assignment_flow_smoke.mjs"
+      ],
+      "last_abort_reason": "task aborted with zero delta",
+      "modify": "scripts/browser_assignment_flow_smoke.mjs",
+      "negative_required": false,
+      "node_id": "G_BROWSER_POLL_STABILITY_V2",
+      "outcome": "Remove the full-suite-order race in assignment polling evidence without weakening DOM identity, focus, draft, or scroll stability assertions.",
+      "replaces": [
+        "scripts/browser_assignment_flow_smoke.mjs"
+      ],
+      "result": null,
+      "review_policy": "none",
+      "risk": "R1",
+      "state_authority": "live assignment DOM plus window.storyAudioAppState",
+      "state_dependencies": [
+        "ui/app.js",
+        "scripts/browser_assignment_flow_smoke.mjs"
+      ],
+      "state_hazard": "S3",
+      "state_invariants": [
+        "deferred background reconciliation never replaces or scrolls an actively edited assignment row"
+      ],
+      "state_signals": [
+        "polling",
+        "draft"
+      ],
+      "state_transitions": [
+        "settled assignment -> local DIRTY draft -> repeated job polling -> same DOM and DIRTY draft"
+      ],
+      "status": "DEFERRED",
+      "success_criterion": "Five consecutive isolated real-browser assignment journeys pass and preserve the exact polling stability assertions; then the independent full offline review may rerun.",
+      "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V2"
+    },
+    "G_BROWSER_POLL_STABILITY_V3": {
+      "acceptance": [],
+      "acceptance_contract": {
+        "commands": [
+          "D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_assignment_workflow_browser"
+        ],
+        "contract_sha256": "8b290c2fb46727240666b59f9d16ccb7f0cd2d2e43eb44b45f568064be453cba",
+        "effective_risk_at_freeze": "R1",
+        "expected_outputs": [
+          "OK"
+        ],
+        "frozen_at": "2026-08-25T10:14:19+00:00",
+        "probe_files": [],
+        "probe_hashes": {}
+      },
+      "agent_role": "WORKER",
+      "artifact_operation": "READ_ONLY",
+      "create": "NONE",
+      "data_operation": "READ_ONLY",
+      "delegation": {
+        "action": "MAIN_WORKER",
+        "hard": true,
+        "model_class": "STRONG_WORKER",
+        "reasons": [
+          "delegation policy explicitly disables pre-scouting"
+        ],
+        "summary_token_budget": null
+      },
+      "delegation_policy": "main",
+      "delivery_delta": "RISK_RETIREMENT",
+      "depends_on": [
+        "D_GOLDEN_CERTIFICATION"
+      ],
+      "initial_create_scope": "NONE",
+      "initial_modify_scope": "scripts/browser_assignment_flow_smoke.mjs",
+      "initial_scope_count": 2,
+      "initial_scope_footprint": [
+        "PATTERN:scripts/browser_assignment_flow_smoke.mjs",
+        "scripts/browser_assignment_flow_smoke.mjs"
+      ],
+      "modify": "scripts/browser_assignment_flow_smoke.mjs",
+      "negative_required": false,
+      "node_id": "G_BROWSER_POLL_STABILITY_V3",
+      "outcome": "Certify and preserve the validated bounded assignment browser polling-race repair without weakening DOM identity, focus, draft, or scroll assertions.",
+      "replaces": [],
+      "result": {
+        "completed_at": "2026-08-25T10:15:02+00:00",
+        "delivery_delta": "RISK_RETIREMENT",
+        "evidence_bundle": ".ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3/r001",
+        "first_pass_accepted": "no",
+        "outcome": "Assignment browser polling evidence now waits for the real UI to quiesce, preserves active DOM identity/focus/draft/scroll invariants through repeated loadJobs polling, and atomically exercises injected repair controls without route-refresh races.",
+        "risk_tier": "R1",
+        "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3",
+        "task_revision": 1
+      },
+      "review_policy": "none",
+      "risk": "R1",
+      "started_at": "2026-08-25T10:14:21+00:00",
+      "state_authority": "live assignment DOM plus window.storyAudioAppState",
+      "state_dependencies": [
+        "ui/app.js",
+        "scripts/browser_assignment_flow_smoke.mjs"
+      ],
+      "state_hazard": "S3",
+      "state_invariants": [
+        "deferred background reconciliation never replaces or scrolls an actively edited assignment row"
+      ],
+      "state_signals": [
+        "polling",
+        "draft"
+      ],
+      "state_transitions": [
+        "settled assignment -> local DIRTY draft -> repeated job polling -> same DOM and DIRTY draft"
+      ],
+      "status": "DONE",
+      "success_criterion": "Five consecutive isolated real-browser assignment journeys pass and preserve the exact polling stability assertions; then the independent full offline review may rerun.",
+      "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-G_BROWSER_POLL_STABILITY_V3",
+      "task_revision": 1
     }
   },
-  "updated_at": "2026-08-25T09:49:10+00:00"
+  "updated_at": "2026-08-25T10:15:02+00:00"
 }
