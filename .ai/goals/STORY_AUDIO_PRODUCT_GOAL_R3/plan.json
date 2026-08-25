@@ -1,4 +1,5 @@
 {
+  "abort_reason": "Superseded by explicit owner-authorized STORY_AUDIO_BASELINE_RECONCILIATION_AND_BUILDOS_V125_ADOPTION mission; preserve all legacy evidence for migration disposition.",
   "acceptance": [
     "A representative EPUB chapter can follow the frozen North Star journey from import through explicit human acceptance and downloadable MP3, with WAV available when requested.",
     "Known book characters reuse established identity and casting; uncertain unknown-character proposals remain operator-reviewable and editable.",
@@ -135,7 +136,7 @@
   "outcome": "Story Audio enables a local operator to create, review, repair, accept, and download trustworthy audiobook-style chapter audio from multiple EPUB books with book-scoped characters, casting, and voices.",
   "risk_ceiling": "R3",
   "schema_version": 1,
-  "status": "ACTIVE",
+  "status": "ABORTED",
   "tasks": {
     "BOOK_SCOPED_CUSTOM_VOICE": {
       "acceptance": [
@@ -241,5 +242,5 @@
       "task_revision": 1
     }
   },
-  "updated_at": "2026-08-09T09:10:04+00:00"
+  "updated_at": "2026-08-25T07:44:45+00:00"
 }

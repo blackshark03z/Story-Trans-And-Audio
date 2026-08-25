@@ -107,8 +107,8 @@ accepted downloadable chapter audio, with explicit control over AI proposals.
 - Package manager: pip
 - Entry point: `run_app.ps1`
 - Run command: `run_app.ps1` (canonical runtime `http://127.0.0.1:8772`)
-- Install command: `python -m pip install -e .`
-- Test command: `python -m unittest discover -s tests -v`
+- Install command: python -m pip install -e .
+- Test command: python -m unittest discover -s tests -v
 - Lint command: PROJECT_SPECIFIC
 - Typecheck command: PROJECT_SPECIFIC
 - Build command: NONE_REQUIRED_OR_PROJECT_SPECIFIC

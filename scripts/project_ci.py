@@ -22,7 +22,12 @@ def executable_project(root:Path)->bool:
 
 def _cmd(value:str)->list[str]|None:
     if not value or value.strip().upper() in PLACEHOLDERS:return None
-    return shlex.split(value)
+    argv=shlex.split(value)
+    # A Product CI run must keep the interpreter selected by the caller. On
+    # Windows, resolving a literal `python` in a child process can silently
+    # escape the active venv and execute an unrelated PATH installation.
+    if argv and argv[0].casefold() in {'python','python3'}:argv[0]=sys.executable
+    return argv
 
 def _declared_caps(raw:str)->set[str]:
     if not raw or raw.strip().upper() in PLACEHOLDERS:return set()

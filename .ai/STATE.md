@@ -1,22 +1,22 @@
 # Current State
 
-Updated: 2026-08-09
-State Revision: 4
+Updated: 2026-08-25
+State Revision: 5
 
 ## Continuity Fingerprint
 
 - Project ID: story-audio
-- Branch: main
-- HEAD: 0189b0ae34e1831929fa4b8b9746c199fdbc1896
-- Worktree: DIRTY
-- Active Task ID: NONE
+- Branch: goal/story-audio-baseline-v125
+- HEAD: c9504ddf50c48d1066f3aea4038b63086ffcbf79
+- Worktree: CLEAN
+- Active Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125-B_CI_RECONCILIATION
 - Last Known Good Commit: 0189b0ae34e1831929fa4b8b9746c199fdbc1896
 - Runtime/Data Fingerprint: schema 15; canonical inspection read-only
 
 ## Current Product Position
 
 - Current milestone: M-001
-- Success criterion: A normal user can add a sample-backed custom voice to one Book, it persists on reload, resolves in that Book runtime context, and cannot be seen or resolved by another Book.
+- Success criterion: CI install and product-check commands resolve without Markdown delimiter tokens and relevant checks pass.
 - Last demonstrated behavior/capability: ADD CUSTOM VOICE TO SELECTED BOOK
 - Demo evidence: .ai/evidence/STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001/EVIDENCE_INDEX.md
 - Current user-visible limitation: No implementation task selected
@@ -32,11 +32,11 @@ State Revision: 4
 
 ## Active Work
 
-- Status: IDLE
-- Task ID: NONE
+- Status: PAUSED
+- Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125-B_CI_RECONCILIATION
 - Writer session: NONE
-- What is changing: NOTHING
-- Current checkpoint: COMPLETED
+- What is changing: Repair the machine-readable Project Contract command encoding and prove CI command resolution and relevant checks.
+- Current checkpoint: PAUSED
 
 ## Completed and Verified
 
@@ -69,8 +69,8 @@ State Revision: 4
 
 ## Next Exact Action
 
-1. Select the next smallest milestone-linked outcome.
-2. Run `python scripts/ai_os.py report` periodically to tune gates from actual data.
+1. Resume `STORY_AUDIO_BASELINE_RECONCILIATION_V125-B_CI_RECONCILIATION` with `ai_os.py resume` when ready.
+2. Do not absorb its task delta into another task.
 
 ## Do Not Do
 

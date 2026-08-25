@@ -1,71 +1,71 @@
-# Task Template — DEEP
+# Task Template — STANDARD
 
-Task Status: COMPLETED
-Task Mode: DEEP
-Task ID: STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE
+Task Status: PAUSED
+Task Mode: STANDARD
+Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125-B_CI_RECONCILIATION
 Task Revision: 1
-Created: 2026-08-09
+Created: 2026-08-25
 Owner Authorization: APPROVED
-Authorization Reference: OWNER AUTHORIZATION — RECOVER BUILD OS GOVERNANCE DEADLOCK AND COMPLETE BOOK-SCOPED VOICE, 2026-08-09
+Authorization Reference: STORY_AUDIO_BASELINE_RECONCILIATION_AND_BUILDOS_V125_ADOPTION owner brief, 2026-08-25
 
 ## Single Outcome
 
-ADD CUSTOM VOICE TO SELECTED BOOK
+Repair the machine-readable Project Contract command encoding and prove CI command resolution and relevant checks.
 
 ## Product Link
 
 - Milestone ID: M-001
-- Success Criterion: A normal user can add a sample-backed custom voice to one Book, it persists on reload, resolves in that Book runtime context, and cannot be seen or resolved by another Book.
-- Goal ID: STORY_AUDIO_PRODUCT_GOAL_R3
-- Goal Node: BOOK_SCOPED_CUSTOM_VOICE
-- Delivery Delta: USER_VISIBLE_BEHAVIOR
+- Success Criterion: CI install and product-check commands resolve without Markdown delimiter tokens and relevant checks pass.
+- Goal ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125
+- Goal Node: B_CI_RECONCILIATION
+- Delivery Delta: RISK_RETIREMENT
 - Demonstrable Result: runtime/output evidence listed in task evidence index
 - Unlocks: next ready Goal node
 - Consecutive Non-Shipping Tasks Before This Task: 0
 
 ## Risk and Execution Profile
 
-- Risk At Start: R3
-- Risk Tier: R3
-- Declared Risk Tier: R3
-- Risk Floor: R3
-- Risk Floor Reason: R2:persistent data version creation; R3:migration/deployment/production/payment surface
+- Risk At Start: R2
+- Risk Tier: R2
+- Declared Risk Tier: R2
+- Risk Floor: R0
+- Risk Floor Reason: none
 - Negative path required: yes
-- Execution Profile: DEEP
-- Human review required: yes
-- Specialist reviewer trigger: security/data/operations
-- Full suite required: yes
+- Execution Profile: STANDARD
+- Human review required: trigger-based
+- Specialist reviewer trigger: UNSET
+- Full suite required: only-if-gate-requires
 - Review policy: required
-- Acceptance Contract SHA256: 51ceff3bb4cd32181c629ce84d4eb5d2eeeef5fb85dc3724962f2eda77493f3e
-- Acceptance Contract JSON: {"commands":["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_book_scoped_custom_voices tests.test_custom_voice_api tests.test_custom_voice tests.test_voice_catalog tests.test_assignment_workflow_browser"],"expected_outputs":["OK"],"probe_files":[],"probe_hashes":{},"effective_risk_at_freeze":"R3","frozen_at":"2026-08-09T08:14:08+00:00","contract_sha256":"51ceff3bb4cd32181c629ce84d4eb5d2eeeef5fb85dc3724962f2eda77493f3e"}
-- State Hazard Level: S2
-- State Hazard Signals: explicit:S2, voice creation and book-scoped catalog reload
-- State Contract SHA256: 488010ed0306ec024feb2f41e495e25227cfc6676a087e7e02a42d4df36c5ec1
-- State Contract JSON: {"schema_version":1,"level":"S2","authority":"custom_voices.book_id and custom_voice_revisions","transitions":["Book A add voice -> save -> reload -> Book A visible, Book B absent"],"invariants":["A normal custom voice has exactly one owning book; legacy references remain resolvable."],"dependencies":["story_audio/custom_voice.py,story_audio/custom_voice_api.py,story_audio/api.py,story_audio/voice_ref.py,story_audio/pipeline.py,ui/index.html,ui/app.js,story_audio/migrations/*.sql"],"signals":["explicit:S2","voice creation and book-scoped catalog reload"],"contract_sha256":"488010ed0306ec024feb2f41e495e25227cfc6676a087e7e02a42d4df36c5ec1"}
+- Acceptance Contract SHA256: 162d59ec8d163c954f2e691d0d4e5a25e8effc4f41d5b93fca892472bfdbf613
+- Acceptance Contract JSON: {"commands":["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe -m unittest tests.test_project_ci_contract -v"],"expected_outputs":["OK"],"probe_files":[],"probe_hashes":{},"effective_risk_at_freeze":"R2","frozen_at":"2026-08-25T07:48:38+00:00","contract_sha256":"162d59ec8d163c954f2e691d0d4e5a25e8effc4f41d5b93fca892472bfdbf613"}
+- State Hazard Level: S1
+- State Hazard Signals: CI command contract parsing, explicit:S1
+- State Contract SHA256: fa90274bf2b4176ed519e4a23ac6e60c5cbb9e55f594a67682464a58cb1d8d85
+- State Contract JSON: {"schema_version":1,"level":"S1","authority":"","transitions":[],"invariants":[],"dependencies":[".ai/PROJECT.md","scripts/project_ci.py","tests/test_project_ci_contract.py"],"signals":["CI command contract parsing","explicit:S1"],"contract_sha256":"fa90274bf2b4176ed519e4a23ac6e60c5cbb9e55f594a67682464a58cb1d8d85"}
 
 ## Continuity Fingerprint at Authorization
 
 - Project ID: story-audio
-- Branch: main
-- HEAD: 46d74ce59ce87ad03438bb9ffcc720e06a632f15
+- Branch: goal/story-audio-baseline-v125
+- HEAD: c9504ddf50c48d1066f3aea4038b63086ffcbf79
 - Worktree: CLEAN
-- Starting Snapshot SHA256: 031315d182020b7127cd6f719c11097e956eabb2e8763845e7feedb3283cae73
-- Verified Snapshot SHA256: 083073f70cb9ad6595429201f2cac84b74e8b185a9af1a4a05fa0b4d3331761c
-- State Revision: 3
-- Context Capsule Revision: 10
+- Starting Snapshot SHA256: 861e85b1a25bf9460c39fe53e2e609487a15b9abe8a7fd6d09f98db0efc9f62c
+- Verified Snapshot SHA256: NONE
+- State Revision: 5
+- Context Capsule Revision: 15
 
 ## Permission Matrix
 
 ### Allowed
 
 - Read: task-relevant repository files
-- Modify: story_audio/custom_voice.py,story_audio/custom_voice_api.py,story_audio/api.py,story_audio/voice_eligibility.py,story_audio/voice_ref.py,story_audio/pipeline.py,story_audio/migrations/__init__.py,ui/index.html,ui/app.js,tests/**,story_audio/backup.py,story_audio/integrity.py,story_audio/batch_prepare_clone_api.py,story_audio/batch_prepare_isolated_adapter.py
-- Create: story_audio/migrations/0016_book_scoped_custom_voices.sql,tests/test_book_scoped_custom_voices.py,scripts/browser_book_custom_voice_acceptance.mjs
+- Modify: .ai/PROJECT.md,scripts/project_ci.py,tests/test_voice_preview_api.py
+- Create: tests/test_project_ci_contract.py
 - Commands: focused checks and task-authorized commands
 - Local services: NONE
 - External calls: NONE
-- Data operation: CREATE_NEW_VERSION
-- Artifact operation: CREATE_NEW_VERSION
+- Data operation: READ_ONLY
+- Artifact operation: READ_ONLY
 - Git: status/diff/log; commit only if explicitly authorized
 
 ### Prohibited
@@ -74,20 +74,14 @@ ADD CUSTOM VOICE TO SELECTED BOOK
 
 ## Acceptance Criteria
 
-- [ ] Browser Book A: add a named sample-backed voice, save, and see it after reload.
-- [ ] Book B excludes the Book A voice in UI/API/runtime resolution while legacy NULL voices remain compatible.
-- [ ] PipelineWorker cannot reuse Book A custom-voice context for Book B or reverse order.
-- [ ] Browser acceptance fails closed before mutation for canonical runtime or missing isolation marker.
-- [ ] No provider/render/QA action and canonical Jobs, JobChapters, Artifacts, casting, and Chapter 369 remain unchanged.
+- [ ] Project Contract parsing returns raw executable argv for install and test commands.
+- [ ] Equivalent install and canonical product-check resolution passes locally.
 
 ## Verification Plan
 
 1. Cheapest focused check.
-2. Critical negative path.
-3. Affected runtime/integration check.
-4. Rollback rehearsal/proof that leaves final state intact.
-5. Full/critical suite as required.
-6. Inspect final output and task delta; independent review for R3.
+2. Affected runtime/integration check.
+3. Inspect final output and Git diff.
 
 ## Before-Execution Preflight
 
@@ -110,7 +104,7 @@ ADD CUSTOM VOICE TO SELECTED BOOK
 - Expected cost range: small; investigate repeated attempts without evidence
 - Primary cost drivers: implementation, verification and output inspection
 - Cheapest evidence-first sequence: focused → affected regression/runtime → acceptance contract → diff review
-- Initial execution profile: DEEP
+- Initial execution profile: STANDARD
 - Escalation conditions: risk exceeds profile or same approach fails twice
 - Marginal value checkpoint: before repeated expensive operation
 - Continue spending when: next spend buys evidence, lower uncertainty, acceptance or safety proof
@@ -131,41 +125,37 @@ ADD CUSTOM VOICE TO SELECTED BOOK
 
 - Lease Status: RELEASED
 - Writer Role: WORKER
-- Platform: ChatGPT
+- Platform: Codex
 - Model Claimed: UNSPECIFIED
-- Identity Verification: VERIFIED
-- Session Label: product-task-1-book-custom-voice-r3
-- Claimed At: 2026-08-09T08:27:54+00:00
-- Last Heartbeat: 2026-08-09T09:10:02+00:00
-- Released At: 2026-08-09T09:10:02+00:00
+- Identity Verification: PENDING
+- Session Label: story-audio-baseline-ci
+- Claimed At: 2026-08-25T07:48:38+00:00
+- Last Heartbeat: 2026-08-25T08:14:17+00:00
+- Released At: 2026-08-25T08:14:17+00:00
 - Takeover From: NONE
 
 ## Lifecycle Timing
 
-- Started At: 2026-08-09T08:14:09+00:00
+- Started At: 2026-08-25T07:48:38+00:00
 - First Runnable At: NONE
 - First Runnable Evidence: NONE
-- Completed At: 2026-08-09T09:10:02+00:00
+- Completed At: NONE
 
 ## Completion
 
-- Outcome: ADD CUSTOM VOICE TO SELECTED BOOK
-- Evidence index: .ai/evidence/STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001/EVIDENCE_INDEX.md
-- Evidence Bundle: .ai/evidence/STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001
-- Worker report: .ai/evidence/STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001/WORKER_REPORT.md
-- Review report: .ai/evidence/STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001/review/guardian_r3_book_scoped_custom_voice_final_review.md
-- Ending HEAD: 0189b0ae34e1831929fa4b8b9746c199fdbc1896
-- Lease release: RELEASED
+- Outcome: NONE
+- Evidence index: NONE
+- Evidence Bundle: NONE
+- Worker report: NONE
+- Review report: NONE
+- Ending HEAD: UNSET
+- Lease release: PENDING
 
-## Replacement Contract
+## Shipping Breaker Override
 
-- STORY_AUDIO_PRODUCT_GOAL-BOOK_SCOPED_CUSTOM_VOICE
-
-## Revision Stop-Loss Acknowledgement
-
-- Prior failed-first-pass revisions: 0
-- Changed root-cause hypothesis: Preserved implementation is stashed; remediate Guardian P1 only, then independently review before canonical migration.
+- Breaker at start: INACTIVE
+- Reason: Goal dependency path to accepted shipping node
 
 ## Scope Amendments
 
-- 2026-08-09T08:27:48+00:00: Close Guardian P1 only: schema-16 backup/integrity compatibility and book-scoped custom voice propagation through the two real PREPARE paths. | modify+=story_audio/backup.py,story_audio/integrity.py,story_audio/batch_prepare_clone_api.py,story_audio/batch_prepare_isolated_adapter.py | create+=NONE | risk R3->R3
+- 2026-08-25T08:10:07+00:00: Full Product CI exposed an offline-isolation defect: logical-reference preview tests inject the real global TTS service and can download VieNeu model assets. Add only this test file to replace the provider-capable dependency with a deterministic local test double. | modify+=tests/test_voice_preview_api.py | create+=NONE | risk R2->R2

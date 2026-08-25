@@ -1,53 +1,53 @@
 # Worker Packet
 
-Generated: 2026-08-09T09:10:03+00:00
-Capsule Revision: 15
+Generated: 2026-08-25T08:14:17+00:00
+Capsule Revision: 18
 
 ## Task
 
-- ID: STORY_AUDIO_PRODUCT_GOAL_R3-BOOK_SCOPED_CUSTOM_VOICE/r001
-- Status: COMPLETED
-- Goal: STORY_AUDIO_PRODUCT_GOAL_R3 / node BOOK_SCOPED_CUSTOM_VOICE
-- Milestone / criterion: M-001 / A normal user can add a sample-backed custom voice to one Book, it persists on reload, resolves in that Book runtime context, and cannot be seen or resolved by another Book.
-- Risk / profile: R3 / DEEP
+- ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125-B_CI_RECONCILIATION/r001
+- Status: PAUSED
+- Goal: STORY_AUDIO_BASELINE_RECONCILIATION_V125 / node B_CI_RECONCILIATION
+- Milestone / criterion: M-001 / CI install and product-check commands resolve without Markdown delimiter tokens and relevant checks pass.
+- Risk / profile: R2 / STANDARD
 - Negative path required: yes
 - Shipping breaker: INACTIVE (0/3 non-shipping)
 
 ## Outcome
 
-ADD CUSTOM VOICE TO SELECTED BOOK
+Repair the machine-readable Project Contract command encoding and prove CI command resolution and relevant checks.
 
 ## Goal Context
 
-Story Audio enables a local operator to create, review, repair, accept, and download trustworthy audiobook-style chapter audio from multiple EPUB books with book-scoped characters, casting, and voices.
+Restore one trustworthy Story Audio execution baseline and safely adopt Build OS v1.25 Work Loop authority without laundering v1.16 history.
 
 ## Scout Handoff
 
-NONE
+Scout A_GROUND_TRUTH_PREFLIGHT (HIGH): Git: isolated goal worktree on goal/story-audio-baseline-v125 at c9504dd, 0/0 with origin/main; dirty sibling main preserved. Lifecycle: v1.16 reconciliation Goal active, no writer; legacy lease released; ignored .buildos v1.22 generation 4 CLOSED/released at c9504dd. Runtime: stopped, port 8772 no listener, identity endpoint unobserved; do not start. Data: canonical data/app.db schema 16, quick_check ok, FK 0; Ch372 Artifact93 stale needs_fixes, Artifact99 active accepted; Ch373 Artifact96 active QA pending. CI: remote run 31463977833 and local reproduction fail on literal backtick-python from .ai/PROJECT.md. Preserve DB/artifacts/history; no provider/runtime/push/merge; never relabel v1.16 history as v1.25.
+- Affected: .ai/PROJECT.md, scripts/project_ci.py, DOCUMENTATION_SOURCES.md, PROJECT_STATUS.md, ROADMAP.md, NEXT_TASK.md, AGENTS.md
+- Invariants: Canonical DB, Artifacts 93/96/99 and all historical lifecycle evidence remain read-only.; No v1.16 history may be represented as v1.25-supervised.
+- Risk: dirty sibling canonical worktree; runtime stopped and identity endpoint unobserved; low disk 0.9 GB; legacy v1.16 and closed v1.22 authorities coexist
+- Entry: scripts/project_ci.py and external v1.25 adoption/initialize.ps1
 
 ## Scope
 
-- Modify: story_audio/custom_voice.py,story_audio/custom_voice_api.py,story_audio/api.py,story_audio/voice_eligibility.py,story_audio/voice_ref.py,story_audio/pipeline.py,story_audio/migrations/__init__.py,ui/index.html,ui/app.js,tests/**,story_audio/backup.py,story_audio/integrity.py,story_audio/batch_prepare_clone_api.py,story_audio/batch_prepare_isolated_adapter.py
-- Create: story_audio/migrations/0016_book_scoped_custom_voices.sql,tests/test_book_scoped_custom_voices.py,scripts/browser_book_custom_voice_acceptance.mjs
+- Modify: .ai/PROJECT.md,scripts/project_ci.py,tests/test_voice_preview_api.py
+- Create: tests/test_project_ci_contract.py
 - External calls: NONE
 - Pre-existing dirty files: 0 (not part of task unless changed again)
-- Current task delta: NONE
+- Current task delta: scripts/project_ci.py, tests/test_project_ci_contract.py, tests/test_voice_preview_api.py
 
 ## Acceptance
 
-- [ ] Browser Book A: add a named sample-backed voice, save, and see it after reload.
-- [ ] Book B excludes the Book A voice in UI/API/runtime resolution while legacy NULL voices remain compatible.
-- [ ] PipelineWorker cannot reuse Book A custom-voice context for Book B or reverse order.
-- [ ] Browser acceptance fails closed before mutation for canonical runtime or missing isolation marker.
-- [ ] No provider/render/QA action and canonical Jobs, JobChapters, Artifacts, casting, and Chapter 369 remain unchanged.
+- [ ] Project Contract parsing returns raw executable argv for install and test commands.
+- [ ] Equivalent install and canonical product-check resolution passes locally.
 
 ## Verify
 
 1. Cheapest focused check.
-2. Critical negative path.
-3. Affected runtime/integration check.
-4. Rollback rehearsal/proof that leaves final state intact.
-- Acceptance contract: 51ceff3bb4cd32181c629ce84d4eb5d2eeeef5fb85dc3724962f2eda77493f3e (predeclared commands=1, locked probes=0)
+2. Affected runtime/integration check.
+3. Inspect final output and Git diff.
+- Acceptance contract: 162d59ec8d163c954f2e691d0d4e5a25e8effc4f41d5b93fca892472bfdbf613 (predeclared commands=1, locked probes=0)
 - Review policy: required
 
 ## Stop
@@ -60,17 +60,10 @@ NONE
 ## Shared/Operational Context
 
 - Product goal: The operator completes the frozen North Star journey from EPUB import through accepted downloadable chapter audio, with explicit control over AI proposals.
-- Data operation: CREATE_NEW_VERSION
-- Artifact operation: CREATE_NEW_VERSION
+- Data operation: READ_ONLY
+- Artifact operation: READ_ONLY
 - Rollback: revert task-scoped diff and remove new artifacts
 
 ## Relevant Decisions
 
 - NONE_LISTED
-
-## Critical Gates
-
-- Owner authorization: APPROVED / OWNER AUTHORIZATION — RECOVER BUILD OS GOVERNANCE DEADLOCK AND COMPLETE BOOK-SCOPED VOICE, 2026-08-09
-- Human review required: yes
-- Full suite required: yes
-- Specialist trigger: security/data/operations
