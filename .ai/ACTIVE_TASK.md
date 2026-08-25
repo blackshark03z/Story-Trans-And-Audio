@@ -1,8 +1,8 @@
-# Task Template — LEAN Fast Lane
+# Task Template — STANDARD
 
 Task Status: COMPLETED
-Task Mode: LEAN
-Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY
+Task Mode: STANDARD
+Task ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-F_DOCUMENTATION_AUTHORITY_V2
 Task Revision: 1
 Created: 2026-08-25
 Owner Authorization: NOT_REQUIRED
@@ -10,80 +10,117 @@ Authorization Reference: NONE
 
 ## Single Outcome
 
-Make 1920x1080 character-assignment viewport evidence wait for post-emulation layout settlement while preserving exact primary-action visibility and horizontal-overflow acceptance.
+Reconcile current Story Audio documentation with freshly verified Git, stopped runtime, schema16, Artifact99/Artifact96 Human QA authority, and the exact post-repair no-production boundary.
 
 ## Product Link
 
 - Milestone ID: M-001
-- Success Criterion: SC-001
+- Success Criterion: Current authority surfaces state schema16, stopped runtime, Artifact93 stale, Artifact99 active approved, Artifact96 active pending, and no production action authorized; stale Artifact93 QA instructions are absent.
 - Goal ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR
-- Goal Node: H_CHARACTER_VIEWPORT_STABILITY
-- Delivery Delta: RISK_RETIREMENT
+- Goal Node: F_DOCUMENTATION_AUTHORITY_V2
+- Delivery Delta: DOCUMENTATION_ONLY
+- Demonstrable Result: runtime/output evidence listed in task evidence index
+- Unlocks: next ready Goal node
+- Consecutive Non-Shipping Tasks Before This Task: 0
 
 ## Risk and Execution Profile
 
-- Risk At Start: R1
-- Risk Tier: R1
-- Declared Risk Tier: R1
+- Risk At Start: R2
+- Risk Tier: R2
+- Declared Risk Tier: R2
 - Risk Floor: R0
 - Risk Floor Reason: none
 - Negative path required: no
-- Execution Profile: LEAN
-- Human review required: no
-- Full suite required: no
-- Review policy: auto
-- Acceptance Contract SHA256: NONE
-- Acceptance Contract JSON: {}
-- State Hazard Level: S1
-- State Hazard Signals: explicit:S1, viewport
-- State Contract SHA256: 737ddc8598ef6f7e044acd5b5a8880bcf51215da8f3b75ec47a499e315836aeb
-- State Contract JSON: {"schema_version":1,"level":"S1","authority":"","transitions":[],"invariants":[],"dependencies":["scripts/browser_character_assignment_smoke.mjs"],"signals":["explicit:S1","viewport"],"contract_sha256":"737ddc8598ef6f7e044acd5b5a8880bcf51215da8f3b75ec47a499e315836aeb"}
+- Execution Profile: STANDARD
+- Human review required: trigger-based
+- Specialist reviewer trigger: UNSET
+- Full suite required: only-if-gate-requires
+- Review policy: none
+- Acceptance Contract SHA256: 4bd9152bd412b317a45bfbe53880331d4b1a92cc9d7abdfdd36cefa2fabc1fa0
+- Acceptance Contract JSON: {"commands":["git diff --check"],"expected_outputs":[],"probe_files":[],"probe_hashes":{},"effective_risk_at_freeze":"R2","frozen_at":"2026-08-25T11:08:28+00:00","contract_sha256":"4bd9152bd412b317a45bfbe53880331d4b1a92cc9d7abdfdd36cefa2fabc1fa0"}
+- State Hazard Level: S0
+- State Hazard Signals: NONE
+- State Contract SHA256: 0df64efbfc2bcfcfd0d772bdd90b1747145028e5f15af9e9b5c236339e073ef6
+- State Contract JSON: {"schema_version":1,"level":"S0","authority":"","transitions":[],"invariants":[],"dependencies":["DOCUMENTATION_SOURCES.md","PROJECT_STATUS.md","ROADMAP.md","NEXT_TASK.md",".ai/PROJECT.md",".ai/STATE.md"],"signals":[],"contract_sha256":"0df64efbfc2bcfcfd0d772bdd90b1747145028e5f15af9e9b5c236339e073ef6"}
 
 ## Continuity Fingerprint at Authorization
 
 - Project ID: story-audio
 - Branch: goal/story-audio-baseline-v125
-- HEAD: 40edfa20569fa8c37ffda4e5e4d3e21fbd40338e
+- HEAD: a4e3490db9ed9d00fc0a4d08d4ec2f99d62cae09
 - Worktree: CLEAN
-- Starting Snapshot SHA256: fc301b16f274981393d855e3dfa7378011c0ff21083a17e3e3bc92e63a33ddbd
-- Verified Snapshot SHA256: 19572d6373df16ba8a80977e373bd3d37bb3c8cad76b607a7b132777bf4ceff0
-- State Revision: 15
-- Context Capsule Revision: 30
+- Starting Snapshot SHA256: 266fde1651f48bee3ced8567759a98e5cfe06b9df6550e37eab6531bdf956b0f
+- Verified Snapshot SHA256: d25fd6109e85c8bd7b50f0256698fbdb74de673e6768e00496d81e73cf27cbcc
+- State Revision: 17
+- Context Capsule Revision: 37
 
 ## Permission Matrix
 
 ### Allowed
 
-- Read: browser character assignment harness and UI layout
-- Modify: scripts/browser_character_assignment_smoke.mjs
+- Read: task-relevant repository files
+- Modify: DOCUMENTATION_SOURCES.md,PROJECT_STATUS.md,ROADMAP.md,NEXT_TASK.md,.ai/PROJECT.md,.ai/STATE.md
 - Create: NONE
-- Commands: focused browser test and syntax check
+- Commands: focused checks and task-authorized commands
+- Local services: NONE
 - External calls: NONE
 - Data operation: READ_ONLY
 - Artifact operation: READ_ONLY
+- Git: status/diff/log; commit only if explicitly authorized
 
 ### Prohibited
 
-- Production, destructive, architecture and out-of-scope actions not explicitly listed.
+- Scope, production, destructive and architecture actions not listed above.
 
 ## Acceptance Criteria
 
-- [ ] Five consecutive real-browser character-assignment journeys pass with the primary action fully visible and no horizontal overflow at 1920x1080.
+- [ ] Observable outcome exists.
+- [ ] Critical negative path checked.
+- [ ] Output and side effects match preflight.
 
 ## Verification Plan
 
-1. Focused check.
-2. Negative-path check only when the task has a real failure behavior.
-3. Runtime/output and diff inspection.
+1. Cheapest focused check.
+2. Affected runtime/integration check.
+3. Inspect final output and Git diff.
 
 ## Before-Execution Preflight
 
-- External/provider calls: NONE
+- Inputs: task-relevant source and fixtures
+- Outputs: accepted outcome and evidence
+- Files created: NONE
 - Files overwritten: NONE
 - Data mutated: NONE
+- External/provider calls: NONE
 - Expected provider cost: 0.0
-- Process/port: EPHEMERAL
-- Rollback: revert task-scoped harness diff
+- Disk requirement: MINIMAL
+- RAM/GPU requirement: MINIMAL
+- Process/port: NONE
+- Cache/artifact lineage: source inputs and evidence manifest
+- Rollback: revert task-scoped diff and remove new artifacts
+
+## Cost Efficiency Plan
+
+- Outcome value: UNSET
+- Expected cost range: small; investigate repeated attempts without evidence
+- Primary cost drivers: implementation, verification and output inspection
+- Cheapest evidence-first sequence: focused → affected regression/runtime → acceptance contract → diff review
+- Initial execution profile: STANDARD
+- Escalation conditions: risk exceeds profile or same approach fails twice
+- Marginal value checkpoint: before repeated expensive operation
+- Continue spending when: next spend buys evidence, lower uncertainty, acceptance or safety proof
+- Split/change strategy when: same approach fails twice or no new evidence
+- Quality gates that may not be reduced: acceptance, safety, authorization, output, regression, rollback, cleanup
+
+## Economic Stop-Loss Conditions
+
+- Same approach failed twice.
+- Repeated test/provider/context/review without relevant change.
+- Scope expansion or two work cycles without new evidence.
+
+## Relevant Decisions
+
+- NONE_LISTED
 
 ## Execution Lease
 
@@ -92,29 +129,30 @@ Make 1920x1080 character-assignment viewport evidence wait for post-emulation la
 - Platform: CODEX
 - Model Claimed: UNSPECIFIED
 - Identity Verification: VERIFIED
-- Session Label: character-viewport-stability
-- Claimed At: 2026-08-25T10:33:34+00:00
-- Last Heartbeat: 2026-08-25T10:36:38+00:00
-- Released At: 2026-08-25T10:36:38+00:00
+- Session Label: documentation-authority-v2
+- Claimed At: 2026-08-25T11:08:29+00:00
+- Last Heartbeat: 2026-08-25T11:11:15+00:00
+- Released At: 2026-08-25T11:11:15+00:00
+- Takeover From: NONE
 
 ## Lifecycle Timing
 
-- Started At: 2026-08-25T10:33:34+00:00
+- Started At: 2026-08-25T11:08:29+00:00
 - First Runnable At: NONE
 - First Runnable Evidence: NONE
-- Completed At: 2026-08-25T10:36:38+00:00
+- Completed At: 2026-08-25T11:11:15+00:00
 
 ## Completion
 
-- Outcome: Character-assignment browser evidence now waits for local suggestion completion within the integration budget, records actionable timeout diagnostics, and waits two animation frames after 1920x1080 emulation before enforcing full primary-action visibility and zero horizontal overflow.
-- Evidence index: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY/r001/EVIDENCE_INDEX.md
-- Evidence Bundle: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY/r001
-- Worker report: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY/r001/WORKER_REPORT.md
+- Outcome: Six authority documents now agree on the green 1,970-test/schema16/stopped-runtime baseline, current Artifact99 approved and Artifact96 pending bindings, stale historical Artifact93 status, and a no-production v1.25 compatibility decision boundary.
+- Evidence index: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-F_DOCUMENTATION_AUTHORITY_V2/r001/EVIDENCE_INDEX.md
+- Evidence Bundle: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-F_DOCUMENTATION_AUTHORITY_V2/r001
+- Worker report: .ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-F_DOCUMENTATION_AUTHORITY_V2/r001/WORKER_REPORT.md
 - Review report: NONE
-- Ending HEAD: 40edfa20569fa8c37ffda4e5e4d3e21fbd40338e
+- Ending HEAD: a4e3490db9ed9d00fc0a4d08d4ec2f99d62cae09
 - Lease release: RELEASED
 
 ## Shipping Breaker Override
 
 - Breaker at start: ACTIVE
-- Reason: Mandatory full-suite acceptance is blocked by this single non-shipping harness race; completing it directly unlocks the Goal's frozen baseline criterion.
+- Reason: Goal dependency path to accepted shipping node

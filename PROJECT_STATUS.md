@@ -1,9 +1,13 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-08-09 (Asia/Saigon)
-**Milestone:** Real User Media Golden Journey Certified
-**Strategic state:** `REAL_USER_MEDIA_GOLDEN_JOURNEY_PASS`
-**Trạng thái hiện tại:** The complete browser journey is certified on an isolated Book 1 Chapter 2 clone: bounded Gemini analysis, reversible review, intentional wrong-voice render and rejection, corrected replacement render, automated audio-content QA, Human QA acceptance, active-audio download, deterministic MP4 export/download, and browser playback. Canonical schema-15 production remained read-only.
+**Cập nhật:** 2026-08-25 (Asia/Saigon)
+**Milestone:** Story Audio Baseline Reconciled
+**Strategic state:** `OFFLINE_BASELINE_GREEN / BUILD_OS_V125_COMPATIBILITY_DECISION_PENDING`
+**Trạng thái hiện tại:** The repaired offline baseline passes all `1,970` tests
+with one expected Windows skip and the machine-readable Project CI contract.
+The canonical runtime is stopped. Read-only inspection confirms schema `16`,
+`quick_check = ok`, zero foreign-key violations, and unchanged canonical DB
+SHA-256 `4f816add7efea7cd32e5177f10fba03c998362b0d24f6d4fa224ff8873369b55`.
 
 **Repository operation:** Root README now names the sole canonical start and
 verified restart paths, Doctor, focused operational checks, and a fail-closed
@@ -11,13 +15,13 @@ storage cleanup dry-run. Canonical data, backups, source books, artifacts, and
 logs are intentionally visible in Git status; cleanup retains unknown external
 backup junctions rather than failing its read-only report.
 
-**Last verified implementation starting baseline:** `ab9aacd2ea68d555f69eb2f2e4e3f3bddded4271`
-**Last verified branch:** `main`
-**Last verified date:** 2026-07-30
+**Last verified implementation baseline:** `4c811f172e3a0e15618f7e441e57431fdaa108a7`
+**Last verified branch:** `goal/story-audio-baseline-v125`
+**Last verified date:** 2026-08-25
 **Canonical runtime:** `http://127.0.0.1:8772`
-**Runtime schema:** canonical `15`
-**Default/latest schema:** `15`
-**Runtime:** canonical schema `15`; durable UI restart validated
+**Runtime schema:** canonical `16`
+**Default/latest schema:** `16`
+**Runtime:** stopped; no listener on port `8772`
 **DAILY-PROD-5A:** complete
 **DAILY-PROD-5B:** complete and production-proven
 **DAILY-PROD-5:** complete
@@ -31,6 +35,23 @@ backup junctions rather than failing its read-only report.
 **DAILY-PROD-4:** complete
 **DAILY-PROD-3A:** complete
 **DAILY-PROD-3:** complete
+
+### Current Canonical Artifact And Human-QA Authority
+
+- Chapter `369`: `not_created`; no active Artifact and no Human QA decision.
+- Chapter `372`: completed; active Artifact `99`, Job `27`; Human QA is
+  `approved` and bound to Artifact `99`.
+- Chapter `373`: completed; active Artifact `96`, Job `26`; no current Human QA
+  record, so its current authority is `pending`.
+- Artifact `93`: stale historical evidence for Chapter `372`, previously
+  `needs_fixes`; it is superseded by active approved Artifact `99` and must not
+  be presented as a current listening or QA target.
+- Chapter `1`: active Artifact `120`, Job `34`; the recorded `needs_fixes`
+  decision is bound to stale Artifact `117` / Job `33`, so Artifact `120` is
+  active but not Human-QA accepted.
+- Current totals: `33` Jobs, `120` Artifacts, `339` audit events. These facts are
+  read-only observations and authorize no PREPARE, START_RENDER, provider,
+  render, repair, or Human QA action.
 
 ### Speaker Review Mutation Reconciliation
 

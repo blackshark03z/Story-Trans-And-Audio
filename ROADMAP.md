@@ -2,25 +2,23 @@
 
 Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve du lieu -> kha nang phuc hoi -> chat luong audio -> tinh nang moi.
 
-## Current Boundary - 2026-07-26
+## Current Boundary - 2026-08-25
 
-`DAILY-PROD-5` is complete and production-proven. Canonical schema `15`,
-authenticated PREPARE, explicit separate START_RENDER, worker execution,
-Audio Library retrieval, and durable restart have completed both a corrected
-one-chapter canary and one contiguous two-chapter pilot.
+The Story Audio development baseline is repaired and green: `1,970` offline
+tests pass with one expected Windows skip, Project CI passes, schema `16` is
+current, and the canonical runtime is stopped. This reconciliation created no
+production work and made no Human QA decision.
 
-The two-chapter pilot completed Book `1`, Chapters `372-373`, on exactly one
-PREPARE request and Job `26`. Artifacts `93/96` passed technical and cached
-offline intelligibility screening but remain Human QA pending.
+Current artifact authority supersedes the former two-artifact listening note:
+Artifact `93` is stale historical `needs_fixes` evidence; Chapter `372` is now
+bound to active, Human-QA-approved Artifact `99`; Chapter `373` remains bound
+to active Artifact `96` with Human QA pending. No production action follows
+automatically from this status.
 
-Daily-Use V1 UI closure is complete. Routine operation now has primary
-Production, Voice Assignment, Jobs, Audio Library, and Storage views; global
-runtime gates; explicit QA/history; chapter and range download; safe storage
-report/dry-run/confirmed cleanup; and supervised restart. This closure created
-no production work and made no QA decision.
-
-The only authorized next task is full human listening and one QA decision for
-each Artifact `93/96`. Do not start a larger batch before those decisions.
+The active system boundary is a read-only Build OS v1.25 compatibility and
+authority decision. Adoption may proceed only through the official additive
+mechanism without rewriting v1.16 history. PREPARE, START_RENDER, providers,
+rendering, repair, and Human QA remain outside this roadmap action.
 
 ## Completed
 
@@ -65,7 +63,7 @@ each Artifact `93/96`. Do not start a larger batch before those decisions.
 - DAILY-PROD-5B Phase 12 - Clone Rehearsal And Disabled Runtime Wiring: complete. Implementation commit `843f688` added read-only-source external clone creation, explicit dormant migration `12 -> 15`, stage failure rollback, exact backup-hash full-file restore, bounded evidence, disabled wiring, and isolation tests. Canonical schema remains `12`; production mutation remains unauthorized.
 - DAILY-PROD-5B Phase 13 - Clone-Only Disabled Runtime And Authentication Boundary: complete. Implementation commit `a60b94c` added fail-closed clone runtime selection, immutable read-only DB access, GET-only readiness, startup/restart acceptance, SHA-256/constant-time single-operator authentication, and redaction. Full offline suite passed `1608` tests with `1` skip; canonical schema remained `12` and Chapter 369 remained unchanged.
 - DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout: complete and production-proven through authenticated canonical PREPARE, explicit START_RENDER, Job `26`, two completed JobChapters, `111/111` verified Segments, and Artifacts `93/96`.
-- DAILY-PROD-6 - Multi-Chapter Production Acceptance: technical pilot complete; Human Audio QA for Artifacts `93/96` remains the only open acceptance gate.
+- DAILY-PROD-6 - Multi-Chapter Production Acceptance: historical technical pilot complete. Its former Artifact `93/96` QA note is superseded by current authority: Artifact `93` is stale, Artifact `99` is the active approved Chapter `372` output, and active Artifact `96` for Chapter `373` remains pending. This roadmap does not authorize that Human QA action.
 
 ## Current Strategic Phase
 
@@ -81,12 +79,13 @@ Chapter production tasks, including Chapter 369 voice selection or Casting Plan 
 
 ## Active System Milestone
 
-**DAILY-PROD-6 - Multi-Chapter Production Acceptance**
+**STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR**
 
-Technical acceptance is complete. The remaining milestone gate is human
-full-chapter listening of Artifacts `93/96`, with one explicit `approved` or
-`needs_fixes` decision per chapter. A larger production batch is not authorized
-until both decisions are recorded.
+The offline/system baseline and documentation authority are reconciled. The
+remaining gate is whether official Build OS v1.25 RC4 adoption supports this
+live v1.16 repository without erasing the active Goal's terminal authority or
+historical lifecycle evidence. This gate is lifecycle-only and authorizes no
+product or production operation.
 
 ## Ordered Daily Production UX Roadmap
 
@@ -99,7 +98,7 @@ until both decisions are recorded.
 
 ## Next
 
-`Human-listen to active Artifacts 93 and 96 for Book 1 Chapters 372-373, then record acceptance or one precise remediation target for each chapter.`
+`Evaluate the official Build OS v1.25 RC4 adoption boundary against the current v1.16 lifecycle state; proceed only with positive documented compatibility proof.`
 
 ## Historical Next (superseded)
 

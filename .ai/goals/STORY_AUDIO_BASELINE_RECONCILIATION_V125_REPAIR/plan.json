@@ -76,7 +76,7 @@
     "tracked_files": 413,
     "tracked_repo_mb": 6.481
   },
-  "completed_non_shipping_streak": 4,
+  "completed_non_shipping_streak": 5,
   "created_at": "2026-08-25T08:46:45+00:00",
   "decisions_required": [],
   "discoveries": [
@@ -176,7 +176,7 @@
   },
   "goal_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR",
   "goal_type": "risk",
-  "last_task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-E_OFFLINE_BASELINE_REVIEW",
+  "last_task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-F_DOCUMENTATION_AUTHORITY_V2",
   "non_goals": [
     "Production PREPARE, production START_RENDER, Gemini or VieNeu/TTS synthesis, Human QA decisions, canonical DB mutation, protected artifact mutation, secret changes, push, merge, deploy, broad refactor, wildcard repository scope, or historical evidence rewrite."
   ],
@@ -586,9 +586,10 @@
         "commands": [
           "git diff --check"
         ],
-        "contract_sha256": "",
+        "contract_sha256": "ad74f5dda4cc82da7a39cf4ad7fa0a6dc74d85ab44b2aea66ca553289994fcc7",
+        "effective_risk_at_freeze": "R1",
         "expected_outputs": [],
-        "frozen_at": null,
+        "frozen_at": "2026-08-25T10:56:37+00:00",
         "probe_files": [],
         "probe_hashes": {}
       },
@@ -596,6 +597,7 @@
       "artifact_operation": "CREATE_NEW_VERSION",
       "create": "NONE",
       "data_operation": "READ_ONLY",
+      "defer_reason": "Task risk escalated from R1 to R2 because safety text names sensitive production/provider terms; original node lacked a pre-frozen R2 acceptance contract and was aborted cleanly before evidence closeout.",
       "delegation": {
         "action": "MAIN_WORKER",
         "hard": true,
@@ -610,6 +612,22 @@
       "depends_on": [
         "E_OFFLINE_BASELINE_REVIEW"
       ],
+      "initial_create_scope": "NONE",
+      "initial_modify_scope": "DOCUMENTATION_SOURCES.md,PROJECT_STATUS.md,ROADMAP.md,NEXT_TASK.md,.ai/PROJECT.md,.ai/STATE.md",
+      "initial_scope_count": 10,
+      "initial_scope_footprint": [
+        "DOCUMENTATION_SOURCES.md",
+        "NEXT_TASK.md",
+        "PATTERN:DOCUMENTATION_SOURCES.md",
+        "PATTERN:NEXT_TASK.md",
+        "PATTERN:PROJECT_STATUS.md",
+        "PATTERN:ROADMAP.md",
+        "PATTERN:ai/PROJECT.md",
+        "PATTERN:ai/STATE.md",
+        "PROJECT_STATUS.md",
+        "ROADMAP.md"
+      ],
+      "last_abort_reason": "task aborted with zero delta",
       "modify": "DOCUMENTATION_SOURCES.md,PROJECT_STATUS.md,ROADMAP.md,NEXT_TASK.md,.ai/PROJECT.md,.ai/STATE.md",
       "negative_required": true,
       "node_id": "F_DOCUMENTATION_AUTHORITY",
@@ -626,9 +644,85 @@
       ],
       "state_signals": [],
       "state_transitions": [],
-      "status": "PLANNED",
+      "status": "DEFERRED",
       "success_criterion": "Current-state documents agree that Artifact93 is superseded history, Artifact99 is Chapter372 active accepted, Artifact96 is Chapter373 pending QA, runtime truth is explicit, and no operator/product action is falsely authorized.",
       "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-F_DOCUMENTATION_AUTHORITY"
+    },
+    "F_DOCUMENTATION_AUTHORITY_V2": {
+      "acceptance": [],
+      "acceptance_contract": {
+        "commands": [
+          "git diff --check"
+        ],
+        "contract_sha256": "4bd9152bd412b317a45bfbe53880331d4b1a92cc9d7abdfdd36cefa2fabc1fa0",
+        "effective_risk_at_freeze": "R2",
+        "expected_outputs": [],
+        "frozen_at": "2026-08-25T11:08:28+00:00",
+        "probe_files": [],
+        "probe_hashes": {}
+      },
+      "agent_role": "WORKER",
+      "artifact_operation": "READ_ONLY",
+      "create": "NONE",
+      "data_operation": "READ_ONLY",
+      "delegation": {
+        "action": "MAIN_WORKER",
+        "hard": true,
+        "model_class": "STRONG_WORKER",
+        "reasons": [
+          "delegation policy explicitly disables pre-scouting"
+        ],
+        "summary_token_budget": null
+      },
+      "delegation_policy": "main",
+      "delivery_delta": "DOCUMENTATION_ONLY",
+      "depends_on": [
+        "E_OFFLINE_BASELINE_REVIEW"
+      ],
+      "initial_create_scope": "NONE",
+      "initial_modify_scope": "DOCUMENTATION_SOURCES.md,PROJECT_STATUS.md,ROADMAP.md,NEXT_TASK.md,.ai/PROJECT.md,.ai/STATE.md",
+      "initial_scope_count": 10,
+      "initial_scope_footprint": [
+        "DOCUMENTATION_SOURCES.md",
+        "NEXT_TASK.md",
+        "PATTERN:DOCUMENTATION_SOURCES.md",
+        "PATTERN:NEXT_TASK.md",
+        "PATTERN:PROJECT_STATUS.md",
+        "PATTERN:ROADMAP.md",
+        "PATTERN:ai/PROJECT.md",
+        "PATTERN:ai/STATE.md",
+        "PROJECT_STATUS.md",
+        "ROADMAP.md"
+      ],
+      "last_abort_reason": "task aborted with zero delta",
+      "modify": "DOCUMENTATION_SOURCES.md,PROJECT_STATUS.md,ROADMAP.md,NEXT_TASK.md,.ai/PROJECT.md,.ai/STATE.md",
+      "negative_required": false,
+      "node_id": "F_DOCUMENTATION_AUTHORITY_V2",
+      "outcome": "Reconcile current Story Audio documentation with freshly verified Git, stopped runtime, schema16, Artifact99/Artifact96 Human QA authority, and the exact post-repair no-production boundary.",
+      "replaces": [],
+      "result": {
+        "completed_at": "2026-08-25T11:11:16+00:00",
+        "delivery_delta": "DOCUMENTATION_ONLY",
+        "evidence_bundle": ".ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-F_DOCUMENTATION_AUTHORITY_V2/r001",
+        "first_pass_accepted": "yes",
+        "outcome": "Six authority documents now agree on the green 1,970-test/schema16/stopped-runtime baseline, current Artifact99 approved and Artifact96 pending bindings, stale historical Artifact93 status, and a no-production v1.25 compatibility decision boundary.",
+        "risk_tier": "R2",
+        "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-F_DOCUMENTATION_AUTHORITY_V2",
+        "task_revision": 1
+      },
+      "review_policy": "none",
+      "risk": "R2",
+      "started_at": "2026-08-25T11:08:31+00:00",
+      "state_authority": "",
+      "state_dependencies": [],
+      "state_hazard": "S0",
+      "state_invariants": [],
+      "state_signals": [],
+      "state_transitions": [],
+      "status": "DONE",
+      "success_criterion": "Current authority surfaces state schema16, stopped runtime, Artifact93 stale, Artifact99 active approved, Artifact96 active pending, and no production action authorized; stale Artifact93 QA instructions are absent.",
+      "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-F_DOCUMENTATION_AUTHORITY_V2",
+      "task_revision": 1
     },
     "G_BROWSER_POLL_STABILITY": {
       "acceptance": [],
@@ -903,7 +997,65 @@
       "success_criterion": "Five consecutive real-browser character-assignment journeys pass with the primary action fully visible and no horizontal overflow at 1920x1080.",
       "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY",
       "task_revision": 1
+    },
+    "I_V125_ADOPTION_DECISION": {
+      "acceptance": [],
+      "acceptance_contract": {
+        "commands": [
+          "git diff --check"
+        ],
+        "contract_sha256": "",
+        "expected_outputs": [],
+        "frozen_at": null,
+        "probe_files": [],
+        "probe_hashes": {}
+      },
+      "agent_role": "WORKER",
+      "artifact_operation": "CREATE_NEW_VERSION",
+      "create": ".buildos/**,.buildos-policy.json,.buildos-authority.json",
+      "data_operation": "READ_ONLY",
+      "delegation": {
+        "action": "MAIN_WORKER",
+        "hard": true,
+        "model_class": "STRONG_WORKER",
+        "reasons": [
+          "delegation policy explicitly disables pre-scouting"
+        ],
+        "summary_token_budget": null
+      },
+      "delegation_policy": "main",
+      "delivery_delta": "EXECUTABLE_CAPABILITY",
+      "depends_on": [
+        "F_DOCUMENTATION_AUTHORITY_V2"
+      ],
+      "modify": "AGENTS.md,.buildos/**,.buildos-policy.json,.buildos-authority.json,.ai/**,scripts/ai.py,scripts/ai_os.py",
+      "negative_required": false,
+      "node_id": "I_V125_ADOPTION_DECISION",
+      "outcome": "Adopt approved Build OS v1.25 RC4 through the official additive mechanism only if direct v1.16 lifecycle compatibility and truthful Goal terminality are positively proven; otherwise record the exact durable blocker without changing authority.",
+      "replaces": [],
+      "result": null,
+      "review_policy": "required",
+      "risk": "R3",
+      "state_authority": "official v1.25 authority files plus immutable v1.16 Goal evidence",
+      "state_dependencies": [
+        "AGENTS.md",
+        ".ai/GOAL_STATE.json",
+        ".buildos-authority.json"
+      ],
+      "state_hazard": "S4",
+      "state_invariants": [
+        "v1.16 history remains immutable and the current Goal has one truthful terminal authority"
+      ],
+      "state_signals": [
+        "lifecycle"
+      ],
+      "state_transitions": [
+        "v1.16 active authority -> official additive adoption -> v1.25 single active authority"
+      ],
+      "status": "PLANNED",
+      "success_criterion": "Official v1.25 authority validation and bounded no-production Work Loop pass with v1.16 history preserved, or the node blocks before mutation on a documented incompatibility.",
+      "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-I_V125_ADOPTION_DECISION"
     }
   },
-  "updated_at": "2026-08-25T10:56:25+00:00"
+  "updated_at": "2026-08-25T11:11:16+00:00"
 }

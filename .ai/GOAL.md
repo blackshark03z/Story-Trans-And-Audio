@@ -4,7 +4,7 @@ Goal ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR
 Goal Status: ACTIVE
 Goal Type: risk
 Risk Ceiling: R3
-Updated: 2026-08-25T10:56:25+00:00
+Updated: 2026-08-25T11:11:16+00:00
 
 ## Outcome
 
@@ -51,11 +51,13 @@ Repair blockers discovered by the parent baseline Goal, restore a truthful green
 | C_RESPONSIVE_LAYOUT | DONE | WORKER | R2 | USER_VISIBLE_BEHAVIOR | A_FAILURE_INVENTORY | Restore the production workbench and preflight viewport hierarchy at 1366x768 without loosening browser acceptance. |
 | D_GOLDEN_CERTIFICATION | DONE | WORKER | R2 | RISK_RETIREMENT | B_FIXTURE_ISOLATION,C_RESPONSIVE_LAYOUT | Reconcile Golden Journey with isolated schema-16 representative state and current explicit repair-plan behavior while preserving a read-only canonical non-mutation proof. |
 | E_OFFLINE_BASELINE_REVIEW | DONE | REVIEWER | R1 | NO_DELTA | B_FIXTURE_ISOLATION,C_RESPONSIVE_LAYOUT,D_GOLDEN_CERTIFICATION | Independently verify the repaired offline Story Audio baseline across the full project suite, CI contract, JavaScript syntax and read-only Doctor diagnostics. |
-| F_DOCUMENTATION_AUTHORITY | PLANNED | WORKER | R1 | DOCUMENTATION_ONLY | E_OFFLINE_BASELINE_REVIEW | Reconcile current Story Audio documentation with freshly verified Git/runtime/schema16/Artifact99/Artifact96 authority and exact post-repair boundary. |
+| F_DOCUMENTATION_AUTHORITY | DEFERRED | WORKER | R1 | DOCUMENTATION_ONLY | E_OFFLINE_BASELINE_REVIEW | Reconcile current Story Audio documentation with freshly verified Git/runtime/schema16/Artifact99/Artifact96 authority and exact post-repair boundary. |
+| F_DOCUMENTATION_AUTHORITY_V2 | DONE | WORKER | R2 | DOCUMENTATION_ONLY | E_OFFLINE_BASELINE_REVIEW | Reconcile current Story Audio documentation with freshly verified Git, stopped runtime, schema16, Artifact99/Artifact96 Human QA authority, and the exact post-repair no-production boundary. |
 | G_BROWSER_POLL_STABILITY | DEFERRED | WORKER | R1 | RISK_RETIREMENT | D_GOLDEN_CERTIFICATION | Remove the full-suite-order race in assignment polling evidence without weakening DOM identity, focus, draft, or scroll stability assertions. |
 | G_BROWSER_POLL_STABILITY_V2 | DEFERRED | WORKER | R1 | RISK_RETIREMENT | D_GOLDEN_CERTIFICATION | Remove the full-suite-order race in assignment polling evidence without weakening DOM identity, focus, draft, or scroll stability assertions. |
 | G_BROWSER_POLL_STABILITY_V3 | DONE | WORKER | R1 | RISK_RETIREMENT | D_GOLDEN_CERTIFICATION | Certify and preserve the validated bounded assignment browser polling-race repair without weakening DOM identity, focus, draft, or scroll assertions. |
 | H_CHARACTER_VIEWPORT_STABILITY | DONE | WORKER | R1 | RISK_RETIREMENT | G_BROWSER_POLL_STABILITY_V3 | Make 1920x1080 character-assignment viewport evidence wait for post-emulation layout settlement while preserving exact primary-action visibility and horizontal-overflow acceptance. |
+| I_V125_ADOPTION_DECISION | PLANNED | WORKER | R3 | EXECUTABLE_CAPABILITY | F_DOCUMENTATION_AUTHORITY_V2 | Adopt approved Build OS v1.25 RC4 through the official additive mechanism only if direct v1.16 lifecycle compatibility and truthful Goal terminality are positively proven; otherwise record the exact durable blocker without changing authority. |
 
 ## Human Interrupt Policy
 

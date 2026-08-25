@@ -1,6 +1,6 @@
 # Project Contract
 
-Updated: 2026-08-09
+Updated: 2026-08-25
 Project ID: story-audio
 Owner: Story Audio Owner
 Project Status: ACTIVE
@@ -103,7 +103,7 @@ accepted downloadable chapter audio, with explicit control over AI proposals.
 
 - Language/runtime: Python (`D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe`)
 - Framework: FastAPI
-- Database: SQLite; canonical `data/app.db`, schema 15
+- Database: SQLite; canonical `data/app.db`, schema 16
 - Package manager: pip
 - Entry point: `run_app.ps1`
 - Run command: `run_app.ps1` (canonical runtime `http://127.0.0.1:8772`)
@@ -115,6 +115,16 @@ accepted downloadable chapter audio, with explicit control over AI proposals.
 - CI quality command: PROJECT_SPECIFIC
 - CI quality capabilities: test
 - Important directories: `story_audio/`, `ui/`, `tests/`, `data/`
+
+### Current Verified Authority Snapshot
+
+- Canonical runtime: stopped; port `8772` closed.
+- Canonical DB: schema `16`; `quick_check = ok`; foreign-key violations `0`;
+  SHA-256 `4f816add7efea7cd32e5177f10fba03c998362b0d24f6d4fa224ff8873369b55`.
+- Artifact `93`: stale historical `needs_fixes` evidence, not a current target.
+- Chapter `372`: active Artifact `99`, Human QA `approved`.
+- Chapter `373`: active Artifact `96`, Human QA `pending`.
+- These facts are read-only authority and do not authorize production actions.
 
 ## Risk Surface Map
 

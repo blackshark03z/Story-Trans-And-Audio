@@ -1,21 +1,21 @@
 # Worker Packet
 
-Generated: 2026-08-25T10:36:38+00:00
-Capsule Revision: 32
+Generated: 2026-08-25T11:11:15+00:00
+Capsule Revision: 39
 
 ## Task
 
-- ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-H_CHARACTER_VIEWPORT_STABILITY/r001
+- ID: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-F_DOCUMENTATION_AUTHORITY_V2/r001
 - Status: COMPLETED
-- Goal: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR / node H_CHARACTER_VIEWPORT_STABILITY
-- Milestone / criterion: M-001 / SC-001
-- Risk / profile: R1 / LEAN
+- Goal: STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR / node F_DOCUMENTATION_AUTHORITY_V2
+- Milestone / criterion: M-001 / Current authority surfaces state schema16, stopped runtime, Artifact93 stale, Artifact99 active approved, Artifact96 active pending, and no production action authorized; stale Artifact93 QA instructions are absent.
+- Risk / profile: R2 / STANDARD
 - Negative path required: no
-- Shipping breaker: ACTIVE (4/3 non-shipping)
+- Shipping breaker: ACTIVE (5/3 non-shipping)
 
 ## Outcome
 
-Make 1920x1080 character-assignment viewport evidence wait for post-emulation layout settlement while preserving exact primary-action visibility and horizontal-overflow acceptance.
+Reconcile current Story Audio documentation with freshly verified Git, stopped runtime, schema16, Artifact99/Artifact96 Human QA authority, and the exact post-repair no-production boundary.
 
 ## Goal Context
 
@@ -27,7 +27,7 @@ NONE
 
 ## Scope
 
-- Modify: scripts/browser_character_assignment_smoke.mjs
+- Modify: DOCUMENTATION_SOURCES.md,PROJECT_STATUS.md,ROADMAP.md,NEXT_TASK.md,.ai/PROJECT.md,.ai/STATE.md
 - Create: NONE
 - External calls: NONE
 - Pre-existing dirty files: 0 (not part of task unless changed again)
@@ -35,15 +35,17 @@ NONE
 
 ## Acceptance
 
-- [ ] Five consecutive real-browser character-assignment journeys pass with the primary action fully visible and no horizontal overflow at 1920x1080.
+- [ ] Observable outcome exists.
+- [ ] Critical negative path checked.
+- [ ] Output and side effects match preflight.
 
 ## Verify
 
-1. Focused check.
-2. Negative-path check only when the task has a real failure behavior.
-3. Runtime/output and diff inspection.
-- Acceptance contract: NONE (predeclared commands=0, locked probes=0)
-- Review policy: auto
+1. Cheapest focused check.
+2. Affected runtime/integration check.
+3. Inspect final output and Git diff.
+- Acceptance contract: 4bd9152bd412b317a45bfbe53880331d4b1a92cc9d7abdfdd36cefa2fabc1fa0 (predeclared commands=1, locked probes=0)
+- Review policy: none
 
 ## Stop
 
@@ -51,3 +53,14 @@ NONE
 - Amend scope instead of widening it silently.
 - Final output and task delta must be inspected before acceptance.
 - If shipping breaker is ACTIVE, do not start/continue non-shipping work without an explicit override.
+
+## Shared/Operational Context
+
+- Product goal: The operator completes the frozen North Star journey from EPUB import through accepted downloadable chapter audio, with explicit control over AI proposals.
+- Data operation: READ_ONLY
+- Artifact operation: READ_ONLY
+- Rollback: revert task-scoped diff and remove new artifacts
+
+## Relevant Decisions
+
+- NONE_LISTED

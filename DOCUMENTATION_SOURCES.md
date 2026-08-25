@@ -1,11 +1,20 @@
 # Documentation Source-of-Truth Policy
 
 **Created:** 2026-06-28
-**Updated:** 2026-07-20
+**Updated:** 2026-08-25
 **Purpose:** Clarify which sources are authoritative for repository, runtime, roadmap, and task state.
 **Status:** Active documentation authority policy.
 
 Some older documents still contain mojibake/encoding debt. Encoding cleanup is a separate bounded documentation-maintenance task, not a feature prerequisite.
+
+## Current Reconciled Baseline
+
+The 2026-08-25 read-only inspection found the canonical runtime stopped, the
+canonical database at schema `16`, `PRAGMA quick_check = ok`, and no foreign-key
+violations. Artifact `93` is stale historical `needs_fixes` evidence, not a
+current QA target. Chapter `372` is bound to active, Human-QA-approved Artifact
+`99`; Chapter `373` is bound to active Artifact `96` with Human QA still pending.
+No production action is authorized by these documentation facts.
 
 ## Authority Hierarchy
 

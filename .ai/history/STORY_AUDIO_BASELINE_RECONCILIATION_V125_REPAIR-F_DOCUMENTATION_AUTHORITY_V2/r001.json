@@ -1,0 +1,40 @@
+{
+  "acceptance_contract_sha256": "4bd9152bd412b317a45bfbe53880331d4b1a92cc9d7abdfdd36cefa2fabc1fa0",
+  "actual_risk_floor": "R2",
+  "actual_risk_reasons": [
+    "R2:project sensitive business term PREPARE in NEXT_TASK.md",
+    "R2:project sensitive business term START_RENDER in NEXT_TASK.md",
+    "R2:project sensitive business term Gemini in NEXT_TASK.md",
+    "R2:project sensitive business term VieNeu in NEXT_TASK.md",
+    "R2:project sensitive business term TTS in NEXT_TASK.md",
+    "R2:project sensitive business term PREPARE in PROJECT_STATUS.md",
+    "R2:project sensitive business term START_RENDER in PROJECT_STATUS.md",
+    "R2:project sensitive business term Gemini in PROJECT_STATUS.md",
+    "R2:project sensitive business term PREPARE in ROADMAP.md",
+    "R2:project sensitive business term START_RENDER in ROADMAP.md"
+  ],
+  "breaker_override": true,
+  "breaker_override_reason": "Goal dependency path to accepted shipping node",
+  "completed_at": "2026-08-25T11:11:15+00:00",
+  "delivery_delta": "DOCUMENTATION_ONLY",
+  "evidence_bundle": ".ai/evidence/STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-F_DOCUMENTATION_AUTHORITY_V2/r001",
+  "evidence_manifest_sha256": "50eff5866328d84a56d92bd9d16e8c2ad1a9a75eabc7d44eab80ee77608b0119",
+  "first_pass_accepted": "yes",
+  "goal_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR",
+  "goal_node": "F_DOCUMENTATION_AUTHORITY_V2",
+  "outcome": "Six authority documents now agree on the green 1,970-test/schema16/stopped-runtime baseline, current Artifact99 approved and Artifact96 pending bindings, stale historical Artifact93 status, and a no-production v1.25 compatibility decision boundary.",
+  "quality_reconciliation": {
+    "escaped_defect": "unknown",
+    "later_rework": "unknown",
+    "rollback_required": "no"
+  },
+  "review_reasons": [],
+  "review_required": false,
+  "risk_tier": "R2",
+  "schema_version": 1,
+  "state_contract_sha256": "0df64efbfc2bcfcfd0d772bdd90b1747145028e5f15af9e9b5c236339e073ef6",
+  "state_hazard_level": "S0",
+  "task_id": "STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR-F_DOCUMENTATION_AUTHORITY_V2",
+  "task_revision": 1,
+  "verified_snapshot_sha256": "d25fd6109e85c8bd7b50f0256698fbdb74de673e6768e00496d81e73cf27cbcc"
+}
