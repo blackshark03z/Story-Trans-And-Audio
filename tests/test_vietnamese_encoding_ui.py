@@ -18,7 +18,7 @@ USER_FACING_FILES = (
     "story_audio/pipeline.py",
     "CHANGELOG.md",
     "PROJECT_STATUS.md",
-    ".ai/STATE.md",
+    "ENGINEERING.md",
 )
 
 

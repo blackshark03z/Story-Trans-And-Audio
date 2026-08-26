@@ -16,6 +16,21 @@ def project_contract(root:Path)->dict[str,str]:
     keys=('Install command','Test command','Lint command','Typecheck command','Build command','CI quality command','CI quality capabilities','Language/runtime','Package manager')
     return {k:_field(body,k) for k in keys}
 
+def buildos_policy_checks(root:Path)->list[tuple[str,str,list[str]]]:
+    p=root/'.buildos-policy.json'
+    if not p.is_file(): return []
+    policy=json.loads(p.read_text(encoding='utf-8'))
+    lifecycle=policy.get('project_lifecycle') or {}
+    gates=lifecycle.get('quality_gates') or []
+    checks=[]
+    for gate in gates:
+        gate_id=str(gate.get('id') or '').strip()
+        argv=gate.get('argv')
+        if not gate_id or not isinstance(argv,list) or not argv or not all(isinstance(item,str) and item for item in argv):
+            raise ValueError('invalid Build OS project lifecycle quality gate')
+        checks.append((f'buildos:{gate_id}','test',argv))
+    return checks
+
 def executable_project(root:Path)->bool:
     markers=('package.json','pyproject.toml','setup.py','setup.cfg','requirements.txt','go.mod','Cargo.toml','composer.json')
     return any((root/m).is_file() for m in markers) or any((root/d).exists() for d in ('src','app','server','packages'))
@@ -85,6 +100,8 @@ def checks(root:Path)->tuple[list[tuple[str,str,list[str]]],str]:
         if not canonical or bool(declared-bound):
             canonical.append(('project:canonical-quality','aggregate',shlex.split('sh -c '+shlex.quote(quality_raw))))
     if canonical:return canonical,'contract'
+    buildos=buildos_policy_checks(root)
+    if buildos:return buildos,'buildos-policy'
     auto=autodetect(root); return auto,'autodetect'
 
 def capability_findings(root:Path, detected:list[tuple[str,str,list[str]]])->tuple[list[str],list[str]]:

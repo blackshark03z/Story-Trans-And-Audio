@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+import json
 from pathlib import Path
 
 from scripts import project_ci
@@ -21,22 +22,15 @@ class ProjectCiContractTests(unittest.TestCase):
         )
 
         checks, source = project_ci.checks(ROOT)
-        self.assertEqual(source, "contract")
-        self.assertIn(
-            (
-                "project:test",
-                "test",
-                [
-                    project_ci.sys.executable,
-                    "-m",
-                    "unittest",
-                    "discover",
-                    "-s",
-                    "tests",
-                    "-v",
-                ],
-            ),
+        self.assertEqual(source, "buildos-policy")
+        policy = json.loads((ROOT / ".buildos-policy.json").read_text(encoding="utf-8"))
+        expected = [
+            (f"buildos:{gate['id']}", "test", gate["argv"])
+            for gate in policy["project_lifecycle"]["quality_gates"]
+        ]
+        self.assertEqual(
             checks,
+            expected,
         )
 
     def test_markdown_delimiters_are_not_silently_reinterpreted(self) -> None:
