@@ -1,8 +1,0 @@
-test_preflight_scenarios_in_real_browser (tests.test_production_preflight_browser.ProductionPreflightBrowserTests.test_preflight_scenarios_in_real_browser) ... ok
-test_range_input_exception_journeys_in_real_browser (tests.test_production_workflow_browser.ProductionWorkflowBrowserTests.test_range_input_exception_journeys_in_real_browser) ... ok
-test_task_workbench_journeys_in_real_browser (tests.test_production_workflow_browser.ProductionWorkflowBrowserTests.test_task_workbench_journeys_in_real_browser) ... ok
-
-----------------------------------------------------------------------
-Ran 3 tests in 30.410s
-
-OK

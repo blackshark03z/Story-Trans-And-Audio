@@ -1,7 +1,0 @@
-test_request_is_read_only_and_does_not_call_worker_or_tts (tests.test_batch_plan_api.BatchPlanApiTests.test_request_is_read_only_and_does_not_call_worker_or_tts) ... ok
-test_inspect_has_get_readiness_and_disabled_batch_mutation_route (tests.test_batch_prepare_phase13_clone_runtime.Phase13CloneRuntimeTests.test_inspect_has_get_readiness_and_disabled_batch_mutation_route) ... ok
-
-----------------------------------------------------------------------
-Ran 2 tests in 3.411s
-
-OK

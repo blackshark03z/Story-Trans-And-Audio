@@ -1,6 +1,0 @@
-test_preflight_scenarios_in_real_browser (tests.test_production_preflight_browser.ProductionPreflightBrowserTests.test_preflight_scenarios_in_real_browser) ... ok
-
-----------------------------------------------------------------------
-Ran 1 test in 5.406s
-
-OK

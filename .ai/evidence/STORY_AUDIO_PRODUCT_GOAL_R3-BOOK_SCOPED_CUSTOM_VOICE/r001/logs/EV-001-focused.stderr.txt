@@ -1,6 +1,0 @@
-............Executing <Task finished name='Task-2' coro=<ProductionLifespanTests.test_explicit_production_render_gate_starts_and_stops_worker() done, defined at D:\Youtube\Story Trans And Audio\tests\test_prepare_production_activation.py:383> result=None created at C:\Users\ADMIN\AppData\Roaming\uv\python\cpython-3.12-windows-x86_64-none\Lib\asyncio\runners.py:100> took 0.203 seconds
-..............................
-----------------------------------------------------------------------
-Ran 42 tests in 8.509s
-
-OK
