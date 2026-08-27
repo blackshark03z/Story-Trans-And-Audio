@@ -124,7 +124,7 @@ try {
   await click("#productionPrimaryAction");
   await waitFor(`document.querySelector("#productionScopeDialog")?.open===true`);
   const bookCount = await evaluate(`document.querySelectorAll("#scopeBookList .scope-book-card").length`);
-  if (bookCount !== 2) throw new Error(`Expected 2 books, received ${bookCount}.`);
+  if (bookCount !== 3) throw new Error(`Expected 3 books, received ${bookCount}.`);
 
   await input("#scopeBookSearch", "");
   await click('[data-scope-book-id="1"]');
@@ -220,6 +220,28 @@ try {
 
   await click("#productionChangeScope");
   await waitFor(`document.querySelector("#productionScopeDialog")?.open===true`);
+  await input("#scopeBookSearch", "Action Test Book");
+  await click('[data-scope-book-id="91"]');
+  await waitFor(`document.querySelector("#scopeChapterList .scope-chapter-card strong")?.textContent.includes("Blocked Fixture Chapter")===true`);
+  await input("#scopeFromChapter", "401");
+  await click("#reviewProductionScope");
+  await waitFor(`document.querySelector("#productionScopeDialog")?.open===false`);
+  await waitFor(`document.querySelector("#productionCurrentStepHeading")?.textContent==="Xác nhận người nói"`);
+  const authoritativeNextAction = await evaluate(`({
+    scope:document.querySelector("#productionScopeSummary")?.textContent,
+    heading:document.querySelector("#productionCurrentStepHeading")?.textContent,
+    action:document.querySelector("#productionPrimaryAction")?.textContent,
+    chapterOpen:!!document.querySelector("#textDialog")?.open
+  })`);
+  if (!authoritativeNextAction.scope.includes("401") || authoritativeNextAction.heading !== "Xác nhận người nói" || authoritativeNextAction.action !== "Mở Chương 401 để tiếp tục" || authoritativeNextAction.chapterOpen) {
+    throw new Error(`Scope check did not present the canonical next action: ${JSON.stringify(authoritativeNextAction)}`);
+  }
+
+  await click("#productionChangeScope");
+  await waitFor(`document.querySelector("#productionScopeDialog")?.open===true`);
+  await input("#scopeBookSearch", "Fixture Book");
+  await click('[data-scope-book-id="1"]');
+  await waitFor(`document.querySelector("#scopeChapterPageInfo")?.textContent==="1-6 / 45"`);
   const layout1366 = await evaluate(`(() => {
     const cta=document.querySelector("#reviewProductionScope").getBoundingClientRect();
     const scrolling=[...document.querySelectorAll("#productionScopeDialog *")].filter(el=>{const s=getComputedStyle(el);return /(auto|scroll)/.test(s.overflowY)&&el.scrollHeight>el.clientHeight+2}).map(el=>el.id||el.className);
@@ -256,6 +278,7 @@ try {
     recoveredErrorHidden,
     skipCompletedRestored,
     primaryLabelsAreHuman,
+    authoritativeNextAction,
     layout1366,
     layout1920,
     browserOpenLayout,

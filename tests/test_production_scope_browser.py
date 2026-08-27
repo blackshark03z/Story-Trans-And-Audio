@@ -26,6 +26,16 @@ class ScopeFixtureHandler(SimpleHTTPRequestHandler):
         self.wfile.write(body)
 
     def _chapters(self, book_id: int, query: str) -> list[dict]:
+        if book_id == 91:
+            return [
+                {
+                    "id": 9101,
+                    "chapter_number": 401,
+                    "title": "Blocked Fixture Chapter",
+                    "char_count": 120,
+                    "audio_status": "not_created",
+                }
+            ]
         if book_id == 2:
             return [
                 {
@@ -121,6 +131,13 @@ class ScopeFixtureHandler(SimpleHTTPRequestHandler):
                         "title": "Other Book",
                         "author": "Other Author",
                         "chapter_count": 1,
+                        "audio_chapters": 0,
+                    },
+                    {
+                        "id": 91,
+                        "title": "Action Test Book",
+                        "author": "Fixture Author",
+                        "chapter_count": 401,
                         "audio_chapters": 0,
                     },
                 ]
@@ -391,7 +408,7 @@ class ProductionScopeBrowserTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         evidence = json.loads(result.stdout)
         self.assertTrue(evidence["ok"])
-        self.assertEqual(evidence["bookCount"], 2)
+        self.assertEqual(evidence["bookCount"], 3)
         self.assertEqual(evidence["firstPage"], "1-6 / 45")
         self.assertEqual(evidence["confirmedCount"], 2)
         self.assertTrue(evidence["oneChapterReady"])
