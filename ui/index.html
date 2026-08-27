@@ -43,11 +43,24 @@
   <nav id="appNav" class="app-nav" aria-label="Khu vực chính">
     <a href="#/home" data-app-route="home" aria-label="Trang chủ">Trang chủ</a>
     <a href="#/production" data-app-route="production" aria-label="Sản xuất">Sản xuất</a>
-    <a href="#/assignment" data-app-route="assignment" aria-label="Gán giọng">Gán giọng</a>
-    <a href="#/jobs" data-app-route="jobs" aria-label="Công việc">Công việc</a>
     <a href="#/audio" data-app-route="audio" aria-label="Audio">Audio</a>
-    <a href="#/storage" data-app-route="storage" aria-label="Dung lượng">Dung lượng</a>
+    <details id="appNavMore" class="app-nav-more">
+      <summary>Thiết lập và theo dõi</summary>
+      <div aria-label="Thiết lập và theo dõi">
+        <a href="#/books" data-app-route="books" aria-label="Sách và nhân vật">Sách và nhân vật</a>
+        <a href="#/voices" data-app-route="voices" aria-label="Thư viện giọng">Thư viện giọng</a>
+        <a href="#/assignment" data-app-route="assignment" aria-label="Gán giọng">Gán giọng</a>
+        <a href="#/jobs" data-app-route="jobs" aria-label="Công việc">Công việc</a>
+        <a href="#/storage" data-app-route="storage" aria-label="Dung lượng">Dung lượng</a>
+        <a href="#/settings" data-app-route="settings" aria-label="Cài đặt">Cài đặt</a>
+      </div>
+    </details>
   </nav>
+
+  <aside id="productionContextReturn" class="production-context-return" hidden aria-live="polite">
+    <span id="productionContextReturnText"></span>
+    <a id="productionContextReturnLink" class="app-secondary-link" href="#/production">Quay lại Sản xuất</a>
+  </aside>
 
   <main id="appMain">
     <h2 id="appViewHeading" class="sr-only">Trang chủ</h2>
@@ -59,9 +72,9 @@
             <p class="eyebrow">Daily production</p>
             <h2 id="homeHeading">Trang chủ</h2>
           </div>
-          <a class="primary app-primary-link" href="#/production" data-home-continue>Tiếp tục sản xuất</a>
+          <a id="homePrimaryAction" class="primary app-primary-link" href="#/books">Nhập EPUB</a>
         </div>
-        <p class="section-guide">Một điểm bắt đầu gọn cho công việc hằng ngày. Các khu vực kỹ thuật đã được tách ra để mỗi lần chỉ tập trung một việc chính.</p>
+        <p id="homeGuide" class="section-guide">Nhập một EPUB để bắt đầu, sau đó Sản xuất sẽ dẫn bạn qua từng việc cần làm.</p>
         <div id="homeSummary" class="home-summary-grid">
           <div><strong>—</strong><span>Sách</span></div>
           <div><strong>—</strong><span>Công việc cần theo dõi</span></div>
@@ -69,7 +82,21 @@
         </div>
       </section>
 
-      <section class="home-work-grid">
+      <section id="homeFirstRun" class="panel home-first-run" aria-labelledby="homeFirstRunHeading">
+        <div>
+          <p class="eyebrow">Bắt đầu lần đầu</p>
+          <h2 id="homeFirstRunHeading">Đưa sách đầu tiên vào Sản xuất</h2>
+          <p class="section-guide">Bạn không cần biết các màn hình nội bộ. Bắt đầu bằng EPUB; ứng dụng sẽ mở đúng bước thiết lập và việc tiếp theo.</p>
+        </div>
+        <ol>
+          <li><strong>1. Nhập EPUB</strong><span>Chọn tệp sách để tạo không gian làm việc.</span></li>
+          <li><strong>2. Chọn sách và phạm vi</strong><span>Sản xuất lưu đúng chương bạn đang làm.</span></li>
+          <li><strong>3. Hoàn tất thiết lập cần thiết</strong><span>Gán giọng hoặc nhân vật chỉ khi bước tiếp theo yêu cầu.</span></li>
+        </ol>
+        <a class="primary app-primary-link" href="#/books" data-home-import>Nhập EPUB</a>
+      </section>
+
+      <section id="homeWorkGrid" class="home-work-grid">
         <section class="panel" aria-labelledby="homeAttentionHeading">
           <div class="section-head">
             <div><p class="eyebrow">Cần xử lý</p><h2 id="homeAttentionHeading">Việc tiếp theo</h2></div>

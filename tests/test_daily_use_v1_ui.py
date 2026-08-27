@@ -32,6 +32,19 @@ class DailyUseV1UiTests(unittest.TestCase):
             self.assertIn(f'id="{status_id}"', self.html)
         self.assertIn("renderGlobalStatus", self.js)
 
+    def test_first_run_navigation_and_contextual_returns_are_discoverable(self) -> None:
+        self.assertIn('id="homePrimaryAction"', self.html)
+        self.assertIn('id="homeFirstRun"', self.html)
+        self.assertIn('data-home-import', self.html)
+        self.assertIn('id="appNavMore"', self.html)
+        self.assertIn("Thiết lập và theo dõi", self.html)
+        self.assertIn('id="productionContextReturn"', self.html)
+        self.assertIn("function renderHomeStartAction", self.js)
+        self.assertIn("function openBookImport", self.js)
+        self.assertIn("function renderProductionContextReturn", self.js)
+        self.assertIn("['production','character-review','voices','books','assignment','jobs','audio']", self.js)
+        self.assertIn("['voices','books','assignment','jobs','audio']", self.js)
+
     def test_voice_assignment_reuses_contextual_production_flow(self) -> None:
         self.assertIn('id="openAssignmentWorkspace"', self.html)
         self.assertIn("focusProductionTarget(currentProductionViewModel().targetPanel)", self.js)

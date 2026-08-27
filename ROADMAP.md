@@ -45,6 +45,7 @@ rendering, repair, and Human QA remain outside this roadmap action.
 - Production validation evidence: Chapters 364-368 completed routine production with Human QA PASS and active artifacts 69, 72, 78, 75, and 84.
 - Reusable hardening after production blockers: runtime identity/active-output clarity, separated speaker-review workflow, prepared-job lifecycle, targeted text correction workflow, repair-block workflow, and custom voice preview provenance fail-closed guard.
 - DAILY-PROD-1 - Modular Navigation And Sequential Production Shell: complete.
+- DAILY-USE-V2A - First-Run And Navigation Closure: complete. Home now gives a zero-book operator a direct EPUB import path; Home, Production, and Audio are the daily primary navigation; setup and monitoring live in one discoverable secondary menu; Production detours preserve and visibly return to the original scope.
 - DAILY-PROD-2 - Custom Voice Assignment UI Closure: complete.
 - DAILY-PROD-3 - Audio Library And Output Retrieval: complete. `DAILY-PROD-3A` added read-only `GET /api/audio-library`, active-artifact semantics, runtime QA labels, safe playback/download, loading/error/empty/refresh states, and browser/runtime validation.
 - DAILY-PROD-4 - Range Readiness And Exception Queue: complete. `DAILY-PROD-4A` added read-only `GET /api/production/range-readiness`, active-output and QA semantics, deterministic workflow precedence, summary counts, ordered chapter list, exception queue, safe single-chapter navigation, and runtime/browser validation with no production mutation.

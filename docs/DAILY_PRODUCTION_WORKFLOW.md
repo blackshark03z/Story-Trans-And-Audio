@@ -510,6 +510,11 @@ COMPLETE
 
 ## Navigation Principles
 
+- Primary daily navigation is **Home**, **Production**, and **Audio**. Setup and monitoring surfaces remain discoverable in one secondary menu rather than competing with the daily flow.
+- With no imported books, Home leads with **Nhập EPUB** and explains the import → scope → required setup journey. It must never send a new operator to an empty Production dead end.
+- With existing work, Home prioritizes the current scope, active work, and recent audio; onboarding is hidden.
+- Books and Characters owns EPUB import and book setup; Voice Library owns reusable voices; Assignment owns range mapping; Jobs owns monitoring/recovery; Storage and Settings own maintenance/diagnostics.
+- A detour from Production carries the book, chapter/range, inspected chapter, and safe task context in the supported route/context machinery. The destination exposes a return to the same Production scope.
 - One primary action per screen.
 - Only the current step is fully interactive.
 - Future steps are locked or hidden.
