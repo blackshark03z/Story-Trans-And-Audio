@@ -60,6 +60,13 @@ class ProductionWorkflowBrowserTests(unittest.TestCase):
         self.assertEqual(evidence["inactiveProjectionPolling"]["route"], "assignment")
         self.assertEqual(evidence["inactiveProjectionPolling"]["projection"], 0)
         self.assertEqual(evidence["inactiveProjectionPolling"]["preflight"], 0)
+        self.assertEqual(evidence["returnToProduction"]["route"], "production")
+        self.assertEqual(evidence["returnToProduction"]["range"], {"book": 1, "from": 1, "to": 1})
+        self.assertEqual(evidence["returnToProduction"]["projectionIdentity"], "book:1:1-1")
+        self.assertEqual(evidence["returnToProduction"]["requests"], [
+            {"kind": "projection", "book": 1, "from": 1, "to": 1},
+            {"kind": "preflight", "book": 1, "from": 1, "to": 1},
+        ])
 
     def test_range_input_exception_journeys_in_real_browser(self) -> None:
         server = ThreadingHTTPServer(("127.0.0.1", 0), ScopeFixtureHandler)
