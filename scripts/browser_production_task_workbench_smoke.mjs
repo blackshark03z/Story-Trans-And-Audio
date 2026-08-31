@@ -89,7 +89,7 @@ try {
   } catch (error) {
     throw new Error(`${error.message} Browser errors: ${browserErrors.join(" | ")}`);
   }
-  await evaluate(`loadProductionTaskProjection=async()=>{renderProductionShell(state.productionProjection||undefined);return state.productionProjection}`);
+  await evaluate(`window.__v2dProductionProjectionLoader=loadProductionTaskProjection;loadProductionTaskProjection=async()=>{renderProductionShell(state.productionProjection||undefined);return state.productionProjection}`);
 
   const fixture = {
     book: { id: 91, title: "Sách kiểm thử cô lập" },
@@ -221,9 +221,13 @@ try {
   await send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   const desktop = await evaluate(`(() => ({horizontal:document.documentElement.scrollWidth>innerWidth+1,primaryVisible:document.querySelector("#productionPrimaryAction").getBoundingClientRect().top<innerHeight}))()`);
   if (desktop.horizontal || !desktop.primaryVisible) throw new Error(`1920 layout failed: ${JSON.stringify(desktop)}`);
+  await evaluate(`(()=>{loadProductionTaskProjection=window.__v2dProductionProjectionLoader;const savedApi=api,counts={projection:0,preflight:0};api=async(path,options)=>{const value=String(path);if(value.startsWith('/api/production/task-projection'))counts.projection+=1;if(value.startsWith('/api/production/preflight'))counts.preflight+=1;return savedApi(path,options)};state.book={id:91,title:'Sách kiểm thử cô lập'};state.productionRange={bookId:91,fromChapter:401,toChapter:401,chapterId:9101,skipCompleted:false};setAppRoute('assignment');window.__v2dInactivePolling={counts,savedApi};return true})()`);
+  await evaluate(`loadJobs()`);
+  const inactiveProjectionPolling = await evaluate(`(()=>{const audit=window.__v2dInactivePolling,result={...audit.counts,route:state.currentRoute};api=audit.savedApi;return result})()`);
+  if (inactiveProjectionPolling.route !== "assignment" || inactiveProjectionPolling.projection !== 0 || inactiveProjectionPolling.preflight !== 0) throw new Error(`Inactive view requested Production state: ${JSON.stringify(inactiveProjectionPolling)}`);
   if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
 
-  process.stdout.write(JSON.stringify({ ok: true, journeyA, journeyB, journeyC, pollingStability, journeyDEdit, journeyDReview, journeyEPrepare, journeyInfrastructure, journeyEStart, journeyEStartBlocked, journeyERunning, journeyF, journeyG, qaNullSafe, journeyH, commandLifecycle, qaCommandReconcile, inspectionBC, malformedSafe, desktop }));
+  process.stdout.write(JSON.stringify({ ok: true, journeyA, journeyB, journeyC, pollingStability, journeyDEdit, journeyDReview, journeyEPrepare, journeyInfrastructure, journeyEStart, journeyEStartBlocked, journeyERunning, journeyF, journeyG, qaNullSafe, journeyH, commandLifecycle, qaCommandReconcile, inspectionBC, malformedSafe, desktop, inactiveProjectionPolling }));
 } finally {
   try { socket?.close(); } catch {}
   const browserExited = new Promise(resolve => {

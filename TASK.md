@@ -1,11 +1,10 @@
-# V2C Daily Production Golden Journey
+# V2D Daily Production Usability And Performance
 
 ## Outcome
 
-An operator can follow one clear, fixture-backed Story Audio production journey:
-select or resume scope, resolve only required speaker or voice exceptions,
-review readiness, reach the separate PREPARE and START_RENDER boundaries, monitor
-work, enter Human Audio QA, and return to the same Production scope.
+Routine daily production remains the accepted V2C journey, while active
+operator surfaces avoid unnecessary background work and preserve the exact
+current scope and safety boundaries.
 
 ## Constraints
 
@@ -13,42 +12,38 @@ No provider, VieNeu, Gemini, canonical DB, PREPARE, START_RENDER, or Human QA
 mutation is authorized. Use an isolated worktree and deterministic fixtures.
 Keep protected data paths untouched and do not modify Build OS source.
 
-## UX contract
+## Friction audit
+
+- **P1 — inactive Production refresh:** a Jobs refresh while the operator was
+  on Assignment still requested both the Production task projection and
+  preflight. The browser fixture recorded one request to each endpoint for one
+  inactive refresh. **Fix:** refresh only the visible operator surface; load a
+  fresh guarded projection when returning to Production.
+- No P0 issue was observed in the fixture-backed V2C journey. No P2 finding
+  was implemented.
+
+## UX and safety contract
 
 ```text
-PRIMARY_USER=Local operator producing approved book chapters as audio.
 PRIMARY_JOURNEY=Home -> choose/resume book range -> resolve the next required exception -> review readiness -> explicit PREPARE/START_RENDER boundaries -> monitor -> Human Audio QA -> resume Production.
-PRIMARY_SURFACE=Production, reached from Home or a preserved contextual return.
-INFORMATION_HIERARCHY=Active book/range and next action first; blockers and readiness next; technical details remain disclosed.
 SCOPE_MODEL=One selected book and one contiguous chapter range persist through relevant detours and refresh.
 PRIMARY_CONTROLS=Choose scope, one canonical next action, and return to Production.
-ADVANCED_CONTROLS=Technical detail and diagnostics are collapsed unless requested.
-STATES=No-book onboarding; loading/error retry; clear blocker remedy; explicit read-only or consequential effect.
-DISCOVERABILITY=Home and Production expose the current scope and one next action without route knowledge.
-ACCESSIBILITY=Native labeled controls, keyboard-reachable primary action, preserved focus, and status feedback.
-OWNER_PREFERENCE=NONE.
+SAFETY=PREPARE and START_RENDER remain distinct; Human QA remains human authority.
 ```
-
-## Initial findings
-
-- V2A navigation and scope browser checks pass.
-- V2B workbench checks pass.
-- Repaired two V2C blockers: range-level actions no longer masquerade as a
-  chapter detour, and compact desktop preflight keeps readiness information in
-  the 1366×768 viewport.
 
 ## Verification
 
-- The isolated browser golden journey passes through scope selection, voice
-  assignment, preflight, PREPARE, START_RENDER, Human QA needs-fixes, and
-  repair-plan confirmation using fake TTS and an isolated database.
-- Browser checks cover Home keyboard import, scope selection, contextual return,
-  preflight, range exceptions, and responsive task workbench behavior.
-- Focused offline command, projection, preflight, range, render-progress, and
-  Human Approval tests pass without a canonical runtime or provider call.
+- V2C fixture browser journeys passed before the change: Home, scope,
+  preflight, contextual return, range exceptions, and task workbench.
+- The V2D browser workbench fixture verifies 1366×768 and 1920×1080 layouts,
+  one primary action, scope-preserving flows, busy/error/retry behavior, QA
+  entry, and no Production projection/preflight request during an inactive
+  Assignment refresh.
+- Focused offline task-projection, preflight, and production-command tests run
+  against isolated data only.
 
 ## Next
 
-Ready for Tech Lead review of the bounded V2C product and documentation commit.
-No provider, canonical DB, PREPARE, START_RENDER, or Human QA action is
-authorized by this task.
+Ready for Tech Lead review once final focused browser checks, scope guard, and
+Git inspection pass. No provider, canonical DB, PREPARE, START_RENDER, or
+Human QA action is authorized by this task.

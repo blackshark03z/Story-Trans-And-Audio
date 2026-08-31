@@ -57,6 +57,9 @@ class ProductionWorkflowBrowserTests(unittest.TestCase):
         self.assertTrue(evidence["commandLifecycle"]["K"]["restored"])
         self.assertTrue(evidence["desktop"]["primaryVisible"])
         self.assertFalse(evidence["desktop"]["horizontal"])
+        self.assertEqual(evidence["inactiveProjectionPolling"]["route"], "assignment")
+        self.assertEqual(evidence["inactiveProjectionPolling"]["projection"], 0)
+        self.assertEqual(evidence["inactiveProjectionPolling"]["preflight"], 0)
 
     def test_range_input_exception_journeys_in_real_browser(self) -> None:
         server = ThreadingHTTPServer(("127.0.0.1", 0), ScopeFixtureHandler)
