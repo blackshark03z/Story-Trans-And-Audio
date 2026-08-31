@@ -802,6 +802,82 @@ def _load_segment_rows(db_path: Path, job_chapter_id: int) -> list[dict[str, Any
     return [dict(row) for row in rows]
 
 
+def _load_accepted_repair_blocks(db_path: Path, job_chapter_id: int) -> dict[int, dict[str, Any]]:
+    """Load immutable overlay identities for accepted repair renders."""
+    with closing(_open_readonly_db(db_path)) as connection:
+        rows = connection.execute(
+            """
+            SELECT id, job_chapter_id, first_segment_id, last_segment_id,
+                   covered_segment_ids_json, first_sequence, last_sequence,
+                   source_text_sha256, candidate_wav_path,
+                   candidate_audio_sha256, candidate_duration_ms, status
+            FROM audio_repair_blocks
+            WHERE job_chapter_id = ? AND status = 'accepted'
+            """,
+            (job_chapter_id,),
+        ).fetchall()
+    return {int(row["id"]): dict(row) for row in rows}
+
+
+def _repair_block_for_timeline_item(
+    item: dict[str, Any],
+    *,
+    accepted_repair_blocks: dict[int, dict[str, Any]],
+    segment_rows_by_id: dict[int, dict[str, Any]],
+    sequence: int,
+) -> tuple[dict[str, Any] | None, list[int]]:
+    """Verify an optional repair-block overlay without rewriting source rows."""
+    if item.get("repair_block_id") is None:
+        return None, []
+    try:
+        repair_block_id = int(item["repair_block_id"])
+        covered_segment_ids = [int(value) for value in item["covered_segment_ids"]]
+    except (KeyError, TypeError, ValueError) as exc:
+        raise QaManifestError(
+            "Repair-block timeline item is missing a valid immutable coverage binding",
+            details={"sequence": sequence},
+        ) from exc
+    repair = accepted_repair_blocks.get(repair_block_id)
+    if repair is None:
+        raise QaManifestError(
+            "Timeline references an unknown or unaccepted repair block",
+            details={"sequence": sequence, "repair_block_id": repair_block_id},
+        )
+    try:
+        persisted_covered_ids = [int(value) for value in json.loads(repair["covered_segment_ids_json"])]
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise QaManifestError(
+            "Accepted repair block has invalid persisted coverage binding",
+            details={"repair_block_id": repair_block_id},
+        ) from exc
+    if covered_segment_ids != persisted_covered_ids or not covered_segment_ids:
+        raise QaManifestError(
+            "Repair-block timeline coverage does not match persisted binding",
+            details={"repair_block_id": repair_block_id, "sequence": sequence},
+        )
+    if int(repair["first_segment_id"]) != covered_segment_ids[0] or int(repair["last_segment_id"]) != covered_segment_ids[-1]:
+        raise QaManifestError(
+            "Repair-block timeline coverage has an invalid first or last segment",
+            details={"repair_block_id": repair_block_id},
+        )
+    if any(segment_id not in segment_rows_by_id for segment_id in covered_segment_ids):
+        raise QaManifestError(
+            "Repair-block timeline references a segment outside the manifest job chapter",
+            details={"repair_block_id": repair_block_id},
+        )
+    if int(repair["first_sequence"]) != sequence or int(item.get("first_sequence") or 0) != sequence:
+        raise QaManifestError(
+            "Repair-block timeline sequence does not match persisted first sequence",
+            details={"repair_block_id": repair_block_id, "sequence": sequence},
+        )
+    if int(item.get("last_sequence") or 0) != int(repair["last_sequence"]):
+        raise QaManifestError(
+            "Repair-block timeline last sequence does not match persisted binding",
+            details={"repair_block_id": repair_block_id, "sequence": sequence},
+        )
+    return repair, covered_segment_ids
+
+
 def _verify_readonly_runtime_identity(
     manifest: dict[str, Any],
     *,
@@ -1376,14 +1452,32 @@ def generate_audio_qa_report(
             },
         )
 
-    segment_rows = _load_segment_rows(db_path, int(manifest["identity"]["job_chapter_id"]))
-    if len(segment_rows) != len(items):
+    job_chapter_id = int(manifest["identity"]["job_chapter_id"])
+    segment_rows = _load_segment_rows(db_path, job_chapter_id)
+    sequence_map = {int(row["segment_index"]): row for row in segment_rows}
+    segment_rows_by_id = {int(row["id"]): row for row in segment_rows}
+    accepted_repair_blocks = _load_accepted_repair_blocks(db_path, job_chapter_id)
+    covered_segment_ids: list[int] = []
+    repair_context_by_sequence: dict[int, tuple[dict[str, Any] | None, list[int]]] = {}
+    for item in items:
+        sequence = int(item["index"])
+        segment_row = sequence_map.get(sequence)
+        if segment_row is None:
+            raise QaManifestError("Timeline references missing segment row", details={"sequence": sequence})
+        repair_context = _repair_block_for_timeline_item(
+            item,
+            accepted_repair_blocks=accepted_repair_blocks,
+            segment_rows_by_id=segment_rows_by_id,
+            sequence=sequence,
+        )
+        repair_context_by_sequence[sequence] = repair_context
+        covered_segment_ids.extend(repair_context[1] or [int(segment_row["id"])])
+    if sorted(covered_segment_ids) != sorted(segment_rows_by_id):
         raise QaManifestError(
-            "Timeline entry count does not match read-only segment rows",
-            details={"timeline_entries": len(items), "segment_rows": len(segment_rows)},
+            "Timeline coverage does not match read-only segment rows",
+            details={"timeline_entries": len(items), "covered_segment_count": len(covered_segment_ids), "segment_rows": len(segment_rows)},
         )
 
-    sequence_map = {int(row["segment_index"]): row for row in segment_rows}
     segment_results = []
     analysis_failures = []
     for item in items:
@@ -1391,14 +1485,17 @@ def generate_audio_qa_report(
         segment_row = sequence_map.get(sequence)
         if segment_row is None:
             raise QaManifestError("Timeline references missing segment row", details={"sequence": sequence})
-        if item.get("segment_sha256") and str(item.get("segment_sha256")) != str(segment_row.get("audio_sha256")):
+        repair, repair_covered_segment_ids = repair_context_by_sequence[sequence]
+        expected_audio_sha256 = repair["candidate_audio_sha256"] if repair else segment_row.get("audio_sha256")
+        expected_text_sha256 = repair["source_text_sha256"] if repair else segment_row.get("text_sha256")
+        if item.get("segment_sha256") and str(item.get("segment_sha256")) != str(expected_audio_sha256):
             raise QaManifestError(
-                "Timeline segment hash does not match persisted segment hash",
-                details={"sequence": sequence, "timeline_segment_sha256": item.get("segment_sha256"), "segment_audio_sha256": segment_row.get("audio_sha256")},
+                "Timeline segment hash does not match its persisted source",
+                details={"sequence": sequence, "timeline_segment_sha256": item.get("segment_sha256"), "expected_audio_sha256": expected_audio_sha256},
             )
-        if item.get("text") is not None and sha256_text(str(item["text"])) != str(segment_row.get("text_sha256")):
+        if item.get("text") is not None and sha256_text(str(item["text"])) != str(expected_text_sha256):
             raise QaManifestError(
-                "Timeline text does not match persisted segment text hash",
+                "Timeline text does not match its persisted source",
                 details={"sequence": sequence},
             )
         if item.get("utterance_sequence") is not None and int(item["utterance_sequence"]) != int(segment_row.get("utterance_sequence") or 0):
@@ -1416,7 +1513,8 @@ def generate_audio_qa_report(
                 "Timeline voice_id does not match persisted segment binding",
                 details={"sequence": sequence},
             )
-        wav_path = Path(segment_row["wav_path"]).resolve() if segment_row.get("wav_path") else None
+        wav_source = repair["candidate_wav_path"] if repair else segment_row.get("wav_path")
+        wav_path = Path(wav_source).resolve() if wav_source else None
         artifact_issue = None
         metrics = None
         if wav_path is None:
@@ -1427,7 +1525,7 @@ def generate_audio_qa_report(
             artifact_issue = "missing_segment_file"
         else:
             computed = sha256_file(wav_path)
-            if computed != segment_row.get("audio_sha256"):
+            if computed != expected_audio_sha256:
                 artifact_issue = "segment_hash_mismatch"
             else:
                 try:
@@ -1452,6 +1550,9 @@ def generate_audio_qa_report(
             artifact_issue=artifact_issue,
             metrics=metrics,
         )
+        if repair:
+            result["source_limitations"].append("repair_block_aggregates_multiple_segments")
+            result["covered_segment_ids"] = repair_covered_segment_ids
         segment_results.append(result)
 
     chapter_master_path = Path(manifest_artifacts["chapter_master_wav"]["absolute_local_path"])

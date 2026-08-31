@@ -478,6 +478,84 @@ class AudioQaTests(IsolatedTestCase):
         flagged = [item for item in result["report"]["segment_results"] if item["artifact_issue"]]
         self.assertEqual(flagged[0]["artifact_issue"], "missing_segment_file")
 
+    def test_accepted_repair_block_uses_its_immutable_overlay_binding(self):
+        source_text = " ".join(item["text"] for item in self.fixture.segments)
+        candidate_path = self.fixture.segment_dir / "repair_block_candidate.wav"
+        _write_pcm_wav(
+            candidate_path,
+            sample_rate=self.fixture.sample_rate,
+            channels=1,
+            samples=[sample for item in self.fixture.segments for sample in item["samples"]],
+        )
+        candidate_sha256 = sha256_file(candidate_path)
+        timeline_item = {
+            "index": 1,
+            "text": source_text,
+            "start_ms": 0,
+            "end_ms": sum(item["duration_ms"] for item in self.fixture.segments),
+            "duration_ms": sum(item["duration_ms"] for item in self.fixture.segments),
+            "segment_sha256": candidate_sha256,
+            "utterance_sequence": 1,
+            "speaker_role": self.fixture.segments[0]["speaker_role"],
+            "character_id": self.fixture.segments[0]["character_id"],
+            "character_name": self.fixture.segments[0]["character_name"],
+            "voice_id": self.fixture.segments[0]["voice_id"],
+            "repair_block_id": 1,
+            "covered_segment_ids": [1, 2],
+            "first_sequence": 1,
+            "last_sequence": 2,
+        }
+        self.fixture.timeline_path.write_text(
+            json.dumps(
+                {
+                    "schema_version": 2,
+                    "chapter_id": self.fixture.chapter_id,
+                    "text_revision_id": self.fixture.text_revision_id,
+                    "sample_rate": self.fixture.sample_rate,
+                    "duration_ms": timeline_item["duration_ms"],
+                    "repair_blocks": [{"repair_block_id": 1, "covered_segment_ids": [1, 2]}],
+                    "items": [timeline_item],
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        timeline_sha256 = sha256_file(self.fixture.timeline_path)
+        with self.fixture.db.transaction() as conn:
+            conn.execute("UPDATE artifacts SET sha256=?, size_bytes=? WHERE id=2", (timeline_sha256, self.fixture.timeline_path.stat().st_size))
+            conn.execute(
+                """INSERT INTO audio_repair_blocks(
+                    id,job_id,job_chapter_id,chapter_id,text_revision_id,casting_plan_id,casting_plan_sha256,
+                    first_segment_id,last_segment_id,covered_segment_ids_json,first_sequence,last_sequence,
+                    source_start_offset,source_end_offset,source_text,source_text_sha256,speaker_role,character_id,
+                    resolved_voice_id,effective_voice_ref,voice_source_type,voice_provider,voice_model,logical_voice_ref,
+                    voice_resolution_reason,synthesis_settings_json,synthesis_hash,status,candidate_wav_path,
+                    candidate_audio_sha256,candidate_duration_ms,created_at,accepted_at
+                ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    1,self.fixture.job_id,self.fixture.job_chapter_id,self.fixture.chapter_id,self.fixture.text_revision_id,None,"d" * 64,
+                    1,2,json.dumps([1,2]),1,2,0,len(source_text),source_text,sha256_text(source_text),
+                    self.fixture.segments[0]["speaker_role"],self.fixture.segments[0]["character_id"],self.fixture.segments[0]["voice_id"],
+                    self.fixture.segments[0]["voice_id"],"preset","vieneu","v3turbo","narrator","fixture",
+                    json.dumps({"engine_version":"fixture"}),"repair-synth","accepted",str(candidate_path),candidate_sha256,
+                    timeline_item["duration_ms"],"2026-01-01T00:00:00+00:00","2026-01-01T00:00:00+00:00",
+                ),
+            )
+        manifest = json.loads(self.fixture.manifest_path.read_text(encoding="utf-8"))
+        timeline_entry = next(item for item in manifest["artifacts"] if item["artifact_type"] == "segment_timeline_json")
+        timeline_entry["stored_sha256"] = timeline_sha256
+        timeline_entry["computed_sha256"] = timeline_sha256
+        self.fixture.manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+
+        result = self._generate()
+
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(len(result["report"]["segment_results"]), 1)
+        repaired = result["report"]["segment_results"][0]
+        self.assertEqual(repaired["covered_segment_ids"], [1, 2])
+        self.assertEqual(repaired["segment_audio_sha256"], candidate_sha256)
+        self.assertIn("repair_block_aggregates_multiple_segments", repaired["source_limitations"])
+
     def test_mono_wav_metrics_and_sample_rate_and_duration_reporting(self):
         result = self._generate()
         segment = result["report"]["segment_results"][0]
