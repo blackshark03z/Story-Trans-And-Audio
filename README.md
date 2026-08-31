@@ -105,9 +105,8 @@ Text chương không được lưu đầy đủ trong SQLite. DB chỉ lưu revi
 
 ## Tài liệu điều hành
 
-- [Trạng thái hiện tại](PROJECT_STATUS.md)
-- [Roadmap](ROADMAP.md) - chiến lược và phase hiện tại
-- [Next Task](NEXT_TASK.md) - hành động hoặc quyết định đang được ủy quyền
+- [Mục tiêu sản phẩm hiện tại](TASK.md)
+- [Roadmap](ROADMAP.md) - chiến lược sản phẩm hiện tại
 - [Documentation source-of-truth policy](DOCUMENTATION_SOURCES.md)
 - [Daily Production workflow](docs/DAILY_PRODUCTION_WORKFLOW.md)
 - [Quyết định kiến trúc](docs/DECISIONS.md)
@@ -117,6 +116,9 @@ Text chương không được lưu đầy đủ trong SQLite. DB chỉ lưu revi
 - [Runbook vận hành và sửa lỗi](docs/RUNBOOK.md)
 - [Hướng dẫn cho phiên làm việc tiếp theo](AGENTS.md)
 - [Changelog](CHANGELOG.md)
+
+`PROJECT_STATUS.md` và `NEXT_TASK.md` là snapshot lịch sử; chúng không ủy quyền
+Build OS lifecycle hoặc công việc mới.
 
 Chẩn đoán read-only:
 

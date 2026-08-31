@@ -2,23 +2,17 @@
 
 Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve du lieu -> kha nang phuc hoi -> chat luong audio -> tinh nang moi.
 
-## Current Boundary - 2026-08-25
+## Current Boundary - 2026-08-31
 
-The Story Audio development baseline is repaired and green: `1,970` offline
-tests pass with one expected Windows skip, Project CI passes, schema `16` is
-current, and the canonical runtime is stopped. This reconciliation created no
-production work and made no Human QA decision.
+The active product work is `STORY_AUDIO_V2C_DAILY_PRODUCTION_GOLDEN_JOURNEY`,
+defined in `TASK.md`. It connects the existing Home, Production, monitoring,
+Audio, and Human QA entry surfaces through deterministic fixtures, with no
+canonical production or provider effect. The work uses the Thin OS operating
+model in `AGENTS.md`; Build OS lifecycle/adoption work is not an active product
+milestone.
 
-Current artifact authority supersedes the former two-artifact listening note:
-Artifact `93` is stale historical `needs_fixes` evidence; Chapter `372` is now
-bound to active, Human-QA-approved Artifact `99`; Chapter `373` remains bound
-to active Artifact `96` with Human QA pending. No production action follows
-automatically from this status.
-
-The active system boundary is a read-only Build OS v1.25 compatibility and
-authority decision. Adoption may proceed only through the official additive
-mechanism without rewriting v1.16 history. PREPARE, START_RENDER, providers,
-rendering, repair, and Human QA remain outside this roadmap action.
+Historical runtime/artifact and Build OS reconciliation notes below remain
+evidence only. They do not authorize a production action or a lifecycle action.
 
 ## Completed
 
@@ -78,15 +72,13 @@ System development is now authorized only for the ordered `DAILY-PROD` milestone
 
 Chapter production tasks, including Chapter 369 voice selection or Casting Plan review, remain production operations. They do not redefine this strategic roadmap and are not active until the operator resumes them.
 
-## Active System Milestone
+## Active Product Milestone
 
-**STORY_AUDIO_BASELINE_RECONCILIATION_V125_REPAIR**
+**STORY_AUDIO_V2C_DAILY_PRODUCTION_GOLDEN_JOURNEY**
 
-The offline/system baseline and documentation authority are reconciled. The
-remaining gate is whether official Build OS v1.25 RC4 adoption supports this
-live v1.16 repository without erasing the active Goal's terminal authority or
-historical lifecycle evidence. This gate is lifecycle-only and authorizes no
-product or production operation.
+Finish and verify the fixture-backed daily production journey, including scope
+preservation through detours and refresh, one truthful next action, separate
+PREPARE/START_RENDER boundaries, job monitoring, Audio, and Human QA entry.
 
 ## Ordered Daily Production UX Roadmap
 
@@ -99,7 +91,9 @@ product or production operation.
 
 ## Next
 
-`Evaluate the official Build OS v1.25 RC4 adoption boundary against the current v1.16 lifecycle state; proceed only with positive documented compatibility proof.`
+Complete V2C verification and submit the bounded product commit for Tech Lead
+review. No provider, canonical DB, PREPARE, START_RENDER, or Human QA action is
+authorized by this roadmap item.
 
 ## Historical Next (superseded)
 

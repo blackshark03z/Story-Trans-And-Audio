@@ -1,4 +1,11 @@
-# Next Task
+# Historical Next Task
+
+> This is a preserved 2026-08-25 Build OS compatibility snapshot, not current
+> worker instruction. The active Story Audio product context is `TASK.md`.
+> Use the Thin OS operating map in `AGENTS.md`; do not execute the legacy
+> lifecycle/adoption work described below.
+
+## Archived snapshot
 
 Task classification:
 `SYSTEM_ROADMAP / BUILD_OS_V125_ADOPTION_COMPATIBILITY_DECISION`

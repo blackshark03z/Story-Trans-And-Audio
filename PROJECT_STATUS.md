@@ -1,5 +1,11 @@
 ﻿# Trạng thái dự án
 
+> **Historical evidence only.** This 2026-08-25 snapshot is not current worker
+> authority. Read `TASK.md`, `AGENTS.md`, and live Git/runtime state for current
+> work; do not infer a Build OS lifecycle action from this document.
+
+## Archived snapshot
+
 **Cập nhật:** 2026-08-25 (Asia/Saigon)
 **Milestone:** Story Audio Baseline Reconciled
 **Strategic state:** `OFFLINE_BASELINE_GREEN / BUILD_OS_V125_COMPATIBILITY_DECISION_PENDING`

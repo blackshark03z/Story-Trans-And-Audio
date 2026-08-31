@@ -37,7 +37,18 @@ OWNER_PREFERENCE=NONE.
   chapter detour, and compact desktop preflight keeps readiness information in
   the 1366×768 viewport.
 
+## Verification
+
+- The isolated browser golden journey passes through scope selection, voice
+  assignment, preflight, PREPARE, START_RENDER, Human QA needs-fixes, and
+  repair-plan confirmation using fake TTS and an isolated database.
+- Browser checks cover Home keyboard import, scope selection, contextual return,
+  preflight, range exceptions, and responsive task workbench behavior.
+- Focused offline command, projection, preflight, range, render-progress, and
+  Human Approval tests pass without a canonical runtime or provider call.
+
 ## Next
 
-Complete fixture-backed golden-journey and responsive browser acceptance, then
-commit the bounded product and documentation changes.
+Ready for Tech Lead review of the bounded V2C product and documentation commit.
+No provider, canonical DB, PREPARE, START_RENDER, or Human QA action is
+authorized by this task.

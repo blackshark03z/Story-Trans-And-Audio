@@ -1,37 +1,34 @@
 # Documentation Source-of-Truth Policy
 
 **Created:** 2026-06-28
-**Updated:** 2026-08-25
+**Updated:** 2026-08-31
 **Purpose:** Clarify which sources are authoritative for repository, runtime, roadmap, and task state.
 **Status:** Active documentation authority policy.
 
 Some older documents still contain mojibake/encoding debt. Encoding cleanup is a separate bounded documentation-maintenance task, not a feature prerequisite.
 
-## Current Reconciled Baseline
+## Historical Reconciled Baseline (2026-08-25)
 
 The 2026-08-25 read-only inspection found the canonical runtime stopped, the
 canonical database at schema `16`, `PRAGMA quick_check = ok`, and no foreign-key
 violations. Artifact `93` is stale historical `needs_fixes` evidence, not a
 current QA target. Chapter `372` is bound to active, Human-QA-approved Artifact
 `99`; Chapter `373` is bound to active Artifact `96` with Human QA still pending.
-No production action is authorized by these documentation facts.
+No production action is authorized by these historical documentation facts.
+Verify live Git/runtime state before relying on any of them.
 
 ## Authority Hierarchy
 
 Use this precedence when sources disagree:
 
 1. Git worktree, Git history, runtime, database, and artifacts determine actual state.
-2. `ROADMAP.md` defines strategic direction, current system milestone, and deferred system work.
-3. `docs/DAILY_PRODUCTION_WORKFLOW.md` defines the target operator workflow and Daily Production UX acceptance direction.
-4. `PROJECT_STATUS.md` gives the concise last verified product/runtime state and known blockers.
-5. `NEXT_TASK.md` gives one executable next action and must directly support the current roadmap milestone or an explicitly requested production operation.
-6. `CHANGELOG.md` is chronological behavior/schema/operations history only.
-7. `docs/DECISIONS.md` and `docs/DATA_MODEL.md` define stable architectural invariants and entity/state semantics.
-8. `ARCHITECTURE.md` describes component boundaries and may include clearly labelled historical design notes.
-9. `README.md` and `docs/RUNBOOK.md` provide operator setup and supported usage.
-10. External ACTIVE_TASK handoff capsules are mutable worker/session state, never strategic direction.
-
-`NEXT_TASK.md` may not silently redefine `ROADMAP.md`.
+2. `TASK.md` records the current bounded product objective and constraints.
+3. `AGENTS.md` defines the Thin OS working model and product-safety rules.
+4. `ROADMAP.md` defines current product direction and deferred product work.
+5. `docs/DAILY_PRODUCTION_WORKFLOW.md` defines the target operator workflow and Daily Production UX acceptance direction.
+6. `docs/DECISIONS.md` and `docs/DATA_MODEL.md` define stable architectural invariants and entity/state semantics.
+7. `ARCHITECTURE.md` describes component boundaries; `README.md` and `docs/RUNBOOK.md` provide supported usage.
+8. `PROJECT_STATUS.md`, `NEXT_TASK.md`, `.ai/`, Build OS packages, and external handoff capsules are historical evidence only.
 
 ## Task Classification
 
@@ -71,23 +68,18 @@ Runtime facts are verified values, not permanent hard-coded truth. The current c
 - Not authoritative for current Git/runtime/database state.
 - Chapter production tasks do not belong here unless they prove a reusable system blocker.
 
-### PROJECT_STATUS.md
+### PROJECT_STATUS.md and NEXT_TASK.md
 
-- Authoritative for the last verified product/runtime state and known blockers.
-- Not authoritative for current HEAD or working tree without fresh Git verification.
-- Long task records are historical evidence unless repeated in the current-state summary.
+- Preserved snapshots of earlier runtime/product and Build OS work.
+- Not authoritative for current product work, current Git/runtime state, or a new
+  worker's instructions.
+- They must never be used to revive a retired Build OS lifecycle.
 
 ### docs/DAILY_PRODUCTION_WORKFLOW.md
 
 - Authoritative for the target daily-production operator experience and `DAILY-PROD` UX acceptance criteria.
 - Not authoritative for actual implemented behavior until the corresponding roadmap milestone is complete.
 - Does not override backend state machines, database migrations, or runtime safety guards.
-
-### NEXT_TASK.md
-
-- Authoritative for one currently authorized operation or decision checkpoint only when it conforms to `ROADMAP.md`.
-- Not authoritative for strategic direction by itself.
-- Must state task classification.
 
 ### CHANGELOG.md
 
@@ -102,7 +94,7 @@ Runtime facts are verified values, not permanent hard-coded truth. The current c
 ### README.md And docs/RUNBOOK.md
 
 - Operator setup and supported usage.
-- Should point to `ROADMAP.md` for strategy and `NEXT_TASK.md` for the authorized operation.
+- Should point to `TASK.md` for current product work and `ROADMAP.md` for strategy.
 
 ### docs/DECISIONS.md And docs/DATA_MODEL.md
 
@@ -123,9 +115,7 @@ Read them only after canonical repository documents and real state have been che
 ## Reading Order For New AI Agents
 
 1. Run Git/runtime verification commands.
-2. Read `ROADMAP.md`.
-3. Read the current summary at the top of `PROJECT_STATUS.md`.
-4. Read `NEXT_TASK.md`.
-5. Read `AGENTS.md`.
-6. For Daily Production UX work, read `docs/DAILY_PRODUCTION_WORKFLOW.md`.
-7. Read relevant sections of `docs/DECISIONS.md`, `docs/DATA_MODEL.md`, `README.md`, `docs/RUNBOOK.md`, and `ARCHITECTURE.md` as needed.
+2. Read `AGENTS.md`, then `TASK.md`.
+3. Read `ARCHITECTURE.md`, `README.md`, and the relevant durable product docs.
+4. Read `ROADMAP.md` and `docs/DAILY_PRODUCTION_WORKFLOW.md` for direction and UX acceptance.
+5. Consult `PROJECT_STATUS.md`, `NEXT_TASK.md`, or `.ai/` only as labelled historical evidence.
