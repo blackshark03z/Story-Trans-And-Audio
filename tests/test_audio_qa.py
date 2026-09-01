@@ -479,6 +479,24 @@ class AudioQaTests(IsolatedTestCase):
         self.assertEqual(flagged[0]["artifact_issue"], "missing_segment_file")
 
     def test_accepted_repair_block_uses_its_immutable_overlay_binding(self):
+        candidate_sha256 = self._configure_repair_block_overlay()
+
+        result = self._generate()
+
+        self.assertEqual(result["status"], "success")
+        self.assertEqual(len(result["report"]["segment_results"]), 1)
+        repaired = result["report"]["segment_results"][0]
+        self.assertEqual(repaired["covered_segment_ids"], [1, 2])
+        self.assertEqual(repaired["segment_audio_sha256"], candidate_sha256)
+        self.assertIn("repair_block_aggregates_multiple_segments", repaired["source_limitations"])
+
+    def _configure_repair_block_overlay(
+        self,
+        *,
+        repair_status: str = "accepted",
+        timeline_covered_segment_ids: list[int] | None = None,
+        timeline_text: str | None = None,
+    ) -> str:
         source_text = " ".join(item["text"] for item in self.fixture.segments)
         candidate_path = self.fixture.segment_dir / "repair_block_candidate.wav"
         _write_pcm_wav(
@@ -490,7 +508,7 @@ class AudioQaTests(IsolatedTestCase):
         candidate_sha256 = sha256_file(candidate_path)
         timeline_item = {
             "index": 1,
-            "text": source_text,
+            "text": timeline_text if timeline_text is not None else source_text,
             "start_ms": 0,
             "end_ms": sum(item["duration_ms"] for item in self.fixture.segments),
             "duration_ms": sum(item["duration_ms"] for item in self.fixture.segments),
@@ -501,7 +519,7 @@ class AudioQaTests(IsolatedTestCase):
             "character_name": self.fixture.segments[0]["character_name"],
             "voice_id": self.fixture.segments[0]["voice_id"],
             "repair_block_id": 1,
-            "covered_segment_ids": [1, 2],
+            "covered_segment_ids": timeline_covered_segment_ids or [1, 2],
             "first_sequence": 1,
             "last_sequence": 2,
         }
@@ -513,7 +531,7 @@ class AudioQaTests(IsolatedTestCase):
                     "text_revision_id": self.fixture.text_revision_id,
                     "sample_rate": self.fixture.sample_rate,
                     "duration_ms": timeline_item["duration_ms"],
-                    "repair_blocks": [{"repair_block_id": 1, "covered_segment_ids": [1, 2]}],
+                    "repair_blocks": [{"repair_block_id": 1, "covered_segment_ids": timeline_item["covered_segment_ids"]}],
                     "items": [timeline_item],
                 },
                 ensure_ascii=False,
@@ -537,8 +555,8 @@ class AudioQaTests(IsolatedTestCase):
                     1,2,json.dumps([1,2]),1,2,0,len(source_text),source_text,sha256_text(source_text),
                     self.fixture.segments[0]["speaker_role"],self.fixture.segments[0]["character_id"],self.fixture.segments[0]["voice_id"],
                     self.fixture.segments[0]["voice_id"],"preset","vieneu","v3turbo","narrator","fixture",
-                    json.dumps({"engine_version":"fixture"}),"repair-synth","accepted",str(candidate_path),candidate_sha256,
-                    timeline_item["duration_ms"],"2026-01-01T00:00:00+00:00","2026-01-01T00:00:00+00:00",
+                    json.dumps({"engine_version":"fixture"}),"repair-synth",repair_status,str(candidate_path),candidate_sha256,
+                    timeline_item["duration_ms"],"2026-01-01T00:00:00+00:00","2026-01-01T00:00:00+00:00" if repair_status == "accepted" else None,
                 ),
             )
         manifest = json.loads(self.fixture.manifest_path.read_text(encoding="utf-8"))
@@ -546,15 +564,25 @@ class AudioQaTests(IsolatedTestCase):
         timeline_entry["stored_sha256"] = timeline_sha256
         timeline_entry["computed_sha256"] = timeline_sha256
         self.fixture.manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+        return candidate_sha256
 
-        result = self._generate()
+    def test_repair_block_requires_accepted_authority(self):
+        self._configure_repair_block_overlay(repair_status="candidate")
 
-        self.assertEqual(result["status"], "success")
-        self.assertEqual(len(result["report"]["segment_results"]), 1)
-        repaired = result["report"]["segment_results"][0]
-        self.assertEqual(repaired["covered_segment_ids"], [1, 2])
-        self.assertEqual(repaired["segment_audio_sha256"], candidate_sha256)
-        self.assertIn("repair_block_aggregates_multiple_segments", repaired["source_limitations"])
+        with self.assertRaisesRegex(QaManifestError, "unknown or unaccepted repair block"):
+            self._generate()
+
+    def test_repair_block_rejects_tampered_coverage_binding(self):
+        self._configure_repair_block_overlay(timeline_covered_segment_ids=[1])
+
+        with self.assertRaisesRegex(QaManifestError, "coverage does not match persisted binding"):
+            self._generate()
+
+    def test_repair_block_rejects_tampered_aggregate_text(self):
+        self._configure_repair_block_overlay(timeline_text="tampered aggregate text")
+
+        with self.assertRaisesRegex(QaManifestError, "Timeline text does not match its persisted source"):
+            self._generate()
 
     def test_mono_wav_metrics_and_sample_rate_and_duration_reporting(self):
         result = self._generate()
