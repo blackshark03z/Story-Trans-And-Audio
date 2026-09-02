@@ -44,14 +44,14 @@
   </header>
 
   <nav id="appNav" class="app-nav" aria-label="Khu vực chính">
-    <a href="#/home" data-app-route="home" aria-label="Trang chủ">Trang chủ</a>
+    <a href="#/books" data-app-route="books" aria-label="Sách">Sách</a>
     <a href="#/production" data-app-route="production" aria-label="Sản xuất">Sản xuất</a>
+    <a href="#/voices" data-app-route="voices" aria-label="Giọng">Giọng</a>
     <a href="#/audio" data-app-route="audio" aria-label="Audio">Audio</a>
     <details id="appNavMore" class="app-nav-more">
       <summary>Thiết lập và theo dõi</summary>
       <div aria-label="Thiết lập và theo dõi">
-        <a href="#/books" data-app-route="books" aria-label="Sách và nhân vật">Sách và nhân vật</a>
-        <a href="#/voices" data-app-route="voices" aria-label="Thư viện giọng">Thư viện giọng</a>
+        <a href="#/home" data-app-route="home" aria-label="Trang chủ">Trang chủ</a>
         <a href="#/assignment" data-app-route="assignment" aria-label="Gán giọng">Gán giọng</a>
         <a href="#/jobs" data-app-route="jobs" aria-label="Công việc">Công việc</a>
         <a href="#/storage" data-app-route="storage" aria-label="Dung lượng">Dung lượng</a>
@@ -196,45 +196,7 @@
         </div>
       </section>
 
-    <section id="characterReviewView" class="app-view" data-app-view="character-review" aria-labelledby="characterReviewHeading" hidden>
-      <section class="panel character-review-page">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Phạm vi đã chọn</p>
-            <h2 id="characterReviewHeading">Nhân vật đã phát hiện</h2>
-          </div>
-          <button id="characterReviewChangeScope" class="secondary" type="button">Đổi phạm vi</button>
-        </div>
-        <p id="characterReviewScope" class="character-review-scope">Chưa chọn sách và chương.</p>
-        <p class="section-guide">Danh sách này dùng dữ liệu đã có của Sách để cho biết ai xuất hiện trong đúng các chương bạn đã chọn. Không có thay đổi nào được lưu ở đây.</p>
-        <section id="characterReviewJourney" class="casting-journey" aria-label="Quy trình hoàn tất casting" aria-live="polite"></section>
-        <div id="characterReviewSummary" class="character-review-summary" aria-live="polite"></div>
-        <p id="characterReviewNotice" class="character-review-notice hidden" role="status"></p>
-        <div id="characterReviewRoster" class="character-review-roster" aria-live="polite"></div>
-      </section>
-    </section>
-
       <section id="workspace" class="workspace hidden">
-        <aside class="panel chapter-panel">
-          <div class="section-head">
-            <div>
-              <p class="eyebrow">Đang chọn</p>
-              <h2 id="bookTitle">—</h2>
-            </div>
-            <span id="chapterCount" class="pill"></span>
-          </div>
-          <div class="row filter-row">
-            <input id="chapterQuery" placeholder="Tìm số hoặc tên chương">
-            <button id="searchBtn" class="ghost">Tìm</button>
-          </div>
-          <div id="chapterList" class="chapter-list"></div>
-          <div class="pager">
-            <button id="prevPage" class="ghost">← Trước</button>
-            <span id="pageInfo"></span>
-            <button id="nextPage" class="ghost">Sau →</button>
-          </div>
-        </aside>
-
         <section class="panel job-panel range-readiness-panel" id="productionLegacyJobPanel" aria-labelledby="rangeReadinessHeading">
           <div class="section-head">
             <div>
@@ -335,6 +297,24 @@
           <input id="skipCompleted" type="checkbox">
           <button id="runBtn" class="primary full" disabled data-runtime-mutation-control>Legacy guarded job action</button>
         </div>
+      </section>
+    </section>
+
+    <section id="characterReviewView" class="app-view" data-app-view="character-review" aria-labelledby="characterReviewHeading" hidden>
+      <section class="panel character-review-page">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Phạm vi đã chọn</p>
+            <h2 id="characterReviewHeading">Nhân vật đã phát hiện</h2>
+          </div>
+          <button id="characterReviewChangeScope" class="secondary" type="button">Đổi phạm vi</button>
+        </div>
+        <p id="characterReviewScope" class="character-review-scope">Chưa chọn sách và chương.</p>
+        <p class="section-guide">Danh sách này dùng dữ liệu đã có của Sách để cho biết ai xuất hiện trong đúng các chương bạn đã chọn. Không có thay đổi nào được lưu ở đây.</p>
+        <section id="characterReviewJourney" class="casting-journey" aria-label="Quy trình hoàn tất casting" aria-live="polite"></section>
+        <div id="characterReviewSummary" class="character-review-summary" aria-live="polite"></div>
+        <p id="characterReviewNotice" class="character-review-notice hidden" role="status"></p>
+        <div id="characterReviewRoster" class="character-review-roster" aria-live="polite"></div>
       </section>
     </section>
 
@@ -467,26 +447,39 @@
     <section id="booksView" class="app-view" data-app-view="books" aria-labelledby="booksHeading" hidden>
       <section class="panel import-panel">
         <div>
-          <h2 id="booksHeading">Sách và nhân vật</h2>
-          <p class="muted">Nhập EPUB, chọn sách, rồi dùng Production để mở Character Bible, Book Voice Profile và Character Manager theo ngữ cảnh chương.</p>
+          <h2 id="booksHeading">Sách</h2>
+          <p class="muted">Nhập EPUB hoặc chọn một sách để xem ngay các chương và việc có thể làm tiếp.</p>
         </div>
         <div class="row import-row">
           <select id="epubPath"></select>
           <button id="importBtn" class="secondary" data-runtime-mutation-control>Nhập EPUB</button>
-          <label class="check"><input id="showSmokeBooks" type="checkbox"> Show test data</label>
+          <label class="check"><input id="showSmokeBooks" type="checkbox"> Hiện dữ liệu thử</label>
         </div>
         <div id="books" class="book-grid"></div>
       </section>
 
-      <section class="panel">
+      <section id="booksChapterWorkspace" class="panel books-chapter-workspace hidden" aria-labelledby="bookTitle">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Character memory</p>
-            <h2>Nhân vật theo ngữ cảnh chương</h2>
+            <p class="eyebrow">Sách đang chọn</p>
+            <h2 id="bookTitle">—</h2>
           </div>
+          <span id="chapterCount" class="pill"></span>
         </div>
-        <p class="section-guide">Book Voice Profile, Character Bible import, alias management và character overrides hiện được giữ trong bước gán giọng của Production để không tách khỏi chapter context. DAILY-PROD-2 sẽ đóng phần selector custom voice nhất quán.</p>
-        <a class="secondary app-secondary-link" href="#/production">Mở Production</a>
+        <div class="book-context-actions">
+          <button id="openSelectedBookCharacters" class="secondary" type="button">Quản lý nhân vật</button>
+          <button id="openSelectedBookVoices" class="ghost" type="button">Quản lý giọng</button>
+        </div>
+        <div class="row filter-row">
+          <input id="chapterQuery" placeholder="Tìm số hoặc tên chương">
+          <button id="searchBtn" class="ghost">Tìm</button>
+        </div>
+        <div id="chapterList" class="chapter-list"></div>
+        <div class="pager">
+          <button id="prevPage" class="ghost">← Trước</button>
+          <span id="pageInfo"></span>
+          <button id="nextPage" class="ghost">Sau →</button>
+        </div>
       </section>
     </section>
 
@@ -767,6 +760,21 @@
     <div id="qaIssues"></div>
     <div class="tabs"><button data-tab="reflowed" class="active">Reflowed</button><button data-tab="repaired">Gemini</button><button data-tab="raw">Raw</button><button data-tab="diff">Text Diff</button><button data-tab="casting">Quy trình sản xuất</button></div>
     <pre id="chapterText"></pre>
+    <details id="textCorrectionPanel" class="text-correction-panel">
+      <summary>Sửa đúng một đoạn trong văn bản đang dùng</summary>
+      <p class="section-guide">Thao tác này tạo một phiên bản văn bản mới, giữ nguyên phiên bản cũ và không gọi dịch vụ bên ngoài.</p>
+      <label for="textCorrectionExpected">Đoạn cần thay
+        <textarea id="textCorrectionExpected" rows="3" placeholder="Dán nguyên văn đoạn hiện tại"></textarea>
+      </label>
+      <label for="textCorrectionReplacement">Đoạn thay thế
+        <textarea id="textCorrectionReplacement" rows="3" placeholder="Nhập nội dung đã sửa"></textarea>
+      </label>
+      <label for="textCorrectionReason">Lý do sửa
+        <input id="textCorrectionReason" placeholder="Ví dụ: sửa dấu câu hoặc tên riêng">
+      </label>
+      <button id="applyTargetedTextCorrection" class="secondary" type="button" data-runtime-mutation-control>Tạo phiên bản đã sửa</button>
+      <p id="textCorrectionResult" class="muted" role="status" aria-live="polite"></p>
+    </details>
     <div id="castingPanel" class="casting-panel hidden">
       <section id="productionFlowPanel" class="production-flow-guide">
         <div class="section-head">

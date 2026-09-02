@@ -140,6 +140,12 @@ def _snapshot(
         },
         "skip_completed": True,
         "effective_voice_map": voice_map or [],
+        "effective_synthesis_settings": {
+            "temperature": 0.8,
+            "top_k": 25,
+            "max_chars": 256,
+            "silence_seconds": 0.15,
+        },
         "voice_warnings": voice_warnings or [],
         "voice_technical": [{"technical_voice_id": "custom:26"}],
         "estimated_segment_count": 18,
@@ -187,6 +193,18 @@ class ProductionPreflightDecisionTests(unittest.TestCase):
 
 
 class ProductionPreflightProjectionTests(unittest.TestCase):
+    def test_projection_exposes_effective_synthesis_settings_read_only(self) -> None:
+        projection = project_production_preflight(_snapshot([_row(1)]))
+        self.assertEqual(
+            projection["effective_synthesis_settings"],
+            {
+                "temperature": 0.8,
+                "top_k": 25,
+                "max_chars": 256,
+                "silence_seconds": 0.15,
+            },
+        )
+
     def test_ready_projection_separates_data_and_authorization(self) -> None:
         projection = project_production_preflight(
             _snapshot([_row(1), _row(2)], authorized=False)

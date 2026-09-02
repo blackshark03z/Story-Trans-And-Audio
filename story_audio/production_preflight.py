@@ -488,6 +488,9 @@ def project_production_preflight(snapshot: Mapping[str, Any]) -> dict[str, Any]:
             "ordered_blockers": blockers,
         },
         "effective_voice_map": voice_map,
+        "effective_synthesis_settings": dict(
+            snapshot.get("effective_synthesis_settings") or {}
+        ),
         "execution_readiness": {
             "prepare_allowed": prepare_allowed,
             "render_allowed": render_allowed,
@@ -622,6 +625,12 @@ def get_production_preflight(
             "runtime_readiness": dict(runtime_readiness),
             "skip_completed": skip_completed,
             "effective_voice_map": voice_map,
+            "effective_synthesis_settings": {
+                "temperature": config.tts_temperature,
+                "top_k": config.tts_top_k,
+                "max_chars": config.tts_max_chars,
+                "silence_seconds": config.tts_silence_seconds,
+            },
             "voice_warnings": voice_warnings,
             "voice_warning_chapters": sorted(diagnostic_chapters),
             "voice_technical": voice_technical,

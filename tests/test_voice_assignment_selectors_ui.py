@@ -64,10 +64,10 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
 
     def test_character_override_has_no_override_option_and_custom_catalog_selector(self) -> None:
         row_section = self.js[self.js.index("function renderCharacterRow"): self.js.index("function bibleSummary")]
-        self.assertIn("Không dùng giọng riêng", row_section)
+        self.assertIn("Dùng giọng kế thừa", row_section)
         self.assertIn("castingVoiceOptions(c.voice_override_id||'')", row_section)
         self.assertIn("character-voice-provenance", row_section)
-        self.assertIn("Đang kế thừa giọng hiệu lực từ Book Voice Profile", row_section)
+        self.assertIn("Đang kế thừa giọng hiệu lực từ cấu hình giọng của sách", row_section)
 
     def test_character_save_sends_override_without_touching_plan_job_or_render(self) -> None:
         save_section = self.js[self.js.index("async function saveCharacter"): self.js.index("async function deleteCharacter")]
@@ -95,7 +95,8 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIsNotNone(books_view)
         self.assertNotIn("custom-voice-library-panel", books_view.group(0))
         self.assertNotIn('id="profileNarratorVoice"', books_view.group(0))
-        self.assertIn('href="#/production"', books_view.group(0))
+        self.assertIn('id="openSelectedBookCharacters"', books_view.group(0))
+        self.assertIn('id="openSelectedBookVoices"', books_view.group(0))
 
     def test_accessibility_and_styles_for_provenance(self) -> None:
         self.assertIn(".voice-provenance", self.css)

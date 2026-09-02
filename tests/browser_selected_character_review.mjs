@@ -24,8 +24,9 @@ try {
   await send("Runtime.enable");
   const single = await visit("#/character-review?book=1&from=2&to=2");
   const multi = await visit("#/character-review?book=1&from=2&to=4");
+  await evaluate("window.__characterReviewReloadMarker='before-reload'");
   await send("Page.reload", { ignoreCache: true });
-  await poll(() => evaluate("window.storyAudioAppState?.characterReview?.status === 'ready'"));
+  await poll(() => evaluate("window.__characterReviewReloadMarker !== 'before-reload' && window.storyAudioAppState?.characterReview?.status === 'ready' && document.querySelector('#characterReviewScope')?.textContent === 'Fixture Book · Chương 2–4'"));
   const reloaded = await evaluate(`(() => ({scope:document.querySelector('#characterReviewScope').textContent,names:[...document.querySelectorAll('[data-character-review-row] .character-review-identity strong')].map(el=>el.textContent),voices:[...document.querySelectorAll('[data-character-review-voice]')].map(el=>el.textContent),unresolved:!document.querySelector('#characterReviewNotice').classList.contains('hidden')}))()`);
   const other_book = await visit("#/character-review?book=2&from=1&to=1");
   if (errors.length) throw new Error(errors.join(" | "));

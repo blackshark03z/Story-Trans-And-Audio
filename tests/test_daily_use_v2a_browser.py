@@ -48,7 +48,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms)),poll=async fn=>{const end=Date.
             thread.join(timeout=5)
         self.assertEqual(result.returncode, 0, result.stderr)
         evidence = json.loads(result.stdout)
-        self.assertEqual(evidence["compact"], {"firstRun": True, "workHidden": True, "primary": ["home", "production", "audio"], "secondary": "Thiết lập và theo dõi"})
+        self.assertEqual(evidence["compact"], {"firstRun": True, "workHidden": True, "primary": ["books", "production", "voices", "audio"], "secondary": "Thiết lập và theo dõi"})
         for viewport in ("layout1366", "layout1920"):
             self.assertTrue(evidence[viewport]["ctaVisible"])
             self.assertFalse(evidence[viewport]["horizontal"])

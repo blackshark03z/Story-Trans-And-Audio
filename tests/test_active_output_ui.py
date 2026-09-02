@@ -23,9 +23,9 @@ class ActiveOutputUiTests(IsolatedTestCase):
             "chapter-title-wrap",
             "chapter-title-meta",
             "chapter-casting-meta",
-            "Mở quy trình sản xuất",
-            "CASTING REVIEW NEEDED",
-            "CASTING APPROVED",
+            "Nghe audio",
+            "Cần duyệt giọng",
+            "Đã duyệt giọng",
             "job-output-meta",
             "ACTIVE AUDIO",
             "ACTIVE OUTPUT",
@@ -41,8 +41,8 @@ class ActiveOutputUiTests(IsolatedTestCase):
 
     def test_chapter_summary_mentions_direct_character_voices_cta(self) -> None:
         for value in (
-            "data-open-casting",
-            "initialTab:'casting'",
+            "data-chapter-action",
+            "openBookChapterAction",
             "openCastingShortcut",
             "casting-tab-shortcut",
             "castingPlanIdentity",

@@ -163,7 +163,10 @@ class RangeReadinessUiTests(unittest.TestCase):
         self.assertIn("state.dialog=null", select_book)
         self.assertIn("state.casting=null", select_book)
         self.assertIn("state.speakerReview=null", select_book)
-        self.assertLess(select_book.index("state.dialog=null"), select_book.index("setAppRoute('production')"))
+        self.assertLess(select_book.index("state.dialog=null"), select_book.index("setAppRoute('books')"))
+        self.assertIn("$('#booksChapterWorkspace').classList.remove('hidden')", select_book)
+        self.assertIn("await loadChapters()", select_book)
+        self.assertNotIn("setAppRoute('production')", select_book)
 
     def test_styles_cover_summary_chapters_exceptions_and_mobile(self) -> None:
         for value in (
