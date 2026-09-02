@@ -422,12 +422,21 @@ class ProductionScopeBrowserTests(unittest.TestCase):
         self.assertTrue(evidence["skipCompletedRestored"])
         self.assertTrue(evidence["primaryLabelsAreHuman"])
         self.assertTrue(evidence["layout1366"]["ctaVisible"])
+        self.assertTrue(evidence["layout1366"]["headerVisible"])
+        self.assertTrue(evidence["layout1366"]["dialogFits"])
         self.assertFalse(evidence["layout1366"]["horizontal"])
-        self.assertEqual(evidence["layout1366"]["nestedScrolling"], [])
         self.assertTrue(evidence["layout1920"]["ctaVisible"])
+        self.assertTrue(evidence["layout1920"]["headerVisible"])
+        self.assertTrue(evidence["layout1920"]["dialogFits"])
         self.assertFalse(evidence["layout1920"]["horizontal"])
         self.assertTrue(evidence["browserOpenLayout"]["ctaVisible"])
+        self.assertTrue(evidence["browserOpenLayout"]["headerVisible"])
+        self.assertTrue(evidence["browserOpenLayout"]["dialogFits"])
         self.assertFalse(evidence["browserOpenLayout"]["horizontal"])
+        self.assertEqual(
+            evidence["environmentWarnings"],
+            {"sameCount": 1, "canonicalCount": 1, "schemaCount": 1, "prepareCount": 1},
+        )
         self.assertEqual(evidence["interactionCounts"], {"oneChapter": 3, "range": 3})
         self.assertEqual(evidence["final"]["state"], "NO_SCOPE")
         self.assertEqual(evidence["final"]["primaryAction"], "Chọn chương")

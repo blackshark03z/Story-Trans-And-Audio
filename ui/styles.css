@@ -97,9 +97,9 @@ main{max-width:1240px;margin:18px auto;padding:0 20px 50px}.app-view{animation:n
 .production-phase-workspace .voice-usage-grid{grid-template-columns:repeat(auto-fit,minmax(220px,1fr))}
 .production-phase-workspace .voice-usage-card span{color:var(--ink);font-weight:700}
 
-.scope-dialog{width:min(1040px,calc(100vw - 28px));height:auto;max-height:calc(100vh - 24px);overflow:visible;padding:20px 24px;border-radius:16px;background:#fbfcfa;box-shadow:0 24px 70px rgba(15,39,27,.32)}
+.scope-dialog{width:min(1040px,calc(100vw - 28px));height:auto;max-height:calc(100dvh - 24px);overflow:auto;overscroll-behavior:contain;scrollbar-gutter:stable;padding:20px 24px;border-radius:16px;background:#fbfcfa;box-shadow:0 24px 70px rgba(15,39,27,.32)}
 .scope-dialog::backdrop{background:rgba(15,39,27,.58);backdrop-filter:blur(2px)}
-.scope-dialog .dialog-head{margin-bottom:4px}.scope-dialog .dialog-head h2{font-size:25px}
+.scope-dialog .dialog-head{position:sticky;top:0;z-index:2;margin-bottom:4px;padding-bottom:8px;background:#fbfcfa}.scope-dialog .dialog-head h2{font-size:25px}
 .scope-dialog>.section-guide{margin:2px 0 0}
 .scope-primary-form{display:grid;grid-template-columns:minmax(280px,.9fr) minmax(360px,1.1fr);gap:12px 18px;margin-top:14px;padding:16px 18px;border:1px solid #dbe4dd;border-radius:14px;background:#fff}
 .scope-book-combobox{display:grid;align-content:start;gap:6px;grid-row:span 3}.scope-book-combobox>label,.scope-range-fields>label{font-size:12px;font-weight:800;color:#355442}
@@ -120,7 +120,7 @@ main{max-width:1240px;margin:18px auto;padding:0 20px 50px}.app-view{animation:n
 .scope-browser-body{padding-top:5px}.scope-search{display:grid;grid-template-columns:190px 1fr;align-items:center;gap:10px;font-size:12px;font-weight:700}.scope-search input{margin:0}
 .scope-chapter-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:5px;max-height:none;overflow:visible;padding:5px 0}
 .scope-chapter-card{display:flex;align-items:center;justify-content:space-between;min-height:42px;padding:7px 10px;border:1px solid #e0e6e1;border-radius:8px;background:#fff;text-align:left}.scope-chapter-card:hover,.scope-chapter-card:focus-visible{border-color:#6b9b7f;background:#eef6f0}.scope-chapter-card.selected-start,.scope-chapter-card.selected-end{border-color:#4d8768;background:#e6f2e9}.scope-chapter-card strong{font-size:12px}.scope-chapter-card span{font-size:10px}
-.scope-browser .pager{margin-top:5px}.scope-dialog-actions{position:sticky;bottom:0;display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:12px;padding-top:8px;background:#fbfcfa}.scope-dialog-actions .text-action{margin-right:auto;padding-left:0;background:transparent;color:#6c786f;text-decoration:underline}.scope-primary-action{min-width:180px;padding:11px 18px}
+.scope-browser .pager{margin-top:5px}.scope-dialog-actions{position:sticky;bottom:0;z-index:2;display:flex;justify-content:flex-end;align-items:center;gap:8px;margin-top:12px;padding-top:8px;padding-bottom:1px;background:#fbfcfa}.scope-dialog-actions .text-action{margin-right:auto;padding-left:0;background:transparent;color:#6c786f;text-decoration:underline}.scope-primary-action{min-width:180px;padding:11px 18px}
 
 @media(max-width:900px){
   .topbar{align-items:center;flex-direction:row}.system-diagnostics-panel{right:-4px}
