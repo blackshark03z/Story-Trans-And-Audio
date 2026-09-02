@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Story Audio</title>
   <link rel="stylesheet" href="/assets/styles.css?v=20260802-audio-repair-feedback-1">
+  <style>
+    .casting-journey{display:grid;gap:12px;margin:16px 0;padding:16px;border:1px solid #cfe0d4;border-radius:14px;background:linear-gradient(135deg,#fff 0%,#f4faf6 100%)}.casting-journey-head{display:flex;justify-content:space-between;align-items:start;gap:12px}.casting-journey-head h3{margin:2px 0;font-size:18px}.casting-journey-head>span{padding:5px 8px;border-radius:999px;background:#e4f1e8;color:#285b3d;font-size:12px;font-weight:800;white-space:nowrap}.casting-journey-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0;padding:0;list-style:none}.casting-journey-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 10px;border:1px solid #dfe8e1;border-radius:9px;background:#fff}.casting-journey-list li>div{display:grid;gap:2px}.casting-journey-list strong{font-size:12px}.casting-journey-list span{font-size:11px;color:var(--muted)}.casting-journey-list li.complete{border-color:#c7dfce;background:#f4faf6}.casting-journey-list li.complete strong:before{content:'✓ ';color:#2f7a4c}.casting-journey-list li.current{border-color:#d9b661;background:#fffaf0}.casting-journey-list li.current strong:before{content:'→ ';color:#966c10}.casting-journey-list li.blocked{background:#f7f8f7;opacity:.75}.casting-journey-list .text-action{font-size:11px;white-space:nowrap}@media(max-width:760px){.casting-journey-head{display:grid}.casting-journey-list{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
   <header class="topbar">
@@ -204,6 +207,7 @@
         </div>
         <p id="characterReviewScope" class="character-review-scope">Chưa chọn sách và chương.</p>
         <p class="section-guide">Danh sách này dùng dữ liệu đã có của Sách để cho biết ai xuất hiện trong đúng các chương bạn đã chọn. Không có thay đổi nào được lưu ở đây.</p>
+        <section id="characterReviewJourney" class="casting-journey" aria-label="Quy trình hoàn tất casting" aria-live="polite"></section>
         <div id="characterReviewSummary" class="character-review-summary" aria-live="polite"></div>
         <p id="characterReviewNotice" class="character-review-notice hidden" role="status"></p>
         <div id="characterReviewRoster" class="character-review-roster" aria-live="polite"></div>
