@@ -19,7 +19,7 @@ from story_audio.batch_prepare_runtime_integration import (
     require_clone_runtime,
 )
 from story_audio.db import Database
-from story_audio.migrations import MIGRATIONS, MigrationRunner
+from story_audio.migrations import MIGRATIONS, RUNTIME_MIGRATIONS, MigrationRunner
 from tests.base import IsolatedTestCase
 
 
@@ -59,6 +59,19 @@ class RuntimeIntegrationTests(IsolatedTestCase):
         self.assertEqual(descriptor.schema_version, 15)
         self.assertTrue(descriptor.clone_runtime_active)
         self.assertFalse(descriptor.mutation_service_constructed)
+        self.assertFalse(descriptor.mutation_enabled)
+
+    def test_schema16_clone_is_readiness_eligible_but_mutation_disabled(self):
+        schema16 = self.external / "schema16.db"
+        shutil.copyfile(self.clone, schema16)
+        Database(schema16, migration_runner=MigrationRunner(RUNTIME_MIGRATIONS)).initialize()
+
+        descriptor = self.descriptor(path=schema16)
+
+        self.assertEqual(descriptor.status, "KILL_SWITCHED")
+        self.assertEqual(descriptor.schema_version, 16)
+        self.assertTrue(descriptor.schema_compatible)
+        self.assertTrue(descriptor.clone_runtime_active)
         self.assertFalse(descriptor.mutation_enabled)
 
     def test_all_flags_and_auth_require_separate_phase14_test_authorization(self):
@@ -170,17 +183,22 @@ class RuntimeIntegrationTests(IsolatedTestCase):
         apply_dormant_migration(schema14, 13)
         apply_dormant_migration(schema14, 14)
         self.assertEqual(self.descriptor(path=schema14).schema_version, 14)
+        schema16 = self.external / "schema16.db"
+        shutil.copyfile(self.clone, schema16)
+        Database(schema16, migration_runner=MigrationRunner(RUNTIME_MIGRATIONS)).initialize()
+        values = dict(self.values, PREPARE_KILL_SWITCH_ACTIVE="false")
+        self.assertEqual(self.descriptor(values, schema16).status, "SCHEMA_FLAG_NOT_READY")
+
         future = self.external / "future.db"
-        shutil.copyfile(self.clone, future)
+        shutil.copyfile(schema16, future)
         connection = sqlite3.connect(future)
         connection.execute(
-            "INSERT INTO schema_migrations(version,name,checksum,applied_at) VALUES(16,'future',?,?)",
+            "INSERT INTO schema_migrations(version,name,checksum,applied_at) VALUES(17,'future',?,?)",
             ("0" * 64, "test"),
         )
         connection.commit()
         connection.close()
         self.assertEqual(self.descriptor(path=future).status, "KILL_SWITCHED")
-        values = dict(self.values, PREPARE_KILL_SWITCH_ACTIVE="false")
         self.assertEqual(self.descriptor(values, future).status, "SCHEMA_UNSUPPORTED")
 
     def test_quick_check_failure_is_rejected(self):
@@ -203,6 +221,8 @@ class RuntimeIntegrationTests(IsolatedTestCase):
             "execution_endpoint_available", "real_job_execution", "prepare_starts_render",
         ):
             self.assertFalse(payload[field])
+        self.assertEqual(payload["supported_schema_versions"], [15, 16])
+        self.assertTrue(payload["schema_compatible"])
 
     def test_read_only_facade_cannot_write_initialize_transact_or_audit(self):
         before = hashlib.sha256(self.clone.read_bytes()).hexdigest()

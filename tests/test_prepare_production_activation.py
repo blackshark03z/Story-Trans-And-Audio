@@ -25,6 +25,7 @@ from story_audio.batch_prepare_schema import (
     verified_prepare_migration_hashes,
 )
 from story_audio.db import Database
+from story_audio.migrations import RUNTIME_MIGRATIONS, MigrationRunner
 from story_audio.prepare_activation import (
     ACTIVATION_CONFIRMATION,
     PrepareActivationError,
@@ -83,7 +84,12 @@ class ProductionRuntimeGateTests(Phase10FixtureMixin):
         self.assertEqual(database.initialize(), 16)
         self.assertEqual(self.counts(), before)
 
-    def test_schema15_production_constructs_same_authenticated_prepare_service(self):
+    def test_schema16_production_constructs_same_authenticated_prepare_service(self):
+        Database(self.db_path, migration_runner=MigrationRunner(RUNTIME_MIGRATIONS)).initialize()
+        self.assertEqual(
+            Database(self.db_path, migration_runner=MigrationRunner(RUNTIME_MIGRATIONS)).schema_version(),
+            16,
+        )
         config = parse_runtime_integration_config(production_values())
         descriptor = self.descriptor(config)
         self.assertEqual(descriptor.status, "PRODUCTION_AUTHENTICATED_READY")

@@ -20,7 +20,13 @@ from .db import ClosingConnection, Database
 DISABLED = "DISABLED"
 CLONE_DISABLED = "CLONE_DISABLED"
 PRODUCTION = "PRODUCTION"
+# Schema 15 is the earliest layout that contains the durable PREPARE records.
+# Schema 16 adds nullable, book-scoped custom-voice ownership and was designed
+# to preserve legacy voice references. PREPARE accepts only these verified
+# layouts; every other version remains unsupported.
 REQUIRED_SCHEMA_VERSION = 15
+SUPPORTED_SCHEMA_VERSIONS = frozenset({15, 16})
+LATEST_SUPPORTED_SCHEMA_VERSION = max(SUPPORTED_SCHEMA_VERSIONS)
 _RUNTIME_KEYS = frozenset({
     "PREPARE_RUNTIME_MODE",
     "PREPARE_CLONE_MUTATION_TEST_AUTHORIZED",
@@ -87,11 +93,15 @@ class RuntimeIntegrationDescriptor:
     reasons: tuple[str, ...] = ()
 
     @property
+    def schema_compatible(self) -> bool:
+        return self.schema_version in SUPPORTED_SCHEMA_VERSIONS
+
+    @property
     def clone_runtime_active(self) -> bool:
         return (
             self.runtime_mode == CLONE_DISABLED
             and self.clone_backed
-            and self.schema_version == REQUIRED_SCHEMA_VERSION
+            and self.schema_compatible
             and self.quick_check == "ok"
             and self.status in {
                 "KILL_SWITCHED", "SCHEMA_FLAG_NOT_READY", "DISABLED_DEFAULT",
@@ -119,7 +129,7 @@ class RuntimeIntegrationDescriptor:
             self.runtime_mode == PRODUCTION
             and self.canonical_backed
             and self.status == "PRODUCTION_AUTHENTICATED_READY"
-            and self.schema_version == REQUIRED_SCHEMA_VERSION
+            and self.schema_compatible
             and self.quick_check == "ok"
             and self.feature_available
             and self.mutation_enabled
@@ -275,7 +285,7 @@ def build_runtime_integration(
                 elif schema_version < REQUIRED_SCHEMA_VERSION:
                     status = "SCHEMA_NOT_READY"
                     reasons.append("SCHEMA_NOT_READY")
-                elif schema_version > REQUIRED_SCHEMA_VERSION:
+                elif schema_version not in SUPPORTED_SCHEMA_VERSIONS:
                     status = "SCHEMA_UNSUPPORTED"
                     reasons.append("SCHEMA_UNSUPPORTED")
                 elif not parsed.flags.canonical_schema_ready:
@@ -348,6 +358,8 @@ def public_runtime_readiness(descriptor: RuntimeIntegrationDescriptor) -> dict[s
         "canonical_backed": descriptor.canonical_backed,
         "schema_version": descriptor.schema_version,
         "required_schema_version": descriptor.required_schema_version,
+        "supported_schema_versions": sorted(SUPPORTED_SCHEMA_VERSIONS),
+        "schema_compatible": descriptor.schema_compatible,
         "feature_available": descriptor.feature_available,
         "mutation_enabled": descriptor.prepare_mutation_enabled,
         "operator_window_open": descriptor.operator_window_open,
@@ -389,7 +401,7 @@ class CloneReadOnlyDatabase(Database):
 
     @property
     def latest_schema_version(self) -> int:
-        return REQUIRED_SCHEMA_VERSION
+        return LATEST_SUPPORTED_SCHEMA_VERSION
 
     def transaction(self):
         raise CloneRuntimeRejected("Clone-disabled runtime cannot open a transaction.")
@@ -400,7 +412,8 @@ class CloneReadOnlyDatabase(Database):
 
 __all__ = [
     "CLONE_DISABLED", "DISABLED", "PRODUCTION", "CloneReadOnlyDatabase", "CloneRuntimeRejected",
-    "REQUIRED_SCHEMA_VERSION", "RuntimeIntegrationConfig", "RuntimeIntegrationDescriptor",
+    "LATEST_SUPPORTED_SCHEMA_VERSION", "REQUIRED_SCHEMA_VERSION", "SUPPORTED_SCHEMA_VERSIONS",
+    "RuntimeIntegrationConfig", "RuntimeIntegrationDescriptor",
     "build_runtime_integration", "parse_runtime_integration_config", "public_runtime_readiness",
     "read_runtime_integration_config", "require_clone_runtime",
 ]
