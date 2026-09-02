@@ -321,26 +321,19 @@ try {
   evidence.repairPlan = repairPlan;
   evidence.stages.push("repair_plan_confirmed");
 
-  // The former replacement-render journey is intentionally retained below for future
-  // certification, but this workflow stops at the explicit apply-repair boundary.
-  if (false) {
-  // Stage G: exercise repair routes, then choose same-data repair.
-  await click("#repairVoice");
-  await waitFor(`window.storyAudioAppState.currentRoute==="assignment"`);
-  await evaluate(`location.hash=${JSON.stringify(`#/production?book=${fixture.book_id}&from=${fixture.chapter_number}&to=${fixture.chapter_number}`)}`);
-  await waitFor(`window.storyAudioAppState.currentRoute==="production"`);
-  await waitFor(`window.storyAudioAppState.productionProjection?.canonical_task?.task_type==="REPAIR_REQUIRED"`, 20000);
-  await waitFor(`document.querySelector("#repairTextSpeaker")`);
-  await click("#repairTextSpeaker");
-  await waitFor(`window.storyAudioAppState.currentRoute==="production"`);
-  await waitFor(`document.querySelector("#repairSameData")`);
-  await click("#repairSameData");
-  await waitFor(`document.querySelector("#repairPrepare")`);
-  await evaluate(`(() => { const el=document.querySelector("#repairOperatorToken"); if(el){ el.value="fixture-token"; el.dispatchEvent(new Event("input",{bubbles:true})); el.dispatchEvent(new Event("change",{bubbles:true})); } return true; })()`);
-  evidence.stages.push("repair_routes");
+  // Stage H: apply the confirmed plan, review the targeted draft, then confirm it.
+  await click("#repairApplyPlan");
+  await waitFor(`!window.storyAudioAppState.productionCommand.active`, 20000);
+  await waitFor(`document.querySelector("#repairReviewDraft")`, 20000);
+  await click("#repairReviewDraft");
+  await waitFor(`document.querySelector("#repairConfirmDraft")`, 20000);
+  await click("#repairConfirmDraft");
+  await waitFor(`!window.storyAudioAppState.productionCommand.active`, 20000);
+  await waitFor(`document.querySelector("#repairPrepareReplacement")?.disabled===false`, 20000);
+  evidence.stages.push("repair_draft_confirmed");
 
-  // Stage H: replacement PREPARE and replacement START_RENDER.
-  await click("#repairPrepare");
+  // Stage I: replacement PREPARE and replacement START_RENDER.
+  await click("#repairPrepareReplacement");
   await waitFor(`!window.storyAudioAppState.productionCommand.active`, 20000);
   try {
     await waitFor(`window.storyAudioAppState.productionProjection?.canonical_task?.task_type==="START_RENDER_RANGE"`, 20000);
@@ -467,18 +460,7 @@ try {
   evidence.newPlan = newPlan;
   evidence.ok = true;
   process.stdout.write(JSON.stringify(evidence));
-  }
 
-  const repairPlanAccessibility = await evaluate(`({
-    buttonsNamed:[...document.querySelectorAll("button")].every(button => button.textContent.trim() || button.getAttribute("aria-label")),
-    applyEnabled:document.querySelector("#repairApplyPlan")?.disabled === false,
-    confirmAbsent:!document.querySelector("#repairConfirmPlan")
-  })`);
-  if (!repairPlanAccessibility.buttonsNamed || !repairPlanAccessibility.applyEnabled || !repairPlanAccessibility.confirmAbsent) throw new Error(`Repair-plan accessibility check failed: ${JSON.stringify(repairPlanAccessibility)}`);
-  if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
-  evidence.accessibility = repairPlanAccessibility;
-  evidence.ok = true;
-  process.stdout.write(JSON.stringify(evidence));
 } finally {
   try { socket?.close(); } catch {}
   child.kill();
