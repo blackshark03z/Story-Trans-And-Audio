@@ -115,7 +115,7 @@ class StartupCleanupAuthorityTests(IsolatedTestCase):
         self.assertEqual(str(self.segment_path), self._segment_wav_path())
         self.assertEqual(0, self._cleanup_audit_count())
 
-    def test_kill_authority_blocks_cleanup_without_audit(self) -> None:
+    def test_cleanup_flag_false_blocks_cleanup_without_audit(self) -> None:
         self.worker.mark_application_ready()
         self.authority["allowed"] = False
 
@@ -125,6 +125,28 @@ class StartupCleanupAuthorityTests(IsolatedTestCase):
         self.assertTrue(self.segment_path.is_file())
         self.assertEqual(str(self.segment_path), self._segment_wav_path())
         self.assertEqual(0, self._cleanup_audit_count())
+
+    def test_prepare_kill_switch_is_independent_from_cleanup_authority(self) -> None:
+        from story_audio import api
+
+        for kill_switch_active, cleanup_enabled in ((False, False), (True, True)):
+            descriptor = SimpleNamespace(
+                runtime_mode="PRODUCTION",
+                canonical_backed=True,
+                quick_check="ok",
+                schema_version=16,
+                kill_switch_active=kill_switch_active,
+                segment_cleanup_enabled=cleanup_enabled,
+            )
+            self.assertTrue(api._maintenance_runtime_available(descriptor))
+            self.authority["allowed"] = descriptor.segment_cleanup_enabled
+            self.worker.mark_application_ready()
+            ran = self.worker._run_due_maintenance()
+            self.assertEqual(cleanup_enabled, ran)
+            if not cleanup_enabled:
+                self.assertTrue(self.segment_path.is_file())
+                self.assertEqual(str(self.segment_path), self._segment_wav_path())
+                self.assertEqual(0, self._cleanup_audit_count())
 
     def test_ready_authorized_cleanup_preserves_final_and_cas_then_repeats_on_interval(self) -> None:
         self.worker.mark_application_ready()

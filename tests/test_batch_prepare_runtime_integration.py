@@ -52,6 +52,27 @@ class RuntimeIntegrationTests(IsolatedTestCase):
         self.assertEqual(descriptor.runtime_mode, "DISABLED")
         self.assertTrue(descriptor.kill_switch_active)
         self.assertFalse(descriptor.mutation_authorized)
+        self.assertFalse(descriptor.segment_cleanup_enabled)
+
+    def test_segment_cleanup_flag_is_separate_and_fail_closed(self):
+        absent = parse_runtime_integration_config({})
+        self.assertFalse(absent.segment_cleanup_enabled)
+        self.assertTrue(absent.segment_cleanup_config_valid)
+
+        disabled = parse_runtime_integration_config({"SEGMENT_CLEANUP_ENABLED": "false"})
+        self.assertFalse(disabled.segment_cleanup_enabled)
+        self.assertTrue(disabled.segment_cleanup_config_valid)
+
+        enabled = parse_runtime_integration_config({"SEGMENT_CLEANUP_ENABLED": "true"})
+        self.assertTrue(enabled.segment_cleanup_enabled)
+        self.assertTrue(enabled.segment_cleanup_config_valid)
+
+        invalid = parse_runtime_integration_config({"SEGMENT_CLEANUP_ENABLED": "TRUE"})
+        self.assertFalse(invalid.segment_cleanup_enabled)
+        self.assertFalse(invalid.segment_cleanup_config_valid)
+        descriptor = self.descriptor({"PREPARE_RUNTIME_MODE": CLONE_DISABLED, "SEGMENT_CLEANUP_ENABLED": "TRUE"})
+        self.assertEqual(descriptor.status, "KILL_SWITCHED")
+        self.assertFalse(descriptor.segment_cleanup_enabled)
 
     def test_schema15_clone_is_readiness_eligible_but_mutation_disabled(self):
         descriptor = self.descriptor()
@@ -223,6 +244,7 @@ class RuntimeIntegrationTests(IsolatedTestCase):
             self.assertFalse(payload[field])
         self.assertEqual(payload["supported_schema_versions"], [15, 16])
         self.assertTrue(payload["schema_compatible"])
+        self.assertFalse(payload["segment_cleanup_enabled"])
 
     def test_read_only_facade_cannot_write_initialize_transact_or_audit(self):
         before = hashlib.sha256(self.clone.read_bytes()).hexdigest()

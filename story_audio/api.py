@@ -284,7 +284,7 @@ worker = PipelineWorker(
     store,
     tts_service,
     settings,
-    maintenance_authorized=lambda: not prepare_runtime_integration.kill_switch_active,
+    maintenance_authorized=lambda: prepare_runtime_integration.segment_cleanup_enabled,
 )
 voice_previews = VoicePreviewService(
     tts_service, settings, custom_voice_repo=custom_voice_repo, store=store

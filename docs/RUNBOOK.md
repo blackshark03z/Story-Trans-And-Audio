@@ -74,6 +74,9 @@ Notes:
   operator starts that exact Job.
 - Set `PREPARE_KILL_SWITCH_ACTIVE=true` in the ignored local config and restart
   to fail closed. The kill switch overrides all PREPARE/render enablement.
+- `SEGMENT_CLEANUP_ENABLED` is a separate, default-false maintenance flag for
+  retained segment WAV cleanup. It neither grants nor revokes PREPARE or render
+  authority; keep it `false` unless maintenance cleanup is explicitly authorized.
 - Historical activation, backup, and rollback evidence remains in
   `docs/PREPARE_ACTIVATION_RUNBOOK.md`; its pre-activation commands are not a
   routine startup path.

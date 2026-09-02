@@ -32,6 +32,7 @@ _RUNTIME_KEYS = frozenset({
     "PREPARE_CLONE_MUTATION_TEST_AUTHORIZED",
     "PREPARE_RENDER_ENABLED",
 })
+_MAINTENANCE_KEYS = frozenset({"SEGMENT_CLEANUP_ENABLED"})
 _FLAG_KEYS = frozenset({
     "PREPARE_FEATURE_AVAILABLE", "PREPARE_MUTATION_ENABLED",
     "PREPARE_OPERATOR_WINDOW_OPEN", "PREPARE_CANONICAL_SCHEMA_READY",
@@ -55,6 +56,8 @@ class RuntimeIntegrationConfig:
     auth: OperatorAuthConfig
     clone_mutation_test_authorized: bool = False
     render_enabled: bool = False
+    segment_cleanup_enabled: bool = False
+    segment_cleanup_config_valid: bool = True
     config_valid: bool = True
     errors: tuple[str, ...] = ()
 
@@ -75,6 +78,7 @@ class RuntimeIntegrationDescriptor:
     kill_switch_active: bool
     authentication_state: str
     read_only_planning_available: bool
+    segment_cleanup_enabled: bool = False
     render_enabled: bool = False
     mutation_service_constructed: bool = False
     isolated_adapter_constructed: bool = False
@@ -171,6 +175,10 @@ def parse_runtime_integration_config(values: Mapping[str, Any] | None = None) ->
         source.get("PREPARE_RENDER_ENABLED"),
         "INVALID_PREPARE_RENDER_ENABLED",
     )
+    segment_cleanup_enabled, segment_cleanup_error = _parse_strict_boolean(
+        source.get("SEGMENT_CLEANUP_ENABLED"),
+        "INVALID_SEGMENT_CLEANUP_ENABLED",
+    )
     errors.extend(flags.errors)
     errors.extend(auth.errors)
     if test_error:
@@ -183,6 +191,8 @@ def parse_runtime_integration_config(values: Mapping[str, Any] | None = None) ->
         auth,
         clone_mutation_test_authorized=test_authorized,
         render_enabled=render_enabled,
+        segment_cleanup_enabled=segment_cleanup_enabled,
+        segment_cleanup_config_valid=segment_cleanup_error is None,
         config_valid=not errors,
         errors=tuple(errors),
     )
@@ -207,7 +217,7 @@ def _parse_test_authorization(value: Any) -> tuple[bool, str | None]:
 
 def read_runtime_integration_config(environment: Mapping[str, Any] | None = None) -> RuntimeIntegrationConfig:
     source = dict(os.environ if environment is None else environment)
-    keys = _RUNTIME_KEYS | _FLAG_KEYS | _AUTH_KEYS
+    keys = _RUNTIME_KEYS | _MAINTENANCE_KEYS | _FLAG_KEYS | _AUTH_KEYS
     return parse_runtime_integration_config({key: source[key] for key in keys if key in source})
 
 
@@ -341,6 +351,9 @@ def build_runtime_integration(
         kill_switch_active=True if not parsed.config_valid else parsed.flags.kill_switch_active,
         authentication_state=auth_status,
         read_only_planning_available=True,
+        segment_cleanup_enabled=(
+            parsed.segment_cleanup_enabled and parsed.segment_cleanup_config_valid
+        ),
         render_enabled=parsed.render_enabled,
         reasons=tuple(reasons),
     )
@@ -364,6 +377,7 @@ def public_runtime_readiness(descriptor: RuntimeIntegrationDescriptor) -> dict[s
         "mutation_enabled": descriptor.prepare_mutation_enabled,
         "operator_window_open": descriptor.operator_window_open,
         "kill_switch_active": descriptor.kill_switch_active,
+        "segment_cleanup_enabled": descriptor.segment_cleanup_enabled,
         "authentication_state": descriptor.authentication_state,
         "mutation_service_constructed": False,
         "mutation_route_registered": False,
