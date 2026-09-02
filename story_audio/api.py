@@ -212,6 +212,28 @@ def _build_runtime_database(path: Path, integration):
     return Database(path, migration_runner=migration_runner)
 
 
+def _maintenance_runtime_available(integration) -> bool:
+    """Permit only the established schema window to run maintenance without render authority."""
+
+    return bool(
+        integration.runtime_mode == PRODUCTION
+        and getattr(integration, "canonical_backed", False)
+        and getattr(integration, "quick_check", None) == "ok"
+        and getattr(integration, "schema_version", None) in {
+            PREPARE_SCHEMA_VERSION,
+            PREPARE_SCHEMA_VERSION + 1,
+        }
+    )
+
+
+def _build_maintenance_database(path: Path, integration, primary_database):
+    """Keep cleanup writable only for a verified canonical schema, never for clone mode."""
+
+    if _maintenance_runtime_available(integration):
+        return Database(path)
+    return primary_database
+
+
 settings.ensure_dirs()
 prepare_runtime_config = read_runtime_integration_config()
 prepare_runtime_integration = build_runtime_integration(
@@ -226,6 +248,11 @@ runtime_operator_session = RuntimeOperatorSession.from_environment(
     prepare_runtime_config.auth,
 )
 db = _build_runtime_database(settings.db_path, prepare_runtime_integration)
+maintenance_db = _build_maintenance_database(
+    settings.db_path,
+    prepare_runtime_integration,
+    db,
+)
 store = ContentStore(settings)
 custom_voice_repo = CustomVoiceRepository(db, store)
 
@@ -252,7 +279,13 @@ batch_prepare_api_service = (
     if _prepare_service_construction_allowed
     else None
 )
-worker = PipelineWorker(db, store, tts_service, settings)
+worker = PipelineWorker(
+    maintenance_db,
+    store,
+    tts_service,
+    settings,
+    maintenance_authorized=lambda: not prepare_runtime_integration.kill_switch_active,
+)
 voice_previews = VoicePreviewService(
     tts_service, settings, custom_voice_repo=custom_voice_repo, store=store
 )
@@ -680,22 +713,26 @@ class ProductionCommandRequest(BaseModel):
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    prepare_only_runtime = (
-        prepare_runtime_integration.runtime_mode == CLONE_DISABLED
-        or (
-            prepare_runtime_integration.runtime_mode == PRODUCTION
-            and not getattr(
-                prepare_runtime_integration,
-                "production_render_enabled",
-                False,
-            )
-        )
+    clone_read_only_runtime = prepare_runtime_integration.runtime_mode == CLONE_DISABLED
+    production_render_runtime = bool(
+        prepare_runtime_integration.runtime_mode == PRODUCTION
+        and getattr(prepare_runtime_integration, "production_render_enabled", False)
     )
-    if not prepare_only_runtime:
+    maintenance_only_runtime = _maintenance_runtime_available(prepare_runtime_integration)
+    if not clone_read_only_runtime and (
+        prepare_runtime_integration.runtime_mode != PRODUCTION or production_render_runtime
+    ):
         db.initialize()
+        worker.mark_application_ready()
         worker.start()
+    elif maintenance_only_runtime:
+        worker.mark_application_ready()
+        worker.start(maintenance_only=True)
     yield
-    if not prepare_only_runtime:
+    if (
+        not clone_read_only_runtime
+        and (prepare_runtime_integration.runtime_mode != PRODUCTION or production_render_runtime or maintenance_only_runtime)
+    ):
         worker.stop()
 
 

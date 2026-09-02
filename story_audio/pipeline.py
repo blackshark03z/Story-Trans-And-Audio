@@ -8,7 +8,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .config import Settings
 from .casting import CHUNKER_VERSION, validate_approved_plan
@@ -594,7 +594,15 @@ def _tts_attempt_limit(settings_snapshot: dict[str, Any]) -> int:
 
 
 class PipelineWorker:
-    def __init__(self, db: Database, store: ContentStore, tts: TtsService, config: Settings):
+    def __init__(
+        self,
+        db: Database,
+        store: ContentStore,
+        tts: TtsService,
+        config: Settings,
+        *,
+        maintenance_authorized: Callable[[], bool] | None = None,
+    ):
         self.db = db
         self.store = store
         self.tts = tts
@@ -604,10 +612,13 @@ class PipelineWorker:
         self._wake = threading.Event()
         self._thread: threading.Thread | None = None
         self._last_cleanup = 0.0
+        self._maintenance_ready = threading.Event()
+        self._maintenance_authorized = maintenance_authorized or (lambda: False)
 
-    def start(self) -> None:
+    def start(self, *, maintenance_only: bool = False) -> None:
         if self._thread and self._thread.is_alive():
             return
+        self._maintenance_only = maintenance_only
         self._thread = threading.Thread(target=self._loop, name="pipeline-worker", daemon=True)
         self._thread.start()
 
@@ -617,6 +628,29 @@ class PipelineWorker:
 
     def wake(self) -> None:
         self._wake.set()
+
+    def mark_application_ready(self) -> None:
+        """Allow maintenance only after the application startup contract completes."""
+
+        self._maintenance_ready.set()
+        self.wake()
+
+    def _maintenance_permitted(self) -> bool:
+        if not self._maintenance_ready.is_set():
+            return False
+        try:
+            return bool(self._maintenance_authorized())
+        except Exception:
+            return False
+
+    def _run_due_maintenance(self) -> bool:
+        if time.monotonic() - self._last_cleanup <= 300:
+            return False
+        if not self._maintenance_permitted():
+            return False
+        self.cleanup_expired_segments()
+        self._last_cleanup = time.monotonic()
+        return True
 
     def _custom_voice_context_for_book(self, book_id: int) -> CustomVoiceContext:
         """Return a per-book context without allowing cross-book cache reuse."""
@@ -631,19 +665,20 @@ class PipelineWorker:
     def _loop(self) -> None:
         while not self._stop.is_set():
             try:
-                if time.monotonic() - self._last_cleanup > 300:
-                    self.cleanup_expired_segments()
-                    self._last_cleanup = time.monotonic()
-                job = self._next_job()
-                if job:
-                    self._run_job(dict(job))
-                    continue
+                self._run_due_maintenance()
+                if not getattr(self, "_maintenance_only", False):
+                    job = self._next_job()
+                    if job:
+                        self._run_job(dict(job))
+                        continue
             except Exception as exc:
                 self.db.audit("worker_loop_error", details={"error": str(exc)})
             self._wake.wait(self.config.worker_poll_seconds)
             self._wake.clear()
 
     def cleanup_expired_segments(self) -> dict[str, int]:
+        if not self._maintenance_permitted():
+            return {"files": 0, "bytes_freed": 0}
         cutoff = datetime.now(timezone.utc) - timedelta(
             hours=self.config.successful_segment_retention_hours
         )

@@ -526,7 +526,7 @@ Ghi chú lịch sử/planned: bản thiết kế sớm từng đề xuất Gemin
 - UI phân biệt `Remove from queue`, `Archive artifact` và `Delete files`.
 - Xóa file yêu cầu preview số file/dung lượng và typed confirmation khi phạm vi lớn.
 - Soft-delete mặc định 7 ngày.
-- Cleanup chỉ xóa artifact có reference count bằng 0, không active, không lease và đã hết retention.
+- Cleanup segment workspace WAV chỉ chạy sau khi ứng dụng đã hoàn tất khởi tạo và kill switch cho phép maintenance; không cần PREPARE hoặc START_RENDER. Eligibility giữ nguyên: chỉ segment của job chapter completed đã hết retention và có assembled artifact `active`/`verified`.
 - Manifest/hash vẫn được giữ sau cleanup segment để biết artifact cuối được tạo từ đâu.
 - Có lệnh dry-run liệt kê file sẽ xóa trước khi thực thi.
 

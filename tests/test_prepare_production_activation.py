@@ -367,7 +367,7 @@ class ActivationPreflightTests(IsolatedTestCase):
 
 
 class ProductionLifespanTests(unittest.IsolatedAsyncioTestCase):
-    async def test_production_startup_uses_preinspected_state_and_never_opens_worker(self):
+    async def test_unverified_production_startup_uses_preinspected_state_and_never_opens_worker(self):
         import story_audio.api as api
 
         database = MagicMock()
