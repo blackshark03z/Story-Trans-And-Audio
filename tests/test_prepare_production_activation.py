@@ -151,7 +151,7 @@ class ProductionRuntimeGateTests(Phase10FixtureMixin):
         self.assertTrue(catalog_books)
         self.assertEqual(set(catalog_books), {self.book_id})
 
-    def test_production_canary_rejects_more_than_three_chapters_without_rows(self):
+    def test_production_prepare_accepts_four_chapters_after_canary_rollout(self):
         config = parse_runtime_integration_config(production_values())
         descriptor = self.descriptor(config)
         with (
@@ -172,15 +172,53 @@ class ProductionRuntimeGateTests(Phase10FixtureMixin):
             )
             plan = self.plan(from_chapter=10, to_chapter=13)
             scope = plan["scope"]
-            with self.assertRaisesRegex(Exception, "one through three"):
+            result = service.prepare(
+                {
+                    "client_request_id": "production-four-chapter-scope",
+                    "book_id": scope["book_id"],
+                    "from_chapter": scope["from_chapter"],
+                    "to_chapter": scope["to_chapter"],
+                    "target_phase": "PREPARE",
+                    "plan_fingerprint": plan["plan_fingerprint"],
+                    "confirmation": True,
+                },
+                authorization_header=f"Bearer {TOKEN}",
+            )
+        self.assertEqual(result.http_status, 200)
+        self.assertEqual(self.counts()["batch_prepare_requests"], 1)
+        self.assertEqual(self.counts()["jobs"], 1)
+        self.assertEqual(self.counts()["job_chapters"], 4)
+        self.assertEqual(self.counts()["segments"], 0)
+        self.assertEqual(self.counts()["artifacts"], 0)
+
+    def test_production_prepare_rejects_scope_over_general_max_without_rows(self):
+        config = parse_runtime_integration_config(production_values())
+        descriptor = self.descriptor(config)
+        with (
+            patch(
+                "story_audio.batch_prepare_transaction_manager.canonical_production_db_path",
+                return_value=self.db_path,
+            ),
+            patch(
+                "story_audio.batch_prepare_isolated_adapter.canonical_production_db_path",
+                return_value=self.db_path,
+            ),
+        ):
+            service = build_prepare_api_service(
+                settings=self.config,
+                config=config,
+                descriptor=descriptor,
+                voice_catalog_loader=production_voice_catalog,
+            )
+            with self.assertRaisesRegex(Exception, "one through 256"):
                 service.prepare(
                     {
-                        "client_request_id": "production-oversized-canary",
-                        "book_id": scope["book_id"],
-                        "from_chapter": scope["from_chapter"],
-                        "to_chapter": scope["to_chapter"],
+                        "client_request_id": "production-over-general-max",
+                        "book_id": self.book_id,
+                        "from_chapter": 10,
+                        "to_chapter": 266,
                         "target_phase": "PREPARE",
-                        "plan_fingerprint": plan["plan_fingerprint"],
+                        "plan_fingerprint": "0" * 64,
                         "confirmation": True,
                     },
                     authorization_header=f"Bearer {TOKEN}",
@@ -406,3 +444,14 @@ class ProductionLifespanTests(unittest.IsolatedAsyncioTestCase):
         worker.start.assert_called_once_with()
         worker.wake.assert_not_called()
         worker.stop.assert_called_once_with()
+
+
+def test_owner_acceptance_prepare_and_start_render_are_distinct_without_second_review_gate():
+    app_js = Path("ui/app.js").read_text(encoding="utf-8")
+    assert "if(task==='PREPARE_RANGE')return ownerReviewTaskContent(vm)" in app_js
+    assert "if(['START_RENDER_RANGE','START_RENDER'].includes(task))return ownerPreparedTaskContent(vm)" in app_js
+    assert "primary.textContent='Chuẩn bị tạo audio'" in app_js
+    assert "primary.textContent='Bắt đầu tạo audio'" in app_js
+    assert 'Snapshot này là bất biến.' in app_js
+    final_wrapper = app_js[app_js.index('const runProductionPrimaryActionOwnerAcceptance=runProductionPrimaryAction;'):]
+    assert 'if(reviewRequired&&!preRenderReviewAccepted())' not in final_wrapper

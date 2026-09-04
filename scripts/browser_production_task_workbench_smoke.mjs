@@ -90,7 +90,7 @@ try {
     throw new Error(`${error.message} Browser errors: ${browserErrors.join(" | ")}`);
   }
   await evaluate(`(()=>{const savedApi=api,requests=[];api=async(path,options)=>{const value=String(path),url=new URL(value,window.location.href),kind=url.pathname.endsWith('task-projection')?'projection':url.pathname.endsWith('preflight')?'preflight':url.pathname.endsWith('range-readiness')?'readiness':'other',book=Number(url.searchParams.get('book_id')||0),from=Number(url.searchParams.get('from_chapter')||0),to=Number(url.searchParams.get('to_chapter')||0);requests.push({kind,book,from,to});const payload=await savedApi(path,options);if((kind==='projection'||kind==='preflight')&&book===91)await new Promise(resolve=>setTimeout(resolve,120));return payload};state.books=[{id:91,title:'Sách A',chapter_count:1},{id:1,title:'Sách B',chapter_count:1}];state.book=state.books[0];state.productionRange={bookId:91,fromChapter:401,toChapter:401,chapterId:9101,skipCompleted:false};state.productionProjection=null;state.productionPreflight=null;state.productionProjectionAbortController=null;history.replaceState(null,'','#/assignment?book=91&from=401&to=401');state.currentRoute='assignment';window.__v2dReturnScope={requests,savedApi};window.location.hash='#/production?book=1&from=1&to=1';return true})()`);
-  await waitFor(`window.__v2dReturnScope.requests.some(request=>request.kind==='projection')`, 5000);
+  await waitFor(`window.__v2dReturnScope.requests.some(request=>request.kind==='projection')&&window.__v2dReturnScope.requests.some(request=>request.kind==='preflight')&&state.productionProjection?.range_identity==='book:1:1-1'`, 5000);
   const returnToProduction = await evaluate(`(()=>{const audit=window.__v2dReturnScope,productionRequests=audit.requests.filter(request=>request.kind==='projection'||request.kind==='preflight'),result={route:state.currentRoute,range:{book:state.productionRange?.bookId,from:state.productionRange?.fromChapter,to:state.productionRange?.toChapter},projectionIdentity:state.productionProjection?.range_identity||null,readinessRequests:audit.requests.filter(request=>request.kind==='readiness').length,requests:productionRequests};api=audit.savedApi;return result})()`);
   const productionRequests=returnToProduction.requests.filter(request=>request.kind==='projection'||request.kind==='preflight'),restoredRequest=request=>request.book===1&&request.from===1&&request.to===1;
   if (returnToProduction.route !== "production" || returnToProduction.range.book !== 1 || returnToProduction.range.from !== 1 || returnToProduction.range.to !== 1 || returnToProduction.projectionIdentity !== "book:1:1-1" || productionRequests.some(request=>!restoredRequest(request)) || productionRequests.filter(request=>request.kind==="projection").length !== 1 || productionRequests.filter(request=>request.kind==="preflight").length !== 1) throw new Error(`Production return did not refresh only the restored scope: ${JSON.stringify(returnToProduction)}`);
@@ -155,8 +155,8 @@ try {
     const primary=[...document.querySelectorAll("#productionTaskWorkspace .primary")].filter(visible).map(element=>element.textContent.trim());
     const workspace=document.querySelector("#productionTaskWorkspace").getBoundingClientRect();
     const nested=[...document.querySelectorAll("#productionWorkbench *")].filter(element=>{const style=getComputedStyle(element);return /(auto|scroll)/.test(style.overflowY)&&element.scrollHeight>element.clientHeight+2}).map(element=>element.id||element.className);
-    const primaryButton=document.querySelector("#productionPrimaryAction"),primaryRect=primaryButton.getBoundingClientRect();
-    return {state:document.querySelector("#productionStateCard").dataset.productionState,title:document.querySelector("#productionCurrentStepHeading").textContent,primary,primaryViewport:!primary.includes(primaryButton.textContent.trim())||primaryRect.top>=0&&primaryRect.bottom<=innerHeight,body:document.querySelector("#productionTaskContent").innerText,queue:document.querySelectorAll(".production-queue-item").length,workspaceVisible:workspace.top>=0&&workspace.top<innerHeight,nested};
+    const primaryButton=document.querySelector("#productionPrimaryAction"),primaryRect=primaryButton.getBoundingClientRect(),contextRect=document.querySelector("#productionTaskContent").getBoundingClientRect();
+    return {state:document.querySelector("#productionStateCard").dataset.productionState,title:document.querySelector("#productionCurrentStepHeading").textContent,primary,primaryViewport:!primary.includes(primaryButton.textContent.trim())||primaryRect.top>=0&&primaryRect.bottom<=innerHeight,primaryAfterContext:primaryRect.top>=contextRect.bottom,body:document.querySelector("#productionTaskContent").innerText,queue:document.querySelectorAll(".production-queue-item").length,workspaceVisible:workspace.top>=0&&workspace.top<innerHeight,nested};
   })()`);
 
   const journeyA = await show({ rangeState: "CASTING_REVIEW" });
@@ -193,14 +193,14 @@ try {
     [journeyC, "Xử lý điều kiện còn thiếu"],
     [journeyDEdit, "Xử lý điều kiện còn thiếu"],
     [journeyDReview, "Xử lý điều kiện còn thiếu"],
-    [journeyEPrepare, "Chuẩn bị audio"],
+    [journeyEPrepare, "Chuẩn bị tạo audio"],
     [journeyEStart, "Bắt đầu tạo audio"],
     [journeyERunning, "Đang tạo audio…"],
     [journeyF, "Đang tạo audio…"],
   ];
   for (const [journey, label] of expected) {
     if (journey.primary.length !== 1 || journey.primary[0] !== label) throw new Error(`Primary action mismatch for ${label}: ${JSON.stringify(journey)}`);
-    if (!journey.primaryViewport) throw new Error(`Primary action fell below the 1366 viewport: ${JSON.stringify(journey)}`);
+    if (!journey.primaryAfterContext) throw new Error(`Primary action did not follow its decision context: ${JSON.stringify(journey)}`);
     if (journey.nested.length) throw new Error(`Nested operational scroll found: ${JSON.stringify(journey.nested)}`);
   }
   if (!journeyA.workspaceVisible) throw new Error("Journey A did not focus the current task.");

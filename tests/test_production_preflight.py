@@ -219,6 +219,26 @@ class ProductionPreflightProjectionTests(unittest.TestCase):
         )
         self.assertFalse(projection["execution_preview"]["tts_called"])
 
+    def test_schema_16_uses_runtime_compatibility_contract(self) -> None:
+        snapshot = _snapshot([_row(1)])
+        snapshot["runtime_readiness"].update(
+            {
+                "schema_version": 16,
+                "required_schema_version": 15,
+                "supported_schema_versions": [15, 16],
+                "schema_compatible": True,
+                "prepare_allowed": True,
+                "status": "PRODUCTION_AUTHENTICATED_READY",
+            }
+        )
+        projection = project_production_preflight(snapshot)
+        self.assertTrue(projection["execution_readiness"]["schema_ready"])
+        self.assertTrue(projection["execution_readiness"]["prepare_allowed"])
+        self.assertEqual(
+            projection["execution_preview"]["next_action"]["key"],
+            "PREPARE_RANGE",
+        )
+
     def test_blockers_are_ordered_and_checklists_name_exact_chapters(self) -> None:
         rows = [
             _row(3, "SPEAKER_EXCEPTIONS", blockers=["Speaker review required."], queue_task="RESOLVE_SPEAKER"),

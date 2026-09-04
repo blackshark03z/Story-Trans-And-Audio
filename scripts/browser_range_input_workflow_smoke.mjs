@@ -470,7 +470,7 @@ try {
       || !prepareUnavailableBeforeH
       || scenarioH.phase !== "ready"
       || scenarioH.castingApprovalCalls !== 1
-      || scenarioH.label !== "Chuẩn bị audio") {
+      || scenarioH.label !== "Chuẩn bị tạo audio") {
     throw new Error(`Scenarios H/I failed: ${JSON.stringify({ scenarioHStart, prepareUnavailableBeforeH, scenarioH })}`);
   }
   if (!scenarioCastingEvidence.includes("Nhân vật A")

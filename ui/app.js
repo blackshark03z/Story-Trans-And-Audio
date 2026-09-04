@@ -311,13 +311,14 @@ function productionRepairPlanContent(repair={},chapter={}){
 }
 function productionRepairTaskContent(vm){
   const repair=vm?.repair||{},chapter=vm?.affected_chapter||{},planRevision=repair.current_casting_plan_revision||'—',blockers=repairActionableBlockers(repair,chapter);
-  const metadata=`<dl class="production-repair-meta"><div><dt>Chương</dt><dd>${esc(chapter.number||'—')}${chapter.title?` · ${esc(chapter.title)}`:''}</dd></div><div><dt>Bản audio này cần sửa</dt><dd>${formatDurationMs(repair.duration_ms)||'Chưa rõ thời lượng'} · ${repairTimestamp(repair.created_at)}</dd></div><div><dt>Văn bản hiện tại</dt><dd>Revision ${repair.active_text_revision_id||'—'}</dd></div><div><dt>Bản đồ giọng đã duyệt</dt><dd>Revision ${esc(planRevision)} · ${esc(repair.current_casting_plan_status||'chưa xác định')}</dd></div></dl>`;
+  const context=`<div class="owner-repair-context"><div><span>Chương</span><strong>${esc(chapter.number||'—')}${chapter.title?` · ${esc(chapter.title)}`:''}</strong></div><div><span>Bản cần sửa</span><strong>${formatDurationMs(repair.duration_ms)||'Chưa rõ thời lượng'}</strong><small>${repairTimestamp(repair.created_at)}</small></div></div>`;
   const note=`<div class="production-repair-note"><strong>Ghi chú QA</strong><p>${esc(repair.qa_note||'Không có ghi chú.')}</p><small>${repairTimestamp(repair.qa_recorded_at)}</small></div>`;
-  const history='<div class="production-result-note"><strong>Bản cũ được giữ nguyên</strong><span>Bản audio này cần sửa vẫn là bằng chứng lịch sử. Luồng sửa chỉ tạo Job và Artifact mới.</span></div>';
-  const voiceMap=`<details class="production-repair-map" open><summary>Bản đồ giọng hiệu lực</summary>${repairVoiceMapRows(repair.effective_voice_map||[])}</details>${repairVoiceDiffRows(repair.voice_map_diff||[])}`;
+  const history='<div class="production-result-note"><strong>Bản cũ được giữ nguyên</strong><span>Luồng sửa chỉ tạo Job và Artifact mới; bản đang cần sửa vẫn được giữ làm lịch sử.</span></div>';
+  const technical=`<details class="owner-advanced-details"><summary>Chi tiết phiên bản</summary><dl class="production-repair-meta"><div><dt>Văn bản hiện tại</dt><dd>Revision ${repair.active_text_revision_id||'—'}</dd></div><div><dt>Bản đồ giọng đã duyệt</dt><dd>Revision ${esc(planRevision)} · ${esc(repair.current_casting_plan_status||'chưa xác định')}</dd></div></dl></details>`;
+  const voiceMap=`<details class="production-repair-map"><summary>Bản đồ giọng hiệu lực</summary>${repairVoiceMapRows(repair.effective_voice_map||[])}</details>${repairVoiceDiffRows(repair.voice_map_diff||[])}`;
   const sequence=repairSequence(blockers),blockerCards=repairBlockerCards(blockers);
-  if(blockers.length)return `<section class="production-repair-screen">${sequence}${metadata}${note}${history}${blockerCards}${voiceMap}</section>`;
-  return `<section class="production-repair-screen">${sequence}${metadata}${note}${history}${productionRepairPlanContent(repair,chapter)}${voiceMap}</section>`;
+  if(blockers.length)return `<section class="production-repair-screen owner-phase5-screen">${context}${note}${sequence}${blockerCards}${history}${voiceMap}${technical}</section>`;
+  return `<section class="production-repair-screen owner-phase5-screen">${context}${note}${sequence}${productionRepairPlanContent(repair,chapter)}${history}${voiceMap}${technical}</section>`;
 }
 function repairAssignmentContext(vm=currentProductionViewModel()){
   const chapter=vm?.affected_chapter||{},repair=vm?.repair||{},range=state.productionRange||{};
@@ -1891,16 +1892,11 @@ async function setPreferredSynthesisRevision(revisionId){if(state.libraryBusy||!
 window.setPreferredSynthesisRevision=setPreferredSynthesisRevision;
 window.playReferenceAudio=playReferenceAudio;
 window.testVoiceRevision=testVoiceRevision;
-function productionQaTaskContent(vm=currentProductionViewModel()){
-  const qa=vm?.qa||{},artifactId=Number(qa.artifact_id||0),history=state.dialog?.human_approval?[state.dialog.human_approval]:[];
-  const player=artifactId?`<audio id="productionQaAudio" controls preload="metadata" src="/api/artifacts/${artifactId}/file"></audio><p class="muted">${formatDurationMs(qa.duration_ms)} · ${bytes(qa.size_bytes||0)}</p>`:'<p class="muted">Chưa có file audio để nghe.</p>';
-  return `<div class="production-qa-player">${player}</div><div class="production-result-note"><strong>Trước khi chốt</strong><span>Nghe toàn bộ bản audio. Nếu chọn Cần sửa, ghi rõ vấn đề để tạo hướng xử lý tiếp theo.</span></div><label class="production-qa-note-label">Ghi chú QA<textarea id="productionQaNote" rows="3" placeholder="Bắt buộc khi chọn Cần sửa."></textarea></label><details><summary>Lịch sử QA</summary>${history.map(item=>`<p>${esc(item.status||'Chưa có kết luận')} · ${esc(item.notes||'Không có ghi chú')}</p>`).join('')||'<p class="muted">Chưa có kết luận trước đó.</p>'}</details>`;
-}
 function productionQaPlaybackArtifact(qa){const previous=qa?.previous_artifact||{},currentId=Number(qa?.artifact_id||0),previousId=Number(previous.artifact_id||0),comparison=previousId>0&&Number(state.productionQaComparisonArtifactId)===previousId;return{comparison,artifactId:comparison?previousId:currentId,metadata:comparison?previous:qa}}
 function productionQaTimestamp(value){const date=value?new Date(value):null;return date&&!Number.isNaN(date.getTime())?new Intl.DateTimeFormat('vi-VN',{dateStyle:'short',timeStyle:'short'}).format(date):'Chưa xác định'}
 function setProductionQaComparison(comparison){const note=$('#productionQaNote')?.value;if(note!==undefined)state.productionQaNoteDraft=note;const qa=currentProductionViewModel()?.qa||{},previousId=Number(qa.previous_artifact?.artifact_id||0);state.productionQaComparisonArtifactId=comparison&&previousId?previousId:null;const content=$('#productionTaskContent');if(content)content.dataset.productionTaskKey='';renderProductionShell()}
 function bindProductionQaComparison(){const compare=$('[data-production-qa-compare]'),current=$('[data-production-qa-current]');if(compare)compare.onclick=()=>setProductionQaComparison(true);if(current)current.onclick=()=>setProductionQaComparison(false)}
-productionQaTaskContent=function(vm=currentProductionViewModel()){
+function productionQaTaskContent(vm=currentProductionViewModel()){
   const qa=vm?.qa||{},chapter=vm?.affected_chapter||{},previous=qa.previous_artifact||{},hasPrevious=Number(previous.artifact_id||0)>0,playback=productionQaPlaybackArtifact(qa),metadata=playback.metadata||{},history=state.dialog?.human_approval?[state.dialog.human_approval]:[],goals=qa.repair_goals||{};
   const player=playback.artifactId?`<audio id="productionQaAudio" controls preload="metadata" src="/api/artifacts/${playback.artifactId}/file"></audio><p class="muted">${formatDurationMs(metadata.duration_ms)} · ${bytes(metadata.size_bytes||0)}</p>`:'<p class="muted">Chưa có file audio để nghe.</p>';
   const identity=playback.comparison?`<div class="production-qa-comparison-banner"><strong>Bản cũ — chỉ để so sánh</strong><span>Đánh giá bên dưới vẫn áp dụng cho bản thay thế mới nhất.</span></div>`:`<section class="production-qa-identity"><strong>${qa.replacement?'Bản thay thế mới nhất':'Bản audio mới nhất'}</strong><span>Chương ${Number(chapter.number)||''} · tạo lúc ${productionQaTimestamp(qa.created_at)} · Đang chờ bạn duyệt</span></section>`;
@@ -2435,13 +2431,70 @@ retryProductionCommand=async function(){
   return retryProductionCommandM1();
 };
 const renderProductionShellM1=renderProductionShell;
+function ownerJourneyStageNumber(vm){
+  const key=String(vm?.currentStageKey||vm?.current_stage_key||'scope');
+  if(key==='scope')return 1;
+  if(['text','speakers'].includes(key))return 2;
+  if(['voices','voice_map'].includes(key))return 3;
+  if(['prepare','render'].includes(key))return 4;
+  return 5;
+}
+function ownerJourneyPhases(vm){
+  const current=ownerJourneyStageNumber(vm),labels=[
+    ['scope','Phạm vi','Chọn sách và các chương cần sản xuất.'],
+    ['content','Nội dung & người nói','Kiểm tra văn bản và các trường hợp người nói cần xử lý.'],
+    ['voices','Nhân vật & giọng','Kiểm tra nhân vật, giọng và phân vai hiệu lực.'],
+    ['create','Kiểm tra & tạo audio','Xem lại đầu vào, khóa cấu hình rồi mới tạo audio.'],
+    ['finish','Nghe, sửa & hoàn tất','Nghe, sửa khi cần, duyệt và tải xuống.'],
+  ];
+  return labels.map(([key,label,summary],index)=>{const number=index+1,complete=number<current,isCurrent=number===current;return{key,number,label,summary,current:isCurrent,complete,locked:number>current,state:isCurrent?'current':complete?'complete':'locked'}});
+}
+function ownerVoiceSourceLabel(source){return({book_default:'Mặc định sách',inherited:'Kế thừa',override:'Ghi đè'})[source]||source||'Chưa xác định'}
+function ownerVoiceToolsContent(){return `<div class="owner-voice-tools" aria-label="Công cụ nhân vật và giọng"><button type="button" class="secondary" data-owner-voice-tool="characters">Quản lý nhân vật</button><button type="button" class="secondary" data-owner-voice-tool="voices">Kho giọng</button><button type="button" class="secondary" data-owner-voice-tool="assignment">Gán / chỉnh giọng</button></div>`}
+function ownerVoiceMapContent(preflight,{compact=false}={}){
+  const rows=preflight?.effective_voice_map||[];
+  if(!rows.length)return '<p class="muted">Chưa có bản đồ giọng hiệu lực cho phạm vi này.</p>';
+  const body=rows.map(row=>`<div class="owner-voice-map-row"><div><strong>${esc(row.speaker_name||row.role||'Người nói')}</strong><small>${Number(row.line_count)||0} câu · Chương ${esc((row.affected_chapters||[]).join(', ')||'—')}</small></div><span>${esc(row.effective_voice_name||'Chưa có giọng')}</span><small>${esc(ownerVoiceSourceLabel(row.assignment_source))}</small></div>`).join('');
+  return `<div class="owner-voice-map ${compact?'compact':''}">${body}</div>`;
+}
+function ownerSynthesisContent(preflight){
+  const settings=preflight?.effective_synthesis_settings||{};
+  return `<dl class="owner-audio-settings"><div><dt>Temperature</dt><dd>${esc(settings.temperature??'—')}</dd></div><div><dt>Top K</dt><dd>${esc(settings.top_k??'—')}</dd></div><div><dt>Độ dài tối đa</dt><dd>${esc(settings.max_chars??'—')} ký tự</dd></div><div><dt>Khoảng nghỉ</dt><dd>${settings.silence_seconds==null?'—':esc(settings.silence_seconds)+' giây'}</dd></div></dl>`;
+}
+function ownerReadinessContent(preflight){
+  const readiness=preflight?.data_readiness||{},keys=['text','speaker','casting','voice','conflict'];
+  return `<div class="owner-readiness-list">${keys.map(key=>{const item=readiness[key]||{},ok=Number(item.passed||0)===Number(item.total||0)&&Number(item.total||0)>0;return `<div class="owner-readiness-item ${ok?'pass':'warn'}"><span aria-hidden="true">${ok?'✓':'!'}</span><div><strong>${esc(item.label||key)}</strong><small>${Number(item.passed||0)}/${Number(item.total||0)} chương</small></div></div>`}).join('')}</div>`;
+}
+function ownerReviewTaskContent(vm){
+  const preflight=state.productionPreflight;
+  if(!preflight)return '<div class="production-result-note"><strong>Đang tải kiểm tra cuối</strong><span>Hệ thống đang đọc văn bản, người nói, giọng và cài đặt audio hiệu lực.</span></div>';
+  const range=preflight.range||{},preview=preflight.execution_preview||{},voices=preflight.effective_voice_map||[],uniqueVoices=new Set(voices.map(row=>row.effective_voice_name).filter(Boolean));
+  return `<section class="owner-create-review"><div class="owner-decision-summary"><div><strong>${Number(range.selected_chapter_count||preview.chapter_count||0)}</strong><span>chương</span></div><div><strong>${Number(preview.estimated_segment_count||0)}</strong><span>câu / đoạn</span></div><div><strong>${voices.length}</strong><span>người nói</span></div><div><strong>${uniqueVoices.size||Number(preview.voice_count||0)}</strong><span>giọng</span></div></div><section class="owner-review-section"><div class="owner-section-heading"><div><p class="eyebrow">Nhân vật & giọng</p><h3>Giọng sẽ dùng cho phạm vi này</h3></div>${ownerVoiceToolsContent()}</div>${ownerVoiceMapContent(preflight)}</section><section class="owner-review-section"><div class="owner-section-heading"><div><p class="eyebrow">Cài đặt audio</p><h3>Thông số TTS hiệu lực</h3></div><span class="owner-readonly-badge">Chỉ đọc</span></div>${ownerSynthesisContent(preflight)}<p class="muted owner-settings-note">Các giá trị này lấy từ cấu hình runtime hiện tại. Chưa có persistence/authority chỉnh sửa trong sản phẩm.</p></section><section class="owner-review-section"><div class="owner-section-heading"><div><p class="eyebrow">Kiểm tra cuối</p><h3>Sẵn sàng khóa đầu vào</h3></div></div>${ownerReadinessContent(preflight)}</section><div class="owner-decision-note"><strong>“Chuẩn bị tạo audio” chỉ khóa văn bản, phân vai và giọng.</strong><span>Bước này chưa gọi TTS. Sau khi chuẩn bị xong, bạn vẫn phải bấm “Bắt đầu tạo audio” riêng.</span></div></section>`;
+}
+function ownerPreparedTaskContent(vm){
+  const preflight=state.productionPreflight||{},prepared=preflight.execution_readiness?.prepared_job||{},preview=preflight.execution_preview||{},range=preflight.range||{},jobId=Number(prepared.job_id||0),chapterCount=Number(prepared.chapter_count||range.selected_chapter_count||preview.chapter_count||0),voiceCount=Number(preview.voice_count||new Set((preflight.effective_voice_map||[]).map(row=>row.effective_voice_name).filter(Boolean)).size||0);
+  return `<section class="owner-prepared-screen"><div class="owner-prepared-hero"><span class="owner-status-dot" aria-hidden="true"></span><div><p class="eyebrow">Đầu vào đã khóa</p><h3>Audio đã sẵn sàng để tạo</h3><p>Job #${jobId||'—'} · ${chapterCount} chương · ${Number(preview.estimated_segment_count||0)} câu / đoạn · ${voiceCount} giọng</p></div></div><div class="owner-decision-note"><strong>Snapshot này là bất biến.</strong><span>Nếu thay đổi văn bản, nhân vật hoặc giọng, hãy hủy bản chuẩn bị rồi chuẩn bị lại. Nếu mọi thứ đúng, bước tiếp theo mới bắt đầu TTS.</span></div><details class="owner-prepared-details"><summary>Xem cấu hình đã khóa</summary><section class="owner-review-section"><h4>Giọng hiệu lực</h4>${ownerVoiceMapContent(preflight,{compact:true})}</section><section class="owner-review-section"><h4>Thông số TTS</h4>${ownerSynthesisContent(preflight)}</section></details><div class="owner-prepared-actions"><button id="ownerCancelPreparedEdit" type="button" class="secondary">Hủy chuẩn bị & chỉnh lại</button></div></section>`;
+}
+function ownerCompleteTaskContent(vm){
+  const chapter=vm?.affected_chapter||{};
+  const rows=vm?.range_readiness?.chapters||state.productionRange?.readiness?.chapters||[],completeRows=rows.filter(row=>String(row.state)==='COMPLETE'),artifactIds=[...new Set(completeRows.map(row=>Number(row.active_artifact_id||row.active_output_artifact_id||0)).filter(Boolean))],download=artifactIds.length===1?`<a id="ownerCompleteDownload" class="secondary app-secondary-link" href="/api/artifacts/${artifactIds[0]}/file" download>Tải audio</a>`:'';
+  return `<section class="owner-complete-screen owner-phase5-screen"><div class="owner-complete-hero"><span aria-hidden="true">✓</span><div><p class="eyebrow">Hoàn tất</p><h3>${chapter.number?`Chương ${esc(chapter.number)}`:'Audio'} đã hoàn tất</h3><p>Không còn quyết định bắt buộc cho mục này. Hành động tiếp theo mở Audio để nghe lại; nếu chỉ có một file, bạn cũng có thể tải ngay.</p></div></div>${download?`<div class="owner-complete-actions">${download}</div>`:''}</section>`;
+}
+function ownerVoiceStageContent(vm,base){return `<section class="owner-voice-stage"><div class="owner-section-heading"><div><p class="eyebrow">Nhân vật & giọng</p><h3>Kiểm tra người nói và giọng hiệu lực</h3><p class="muted">Chỉ xử lý ngoại lệ khi cần. Các giọng đã kế thừa đúng sẽ được giữ nguyên.</p></div>${ownerVoiceToolsContent()}</div>${base}</section>`}
+function bindOwnerProductionUx(vm){
+  document.querySelectorAll('[data-owner-voice-tool]').forEach(button=>button.onclick=()=>openPreRenderConfigurationTarget(button.dataset.ownerVoiceTool));
+  const cancel=$('#ownerCancelPreparedEdit');if(cancel)cancel.onclick=cancelPreparedForPreRenderEdit;
+}
 const productionTaskBodyM1=productionTaskBody;
 productionTaskBody=function(vm){
   if(vm?.journey_state==='INFRASTRUCTURE_BLOCKED')return'';
-  // Preserve the preflight renderer for prepare/start boundaries; the M1
-  // shell only owns the primary CTA and must not discard the safety review.
-  if(['PREPARE_RANGE','START_RENDER_RANGE','START_RENDER'].includes(vm?.task_type))return productionTaskBodyM1(vm);
-  return productionTaskBodyM1(vm);
+  const task=String(vm?.task_type||'');
+  if(task==='PREPARE_RANGE')return ownerReviewTaskContent(vm);
+  if(['START_RENDER_RANGE','START_RENDER'].includes(task))return ownerPreparedTaskContent(vm);
+  if(task==='COMPLETE')return ownerCompleteTaskContent(vm);
+  const base=productionTaskBodyM1(vm);
+  if(['REVIEW_RANGE_VOICE_EXCEPTIONS','RESOLVE_VOICE_EXCEPTION','APPROVE_RANGE_CASTING_PLANS','ASSIGN_VOICE','REVIEW_CASTING_PLAN','CREATE_VOICE_MAP_DRAFT','EDIT_VOICE_ASSIGNMENTS','REVIEW_VOICE_MAP'].includes(task))return ownerVoiceStageContent(vm,base);
+  return base;
 };
 renderProductionShell=function(vm=currentProductionViewModel()){
   const journeyVm=unifiedProductionJourneyView(vm),result=renderProductionShellM1(journeyVm),primary=$('#productionPrimaryAction');
@@ -2487,6 +2540,40 @@ loadProductionPrepareReadiness=async function(){
   await resumeProductionCommandCheckpoint();
   return result;
 };
+function rememberPreRenderConfigurationContext(){const context=currentProductionWorkingContext()||workingContextFromRange(state.productionRange);if(!context)return null;return rememberProductionWorkingContext({...context,sourceTask:'PRE_RENDER_CONFIGURATION',returnTask:'PREPARE_RANGE'})}
+async function openPreRenderConfigurationTarget(target){
+  const context=rememberPreRenderConfigurationContext();if(!context){openProductionScopeDialog();return}
+  if(target==='characters'){openCharacterReview();return}
+  if(target==='voices'){setAppRoute('voices');await refreshLibrary();return}
+  if(target==='assignment'){setAppRoute('assignment');await ensureAssignmentContext();return}
+}
+function preparedJobForPreRender(){const prepared=state.productionPreflight?.execution_readiness?.prepared_job;return String(prepared?.status||'').toLowerCase()==='prepared'?prepared:null}
+async function cancelPreparedForPreRenderEdit(){
+  const prepared=preparedJobForPreRender(),jobId=Number(prepared?.job_id||0);if(!jobId)return;
+  const ok=window.confirm(`Job #${jobId} đang giữ snapshot văn bản và giọng đã chuẩn bị. Hủy Job này để chỉnh lại rồi PREPARE lại? Audio chưa được tạo.`);if(!ok)return;
+  try{await api(`/api/jobs/${jobId}/cancel`,{method:'POST'});toast(`Đã hủy Job #${jobId}. Hãy chỉnh giọng rồi chuẩn bị lại.`);await loadProductionTaskProjection();await openPreRenderConfigurationTarget('assignment')}catch(error){toast(error?.message||'Không thể hủy bản chuẩn bị.',true)}
+}
+const renderProductionShellOwnerAcceptance=renderProductionShell;
+renderProductionShell=function(vm=currentProductionViewModel()){
+  const journeyVm=unifiedProductionJourneyView(vm),ownerVm={...journeyVm,phases:ownerJourneyPhases(journeyVm)};
+  const result=renderProductionShellOwnerAcceptance(ownerVm),stage=ownerJourneyStageNumber(ownerVm),task=String(ownerVm.task_type||'');
+  const badge=$('#productionStateBadge');if(badge)badge.textContent=`Giai đoạn ${stage} / 5`;
+  const heading=$('#productionCurrentStepHeading'),explanation=$('#productionStateExplanation'),primary=$('#productionPrimaryAction');
+  if(stage===3){if(heading)heading.textContent='Nhân vật & giọng';if(explanation)explanation.textContent='Kiểm tra ai nói, giọng nào đang dùng và chỉ sửa những ngoại lệ thực sự cần xử lý.'}
+  if(task==='PREPARE_RANGE'&&ownerVm.journey_state==='READY_TO_PREPARE'){if(heading)heading.textContent='Kiểm tra & tạo audio';if(explanation)explanation.textContent='Xem lại phạm vi, giọng và cài đặt audio trước khi khóa đầu vào. Chuẩn bị chưa gọi TTS.';if(primary){primary.textContent='Chuẩn bị tạo audio';primary.setAttribute('aria-label','Chuẩn bị tạo audio')}}
+  if(['START_RENDER_RANGE','START_RENDER'].includes(task)){if(heading)heading.textContent='Sẵn sàng tạo audio';if(explanation)explanation.textContent='Đầu vào đã được khóa. Bạn có thể chỉnh lại bằng cách hủy bản chuẩn bị, hoặc bắt đầu tạo audio.';if(primary){primary.textContent='Bắt đầu tạo audio';primary.setAttribute('aria-label','Bắt đầu tạo audio')}}
+  if(task==='HUMAN_QA'){if(heading)heading.textContent='Nghe & duyệt';if(explanation)explanation.textContent='Nghe bản audio hiện tại, ghi chú nếu có vấn đề rồi chọn chấp nhận hoặc cần sửa.'}
+  if(task==='REPAIR_REQUIRED'){if(heading)heading.textContent='Sửa audio';if(explanation)explanation.textContent='Bắt đầu từ vấn đề QA và kế hoạch sửa; thông tin phiên bản nằm trong phần chi tiết khi cần.'}
+  if(task==='COMPLETE'){if(heading)heading.textContent='Hoàn tất';if(explanation)explanation.textContent='Audio đã qua luồng xử lý. Mở Audio để nghe lại hoặc tải file.'}
+  bindOwnerProductionUx(ownerVm);
+  return result;
+};
+const runProductionPrimaryActionOwnerAcceptance=runProductionPrimaryAction;
+runProductionPrimaryAction=async function(vm=currentProductionViewModel()){
+  return runProductionPrimaryActionOwnerAcceptance(unifiedProductionJourneyView(vm));
+};
+const renderCastingPlanOwnerAcceptance=renderCastingPlan;
+renderCastingPlan=async function(){return renderCastingPlanOwnerAcceptance()};
 restoreProductionCommandCheckpoint();
 setInterval(()=>{if(productionCommandBusy()){renderProductionShell();renderProductionCommandStatus()}},1000);
 setTimeout(()=>loadProductionPrepareReadiness(),0);

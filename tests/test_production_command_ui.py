@@ -237,7 +237,9 @@ class ProductionCommandUiTests(unittest.TestCase):
     def test_repair_workflow_labels_and_context_hooks_are_present(self) -> None:
         for text in (
             "REPAIR_REQUIRED",
-            "Bản audio này cần sửa",
+            "Sửa audio",
+            "Ghi chú QA",
+            "Bản cũ được giữ nguyên",
             "Xác nhận nội dung và người nói",
             "Hoàn tất cấu hình giọng",
             "Kế hoạch sửa Chương",

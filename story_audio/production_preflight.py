@@ -376,10 +376,13 @@ def project_production_preflight(snapshot: Mapping[str, Any]) -> dict[str, Any]:
         int(check["passed"]) == int(check["total"])
         for check in checks.values()
     ) and not blockers and not voice_warnings
-    schema_ready = (
-        int(runtime.get("schema_version") or 0)
-        == int(runtime.get("required_schema_version") or 15)
-        == 15
+    schema_ready = bool(
+        runtime.get(
+            "schema_compatible",
+            int(runtime.get("schema_version") or 0)
+            == int(runtime.get("required_schema_version") or 15)
+            == 15,
+        )
     )
     # The production readiness projection combines config, the supervised
     # launcher session, and the canonical execution gates.  Older isolated

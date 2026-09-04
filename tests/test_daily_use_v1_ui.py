@@ -37,7 +37,7 @@ class DailyUseV1UiTests(unittest.TestCase):
         self.assertIn('id="homeFirstRun"', self.html)
         self.assertIn('data-home-import', self.html)
         self.assertIn('id="appNavMore"', self.html)
-        self.assertIn("Thiết lập và theo dõi", self.html)
+        self.assertIn("<summary>Cài đặt</summary>", self.html)
         self.assertIn('id="productionContextReturn"', self.html)
         self.assertIn("function renderHomeStartAction", self.js)
         self.assertIn("function openBookImport", self.js)
@@ -102,6 +102,9 @@ class DailyUseV1UiTests(unittest.TestCase):
         self.assertIn("STORY_AUDIO_RESTART_SIGNAL", self.launcher)
         self.assertIn("/api/runtime/restart", self.js)
         self.assertIn("supervised_restart_available", self.js)
+
+    def test_home_first_run_hidden_state_wins_over_grid_layout(self) -> None:
+        self.assertIn(".home-first-run[hidden],.home-work-grid[hidden]{display:none!important}", self.css)
 
     def test_responsive_styles_cover_new_daily_use_surfaces(self) -> None:
         for selector in (

@@ -22,6 +22,7 @@ from .batch_prepare_runtime_integration import (
     RuntimeIntegrationConfig,
     RuntimeIntegrationDescriptor,
 )
+from .batch_prepare_runtime_rollout_contract import MAX_PREPARE_CHAPTERS
 from .batch_prepare_store import BatchPrepareRequestStore
 from .config import Settings
 from .db import Database
@@ -174,10 +175,10 @@ class BatchPrepareApiService:
                 str(payload.get("client_request_id") or "")
             )
             chapter_count = int(payload["to_chapter"]) - int(payload["from_chapter"]) + 1
-            if chapter_count < 1 or chapter_count > 3:
+            if chapter_count < 1 or chapter_count > MAX_PREPARE_CHAPTERS:
                 raise ClonePrepareApiError(
                     "CANARY_SCOPE_REJECTED",
-                    "Production PREPARE is limited to one through three chapters.",
+                    f"Production PREPARE is limited to one through {MAX_PREPARE_CHAPTERS} chapters.",
                     http_status=400,
                 )
             if existing is None or existing.state != "APPLIED":
