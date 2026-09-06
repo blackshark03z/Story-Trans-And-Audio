@@ -53,6 +53,28 @@ class AssignmentWorkflowFixtureHandler(SpeakerReviewWorkspaceFixtureHandler):
             key: 25 for key, state in cls.review_states.items() if state in accepted
         }
         result = super().registry(book_id, start, end)
+        long_context = (
+            "Inside the old medicine shop, the marked search area extends across several rooms "
+            "and the team has already checked most of the northern wall without finding a clue."
+        )
+        for row in result["rows"]:
+            if row.get("character_id") == 25:
+                row["sample_lines"] = [
+                    {
+                        "chapter_number": 2,
+                        "sequence": 16,
+                        "text": "- These last few days of searching point to the two rooms inside this area.",
+                        "context_before": [{"sequence": 15, "text": long_context}],
+                        "context_after": [{"sequence": 17, "text": "The nearby cultivators immediately split up and continued the search."}],
+                    },
+                    {
+                        "chapter_number": 3,
+                        "sequence": 8,
+                        "text": "- Keep the eastern passage clear until I return.",
+                        "context_before": [{"sequence": 7, "text": "A second group arrived from the courtyard and stopped beside the broken gate."}],
+                        "context_after": [{"sequence": 9, "text": long_context}],
+                    },
+                ]
         review_complete = all(
             state in accepted for state in cls.review_states.values()
         )
@@ -154,6 +176,11 @@ class AssignmentWorkflowBrowserTests(unittest.TestCase):
         self.assertFalse(evidence["initial"]["voicesOpen"])
         self.assertTrue(evidence["initial"]["sectionsSeparate"])
         self.assertTrue(evidence["initial"]["unresolvedNotice"])
+        self.assertEqual(evidence["layoutEvidence"]["gridColumns"], 2)
+        self.assertEqual(evidence["layoutEvidence"]["gridAlign"], "start")
+        self.assertGreater(evidence["layoutEvidence"]["textWidthRatio"], 0.70)
+        self.assertGreater(evidence["layoutEvidence"]["fullWidthRatio"], 0.95)
+        self.assertFalse(evidence["layoutEvidence"]["replacementCharacter"])
         self.assertEqual(evidence["initial"]["unresolvedVoiceRows"], 0)
         self.assertGreaterEqual(evidence["initial"]["characterRows"], 2)
         self.assertEqual(evidence["initial"]["preflightPrimaryCount"], 1)

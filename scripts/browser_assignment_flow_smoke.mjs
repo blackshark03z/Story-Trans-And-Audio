@@ -147,6 +147,27 @@ try {
     voices.open = true;
     return true;
   })()`);
+  const layoutEvidence = await waitFor(`(() => {
+    const row = document.querySelector('[data-voice-library-row="character:25"]');
+    const contextRow = document.querySelector('[data-voice-context-row="character:25"]');
+    const grid = contextRow?.querySelector('.assignment-dialogue-samples-grid');
+    const card = grid?.querySelector('.assignment-dialogue-sample');
+    const context = card?.querySelector('.assignment-dialogue-context');
+    const text = context?.querySelector('span');
+    const table = contextRow?.closest('table');
+    if (!row || !contextRow || !grid || !card || !context || !text || !table) return null;
+    const contextRect = context.getBoundingClientRect();
+    const textRect = text.getBoundingClientRect();
+    const rowRect = contextRow.getBoundingClientRect();
+    const tableRect = table.getBoundingClientRect();
+    return {
+      gridColumns: getComputedStyle(grid).gridTemplateColumns.trim().split(/\\s+/).filter(Boolean).length,
+      gridAlign: getComputedStyle(grid).alignItems,
+      textWidthRatio: contextRect.width ? textRect.width / contextRect.width : 0,
+      fullWidthRatio: tableRect.width ? rowRect.width / tableRect.width : 0,
+      replacementCharacter: contextRow.innerText.includes('�'),
+    };
+  })()`);
   await setSelect('[data-speaker-review-filter="confidence"]', "HIGH");
   const filterBeforeJump = await evaluate(`document.querySelector('[data-speaker-review-filter="confidence"]').value`);
   await click('[data-jump-to-speaker-review]');
@@ -322,6 +343,7 @@ try {
   process.stdout.write(JSON.stringify({
     ok: true,
     initial,
+    layoutEvidence,
     filterBeforeJump,
     unresolvedNavigation: !!unresolvedNavigation,
     navigationState,

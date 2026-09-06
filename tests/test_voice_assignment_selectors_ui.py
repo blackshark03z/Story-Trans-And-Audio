@@ -309,6 +309,10 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertNotIn("assignment-registry-context-row", self.js)
         self.assertIn("\\u0110o\\u1ea1n tho\\u1ea1i & ng\\u1eef c\\u1ea3nh", self.js)
         self.assertIn("row.role!=='narrator'&&samples.length>0", self.js)
+        self.assertNotIn(".assignment-range-details div{", self.css)
+        self.assertNotIn(".assignment-range-details small{", self.css)
+        self.assertIn("align-items:start!important", self.css)
+        self.assertIn(".assignment-dialogue-context span{min-width:0;line-height:1.55}", self.css)
 
     def test_gemini_speaker_review_workspace_is_draft_only(self) -> None:
         section = self.js[
