@@ -37,6 +37,8 @@ class OwnerRealUseAcceptanceUiTests(unittest.TestCase):
         self.assertIn("await restoreProductionRangeScope({bookId,fromChapter:from,toChapter:to,skipCompleted:false})",branch)
         self.assertNotIn('startProductionRangeRender',branch)
         self.assertIn("if(task==='OPEN_JOB_RANGE')return'FOLLOW_JOB_SCOPE'",self.js)
+        self.assertIn("OPEN_JOB_RANGE:'render'",self.js)
+        self.assertIn("'PREPARE_RANGE','OPEN_JOB_RANGE','START_RENDER_RANGE'",self.js)
 
     def test_prepared_edit_reuses_guarded_cancel_and_requires_confirmation(self):
         self.assertIn('cancelPreparedForPreRenderEdit',self.js)
