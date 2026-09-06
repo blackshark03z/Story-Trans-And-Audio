@@ -6,13 +6,31 @@ same selected production scope.
 
 ## Working model
 
-Normal product development is native: inspect, make a bounded edit, run focused
-offline tests, inspect the resulting UI when it changes, and make ordinary Git
-commits. The Thin Build OS may be used for a cold-start, a read-only scope check,
-or an explicitly consequential boundary; it does not create task lifecycle state.
-Do not use or reintroduce legacy Build OS lifecycle commands, generations,
+Use the Convergent AI Development System (CADS) as an event-routed advisory
+standard, not as a lifecycle engine. Keep exactly one active Product Goal and
+Critical User Journey (CUJ) in `TASK.md`; internal commits/checkpoints are
+evidence, not new phases or completion claims.
+
+Route work by event:
+
+- unclear/new owner outcome ? Product Goal Framing;
+- normal bounded implementation ? Goal Execution;
+- a user-visible blocker/regression in the active journey ? Systematic Debugging,
+  remove the first real blocker, then immediately resume the same CUJ/fixture;
+- before `FIXED`, `DONE`, `READY`, or equivalent ? Product Acceptance; and
+- after Goal acceptance when residue/worktrees need closure ? Workspace Hygiene.
+
+For implementation prefer `REUSE ? WIRE ? FIX ? REPLACE_AND_DELETE ? ADD`.
+Classify findings only as `BLOCKER` when they prevent the current CUJ/acceptance
+or threaten a must-preserve invariant; otherwise record them as `DEFERRED_DEBT`.
+Focused tests support a checkpoint but never replace the owner-visible journey.
+For this user-facing product only the Owner can establish `PRODUCT_ACCEPTED`.
+
+Normal product development remains native: inspect current source, make the
+smallest coherent edit, run focused verification, and resume the same acceptance
+fixture. Do not reintroduce legacy Build OS lifecycle commands, generations,
 leases, adoption, recovery, or record-commit workflows. Historical Build OS
-documents remain evidence only.
+material remains evidence only.
 
 ## Product safety
 

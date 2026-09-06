@@ -7,6 +7,41 @@ product journey. This is one product Goal and ends only at owner acceptance,
 owner action required for a protected production effect, or a proven product
 capability blocker.
 
+## CADS current Goal contract
+
+- **Goal:** Converge the existing Story Audio capabilities into one usable daily
+  production flow that reaches final downloadable audio through the supported UI.
+- **Critical User Journey (CUJ):** select Book/chapter range ? inspect/fix text and
+  speaker identity ? review characters and voices with dialogue context ? approve
+  casting/settings ? PREPARE ? explicit START_RENDER ? monitor ? listen/repair ?
+  Human QA ? download.
+- **Acceptance Fixture / Golden Input:** canonical runtime `127.0.0.1:8772`, Book 1
+  `Quang ?m Chi Ngo?i`, contiguous Chapters 2?8. Owner real-use resumes this same
+  fixture after each blocker instead of starting a new Goal.
+- **Acceptance:** the Owner can complete the full CUJ without DevTools, manual DB
+  edits, hidden endpoints, or knowledge of backend terminology; every successful
+  action exposes one valid next action; speaker/voice review exposes the actual
+  assigned dialogue and local context before a voice decision; final audio is
+  playable, reviewable and downloadable.
+- **Non-goals:** no parallel orchestration/framework subsystem, no unrelated repo
+  cleanup, no generalized policy engine for a local defect, and no provider-cost
+  action merely to prove engineering progress.
+- **Constraints:** canonical data and immutable product records remain protected;
+  PREPARE and START_RENDER stay separate and explicit; owner/provider-cost/Human
+  QA authority is preserved; one authoritative product path only.
+- **Material owner decisions:** Owner acceptance is the final oracle. Job #35 was
+  intentionally cancelled during owner testing to revisit speaker/voice choices;
+  this is part of the same golden journey, not a new Goal.
+
+### CADS event routing for this Goal
+
+Normal work uses Goal Execution. Any owner-test defect temporarily enters
+Systematic Debugging for the first CUJ blocker, then returns immediately to the
+same Chapters 2?8 journey. Use Product Acceptance only when the predefined CUJ
+appears complete. Tests and commits are `CHECKPOINT_OK` evidence, never product
+acceptance by themselves. Cleanup belongs to Workspace Hygiene only after Goal
+closure or when disk/worktree pressure directly blocks this Goal.
+
 ## Delivery and boundaries
 
 - Delivery delta: `USER_VISIBLE_BEHAVIOR`.
