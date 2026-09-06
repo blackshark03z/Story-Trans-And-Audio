@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 import unittest
@@ -297,10 +297,15 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         )
 
     def test_assignment_voice_review_exposes_dialogue_context_for_identity_check(self) -> None:
-        self.assertIn("?o?n tho?i & ng? c?nh ?? x?c nh?n nh?n v?t", self.js)
+        self.assertIn("\\u0110o\\u1ea1n tho\\u1ea1i & ng\\u1eef c\\u1ea3nh \\u0111\\u1ec3 x\\u00e1c nh\\u1eadn nh\\u00e2n v\\u1eadt", self.js)
         self.assertIn("assignment-dialogue-sample", self.js)
         self.assertIn("context_before", self.js)
         self.assertIn("context_after", self.js)
+        self.assertIn("assignment-registry-review-pane", self.js)
+        self.assertIn("assignment-registry-control-pane", self.js)
+        self.assertIn("assignment-speaker-overview", self.js)
+        self.assertNotIn("assignment-registry-context-row", self.js)
+        self.assertIn("\\u0110o\\u1ea1n tho\\u1ea1i & ng\\u1eef c\\u1ea3nh", self.js)
         self.assertIn("row.role!=='narrator'&&samples.length>0", self.js)
 
     def test_gemini_speaker_review_workspace_is_draft_only(self) -> None:
