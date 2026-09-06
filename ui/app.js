@@ -455,7 +455,7 @@ async function runProductionPrimaryAction(vm=currentProductionViewModel()){
   if(action==='OPEN_JOB_RANGE'){const owner=vm?.render||{},bookId=Number(owner.book_id||state.productionRange?.bookId||0),from=Number(owner.from_chapter||0),to=Number(owner.to_chapter||0);if(!bookId||!from||!to){toast('Kh\u00f4ng x\u00e1c \u0111\u1ecbnh \u0111\u01b0\u1ee3c ph\u1ea1m vi c\u1ee7a Job hi\u1ec7n t\u1ea1i.',true);return}await restoreProductionRangeScope({bookId,fromChapter:from,toChapter:to,skipCompleted:false});return}
   if(action==='START_RENDER_RANGE'){await startProductionRangeRender();return}
   if(action==='START_RENDER'){await renderCastingPlan();return}
-  if(action==='MONITOR_RENDER'){setAppRoute('jobs');return}
+  if(action==='MONITOR_RENDER'){await refreshProductionRenderProgress();return}
   if(action==='RECOVER_RENDER'||action==='RETRY_RENDER'){const job=(state.jobs||[]).find(item=>item.actions?.can_retry||item.status==='paused');if(job)await act(job.id,job.status==='paused'?'resume':'retry');return}
   if(action==='RELOAD_READ_ONLY'){if(state.productionRange)await restoreProductionRangeScope({...state.productionRange,chapterId:null});else await restoreProductionScopeFromRoute();return}
 }
@@ -910,9 +910,28 @@ function audioLibraryContextSelection(items){
   if(!context||Number(context.fromChapter)!==Number(context.toChapter))return null;
   return (items||[]).find(item=>Number(item.book_id)===Number(context.bookId)&&Number(item.chapter_number)===Number(context.fromChapter))||null;
 }
+function audioLibraryContextRange(items){
+  const context=currentProductionWorkingContext(),from=Number(context?.fromChapter||0),to=Number(context?.toChapter||0),bookId=Number(context?.bookId||0);
+  if(!bookId||!from||!to||from>=to)return null;
+  const byChapter=new Map();
+  for(const item of items||[]){const chapter=Number(item.chapter_number);if(Number(item.book_id)===bookId&&chapter>=from&&chapter<=to&&!byChapter.has(chapter))byChapter.set(chapter,item)}
+  if(byChapter.size!==to-from+1)return null;
+  for(let chapter=from;chapter<=to;chapter+=1)if(!byChapter.has(chapter))return null;
+  return{context,items:[...byChapter.values()].sort((a,b)=>Number(a.chapter_number)-Number(b.chapter_number))};
+}
+async function syncAudioRangeFromWorkingContext(items=state.audioLibrary.items){
+  const match=audioLibraryContextRange(items);if(!match)return false;
+  const desired=[...new Set(match.items.map(item=>Number(item.chapter_id)).filter(Boolean))].sort((a,b)=>a-b),current=[...(state.audioArchive.selectedChapterIds||[])].map(Number).sort((a,b)=>a-b);
+  if(desired.length!==match.items.length)return false;
+  const same=current.length===desired.length&&current.every((id,index)=>id===desired[index]);
+  if(!same){state.audioArchive.selectedChapterIds=desired;state.audioArchive.readiness=null;renderAudioLibrary();renderAudioRangeState()}
+  if(state.audioArchive.readiness)return true;
+  await checkAudioRange();return true;
+}
+
 async function loadAudioLibrary({force=false}={}){
   if(state.audioLibrary.loading)return;
-  if(state.audioLibrary.loaded&&!force){renderAudioLibrary();return}
+  if(state.audioLibrary.loaded&&!force){renderAudioLibrary();if(state.currentRoute==='audio')await syncAudioRangeFromWorkingContext(state.audioLibrary.items);return}
   const videoExports=state.audioLibrary.videoExports||{};
   state.audioLibrary={items:[],status:'loading',error:null,selectedArtifactId:null,loaded:false,loading:true,videoExports};
   renderAudioLibrary();
@@ -920,6 +939,7 @@ async function loadAudioLibrary({force=false}={}){
     const data=await api('/api/audio-library');
     const items=Array.isArray(data.items)?data.items:[],contextItem=audioLibraryContextSelection(items);
     state.audioLibrary={items,status:'ready',error:null,selectedArtifactId:contextItem?Number(contextItem.artifact_id):null,loaded:true,loading:false,videoExports};
+    if(state.currentRoute==='audio')await syncAudioRangeFromWorkingContext(items);
   }catch(e){
     state.audioLibrary={items:[],status:'error',error:e.message,selectedArtifactId:null,loaded:false,loading:false,videoExports};
   }
@@ -2574,10 +2594,15 @@ async function cancelPreparedForPreRenderEdit(){
   const ok=window.confirm(`Job #${jobId} đang giữ snapshot văn bản và giọng đã chuẩn bị. Hủy Job này để chỉnh lại rồi PREPARE lại? Audio chưa được tạo.`);if(!ok)return;
   try{await api(`/api/jobs/${jobId}/cancel`,{method:'POST'});toast(`Đã hủy Job #${jobId}. Hãy chỉnh giọng rồi chuẩn bị lại.`);await loadProductionTaskProjection();await openPreRenderConfigurationTarget('assignment')}catch(error){toast(error?.message||'Không thể hủy bản chuẩn bị.',true)}
 }
+let productionRenderPollTimer=null,productionRenderPollBusy=false;
+async function refreshProductionRenderProgress(){if(productionRenderPollBusy)return;productionRenderPollBusy=true;try{await loadJobs()}finally{productionRenderPollBusy=false}}
+function stopProductionRenderPolling(){if(productionRenderPollTimer){clearInterval(productionRenderPollTimer);productionRenderPollTimer=null}}
+function syncProductionRenderPolling(vm=currentProductionViewModel()){const monitoring=state.currentRoute==='production'&&String(vm?.task_type||'')==='MONITOR_RENDER';if(!monitoring){stopProductionRenderPolling();return}if(productionRenderPollTimer)return;productionRenderPollTimer=setInterval(()=>{if(state.currentRoute!=='production'){stopProductionRenderPolling();return}if(document.hidden||productionCommandBusy()||productionRenderPollBusy)return;refreshProductionRenderProgress()},3000)}
 const renderProductionShellOwnerAcceptance=renderProductionShell;
 renderProductionShell=function(vm=currentProductionViewModel()){
   const journeyVm=unifiedProductionJourneyView(vm),ownerVm={...journeyVm,phases:ownerJourneyPhases(journeyVm)};
   const result=renderProductionShellOwnerAcceptance(ownerVm),stage=ownerJourneyStageNumber(ownerVm),task=String(ownerVm.task_type||'');
+  syncProductionRenderPolling(ownerVm);
   const badge=$('#productionStateBadge');if(badge)badge.textContent=`Giai đoạn ${stage} / 5`;
   const heading=$('#productionCurrentStepHeading'),explanation=$('#productionStateExplanation'),primary=$('#productionPrimaryAction');
   if(stage===3){if(heading)heading.textContent='Nhân vật & giọng';if(explanation)explanation.textContent='Kiểm tra ai nói, giọng nào đang dùng và chỉ sửa những ngoại lệ thực sự cần xử lý.'}
@@ -2585,7 +2610,7 @@ renderProductionShell=function(vm=currentProductionViewModel()){
   if(['START_RENDER_RANGE','START_RENDER'].includes(task)){if(heading)heading.textContent='Sẵn sàng tạo audio';if(explanation)explanation.textContent='Đầu vào đã được khóa. Bạn có thể chỉnh lại bằng cách hủy bản chuẩn bị, hoặc bắt đầu tạo audio.';if(primary){primary.textContent='Bắt đầu tạo audio';primary.setAttribute('aria-label','Bắt đầu tạo audio')}}
   if(task==='HUMAN_QA'){if(heading)heading.textContent='Nghe & duyệt';if(explanation)explanation.textContent='Nghe bản audio hiện tại, ghi chú nếu có vấn đề rồi chọn chấp nhận hoặc cần sửa.'}
   if(task==='REPAIR_REQUIRED'){if(heading)heading.textContent='Sửa audio';if(explanation)explanation.textContent='Bắt đầu từ vấn đề QA và kế hoạch sửa; thông tin phiên bản nằm trong phần chi tiết khi cần.'}
-  if(task==='COMPLETE'){if(heading)heading.textContent='Hoàn tất';if(explanation)explanation.textContent='Audio đã qua luồng xử lý. Mở Audio để nghe lại hoặc tải file.'}
+  if(task==='COMPLETE'){const completedCount=Number(ownerVm?.range_readiness?.summary?.complete||ownerVm?.range_readiness?.summary?.total||0);if(heading)heading.textContent='Ho\u00e0n t\u1ea5t';if(explanation)explanation.textContent=completedCount>1?'Audio \u0111\u00e3 ho\u00e0n t\u1ea5t. M\u1edf Audio \u0111\u1ec3 nghe l\u1ea1i; ph\u1ea1m vi n\u00e0y s\u1ebd \u0111\u01b0\u1ee3c ch\u1ecdn s\u1eb5n \u0111\u1ec3 t\u1ea3i ZIP.':'Audio \u0111\u00e3 qua lu\u1ed3ng x\u1eed l\u00fd. M\u1edf Audio \u0111\u1ec3 nghe l\u1ea1i ho\u1eb7c t\u1ea3i file.';if(primary&&completedCount>1){const label=`Nghe & t\u1ea3i ${completedCount} ch\u01b0\u01a1ng`;primary.textContent=label;primary.setAttribute('aria-label',label)}}
   bindOwnerProductionUx(ownerVm);
   return result;
 };

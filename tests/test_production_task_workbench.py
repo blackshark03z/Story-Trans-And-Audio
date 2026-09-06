@@ -160,6 +160,10 @@ class ProductionTaskWorkbenchTests(unittest.TestCase):
         ):
             self.assertIn(marker, self.js)
         self.assertIn("production-render-progress", self.css)
+        self.assertIn("productionRenderPollTimer", self.js)
+        self.assertIn("syncProductionRenderPolling(ownerVm)", self.js)
+        self.assertIn("await refreshProductionRenderProgress();return", self.js)
+        self.assertNotIn("if(action==='MONITOR_RENDER'){setAppRoute('jobs');return}", self.js)
 
 
 if __name__ == "__main__":

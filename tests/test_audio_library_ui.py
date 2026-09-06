@@ -192,6 +192,15 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertIn("selectedArtifactId:contextItem?Number(contextItem.artifact_id):null", load_block)
         self.assertNotIn("play:true", load_block)
 
+    def test_audio_route_preselects_range_context_and_checks_zip_readiness(self) -> None:
+        self.assertIn("function audioLibraryContextRange(items)", self.js)
+        self.assertIn("function syncAudioRangeFromWorkingContext", self.js)
+        self.assertIn("state.audioArchive.selectedChapterIds=desired", self.js)
+        self.assertIn("await checkAudioRange()", self.js)
+        load_block = self._function_block("loadAudioLibrary")
+        self.assertIn("await syncAudioRangeFromWorkingContext(state.audioLibrary.items)", load_block)
+        self.assertIn("await syncAudioRangeFromWorkingContext(items)", load_block)
+
     def test_empty_loading_error_and_retry_are_explicit(self) -> None:
         render_block = self._function_block("renderAudioLibrary")
         for value in (

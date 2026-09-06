@@ -66,6 +66,8 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertIn("function productionCompleteTaskContent(vm)", self.js)
         self.assertIn("productionCompleteOpenAudio", self.js)
         self.assertIn("productionCompleteDownload", self.js)
+        self.assertIn("completedCount>1", self.js)
+        self.assertIn("primary.setAttribute('aria-label',label)", self.js)
         self.assertIn("/api/artifacts/${artifactIds[0]}/file", self.js)
         self.assertIn("vm?.task_type==='COMPLETE'", self.js)
 
