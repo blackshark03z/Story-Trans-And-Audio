@@ -304,6 +304,8 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIn("assignment-registry-review-pane", self.js)
         self.assertIn("assignment-registry-control-pane", self.js)
         self.assertIn("assignment-speaker-overview", self.js)
+        self.assertIn("assignment-registry-context-full-row", self.js)
+        self.assertIn("assignment-dialogue-samples-grid", self.js)
         self.assertNotIn("assignment-registry-context-row", self.js)
         self.assertIn("\\u0110o\\u1ea1n tho\\u1ea1i & ng\\u1eef c\\u1ea3nh", self.js)
         self.assertIn("row.role!=='narrator'&&samples.length>0", self.js)
