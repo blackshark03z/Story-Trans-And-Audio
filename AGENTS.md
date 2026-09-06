@@ -20,9 +20,13 @@ Route work by event:
 - before `FIXED`, `DONE`, `READY`, or equivalent -> Product Acceptance; and
 - after Goal acceptance when residue/worktrees need closure -> Workspace Hygiene.
 
-For visible frontend/layout/typography/responsive defects, also read
-`skills/product/ui-ux-review.md` inside the active CADS procedure. It is a
-project-local advisory skill, not an additional CADS core playbook.
+For user-facing work, conditionally apply the CADS product skills in this order:
+`user-facing-workflow.md` when journey/navigation/discoverability is changing,
+`frontend-design.md` for visible implementation or material restyling, and
+`ui-quality-review.md` before user-facing acceptance or when the Owner reports
+that the UI is hard to find, understand, operate, recover, or trust. Then apply
+`skills/product/ui-ux-review.md` only as the Story Audio adapter for runtime,
+fixture, encoding, and served-asset checks; it is not a parallel UX standard.
 
 For implementation prefer `REUSE -> WIRE -> FIX -> REPLACE_AND_DELETE -> ADD`.
 Classify findings only as `BLOCKER` when they prevent the current CUJ/acceptance

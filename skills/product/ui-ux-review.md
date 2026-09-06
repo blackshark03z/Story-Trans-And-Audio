@@ -1,87 +1,49 @@
-# Story Audio UI/UX Review
+# Story Audio UI/UX Adapter
 
-A project-local advisory procedure for visible frontend work. It complements the
-six CADS core playbooks; it is not a seventh core playbook and creates no
-lifecycle state.
+This file is a Story Audio-specific adapter for the canonical CADS product
+skills. It is not a separate UI/UX standard and must not compete with or fork
+CADS guidance.
 
-## When to use
+## Canonical CADS routing
 
-Use this procedure whenever the active Goal exposes a visible layout, typography,
-wrapping, density, responsive, accessibility, or interaction defect. For a
-user-visible blocker, enter through CADS Systematic Debugging, use this procedure
-to inspect and verify the surface, then resume the same Critical User Journey.
+Use the CADS product skills conditionally:
 
-## 1. Start from the screen job
+1. `user-facing-workflow.md` when the user journey, navigation, discoverability,
+   task order, or next-action placement is the real problem.
+2. `frontend-design.md` when implementing or materially changing the rendered
+   interface after the workflow is clear.
+3. `ui-quality-review.md` before user-facing Product Acceptance, and whenever the
+   Owner reports that the UI is difficult to find, understand, operate, recover,
+   or trust.
 
-Before editing, state the one decision or task the screen must make easy. Identify
-primary information, primary action, supporting evidence, and secondary controls.
-Do not optimize isolated components while the overall task flow remains awkward.
+A visible defect found during the active Goal still enters through CADS
+Systematic Debugging, receives the smallest coherent repair, and returns to the
+same Critical User Journey.
 
-## 2. Inspect the rendered surface first
+## Story Audio-specific checks
 
-Use the real supported browser/runtime and the current acceptance fixture. Capture
-or inspect the rendered desktop surface before changing code. When responsive
-behavior matters, also inspect a narrow viewport. Prefer rendered evidence and DOM
-geometry over assumptions from CSS alone.
+For Story Audio, add these checks to the applicable CADS skill:
 
-For Story Audio owner-facing work, verify at least:
+- Canonical owner runtime: `http://127.0.0.1:8772`.
+- Golden acceptance fixture: Book 1 `Quang Âm Chi Ngoại`, Chapters 2-8, unless
+  `TASK.md` explicitly changes the active fixture.
+- Treat the owner desktop workflow as primary; verify a representative 1280-1440
+  px desktop width and a narrow width only when the changed surface is expected
+  to reflow.
+- Use representative long Vietnamese story text and realistic row/sample counts,
+  not only short synthetic fixture strings.
+- Verify both source and served assets when text/layout appears stale. CSS and JS
+  cache identities must correspond to the changed surface.
+- Vietnamese owner-facing text must remain valid UTF-8. If the legacy mixed
+  frontend file makes literal editing risky, prefer the smallest stable Unicode
+  escape or byte-level edit rather than rewriting unrelated content.
+- PREPARE and START_RENDER remain explicit, separate owner actions. UI work must
+  never bypass execution readiness or render guards.
+- Rendered evidence and focused tests are supporting evidence only. Owner
+  real-use of the same CUJ is the final Product Acceptance oracle.
 
-- the owner's current desktop viewport;
-- a representative 1280-1440 px desktop width; and
-- a narrow/mobile width when the changed surface is expected to reflow.
+## Exit
 
-## 3. Content hierarchy and density
-
-- Keep identity/status and the primary controls compact and close together.
-- Put long read-only evidence in normal document flow below the compact control
-  region unless the two sides have comparable height.
-- Do not create tall equal-height sibling columns when one side is much shorter;
-  large blank regions are a defect, not harmless whitespace.
-- Long text must use the available line length. Avoid narrow text columns caused
-  by inherited grid rules or generic descendant selectors.
-- Independent evidence cards may use a responsive 2-column grid on wide screens,
-  but each card's internal text remains full-width and readable. Collapse to one
-  column when width becomes constrained.
-- Prefer progressive disclosure for repeated evidence. The user must be able to
-  identify the speaker without scrolling through unnecessary narrator samples.
-
-## 4. Text integrity
-
-Vietnamese UI text must be valid UTF-8 at source/runtime boundaries. If a legacy
-mixed-encoding file makes literal edits unsafe, use stable Unicode escapes in the
-smallest affected function rather than rewriting the whole file.
-
-Before claiming a visible text fix:
-
-- scan the changed surface for replacement characters and mojibake-like literals;
-- check the served bundle, not only the working-tree file; and
-- inspect the real rendered text in the acceptance fixture.
-
-Do not treat a font change as a fix for corrupted source text.
-
-## 5. CSS discipline
-
-- Scope rules to semantic component classes. Avoid selectors such as
-  `.component div` or `.details small` when nested content has different layout
-  needs.
-- Remove superseded rules when changing layout; do not stack competing layout
-  versions.
-- Keep one authoritative layout implementation per component.
-- Verify wrapping, overflow, sticky positioning, and focus behavior in the real
-  browser after each structural change.
-
-## 6. Visual acceptance
-
-A UI checkpoint is acceptable only when all of the following are true:
-
-1. The changed surface is visually inspected in the real supported runtime.
-2. No large unexplained blank region, clipped content, accidental narrow column,
-   overlap, or horizontal overflow remains.
-3. Primary controls remain discoverable without competing with supporting text.
-4. Vietnamese labels and evidence render correctly.
-5. Focused tests pass and the served asset identity is confirmed.
-6. The same owner acceptance fixture can continue from the point where the defect
-   was found.
-
-Tests and screenshots are evidence. Owner real-use remains the final acceptance
-oracle for this user-facing product.
+Do not open a design-system project from a local defect. Resolve only BLOCKER/HIGH
+findings that materially affect the active CUJ, classify non-blocking visual
+refinement as deferred polish, and resume the same Chapters 2-8 journey.
