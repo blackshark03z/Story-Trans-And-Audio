@@ -376,14 +376,15 @@ try {
   const completion = await evaluate(`({
     task: window.storyAudioAppState.productionProjection?.canonical_task?.task_type,
     qaActionsHidden: document.querySelector("#productionQaActions")?.classList.contains("hidden"),
-    downloadHref: document.querySelector("#productionCompleteDownload")?.href || "",
-    openAudio: !!document.querySelector("#productionCompleteOpenAudio")
+    primaryLabel: document.querySelector("#productionPrimaryAction")?.textContent?.trim() || "",
+    primaryDisabled: !!document.querySelector("#productionPrimaryAction")?.disabled,
+    downloadHref: document.querySelector("#ownerCompleteDownload")?.getAttribute("href") || ""
   })`);
-  if (completion.task !== "COMPLETE" || !completion.openAudio) throw new Error(`Completion screen failed: ${JSON.stringify(completion)}`);
+  if (completion.task !== "COMPLETE" || completion.primaryLabel !== "Mở audio đã hoàn tất" || completion.primaryDisabled || completion.downloadHref !== `/api/artifacts/${replacementArtifact}/file`) throw new Error(`Completion screen failed: ${JSON.stringify(completion)}`);
   evidence.stages.push("accept_replacement");
 
   // Stage J: open Audio and verify active replacement selection/playback URL.
-  await click("#productionCompleteOpenAudio");
+  await click("#productionPrimaryAction");
   await waitFor(`window.storyAudioAppState.currentRoute==="audio"`);
   await waitFor(`window.storyAudioAppState.audioLibrary.loaded===true`);
   await waitFor(`Number(window.storyAudioAppState.audioLibrary.selectedArtifactId)===Number(${replacementArtifact})`);

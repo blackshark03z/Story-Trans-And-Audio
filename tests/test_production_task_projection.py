@@ -351,11 +351,13 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertEqual(projection["chapter_queue"][0]["status"], "current")
         self.assert_typed_section(projection, "repair")
 
-        complete = _row(1, "COMPLETE")
+        complete = _row(1, "COMPLETE", active_artifact_id=93)
         projection = project_production_task({"readiness": _readiness(complete)})
         self.assertEqual(projection["task_type"], "COMPLETE")
         self.assertIsNone(projection["primary_action"])
         self.assertEqual(projection["task_scope"], "range")
+        self.assertEqual(projection["range_readiness"]["chapters"][0]["state"], "COMPLETE")
+        self.assertEqual(projection["range_readiness"]["chapters"][0]["active_artifact_id"], 93)
 
     def test_text_blocker_precedes_range_input_orchestration(self) -> None:
         blocked = _row(

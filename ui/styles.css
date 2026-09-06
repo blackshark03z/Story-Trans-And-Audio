@@ -266,6 +266,11 @@ main{max-width:1240px;margin:18px auto;padding:0 20px 50px}.app-view{animation:n
 .owner-complete-hero>span{display:grid;place-items:center;flex:0 0 auto;width:42px;height:42px;border-radius:50%;background:#2c7652;color:white;font-size:22px;font-weight:900}
 .owner-complete-hero>div{display:grid;gap:4px}.owner-complete-hero h3,.owner-complete-hero p{margin:0}
 .owner-complete-actions{display:flex;justify-content:flex-end}
+#productionStateCard[data-production-state="COMPLETE"]{display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:18px;align-items:start}
+#productionStateCard[data-production-state="COMPLETE"]>.production-task-heading,#productionStateCard[data-production-state="COMPLETE"]>#productionStateExplanation,#productionStateCard[data-production-state="COMPLETE"]>#productionBlockerReason,#productionStateCard[data-production-state="COMPLETE"]>#productionCommandStatus,#productionStateCard[data-production-state="COMPLETE"]>#productionQaActions,#productionStateCard[data-production-state="COMPLETE"]>#productionPhaseWorkspace,#productionStateCard[data-production-state="COMPLETE"]>#productionSecondaryLinks,#productionStateCard[data-production-state="COMPLETE"]>#productionNextTaskHint{grid-column:1/-1}
+#productionStateCard[data-production-state="COMPLETE"]>#productionTaskContent{grid-column:1;min-width:0}
+#productionStateCard[data-production-state="COMPLETE"]>#productionPrimaryActions{grid-column:2;margin:0;align-self:center}
+@media(max-width:900px){#productionStateCard[data-production-state="COMPLETE"]{grid-template-columns:1fr}#productionStateCard[data-production-state="COMPLETE"]>#productionTaskContent,#productionStateCard[data-production-state="COMPLETE"]>#productionPrimaryActions{grid-column:1}#productionStateCard[data-production-state="COMPLETE"]>#productionPrimaryActions{margin-top:12px}}
 @media(max-width:720px){.owner-repair-context{grid-template-columns:1fr}.owner-complete-actions .primary{width:100%;text-align:center}}
 
 

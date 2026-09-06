@@ -711,7 +711,11 @@ def _base_projection(
         "secondary_actions": [],
         "secondary_links": [],
         "blocker": blocker,
-        "range_readiness": {"scope": scope, "summary": range_summary},
+        "range_readiness": {
+            "scope": scope,
+            "summary": range_summary,
+            "chapters": [dict(row) for row in readiness.get("chapters") or []],
+        },
         "next_task_hint": next_hint,
         "next_task_after_success": next_hint,
         "technical_details": list(canonical_task["technical_details"]),
