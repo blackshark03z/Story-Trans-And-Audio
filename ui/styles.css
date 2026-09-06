@@ -289,3 +289,10 @@ main{max-width:1240px;margin:18px auto;padding:0 20px 50px}.app-view{animation:n
 .assignment-dialogue-samples-grid>.assignment-dialogue-sample{margin-top:0;min-width:0}
 @media(max-width:1000px){.assignment-speaker-overview{grid-template-columns:repeat(2,minmax(0,1fr))}.assignment-registry-control-pane{min-width:330px}.assignment-dialogue-samples-grid{grid-template-columns:1fr!important}}
 @media(max-width:760px){.assignment-registry-control-pane{min-width:280px}}
+
+/* ASSIGNMENT_REVIEW_PROGRESSIVE_DISCLOSURE_V4 */
+.assignment-narrator-details{background:#fbfdfb}
+.assignment-dialogue-more,.assignment-chapter-voice-summary{margin-top:8px;border:1px solid #e2ebe3;border-radius:9px;padding:8px 10px;background:#f8fbf7}
+.assignment-dialogue-more>summary,.assignment-chapter-voice-summary>summary{cursor:pointer;font-weight:750;color:#315844}
+.assignment-dialogue-more .assignment-dialogue-samples-grid{margin-top:10px}
+.assignment-chapter-voice-summary .assignment-chapter-voice-detail:first-of-type{margin-top:8px}

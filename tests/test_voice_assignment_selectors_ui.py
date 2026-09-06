@@ -308,11 +308,17 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIn("assignment-dialogue-samples-grid", self.js)
         self.assertNotIn("assignment-registry-context-row", self.js)
         self.assertIn("\\u0110o\\u1ea1n tho\\u1ea1i & ng\\u1eef c\\u1ea3nh", self.js)
-        self.assertIn("row.role!=='narrator'&&samples.length>0", self.js)
+        self.assertIn("isNarrator=row.role==='narrator'", self.js)
+        self.assertIn("hasExplicitOpen=Object.prototype.hasOwnProperty.call(openState,key)", self.js)
+        self.assertIn("visibleLimit=isNarrator?1:3", self.js)
+        self.assertIn("assignment-dialogue-more", self.js)
+        self.assertIn("assignment-chapter-voice-summary", self.js)
+        self.assertIn("\\u0110o\\u1ea1n m\\u1eabu ng\\u01b0\\u1eddi k\\u1ec3 chuy\\u1ec7n", self.js)
         self.assertNotIn(".assignment-range-details div{", self.css)
         self.assertNotIn(".assignment-range-details small{", self.css)
         self.assertIn("align-items:start!important", self.css)
         self.assertIn(".assignment-dialogue-context span{min-width:0;line-height:1.55}", self.css)
+        self.assertIn("ASSIGNMENT_REVIEW_PROGRESSIVE_DISCLOSURE_V4", self.css)
 
     def test_gemini_speaker_review_workspace_is_draft_only(self) -> None:
         section = self.js[
