@@ -13,14 +13,18 @@ evidence, not new phases or completion claims.
 
 Route work by event:
 
-- unclear/new owner outcome ? Product Goal Framing;
-- normal bounded implementation ? Goal Execution;
-- a user-visible blocker/regression in the active journey ? Systematic Debugging,
+- unclear/new owner outcome -> Product Goal Framing;
+- normal bounded implementation -> Goal Execution;
+- a user-visible blocker/regression in the active journey -> Systematic Debugging,
   remove the first real blocker, then immediately resume the same CUJ/fixture;
-- before `FIXED`, `DONE`, `READY`, or equivalent ? Product Acceptance; and
-- after Goal acceptance when residue/worktrees need closure ? Workspace Hygiene.
+- before `FIXED`, `DONE`, `READY`, or equivalent -> Product Acceptance; and
+- after Goal acceptance when residue/worktrees need closure -> Workspace Hygiene.
 
-For implementation prefer `REUSE ? WIRE ? FIX ? REPLACE_AND_DELETE ? ADD`.
+For visible frontend/layout/typography/responsive defects, also read
+`skills/product/ui-ux-review.md` inside the active CADS procedure. It is a
+project-local advisory skill, not an additional CADS core playbook.
+
+For implementation prefer `REUSE -> WIRE -> FIX -> REPLACE_AND_DELETE -> ADD`.
 Classify findings only as `BLOCKER` when they prevent the current CUJ/acceptance
 or threaten a must-preserve invariant; otherwise record them as `DEFERRED_DEBT`.
 Focused tests support a checkpoint but never replace the owner-visible journey.
