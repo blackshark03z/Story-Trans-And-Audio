@@ -244,16 +244,17 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertNotIn("commandType:'PREPARE'", section)
         self.assertNotIn("commandType:'START_RENDER'", section)
 
-    def test_assignment_has_one_preflight_primary_and_secondary_step_link(self) -> None:
+    def test_assignment_routes_ready_voice_step_directly_to_preflight(self) -> None:
         section = self.js[
             self.js.index("function renderBookVoiceRegistryPage("):
             self.js.index("function speakerSuggestionScopeKey")
         ]
-        self.assertEqual(section.count("data-open-production-preflight ${preflightReady"), 1)
-        self.assertIn("data-jump-to-assignment-preflight", section)
+        self.assertEqual(section.count('class="primary" data-open-production-preflight'), 1)
+        self.assertEqual(section.count('class="secondary" data-open-production-preflight ${preflightReady'), 1)
+        self.assertNotIn("data-jump-to-assignment-preflight", section)
         self.assertIn("repairContextBlockers.length===0", section)
         self.assertIn("data-assignment-repair-focus", section)
-        self.assertIn("Xem điều kiện để tiếp tục", section)
+        self.assertIn("Tiếp tục: kiểm tra & chuẩn bị audio", section)
         self.assertIn("Quay lại chuẩn bị bản thay thế", section)
 
     def test_repair_working_context_preserves_exact_assignment_focus_and_return(self) -> None:

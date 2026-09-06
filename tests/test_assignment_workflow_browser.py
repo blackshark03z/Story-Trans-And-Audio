@@ -185,10 +185,7 @@ class AssignmentWorkflowBrowserTests(unittest.TestCase):
         self.assertGreaterEqual(evidence["initial"]["characterRows"], 2)
         self.assertEqual(evidence["initial"]["preflightPrimaryCount"], 1)
         self.assertEqual(evidence["initial"]["sectionTwoPreflightPrimaryCount"], 0)
-        self.assertEqual(
-            evidence["initial"]["sectionTwoConditionLink"],
-            "Xem điều kiện để tiếp tục",
-        )
+        self.assertEqual(evidence["initial"]["sectionTwoConditionLink"], "")
         self.assertTrue(evidence["unresolvedNavigation"])
         self.assertEqual(evidence["navigationState"]["filter"], evidence["filterBeforeJump"])
         self.assertIn("book=1", evidence["navigationState"]["hash"])
@@ -209,6 +206,7 @@ class AssignmentWorkflowBrowserTests(unittest.TestCase):
         self.assertTrue(polling["scrollStable"])
         self.assertIn("Commander Voice", polling["impact"])
         self.assertIn("Ghi đè đúng phạm vi", polling["impact"])
+        self.assertIn("Tiếp tục", evidence["voiceSaveState"]["voiceNextAction"])
         self.assertIn("book=1", evidence["readyNavigation"]["hash"])
         self.assertIn("from=1", evidence["readyNavigation"]["hash"])
         self.assertIn("to=10", evidence["readyNavigation"]["hash"])

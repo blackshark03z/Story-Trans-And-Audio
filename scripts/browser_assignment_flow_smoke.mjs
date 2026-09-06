@@ -276,6 +276,7 @@ try {
     rowError: window.storyAudioAppState.bookVoiceRegistry?.rowErrors?.['character:25'] || null,
     rowResult: window.storyAudioAppState.bookVoiceRegistry?.rowResults?.['character:25'] || null,
     preflightEnabled: !!document.querySelector('[data-open-production-preflight]:not([disabled])'),
+    voiceNextAction: document.querySelector('[data-assignment-section="voices"] [data-open-production-preflight]:not([disabled])')?.textContent || '',
     commands: null,
   })`);
   voiceSaveState.commands = await evaluate(`fetch('/api/fixture/commands').then(response => response.json())`);
