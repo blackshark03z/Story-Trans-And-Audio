@@ -30,6 +30,14 @@ class OwnerRealUseAcceptanceUiTests(unittest.TestCase):
         self.assertIn("primary.textContent='Bắt đầu tạo audio'",self.js)
         self.assertIn('Snapshot này là bất biến.',self.js)
 
+    def test_subset_of_existing_job_opens_owner_scope_without_starting_render(self):
+        branch_start=self.js.index("if(action==='OPEN_JOB_RANGE')")
+        branch_end=self.js.index("if(action==='START_RENDER_RANGE')", branch_start)
+        branch=self.js[branch_start:branch_end]
+        self.assertIn("await restoreProductionRangeScope({bookId,fromChapter:from,toChapter:to,skipCompleted:false})",branch)
+        self.assertNotIn('startProductionRangeRender',branch)
+        self.assertIn("if(task==='OPEN_JOB_RANGE')return'FOLLOW_JOB_SCOPE'",self.js)
+
     def test_prepared_edit_reuses_guarded_cancel_and_requires_confirmation(self):
         self.assertIn('cancelPreparedForPreRenderEdit',self.js)
         self.assertIn('window.confirm',self.js)

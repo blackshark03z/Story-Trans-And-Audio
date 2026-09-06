@@ -54,7 +54,7 @@ _CASTING_TASKS = {
     "RESOLVE_VOICE_EXCEPTION",
     "APPROVE_RANGE_CASTING_PLANS",
 }
-_RENDER_TASKS = {"START_RENDER_RANGE", "MONITOR_RENDER", "RECOVER_RENDER"}
+_RENDER_TASKS = {"OPEN_JOB_RANGE", "START_RENDER_RANGE", "MONITOR_RENDER", "RECOVER_RENDER"}
 
 
 def _effective_voice_summary(
@@ -574,6 +574,10 @@ def _typed_task_sections(
         sections["render"] = {
             "job_id": source.get("id") or source.get("job_id"),
             "job_status": source.get("status"),
+            "book_id": source.get("book_id"),
+            "from_chapter": source.get("from_chapter"),
+            "to_chapter": source.get("to_chapter"),
+            "chapter_count": source.get("chapter_count"),
             "replacement_for_artifact_id": source.get(
                 "replacement_for_artifact_id"
             ),
@@ -859,6 +863,89 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
                 ),
             }
         )
+
+    live_job_owners = {
+        (
+            int(row.get("live_job_id") or 0),
+            str(row.get("live_job_status") or "").lower(),
+            int(row.get("live_job_book_id") or 0),
+            int(row.get("live_job_from_chapter") or 0),
+            int(row.get("live_job_to_chapter") or 0),
+        )
+        for row in rows
+        if row.get("live_job_id")
+    }
+    all_selected_rows_owned_by_one_live_job = (
+        len(live_job_owners) == 1
+        and len(rows) > 0
+        and all(
+            row.get("live_job_id")
+            and row.get("state") in {"PREPARED", "RENDERING_OR_PAUSED"}
+            for row in rows
+        )
+    )
+    if all_selected_rows_owned_by_one_live_job:
+        job_id, job_status, job_book_id, job_from, job_to = next(iter(live_job_owners))
+        selected_from = int(scope.get("from_chapter") or 0)
+        selected_to = int(scope.get("to_chapter") or 0)
+        owner_scope_is_known = bool(job_id and job_book_id and job_from and job_to)
+        owner_scope_differs = (
+            owner_scope_is_known
+            and (
+                job_book_id != int(scope.get("book_id") or 0)
+                or job_from != selected_from
+                or job_to != selected_to
+            )
+        )
+        if owner_scope_differs:
+            owner_payload = {
+                "id": job_id,
+                "status": job_status,
+                "book_id": job_book_id,
+                "from_chapter": job_from,
+                "to_chapter": job_to,
+                "chapter_count": max(0, job_to - job_from + 1),
+            }
+            selected_label = (
+                f"Ch\u01b0\u01a1ng {selected_from}-{selected_to}"
+                if selected_from != selected_to
+                else f"Ch\u01b0\u01a1ng {selected_from}"
+            )
+            owner_label = (
+                f"Ch\u01b0\u01a1ng {job_from}-{job_to}"
+                if job_from != job_to
+                else f"Ch\u01b0\u01a1ng {job_from}"
+            )
+            return finish(_base_projection(
+                readiness=readiness,
+                task_scope="range",
+                task_type="OPEN_JOB_RANGE",
+                task_key=f"{scope_key}:OPEN_JOB_RANGE:job:{job_id}",
+                user_stage=4,
+                title="Ti\u1ebfp t\u1ee5c ph\u1ea1m vi \u0111\u00e3 chu\u1ea9n b\u1ecb",
+                summary=(
+                    f"{selected_label} \u0111ang thu\u1ed9c Job #{job_id} c\u1ee7a ph\u1ea1m vi {owner_label}. "
+                    "M\u1edf \u0111\u00fang ph\u1ea1m vi c\u1ee7a Job \u0111\u1ec3 ti\u1ebfp t\u1ee5c m\u00e0 kh\u00f4ng ch\u1ea1y th\u00eam ch\u01b0\u01a1ng ngo\u00e0i \u00fd mu\u1ed1n."
+                ),
+                affected=None,
+                action=_action("OPEN_JOB_RANGE", f"M\u1edf {owner_label}", "render"),
+                blocker=None,
+                next_hint=(
+                    "Sau khi m\u1edf \u0111\u00fang ph\u1ea1m vi, b\u1eaft \u0111\u1ea7u t\u1ea1o audio v\u1eabn l\u00e0 m\u1ed9t thao t\u00e1c ri\u00eang v\u00e0 c\u1ea7n b\u1ea1n x\u00e1c nh\u1eadn."
+                    if job_status == JOB_PREPARED_STATUS
+                    else "Sau khi m\u1edf \u0111\u00fang ph\u1ea1m vi, b\u1ea1n c\u00f3 th\u1ec3 theo d\u00f5i c\u00f4ng vi\u1ec7c \u0111ang ch\u1ea1y."
+                ),
+                queue=queue,
+                technical=[
+                    f"job:{job_id}",
+                    f"job_status:{job_status}",
+                    f"selected_scope:{selected_from}-{selected_to}",
+                    f"owner_scope:{job_from}-{job_to}",
+                    "range_gate:live_job_owner_scope",
+                ],
+                range_task=True,
+                task_payload=owner_payload,
+            ))
 
     def repair_projection_or_none() -> dict[str, Any] | None:
         repair_candidates = [

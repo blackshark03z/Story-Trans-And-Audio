@@ -396,6 +396,33 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertEqual(projection["primary_action"]["key"], "START_RENDER_RANGE")
         self.assertIn("job:44", projection["task_key"])
 
+    def test_subset_of_prepared_job_routes_to_owner_scope_without_starting(self) -> None:
+        owner = {
+            "live_job_id": 35,
+            "live_job_status": "prepared",
+            "live_job_book_id": 1,
+            "live_job_from_chapter": 2,
+            "live_job_to_chapter": 8,
+        }
+        projection = project_production_task(
+            {
+                "readiness": _readiness(
+                    _row(2, "PREPARED", **owner),
+                    _row(3, "PREPARED", **owner),
+                    _row(4, "PREPARED", **owner),
+                ),
+                "range_jobs": [],
+            }
+        )
+        self.assertEqual(projection["task_type"], "OPEN_JOB_RANGE")
+        self.assertEqual(projection["primary_action"]["key"], "OPEN_JOB_RANGE")
+        self.assertEqual(projection["primary_action"]["label"], "M\u1edf Ch\u01b0\u01a1ng 2-8")
+        self.assertEqual(projection["canonical_task"]["render"]["job_id"], 35)
+        self.assertEqual(projection["canonical_task"]["render"]["from_chapter"], 2)
+        self.assertEqual(projection["canonical_task"]["render"]["to_chapter"], 8)
+        self.assertNotEqual(projection["task_type"], "START_RENDER_RANGE")
+        self.assert_typed_section(projection, "render")
+
     def test_prepared_replacement_exposes_human_repair_summary(self) -> None:
         projection = project_production_task(
             {

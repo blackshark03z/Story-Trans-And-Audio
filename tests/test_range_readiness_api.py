@@ -352,8 +352,14 @@ class RangeReadinessApiTests(IsolatedTestCase):
         data = {item["chapter_number"]: item for item in self._readiness()["chapters"]}
         self.assertEqual(data[4]["state"], "PREPARED")
         self.assertEqual(data[4]["next_action"], "START_RENDER")
+        self.assertIsNotNone(data[4]["live_job_id"])
+        self.assertEqual(data[4]["live_job_book_id"], self.book_id)
+        self.assertEqual(data[4]["live_job_from_chapter"], 4)
+        self.assertEqual(data[4]["live_job_to_chapter"], 4)
         self.assertEqual(data[5]["state"], "RENDERING_OR_PAUSED")
         self.assertEqual(data[5]["next_action"], "MONITOR_OR_RESUME")
+        self.assertEqual(data[5]["live_job_from_chapter"], 5)
+        self.assertEqual(data[5]["live_job_to_chapter"], 5)
 
     def test_voice_blocked_when_approved_plan_lacks_voice(self) -> None:
         self._plan(3, "approved", narrator_voice_id="")
