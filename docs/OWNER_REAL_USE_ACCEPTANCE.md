@@ -56,6 +56,8 @@ Current product constraint: these values come from runtime Settings and are read
 - PREPARE creates/pins an immutable prepared Job snapshot.
 - PREPARE does not invoke TTS and does not start render.
 - UI shows the prepared Job identity and scope clearly.
+- If the selected scope is a strict subset of an existing prepared or active Job, the UI must not offer START_RENDER for the subset and must not invent an upstream blocker. It must show the immutable owning Job scope and provide one navigation-only action to open that scope.
+- Opening the owning Job scope must not wake the worker, call TTS, or start rendering; START_RENDER remains a separate explicit owner action on the exact Job scope.
 
 ## UAT-08 — Safe edit after PREPARE
 
