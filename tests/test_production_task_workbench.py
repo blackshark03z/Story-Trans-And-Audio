@@ -164,6 +164,11 @@ class ProductionTaskWorkbenchTests(unittest.TestCase):
         self.assertIn("syncProductionRenderPolling(ownerVm)", self.js)
         self.assertIn("await refreshProductionRenderProgress();return", self.js)
         self.assertNotIn("if(action==='MONITOR_RENDER'){setAppRoute('jobs');return}", self.js)
+        self.assertIn("production-range-progress-context", self.js)
+        self.assertIn("completedChapters", self.js)
+        self.assertIn("current_chapter_number", self.js)
+        self.assertIn("planned_segment_total", self.js)
+        self.assertIn("chapterPercent", self.js)
 
 
 if __name__ == "__main__":
