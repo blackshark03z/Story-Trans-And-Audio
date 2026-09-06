@@ -89,6 +89,14 @@ class _RegistryRow:
                 self.plan_voice_ids.add(normalized)
                 self.plan_voice_chapters[normalized].add(chapter_number)
 
+    def add_sample(self, payload: Mapping[str, Any]) -> None:
+        if len(self.sample_lines) >= 5:
+            return
+        utterance_id = str(payload.get("utterance_id") or "")
+        if utterance_id and any(str(item.get("utterance_id") or "") == utterance_id for item in self.sample_lines):
+            return
+        self.sample_lines.append(dict(payload))
+
     def touch_reference(
         self,
         chapter: Mapping[str, Any],
@@ -100,8 +108,7 @@ class _RegistryRow:
         self.touch(chapter, voice_id=voice_id)
         payload = reference.public_payload()
         self.target_utterances.append(payload)
-        if len(self.sample_lines) < 5:
-            self.sample_lines.append(payload)
+        self.add_sample(payload)
         if plan:
             self.plan_touch(plan)
             self.provenance.append(
@@ -134,6 +141,47 @@ class _RegistryRow:
             self.last_plan_revision = revision
             self.last_plan_status = str(plan.get("status") or "")
             self.last_reviewed_at = plan.get("approved_at") or plan.get("created_at")
+
+
+def _utterance_excerpt(text: str, utterance: Mapping[str, Any]) -> str:
+    start = max(0, int(utterance.get("start_offset") or 0))
+    end = max(start, int(utterance.get("end_offset") or start))
+    return text[start:end].strip()
+
+
+def _sample_context_item(text: str, utterance: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "utterance_id": str(utterance.get("utterance_id") or ""),
+        "sequence": int(utterance.get("sequence") or 0),
+        "text": _utterance_excerpt(text, utterance),
+        "role": str(utterance.get("role") or "narrator"),
+        "character_id": int(utterance["character_id"]) if utterance.get("character_id") is not None else None,
+    }
+
+
+def _utterance_sample_payload(
+    chapter: Mapping[str, Any],
+    text: str,
+    utterances: list[Mapping[str, Any]],
+    index: int,
+) -> dict[str, Any]:
+    utterance = utterances[index]
+    payload = _sample_context_item(text, utterance)
+    payload.update(
+        {
+            "chapter_id": int(chapter["id"]),
+            "chapter_number": int(chapter["chapter_number"]),
+            "context_before": [
+                _sample_context_item(text, item)
+                for item in utterances[max(0, index - 1):index]
+            ],
+            "context_after": [
+                _sample_context_item(text, item)
+                for item in utterances[index + 1:index + 2]
+            ],
+        }
+    )
+    return payload
 
 
 def _voice_index(catalog: EffectiveVoiceCatalog) -> dict[str, dict[str, Any]]:
@@ -353,7 +401,7 @@ def _collect_from_plan(
         utterances,
         source_layout_text=source_layout_text,
     )
-    for utterance in utterances:
+    for utterance_index, utterance in enumerate(utterances):
         role = str(utterance.get("role") or "narrator")
         voice_id = str(utterance.get("resolved_voice_id") or "").strip() or None
         segment = text[int(utterance["start_offset"]) : int(utterance["end_offset"])].strip()
@@ -368,6 +416,7 @@ def _collect_from_plan(
                 character_id=None,
             )
             row = _ensure_unresolved_dialogue(rows, reference)
+            row.add_sample(_utterance_sample_payload(chapter, text, utterances, utterance_index))
             row.touch_reference(chapter, reference, plan=plan)
             continue
         if role == "character" and utterance.get("character_id") is not None:
@@ -377,6 +426,7 @@ def _collect_from_plan(
         else:
             row = _ensure_narrator(rows)
         row.touch(chapter, voice_id=voice_id)
+        row.add_sample(_utterance_sample_payload(chapter, text, utterances, utterance_index))
         row.plan_touch(plan)
 
 
@@ -454,6 +504,19 @@ def _collect_from_speaker_draft(
         else:
             row = _ensure_narrator(rows)
         row.touch(chapter)
+        row.add_sample(
+            {
+                "chapter_id": int(chapter["id"]),
+                "chapter_number": int(chapter["chapter_number"]),
+                "utterance_id": str(review_row.get("utterance_id") or ""),
+                "sequence": int(review_row.get("sequence") or 0),
+                "text": review_text,
+                "role": speaker_type or "narrator",
+                "character_id": int(decision["character_id"]) if decision.get("character_id") is not None else None,
+                "context_before": [],
+                "context_after": [],
+            }
+        )
     return detail
 
 

@@ -296,6 +296,13 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             self.js,
         )
 
+    def test_assignment_voice_review_exposes_dialogue_context_for_identity_check(self) -> None:
+        self.assertIn("?o?n tho?i & ng? c?nh ?? x?c nh?n nh?n v?t", self.js)
+        self.assertIn("assignment-dialogue-sample", self.js)
+        self.assertIn("context_before", self.js)
+        self.assertIn("context_after", self.js)
+        self.assertIn("row.role!=='narrator'&&samples.length>0", self.js)
+
     def test_gemini_speaker_review_workspace_is_draft_only(self) -> None:
         section = self.js[
             self.js.index("function speakerSuggestionScopeKey"):

@@ -260,6 +260,18 @@ class BookVoiceRegistryTests(IsolatedTestCase):
         )
         self.assertEqual(by_name["Đổi giọng"]["status"], "OVERRIDDEN")
 
+    def test_resolved_character_rows_include_dialogue_samples_with_neighbor_context(self) -> None:
+        registry = self._registry(1, 2)
+        recurring_id = int(self.characters["recurring"]["id"])
+        recurring = next(row for row in registry["rows"] if int(row.get("character_id") or 0) == recurring_id)
+        self.assertGreater(len(recurring["sample_lines"]), 0)
+        sample = recurring["sample_lines"][0]
+        self.assertEqual(sample["chapter_number"], 1)
+        self.assertTrue(sample["text"])
+        self.assertTrue(sample["context_before"])
+        self.assertTrue(sample["context_after"])
+        self.assertLessEqual(len(recurring["sample_lines"]), 5)
+
     def test_conflicting_range_voice_snapshots_are_reported(self) -> None:
         conflict = int(self.characters["conflict"]["id"])
         self._plan(2, {2: ("character", conflict)})
