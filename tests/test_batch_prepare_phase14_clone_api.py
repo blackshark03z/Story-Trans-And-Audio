@@ -203,6 +203,89 @@ class Phase14CloneApiTests(Phase10FixtureMixin):
         )
         self.assertEqual(self.counts()["jobs"], 0)
 
+    def _service_for_current_plan(self, current_plan):
+        class CanaryOrchestrator:
+            def __init__(self, plan):
+                self.plan = plan
+                self.prepare_calls = []
+
+            def current_plan_provider(self, **_kwargs):
+                return self.plan
+
+            def prepare(self, payload):
+                self.prepare_calls.append(dict(payload))
+                return {
+                    "status": "APPLIED",
+                    "request_state": "APPLIED",
+                    "job_id": 77,
+                }
+
+        orchestrator = CanaryOrchestrator(current_plan)
+        production_descriptor = replace(
+            self.descriptor,
+            runtime_mode="PRODUCTION",
+            canonical_backed=True,
+            status="PRODUCTION_AUTHENTICATED_READY",
+            quick_check="ok",
+            authentication_state="AUTH_CONFIGURED",
+        )
+        self.assertTrue(production_descriptor.production_mutation_enabled)
+        service = BatchPrepareCloneApiService(
+            config=self.runtime_config,
+            descriptor=production_descriptor,
+            orchestrator=orchestrator,
+            request_store=self.store,
+        )
+        return service, orchestrator
+
+    def _plan_with_excluded_row(self, eligibility: str):
+        plan = json.loads(json.dumps(self.plan()))
+        row = plan["included"].pop()
+        row["eligibility"] = eligibility
+        row["readiness_state"] = (
+            "COMPLETE" if eligibility == "EXCLUDED_COMPLETE" else "TEXT_BLOCKED"
+        )
+        plan["excluded"].append(row)
+        summary = plan["summary"]
+        summary["eligible"] = len(plan["included"])
+        summary["excluded"] = len(plan["excluded"])
+        summary["already_complete"] = (
+            1 if eligibility == "EXCLUDED_COMPLETE" else 0
+        )
+        summary["blocked"] = 0 if eligibility == "EXCLUDED_COMPLETE" else 1
+        summary["eligibility_counts"] = {
+            "ELIGIBLE": len(plan["included"]),
+            eligibility: 1,
+        }
+        return plan
+
+    def test_production_canary_allows_only_already_complete_exclusions(self):
+        plan = self._plan_with_excluded_row("EXCLUDED_COMPLETE")
+        service, orchestrator = self._service_for_current_plan(plan)
+        result = service.prepare(
+            self.api_request(plan, client_request_id="phase14-skip-complete"),
+            authorization_header=self.authorization,
+        )
+        self.assertEqual(result.http_status, 200)
+        self.assertEqual(result.payload["request_state"], "APPLIED")
+        self.assertEqual(len(orchestrator.prepare_calls), 1)
+        self.assertEqual(self.counts()["jobs"], 0)
+        self.assertEqual(self.counts()["job_chapters"], 0)
+
+    def test_production_canary_still_rejects_noncomplete_exclusions(self):
+        plan = self._plan_with_excluded_row("EXCLUDED_BLOCKED")
+        service, orchestrator = self._service_for_current_plan(plan)
+        with self.assertRaisesRegex(
+            Exception, "may exclude only chapters that are already complete"
+        ):
+            service.prepare(
+                self.api_request(plan, client_request_id="phase14-blocked-exclusion"),
+                authorization_header=self.authorization,
+            )
+        self.assertEqual(orchestrator.prepare_calls, [])
+        self.assertEqual(self.counts()["batch_prepare_requests"], 0)
+        self.assertEqual(self.counts()["jobs"], 0)
+
     def test_stale_plan_creates_no_request_or_job(self):
         stale = self.api_request()
         stale["plan_fingerprint"] = "0" * 64
