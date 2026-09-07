@@ -209,6 +209,16 @@ try {
       return{calls:calls.length,scope:calls[0]?.scope?.range||null,label:calls[0]?.label||null};
     }finally{api=savedApi;runProductionCommand=savedCommand;loadJobs=savedLoadJobs;state.productionRange=savedRange;state.productionPrepare.readiness=savedReadiness;state.productionPrepare.result=savedResult}
   })()`);
+  const nullPrimaryMappings = await evaluate(`(()=>{
+    const savedReadiness=state.productionPrepare.readiness,savedPreflight=state.productionPreflight;
+    try{
+      state.productionPrepare.readiness={runtime_mode:'PRODUCTION',prepare_allowed:true,start_render_allowed:true};
+      state.productionPreflight={};
+      const prepare=unifiedProductionJourneyView({task_type:'PREPARE_RANGE',primary_action:null,currentStageKey:'prepare'});
+      const start=unifiedProductionJourneyView({task_type:'START_RENDER_RANGE',primary_action:null,currentStageKey:'render',render:{job_status:'prepared'}});
+      return{prepare:prepare.primary_action?.key||null,start:start.primary_action?.key||null};
+    }finally{state.productionPrepare.readiness=savedReadiness;state.productionPreflight=savedPreflight}
+  })()`);
   const malformedSafe = await evaluate(`(()=>{try{parseProductionProjection({canonical_task:{task_type:"HUMAN_QA",task_key:"bad",user_stage:5,technical_details:[],qa:null}});return{ok:false}}catch(error){state.productionProjection=productionProjectionFailure(error.message);renderProductionShell();return{ok:true,title:document.querySelector("#productionCurrentStepHeading").textContent,summary:document.querySelector("#productionStateExplanation").textContent,action:document.querySelector("#productionPrimaryAction").textContent,technical:document.querySelector("#productionTechnicalBody").textContent}}})()`);
   const expected = [
     [journeyB, "Xử lý điều kiện còn thiếu"],
@@ -226,6 +236,7 @@ try {
     if (journey.nested.length) throw new Error(`Nested operational scroll found: ${JSON.stringify(journey.nested)}`);
   }
   if (prepareSkipCompleted.calls !== 1 || prepareSkipCompleted.scope?.skip_completed !== true || prepareSkipCompleted.scope?.from_chapter !== 6 || prepareSkipCompleted.scope?.to_chapter !== 8 || !prepareSkipCompleted.label?.includes('2 ch??ng')) throw new Error(`Skip-completed PREPARE did not preserve owner scope: ${JSON.stringify(prepareSkipCompleted)}`);
+  if (nullPrimaryMappings.prepare !== 'PREPARE_RANGE' || nullPrimaryMappings.start !== 'START_RENDER_RANGE') throw new Error(`Null-primary owner mapping is not actionable: ${JSON.stringify(nullPrimaryMappings)}`);
   if (!journeyA.workspaceVisible) throw new Error("Journey A did not focus the current task.");
   if (!pollingStability) throw new Error("Advanced speaker controls did not survive five polling intervals.");
   if (journeyDReview.body.includes("Lưu bản nháp")) throw new Error("Voice save and approval competed on the review screen.");
@@ -255,7 +266,7 @@ try {
   if (inactiveProjectionPolling.route !== "assignment" || inactiveProjectionPolling.projection !== 0 || inactiveProjectionPolling.preflight !== 0) throw new Error(`Inactive view requested Production state: ${JSON.stringify(inactiveProjectionPolling)}`);
   if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
 
-  process.stdout.write(JSON.stringify({ ok: true, journeyA, journeyB, journeyC, pollingStability, journeyDEdit, journeyDReview, journeyEPrepare, journeyInfrastructure, journeyEStart, preparedEditCancel, journeyEStartBlocked, journeyERunning, monitorJobsNavigation, jobsRecoveryActions, jobsRecoveryVariants, journeyF, journeyG, qaNullSafe, journeyH, commandLifecycle, qaCommandReconcile, inspectionBC, prepareSkipCompleted, malformedSafe, desktop, inactiveProjectionPolling, returnToProduction }));
+  process.stdout.write(JSON.stringify({ ok: true, journeyA, journeyB, journeyC, pollingStability, journeyDEdit, journeyDReview, journeyEPrepare, journeyInfrastructure, journeyEStart, preparedEditCancel, journeyEStartBlocked, journeyERunning, monitorJobsNavigation, jobsRecoveryActions, jobsRecoveryVariants, journeyF, journeyG, qaNullSafe, journeyH, commandLifecycle, qaCommandReconcile, inspectionBC, prepareSkipCompleted, nullPrimaryMappings, malformedSafe, desktop, inactiveProjectionPolling, returnToProduction }));
 } finally {
   try { socket?.close(); } catch {}
   const browserExited = new Promise(resolve => {

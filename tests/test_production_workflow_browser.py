@@ -52,6 +52,8 @@ class ProductionWorkflowBrowserTests(unittest.TestCase):
         self.assertIn("Job #9001", evidence["preparedEditCancel"]["prompt"])
         self.assertEqual(evidence["preparedEditCancel"]["confirmAttempts"], 2)
         self.assertEqual(evidence["journeyERunning"]["primary"], ["Đang tạo audio…"])
+        self.assertEqual(evidence["nullPrimaryMappings"]["prepare"], "PREPARE_RANGE")
+        self.assertEqual(evidence["nullPrimaryMappings"]["start"], "START_RENDER_RANGE")
         self.assertEqual(evidence["prepareSkipCompleted"]["calls"], 1)
         self.assertTrue(evidence["prepareSkipCompleted"]["scope"]["skip_completed"])
         self.assertEqual(evidence["prepareSkipCompleted"]["scope"]["from_chapter"], 6)

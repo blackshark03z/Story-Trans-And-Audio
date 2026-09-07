@@ -2467,6 +2467,8 @@ function productionJourneyState(vm){
 }
 function unifiedProductionJourneyView(vm=currentProductionViewModel()){
   const journey=productionJourneyState(vm),primary={label:JOURNEY_PRIMARY_LABELS[journey]||vm?.primary_action?.label||vm?.primaryActionLabel||'',key:vm?.primary_action?.key||vm?.primaryActionKey||'FOCUS_BLOCKER',target:vm?.primary_action?.target||vm?.currentStageKey};
+  if(journey==='READY_TO_PREPARE'&&primary.key==='FOCUS_BLOCKER')primary.key='PREPARE_RANGE';
+  if(journey==='READY_TO_RENDER'&&primary.key==='FOCUS_BLOCKER')primary.key=String(vm?.task_type||'')==='START_RENDER'?'START_RENDER':'START_RENDER_RANGE';
   if(journey==='INFRASTRUCTURE_BLOCKED')primary.key='VERIFY_ENVIRONMENT';
   if(journey==='READY_FOR_QA')primary.key='OPEN_QA';
   if(journey==='REPAIR_REQUIRED')primary.key='PREPARE_REPLACEMENT';
