@@ -32,6 +32,16 @@ capability blocker.
 - **Material owner decisions:** Owner acceptance is the final oracle. Job #35 was
   intentionally cancelled during owner testing to revisit speaker/voice choices;
   this is part of the same golden journey, not a new Goal.
+- **Knowledge-gap responsibility:** the AI Tech Lead must discover and resolve
+  ordinary engineering gaps from source/runtime evidence without delegating
+  technical diagnosis to the Owner. Ask the Owner only for product facts,
+  material trade-offs, consequential authorization, or subjective real-use
+  acceptance that cannot reasonably be inferred.
+- **Journey evidence rule:** isolated feature/subsystem PASS results are checkpoint
+  evidence only. The complete Book -> voice/text review -> save -> PREPARE ->
+  explicit START_RENDER -> progress -> listen/repair -> QA/download composition
+  remains `UNVERIFIED` until representative end-to-end evidence exists on the
+  supported UI and the Owner has completed subjective real-use acceptance.
 
 ### CADS event routing for this Goal
 
@@ -108,7 +118,7 @@ LAYOUT_ARCHETYPE=side navigation plus state-specific master-detail/contextual pa
 VIEWPORT_BUDGET=current list/task dominates; secondary detail reflows below at narrow widths
 CONTENT_REPLACEMENT_STRATEGY=route and production state replace unrelated work instead of stacking every subsystem
 ADVANCED_CONTROL_STRATEGY=secondary navigation and labelled disclosure
-EXPECTED_SCROLL_BEHAVIOR=workspace-local lists may scroll; the primary action remains reachable without a control wall
+EXPECTED_SCROLL_BEHAVIOR=workspace-local lists and explicit progress/history regions may scroll; polling replaces current status in place and remains bounded; the primary action remains reachable without a control wall
 ARCHETYPE_RATIONALE=owners repeatedly select a Book/chapter, then act on authoritative contextual state
 
 EXECUTION_CONTRACT
@@ -138,4 +148,8 @@ human casting approval; separate PREPARE and START_RENDER; Job progress and
 recovery; Audio playback, repair/targeted regeneration, Human QA, and download.
 Focused tests, relevant regression, final served UI inspection at desktop and
 narrow widths, runtime source identity, and the real owner-style journey are all
-required. Provider-cost or canonical mutations remain owner-gated.
+required. User-facing saves must verify the authoritative postcondition and
+preserve local interaction state; polling must not accumulate duplicate DOM;
+UTF-8 text must remain readable without pathological single-word/character
+wrapping at owner viewports. Provider-cost or canonical mutations remain
+owner-gated.

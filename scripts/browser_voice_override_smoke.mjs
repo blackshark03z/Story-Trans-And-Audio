@@ -304,6 +304,23 @@ try {
   await waitAssignmentReady("narrator");
   const chapter9Unchanged = await rowHasVoice("narrator", "Narrator Default");
 
+  await route("#/assignment?book=1&from=6&to=8&skip_completed=1");
+  await waitAssignmentReady("narrator");
+  await applyVoice("narrator", "male", "book");
+  const bookDefaultUnderRangeOverride = await waitFor(`(() => {
+    const editor = document.querySelector('[data-registry-editor="narrator"]');
+    const row = editor?.closest('tr');
+    const scope = document.querySelector('[data-registry-scope-key="narrator"]')?.value;
+    const voice = document.querySelector('[data-registry-voice-key="narrator"]')?.value;
+    const text = row?.textContent || '';
+    return scope === 'book'
+      && voice === 'male'
+      && text.includes('Female Range')
+      && text.includes('Mặc định sách: Male Default')
+      && text.includes('mặc định cho sách')
+      && text.includes('vẫn dùng Female Range');
+  })()`);
+
   await route("#/assignment?book=1&from=2&to=4&skip_completed=1");
   await waitAssignmentReady("character:25");
   await applyVoice("character:25", "character-alt", "range");
@@ -320,7 +337,12 @@ try {
   await waitAssignmentReady("character:25");
   const mixedVisible = await rowHasVoice("character:25", "Xung đột giọng")
     || await evaluate(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "character:25"))})?.textContent.includes("nhiều giọng")`);
+  await evaluate(`(() => { document.body.style.minHeight = "3200px"; window.scrollTo(0, 1200); return window.scrollY; })()`);
+  const scrollBeforeSave = await evaluate(`window.scrollY`);
   await applyVoice("character:25", "character-alt", "range");
+  await delay(100);
+  const scrollAfterSave = await evaluate(`window.scrollY`);
+  const saveKeepsScroll = scrollBeforeSave > 500 && Math.abs(scrollAfterSave - scrollBeforeSave) <= 20;
   const mixedResolved = await rowHasVoice("character:25", "Character Alt");
 
   await route("#/assignment?book=1&from=1&to=1&skip_completed=1");
@@ -370,10 +392,14 @@ try {
     oneBusy,
     oneChapterNarratorText,
     rangeNarrator: rangeNarrator && chapter4Unchanged && chapter6UnchangedBeforeRange && chapter9Unchanged,
+    bookDefaultUnderRangeOverride: !!bookDefaultUnderRangeOverride,
     characterRange,
     clearRestoresDefault,
     mixedVisible,
     mixedResolved,
+    saveKeepsScroll,
+    scrollBeforeSave,
+    scrollAfterSave,
     unidentifiedSpeakerHidden,
     unavailableBlocked,
     commands,

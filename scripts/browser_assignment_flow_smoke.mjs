@@ -149,24 +149,39 @@ try {
   })()`);
   const layoutEvidence = await waitFor(`(() => {
     const row = document.querySelector('[data-voice-library-row="character:25"]');
-    const contextRow = document.querySelector('[data-voice-context-row="character:25"]');
-    const grid = contextRow?.querySelector('.assignment-dialogue-samples-grid');
+    const reviewPane = row?.querySelector('.assignment-registry-review-pane');
+    const details = reviewPane?.querySelector('[data-registry-detail="character:25"]');
+    const grid = details?.querySelector('.assignment-dialogue-samples-grid');
     const card = grid?.querySelector('.assignment-dialogue-sample');
     const context = card?.querySelector('.assignment-dialogue-context');
     const text = context?.querySelector('span');
-    const table = contextRow?.closest('table');
-    if (!row || !contextRow || !grid || !card || !context || !text || !table) return null;
+    if (!row || !reviewPane || !details || !grid || !card || !context || !text) return null;
     const contextRect = context.getBoundingClientRect();
     const textRect = text.getBoundingClientRect();
-    const rowRect = contextRow.getBoundingClientRect();
-    const tableRect = table.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    const reviewRect = reviewPane.getBoundingClientRect();
     return {
       gridColumns: getComputedStyle(grid).gridTemplateColumns.trim().split(/\\s+/).filter(Boolean).length,
       gridAlign: getComputedStyle(grid).alignItems,
       textWidthRatio: contextRect.width ? textRect.width / contextRect.width : 0,
-      fullWidthRatio: tableRect.width ? rowRect.width / tableRect.width : 0,
-      replacementCharacter: contextRow.innerText.includes('�'),
+      reviewWidthRatio: rowRect.width ? reviewRect.width / rowRect.width : 0,
+      contextInsideSpeakerRow: details.closest('tr') === row,
+      contextLabel: details.querySelector('summary')?.textContent || '',
+      replacementCharacter: reviewPane.innerText.includes('�'),
     };
+  })()`);
+  await evaluate(`(() => {
+    const more = document.querySelector('[data-registry-sample-detail="character:25"]');
+    if (!more) throw new Error('Nested dialogue details missing for character:25');
+    more.open = true;
+    return true;
+  })()`);
+  await waitFor(`window.storyAudioAppState.bookVoiceRegistry.openSampleDetails?.["character:25"] === true`);
+  await evaluate(`renderAssignmentPage()`);
+  const sampleDetailPersistence = await waitFor(`(() => {
+    const more = document.querySelector('[data-registry-sample-detail="character:25"]');
+    if (!more?.open) return null;
+    return {persisted:true,label:more.querySelector('summary')?.textContent || ''};
   })()`);
   await setSelect('[data-speaker-review-filter="confidence"]', "HIGH");
   const filterBeforeJump = await evaluate(`document.querySelector('[data-speaker-review-filter="confidence"]').value`);
@@ -345,6 +360,7 @@ try {
     ok: true,
     initial,
     layoutEvidence,
+    sampleDetailPersistence,
     filterBeforeJump,
     unresolvedNavigation: !!unresolvedNavigation,
     navigationState,

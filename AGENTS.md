@@ -32,13 +32,43 @@ For implementation prefer `REUSE -> WIRE -> FIX -> REPLACE_AND_DELETE -> ADD`.
 Classify findings only as `BLOCKER` when they prevent the current CUJ/acceptance
 or threaten a must-preserve invariant; otherwise record them as `DEFERRED_DEBT`.
 Focused tests support a checkpoint but never replace the owner-visible journey.
-For this user-facing product only the Owner can establish `PRODUCT_ACCEPTED`.
+For a multi-step user-facing Goal, isolated feature/subsystem PASS results must
+never be composed into Journey PASS; representative end-to-end CUJ evidence is
+required on the supported product surface. For this user-facing product only the
+Owner can establish `PRODUCT_ACCEPTED`.
+
+The Owner is not responsible for supplying missing engineering expertise. The AI
+Tech Lead must investigate material engineering concerns from the Goal, source,
+runtime evidence, and supported operating context; resolve ordinary engineering
+choices within established intent; and ask the Owner only for missing product
+facts, material trade-offs, or consequential choices that cannot reasonably be
+recovered or inferred. Translate technical choices into observable product
+consequences, and treat unresolved technical uncertainty as `UNVERIFIED` rather
+than asking the Owner to certify engineering facts.
 
 Normal product development remains native: inspect current source, make the
 smallest coherent edit, run focused verification, and resume the same acceptance
 fixture. Do not reintroduce legacy Build OS lifecycle commands, generations,
 leases, adoption, recovery, or record-commit workflows. Historical Build OS
 material remains evidence only.
+
+For Story Audio user-facing changes, preserve these project-specific interaction
+invariants:
+
+- a mutation may show success only after the authoritative postcondition is
+  reconciled; never convert an `APPLIED` transport result into user-visible
+  success when the requested voice/scope/state did not actually persist;
+- in-place saves, polling and validation refreshes preserve scroll position,
+  focus and disclosure state unless navigation is the explicit user action;
+- polling/status UI is idempotent and bounded: replace current status in place;
+  do not append duplicate progress cards. Explicit history, when useful, lives in
+  a bounded scroll region;
+- before user-facing acceptance, inspect the rendered owner viewport for UTF-8
+  integrity, pathological wrapping, overflow, hierarchy and reachable actions in
+  addition to automated browser evidence.
+
+These are Story Audio adapters to CADS User-Facing Workflow / Frontend Design /
+UI Quality Review, not changes to the universal CADS Standard.
 
 ## Product safety
 

@@ -517,6 +517,71 @@ class BookVoiceRegistryTests(IsolatedTestCase):
         self.assertEqual(by_chapter[2], "Recurring Voice")
         self.assertNotIn(3, by_chapter)
 
+    def test_sparse_character_range_override_skips_chapters_where_character_is_absent(self) -> None:
+        speaker_key = f"character:{int(self.characters['recurring']['id'])}"
+        result = apply_chapter_voice_override(
+            self.db,
+            self.store,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=3,
+            speaker_key=speaker_key,
+            operation="set",
+            voice_id="new",
+            voice_catalog=_catalog("narrator", "male", "female", "recurring", "new"),
+            idempotency_key="sparse-character-range",
+            skip_missing=True,
+        )
+        self.assertEqual([item["chapter_number"] for item in result["applied"]], [1, 2])
+        registry = self._registry(1, 3)
+        recurring = next(row for row in registry["rows"] if row["speaker_key"] == speaker_key)
+        self.assertEqual(
+            [item["chapter_number"] for item in recurring["chapter_voice_details"]],
+            [1, 2],
+        )
+        self.assertEqual(recurring["effective_voice"]["display_name"], "New Character Voice")
+
+    def test_sparse_character_range_override_replaces_existing_override(self) -> None:
+        speaker_key = f"character:{int(self.characters['recurring']['id'])}"
+        first = apply_chapter_voice_override(
+            self.db,
+            self.store,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=3,
+            speaker_key=speaker_key,
+            operation="set",
+            voice_id="female",
+            voice_catalog=_catalog("narrator", "male", "female", "recurring", "new"),
+            idempotency_key="sparse-character-range-first",
+            skip_missing=True,
+        )
+        self.assertEqual([item["chapter_number"] for item in first["applied"]], [1, 2])
+
+        second = apply_chapter_voice_override(
+            self.db,
+            self.store,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=3,
+            speaker_key=speaker_key,
+            operation="set",
+            voice_id="new",
+            voice_catalog=_catalog("narrator", "male", "female", "recurring", "new"),
+            idempotency_key="sparse-character-range-second",
+            skip_missing=True,
+        )
+        self.assertEqual([item["chapter_number"] for item in second["applied"]], [1, 2])
+        registry = self._registry(1, 3)
+        recurring = next(row for row in registry["rows"] if row["speaker_key"] == speaker_key)
+        self.assertEqual(recurring["effective_voice"]["display_name"], "New Character Voice")
+        self.assertTrue(
+            all(
+                item["effective_voice"]["display_name"] == "New Character Voice"
+                for item in recurring["chapter_voice_details"]
+            )
+        )
+
     def test_unknown_speaker_override_uses_stable_unknown_key_and_clears_to_fallback(self) -> None:
         self._plan(3, {2: ("unknown", None)})
         self._apply_override(3, 3, "unknown", "female")

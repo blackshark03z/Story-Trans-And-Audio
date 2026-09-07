@@ -74,6 +74,27 @@ class AssignmentWorkflowFixtureHandler(SpeakerReviewWorkspaceFixtureHandler):
                         "context_before": [{"sequence": 7, "text": "A second group arrived from the courtyard and stopped beside the broken gate."}],
                         "context_after": [{"sequence": 9, "text": long_context}],
                     },
+                    {
+                        "chapter_number": 4,
+                        "sequence": 12,
+                        "text": "- Search the side chamber before sunset.",
+                        "context_before": [{"sequence": 11, "text": long_context}],
+                        "context_after": [{"sequence": 13, "text": "The others nodded and moved toward the side chamber."}],
+                    },
+                    {
+                        "chapter_number": 5,
+                        "sequence": 21,
+                        "text": "- Leave a marker here so the next group can find us.",
+                        "context_before": [{"sequence": 20, "text": "The corridor split into three narrow paths."}],
+                        "context_after": [{"sequence": 22, "text": long_context}],
+                    },
+                    {
+                        "chapter_number": 6,
+                        "sequence": 5,
+                        "text": "- Wait here until the signal changes.",
+                        "context_before": [{"sequence": 4, "text": long_context}],
+                        "context_after": [{"sequence": 6, "text": "No one moved after the order."}],
+                    },
                 ]
         review_complete = all(
             state in accepted for state in cls.review_states.values()
@@ -179,8 +200,12 @@ class AssignmentWorkflowBrowserTests(unittest.TestCase):
         self.assertEqual(evidence["layoutEvidence"]["gridColumns"], 2)
         self.assertEqual(evidence["layoutEvidence"]["gridAlign"], "start")
         self.assertGreater(evidence["layoutEvidence"]["textWidthRatio"], 0.70)
-        self.assertGreater(evidence["layoutEvidence"]["fullWidthRatio"], 0.95)
+        self.assertGreater(evidence["layoutEvidence"]["reviewWidthRatio"], 0.50)
+        self.assertTrue(evidence["layoutEvidence"]["contextInsideSpeakerRow"])
+        self.assertIn("Đoạn thoại để xác nhận", evidence["layoutEvidence"]["contextLabel"])
         self.assertFalse(evidence["layoutEvidence"]["replacementCharacter"])
+        self.assertTrue(evidence["sampleDetailPersistence"]["persisted"])
+        self.assertIn("Xem thêm", evidence["sampleDetailPersistence"]["label"])
         self.assertEqual(evidence["initial"]["unresolvedVoiceRows"], 0)
         self.assertGreaterEqual(evidence["initial"]["characterRows"], 2)
         self.assertEqual(evidence["initial"]["preflightPrimaryCount"], 1)

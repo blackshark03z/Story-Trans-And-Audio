@@ -131,6 +131,13 @@ try {
   const scenarioD = await show({ voiceUnavailable: true });
   const scenarioE = await show({ taskType: "START_RENDER_RANGE" });
   const scenarioRunning = await show({ taskType: "MONITOR_RENDER" });
+  const runningPolling = await evaluate(`(() => {
+    const task=document.querySelector('#productionTaskContent');
+    for(let i=0;i<20;i+=1)refreshProductionTaskBusiness(currentProductionViewModel());
+    const cards=[...document.querySelectorAll('.production-synthesis-settings .production-preflight-check')];
+    const labelWidths=cards.map(card=>card.querySelector('strong')?.getBoundingClientRect().width||0);
+    return {contexts:task.querySelectorAll('.production-range-progress-context').length,panels:task.querySelectorAll('[data-render-progress-panel]').length,scrollRegion:!!task.querySelector('.production-monitor-scroll'),ttsCards:cards.length,minLabelWidth:labelWidths.length?Math.min(...labelWidths):0};
+  })()`);
   const scenarioF = await evaluate(`({open:document.querySelector("#productionTechnicalDetails").open,technical:document.querySelector("#productionTechnicalBody").textContent})`);
   const scenarioG = await show({});
   const scenarioH = await evaluate(`(async()=>{const details=document.querySelector("#productionTechnicalDetails"),primary=document.querySelector("#productionPrimaryAction");details.open=true;primary.focus();const key=currentProductionViewModel().task_key;for(let i=0;i<4;i+=1){await new Promise(resolve=>setTimeout(resolve,80));renderProductionShell()}return{detailsOpen:details.open,focus:document.activeElement===primary,keyStable:currentProductionViewModel().task_key===key}})()`);
@@ -147,6 +154,7 @@ try {
   if (scenarioD.primary !== "Xử lý điều kiện còn thiếu") throw new Error(`Scenario D failed: ${JSON.stringify(scenarioD)}`);
   if (scenarioE.primary !== "Bắt đầu tạo audio" || scenarioE.body.includes("Chuẩn bị 2 chương")) throw new Error(`Scenario E failed: ${JSON.stringify(scenarioE)}`);
   if (scenarioRunning.primary !== "Đang tạo audio…" || !scenarioRunning.body.includes("đoạn hoàn tất")) throw new Error(`Running state failed: ${JSON.stringify(scenarioRunning)}`);
+  if (runningPolling.contexts !== 1 || runningPolling.panels !== 1 || !runningPolling.scrollRegion || runningPolling.ttsCards !== 4 || runningPolling.minLabelWidth < 80) throw new Error(`Running polling/layout failed: ${JSON.stringify(runningPolling)}`);
   if (scenarioF.open || !scenarioF.technical.includes("plan_fingerprint")) throw new Error(`Scenario F failed: ${JSON.stringify(scenarioF)}`);
   if (!contextBeforePrimary || scenarioG.horizontal || scenarioG.rawIdsVisible || scenarioG.rawAuthVisible || scenarioG.legacyVisible || !scenarioG.legacyInert) throw new Error(`Scenario G failed: ${JSON.stringify(scenarioG)}`);
   if (!scenarioH.detailsOpen || !scenarioH.focus || !scenarioH.keyStable) throw new Error(`Scenario H failed: ${JSON.stringify(scenarioH)}`);

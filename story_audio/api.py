@@ -2653,7 +2653,10 @@ def _production_command_executor(
                 voice_catalog=_load_voice_catalog(int(payload.get("book_id") or command_range["book_id"])),
                 idempotency_key=request.idempotency_key,
                 custom_voice_context=_build_custom_voice_context(int(payload.get("book_id") or command_range["book_id"])),
+                skip_missing=not is_chapter,
             )
+            if not result.get("applied"):
+                raise ProductionCommandError("Speaker is not present in the selected range")
             applied_items = tuple(
                 {
                     **dict(item),

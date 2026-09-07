@@ -214,6 +214,7 @@ class ProductionCommandApiTests(IsolatedTestCase):
         self.assertEqual(result["applied_items"][0]["speaker_key"], "narrator")
         save.assert_called_once()
         self.assertEqual(save.call_args.kwargs["idempotency_key"], "range-voice-override-0001")
+        self.assertTrue(save.call_args.kwargs["skip_missing"])
 
     def test_chapter_voice_override_rejects_range_with_vietnamese_guidance(self) -> None:
         with patch("story_audio.api._project_production_command", self.projection):
