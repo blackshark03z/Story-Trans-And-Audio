@@ -5,6 +5,7 @@ import unittest
 from story_audio.text_encoding import (
     CanonicalTextValidationError,
     TEXT_ENCODING_INVALID,
+    normalize_imported_text,
     validate_canonical_text,
 )
 
@@ -31,6 +32,19 @@ class CanonicalTextEncodingTests(unittest.TestCase):
         with self.assertRaises(CanonicalTextValidationError) as caught:
             validate_canonical_text(malformed, field="chapter")
         self.assertEqual(caught.exception.code, TEXT_ENCODING_INVALID)
+
+    def test_import_normalizer_repairs_legacy_decoded_utf8(self) -> None:
+        expected = "Trời vừa sáng. Âm Dương mở cửa."
+        malformed = legacy_decode_utf8(expected)
+        self.assertEqual(normalize_imported_text(malformed, field="chapter"), expected)
+
+    def test_import_normalizer_keeps_valid_vietnamese_unchanged(self) -> None:
+        expected = "Đông Âu – ‘Âm Dương’ – trời đã sáng."
+        self.assertEqual(normalize_imported_text(expected, field="chapter"), expected)
+
+    def test_import_normalizer_still_rejects_unrepairable_controls(self) -> None:
+        with self.assertRaises(CanonicalTextValidationError):
+            normalize_imported_text("Câu có \x00 NUL.", field="chapter")
 
     def test_disallowed_controls_and_surrogates_are_rejected(self) -> None:
         for malformed in ("Câu có \u0081 điều khiển.", "Câu có \x00 NUL.", "Câu có \ud800 surrogate."):
