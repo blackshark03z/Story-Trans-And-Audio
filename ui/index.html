@@ -495,7 +495,8 @@
             <button id="openAssignmentWorkspace" class="primary" type="button">Chọn sách và chương</button>
           </div>
         </div>
-        <p class="section-guide">Đi theo ba bước: duyệt ai đang nói, cấu hình giọng cho Character hoặc nhóm đã xác định, rồi mở kiểm tra sẵn sàng. Trang này không tự PREPARE hoặc render.</p>
+        <p class="section-guide">Đi theo ba bước: duyệt ai đang nói, cấu hình giọng cho Character hoặc nhóm đã xác định, rồi mở kiểm tra sẵn sàng. Thay đổi giọng chỉ ảnh hưởng lần PREPARE/render tiếp theo; audio đã hoàn tất luôn giữ snapshot đã dùng.</p>
+        <div id="assignmentLifecycleNotice" class="production-result-note hidden" role="status" aria-live="polite"></div>
         <div id="assignmentScope" class="assignment-scope muted">Chưa chọn sách và chương.</div>
         <div id="assignmentSummary" class="flow-summary-grid"></div>
         <div id="assignmentRows" class="flow-speaker-list"></div>
@@ -1137,7 +1138,7 @@
   </dialog>
   <div id="toast" class="toast hidden"></div>
   <script src="/assets/production_state.js?v=20260727-production-preflight-1"></script>
-  <script src="/assets/app.js?v=20260906-render-monitor-bounded-1"></script>
+  <script src="/assets/app.js?v=20260908-repeated-use-lifecycle-1"></script>
   <script src="/assets/casting_voice_map.js?v=20260726-vietnamese-flow-3"></script>
   <script src="/assets/contextual_voice_detour.js?v=20260720-daily-prod-2b2"></script>
 </body>

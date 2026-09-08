@@ -14,7 +14,8 @@ capability blocker.
 - **Critical User Journey (CUJ):** select Book/chapter range → inspect/fix text and
   speaker identity → review characters and voices with dialogue context → approve
   casting/settings → PREPARE → explicit START_RENDER → monitor → listen/repair →
-  Human QA → download.
+  Human QA → download → close the completed production context → start the next
+  production range without leaking Job/range state from the completed run.
 - **Acceptance Fixture / Golden Input:** canonical runtime `127.0.0.1:8772`, Book 1
   `Quang Âm Chi Ngoại`, contiguous Chapters 2–8. Owner real-use resumes this same
   fixture after each blocker instead of starting a new Goal.
@@ -22,7 +23,10 @@ capability blocker.
   edits, hidden endpoints, or knowledge of backend terminology; every successful
   action exposes one valid next action; speaker/voice review exposes the actual
   assigned dialogue and local context before a voice decision; final audio is
-  playable, reviewable and downloadable.
+  playable, reviewable and downloadable. After COMPLETE the Owner can start a
+  new production range directly; completed Job/artifact/casting snapshots remain
+  immutable, while persistent book/character voice configuration is clearly
+  presented as input for future PREPARE/render rather than as mutation of old audio.
 - **Non-goals:** no parallel orchestration/framework subsystem, no unrelated repo
   cleanup, no generalized policy engine for a local defect, and no provider-cost
   action merely to prove engineering progress.

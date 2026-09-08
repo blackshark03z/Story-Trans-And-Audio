@@ -199,6 +199,15 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertNotIn("productionTaskOperatorToken", self.js)
         self.assertNotIn("productionPrepareToken", self.js)
 
+    def test_complete_closes_one_cycle_and_exposes_repeat_use_reentry(self) -> None:
+        self.assertIn("ownerStartNextProduction", self.js)
+        self.assertIn("startNextProductionCycle", self.js)
+        self.assertIn("resetCompletedProductionContext", self.js)
+        self.assertIn("skip_completed:String(completedContext?false:!!context.skipCompleted)", self.js)
+        self.assertIn("Bắt đầu lượt sản xuất mới", self.js)
+        self.assertIn("Audio đã tạo và snapshot giọng của Job cũ không thay đổi", self.js)
+        self.assertIn("thay đổi chỉ có hiệu lực khi bạn PREPARE/render một lượt mới", self.js)
+
     def test_prepare_checkpoint_reuses_the_same_idempotency_request_after_reload(self) -> None:
         self.assertIn("PRODUCTION_COMMAND_CHECKPOINT_KEY", self.js)
         self.assertIn("persistProductionCommandCheckpoint", self.js)
