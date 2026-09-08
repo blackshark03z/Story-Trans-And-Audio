@@ -25,8 +25,8 @@ class AudioLibraryUiTests(unittest.TestCase):
     def test_audio_library_view_replaces_placeholder_with_read_only_surface(self) -> None:
         for value in (
             'id="audioView"',
-            'id="audioHeading">Thư viện audio</h2>',
-            "Nghe và tải các chương đang có bản audio hoạt động.",
+            'id="audioHeading">Nghe, duyệt và tải audio</h2>',
+            "Chọn chương để nghe lại, kiểm QA hoặc tải file.",
             'id="refreshAudioLibrary"',
             'id="audioLibraryStatus"',
             'id="audioLibraryList"',

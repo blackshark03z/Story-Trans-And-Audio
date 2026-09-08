@@ -21,9 +21,10 @@ class P0FrontendUsabilityTests(unittest.TestCase):
         self.assertIsNotNone(nav)
         direct = nav.group(0).split('<details id="appNavMore"', 1)[0]
         labels = re.findall(r'<a [^>]*>([^<]+)</a>', direct)
-        self.assertEqual(labels, ["Sách", "Sản xuất", "Giọng", "Audio"])
-        for secondary in ("Trang chủ", "Gán giọng", "Công việc", "Dung lượng", "Cài đặt"):
+        self.assertEqual(labels, ["Sản xuất", "Gán giọng", "Công việc", "Audio"])
+        for secondary in ("Trang chủ", "Sách", "Giọng", "Dung lượng", "Cài đặt"):
             self.assertIn(secondary, nav.group(0))
+        self.assertIn(">Tài nguyên<", nav.group(0))
         self.assertNotIn(">More<", nav.group(0))
 
     def test_health_summary_hides_diagnostics_until_requested(self) -> None:
@@ -90,6 +91,18 @@ class P0FrontendUsabilityTests(unittest.TestCase):
         self.assertNotIn("bootstrap", (self.html + self.js).lower())
         self.assertNotIn("tailwind", (self.html + self.js).lower())
         self.assertIn('"Segoe UI Variable"', self.css)
+
+    def test_calm_production_desk_bounds_daily_long_lists(self) -> None:
+        for value in (
+            "CALM_PRODUCTION_DESK_V1",
+            ".production-task-queue{position:sticky",
+            ".production-chapter-queue{max-height:calc(100vh - 165px);overflow-y:auto",
+            ".assignment-page #assignmentRows{max-height:min(780px,70vh);overflow-y:auto",
+            ".jobs-page-list{max-height:68vh;overflow-y:auto",
+            ".audio-library-list{max-height:55vh;overflow-y:auto",
+            "@media(prefers-reduced-motion:reduce)",
+        ):
+            self.assertIn(value, self.css)
 
 
 if __name__ == "__main__":

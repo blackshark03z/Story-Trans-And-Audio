@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Story Audio</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=20260906-render-monitor-bounded-1">
+  <link rel="stylesheet" href="/assets/styles.css?v=20260908-calm-production-desk-1">
   <style>
     .casting-journey{display:grid;gap:12px;margin:16px 0;padding:16px;border:1px solid #cfe0d4;border-radius:14px;background:linear-gradient(135deg,#fff 0%,#f4faf6 100%)}.casting-journey-head{display:flex;justify-content:space-between;align-items:start;gap:12px}.casting-journey-head h3{margin:2px 0;font-size:18px}.casting-journey-head>span{padding:5px 8px;border-radius:999px;background:#e4f1e8;color:#285b3d;font-size:12px;font-weight:800;white-space:nowrap}.casting-journey-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0;padding:0;list-style:none}.casting-journey-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 10px;border:1px solid #dfe8e1;border-radius:9px;background:#fff}.casting-journey-list li>div{display:grid;gap:2px}.casting-journey-list strong{font-size:12px}.casting-journey-list span{font-size:11px;color:var(--muted)}.casting-journey-list li.complete{border-color:#c7dfce;background:#f4faf6}.casting-journey-list li.complete strong:before{content:'✓ ';color:#2f7a4c}.casting-journey-list li.current{border-color:#d9b661;background:#fffaf0}.casting-journey-list li.current strong:before{content:'→ ';color:#966c10}.casting-journey-list li.blocked{background:#f7f8f7;opacity:.75}.casting-journey-list .text-action{font-size:11px;white-space:nowrap}@media(max-width:760px){.casting-journey-head{display:grid}.casting-journey-list{grid-template-columns:1fr}}
   </style>
@@ -44,16 +44,16 @@
   </header>
 
   <nav id="appNav" class="app-nav" aria-label="Khu vực chính">
-    <a href="#/books" data-app-route="books" aria-label="Sách">Sách</a>
     <a href="#/production" data-app-route="production" aria-label="Sản xuất">Sản xuất</a>
-    <a href="#/voices" data-app-route="voices" aria-label="Giọng">Giọng</a>
+    <a href="#/assignment" data-app-route="assignment" aria-label="Gán giọng">Gán giọng</a>
+    <a href="#/jobs" data-app-route="jobs" aria-label="Công việc">Công việc</a>
     <a href="#/audio" data-app-route="audio" aria-label="Audio">Audio</a>
     <details id="appNavMore" class="app-nav-more">
-      <summary>Cài đặt</summary>
-      <div aria-label="Cài đặt">
+      <summary>Tài nguyên</summary>
+      <div aria-label="Tài nguyên và cài đặt">
         <a href="#/home" data-app-route="home" aria-label="Trang chủ">Trang chủ</a>
-        <a href="#/assignment" data-app-route="assignment" aria-label="Gán giọng">Gán giọng</a>
-        <a href="#/jobs" data-app-route="jobs" aria-label="Công việc">Công việc</a>
+        <a href="#/books" data-app-route="books" aria-label="Sách">Sách</a>
+        <a href="#/voices" data-app-route="voices" aria-label="Giọng">Giọng</a>
         <a href="#/storage" data-app-route="storage" aria-label="Dung lượng">Dung lượng</a>
         <a href="#/settings" data-app-route="settings" aria-label="Cài đặt">Cài đặt</a>
       </div>
@@ -507,12 +507,12 @@
       <section class="panel jobs-page">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Production Jobs</p>
-            <h2 id="jobsHeading">Tien do va khoi phuc</h2>
+            <p class="eyebrow">Công việc sản xuất</p>
+            <h2 id="jobsHeading">Tiến độ và khôi phục</h2>
           </div>
-          <button id="refreshJobsPage" class="ghost" type="button">Lam moi</button>
+          <button id="refreshJobsPage" class="ghost" type="button">Làm mới</button>
         </div>
-        <p class="section-guide">Job lich su chi de xem. Nut bat dau, tiep tuc hoac thu lai chi xuat hien khi backend xac nhan action hop le.</p>
+        <p class="section-guide">Theo dõi render đang chạy và khôi phục khi cần. Công việc lịch sử chỉ để xem; ứng dụng chỉ hiện hành động mà trạng thái hiện tại thực sự cho phép.</p>
         <div id="jobsPageStatus" class="muted" role="status" aria-live="polite"></div>
         <div id="jobsPageList" class="jobs-page-list"></div>
       </section>
@@ -551,29 +551,29 @@
       <section class="panel audio-library-panel">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Audio Library</p>
-            <h2 id="audioHeading">Thư viện audio</h2>
+            <p class="eyebrow">Thành phẩm</p>
+            <h2 id="audioHeading">Nghe, duyệt và tải audio</h2>
           </div>
           <button id="refreshAudioLibrary" class="ghost" type="button">Làm mới</button>
         </div>
-        <p class="section-guide">Nghe và tải các chương đang có bản audio hoạt động.</p>
+        <p class="section-guide">Chọn chương để nghe lại, kiểm QA hoặc tải file. Danh sách giữ nguyên phạm vi sản xuất để bạn không phải tìm lại.</p>
         <div id="audioLibraryStatus" class="audio-library-status muted" role="status" aria-live="polite">Chưa tải thư viện audio.</div>
         <div class="audio-library-filters" aria-label="Audio Library filters">
-          <label>Book
-            <select id="audioFilterBook"><option value="">All books</option></select>
+          <label>Sách
+            <select id="audioFilterBook"><option value="">Tất cả sách</option></select>
           </label>
-          <label>Chapter
-            <input id="audioFilterChapter" inputmode="numeric" placeholder="Number or title">
+          <label>Chương
+            <input id="audioFilterChapter" inputmode="numeric" placeholder="Số hoặc tên chương">
           </label>
           <label>Human QA
             <select id="audioFilterQa">
-              <option value="">All QA states</option>
-              <option value="pending">Pending</option>
-              <option value="accepted">Accepted</option>
-              <option value="needs_fixes">Needs fixes</option>
+              <option value="">Tất cả trạng thái</option>
+              <option value="pending">Chờ duyệt</option>
+              <option value="accepted">Đã chấp nhận</option>
+              <option value="needs_fixes">Cần sửa</option>
             </select>
           </label>
-          <button id="clearAudioFilters" class="ghost" type="button">Clear filters</button>
+          <button id="clearAudioFilters" class="ghost" type="button">Xóa bộ lọc</button>
         </div>
         <div id="audioLibraryPlayer" class="audio-library-player hidden" aria-live="polite">
           <div>
@@ -646,12 +646,12 @@
         <section class="audio-range-download" aria-labelledby="audioRangeHeading">
           <div class="section-head">
             <div>
-              <p class="eyebrow">Range download</p>
-              <h3 id="audioRangeHeading">Tải range đã chọn thành ZIP</h3>
+              <p class="eyebrow">Tải theo phạm vi</p>
+              <h3 id="audioRangeHeading">Tải các chương đã chọn thành ZIP</h3>
             </div>
             <button id="checkAudioRange" class="ghost" type="button">Kiểm tra range</button>
           </div>
-          <p class="muted">Chọn các chapter liên tiếp của cùng một sách trong danh sách bên trên.</p>
+          <p class="muted">Chọn các chương liên tiếp của cùng một sách trong danh sách bên trên.</p>
           <div id="audioRangeSummary" class="muted">Chưa chọn chapter.</div>
           <div id="audioRangeIssues" class="issue warning hidden"></div>
           <button id="downloadAudioRange" class="secondary" type="button" disabled>Tải ZIP range</button>

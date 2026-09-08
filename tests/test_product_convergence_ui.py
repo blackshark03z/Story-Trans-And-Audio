@@ -20,7 +20,7 @@ class ProductConvergenceUiTests(unittest.TestCase):
         self.assertIsNotNone(nav)
         direct = nav.group(0).split('<details id="appNavMore"', 1)[0]
         labels = re.findall(r'<a [^>]*>([^<]+)</a>', direct)
-        self.assertEqual(labels, ["Sách", "Sản xuất", "Giọng", "Audio"])
+        self.assertEqual(labels, ["Sản xuất", "Gán giọng", "Công việc", "Audio"])
 
     def test_selecting_a_book_reveals_the_reused_chapter_workspace(self) -> None:
         self.assertEqual(self.html.count('id="chapterList"'), 1)
