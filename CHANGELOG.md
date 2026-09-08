@@ -4,6 +4,13 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Studio cue-sheet interface
+
+- Rebuilt the Story Audio visual system around a long-form recording-desk metaphor: compact pine studio rail, deliberate control typography, manuscript-specific serif excerpts, a continuous production rundown, and ledger-style Jobs/Audio/Books surfaces instead of a generic rounded-card dashboard.
+- Removed decorative gradients, repeated shadows, pill-heavy status styling, and all-caps eyebrow treatment from the dominant daily surfaces while preserving existing workflow IDs, routes, actions, and state semantics.
+- Kept Production as the dominant task surface with a chapter reel at left, a flat cue-sheet workspace at right, and a sticky bottom action rail; Assignment, Voice Library, Jobs, Audio, and Books now share the same restrained information hierarchy.
+- Post-redesign evidence: 11/11 core real-browser journeys pass, the golden isolated journey passes on immediate retry after its known browser-history timing flake, and 272 focused UI contract tests pass.
+
 ### Owner journey and daily workspace convergence
 
 - Completed the real Book 1 `Quang Âm Chi Ngoại` Chapters 6–8 owner journey through render, Human QA, COMPLETE, Audio playback and contiguous ZIP download while preserving the exact production scope.
