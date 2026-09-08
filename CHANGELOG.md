@@ -4,6 +4,13 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Provider task-completion recovery
+
+- Added in-app Gemini key management: paste 1-N keys one-per-line, append only new values to `secrets/gemini_api_key.txt`, preserve existing values, skip duplicates, never echo stored secrets back to the browser, and report only counts/status.
+- Gemini provider calls now use the configured key pool round-robin; presence checks use the non-consuming key list so health/readiness probes do not disturb request rotation. Newly appended keys are available immediately without restarting the runtime.
+- Corrected VieNeu `not_loaded` from a false failure state to lazy-ready when the provider is discoverable, added an explicit Settings probe/load action, and route `PROVIDER_NOT_READY` render blockers directly to that recovery instead of an ineffective status reload loop.
+- Audited primary user-facing empty/blocked states with the CADS user-facing workflow and UI quality review gates. Books, Jobs, Audio, Storage and Voice Library already expose actionable next steps; Settings copy no longer promises diagnostics/encoder/maintenance controls that are not present there.
+
 ### UX workbench redesign
 
 - Reframed Story Audio as a complex desktop productivity application using Nielsen complex-app heuristics, Fluent 2 navigation/layout guidance, WCAG 2.2 interaction requirements, and the project frontend-design skill rather than continuing theme-only changes.

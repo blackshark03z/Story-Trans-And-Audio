@@ -385,6 +385,10 @@ class ImportRequest(BaseModel):
     path: str
 
 
+class GeminiKeysAppendRequest(BaseModel):
+    keys: list[str]
+
+
 MAX_EPUB_UPLOAD_BYTES = 256 * 1024 * 1024
 
 
@@ -850,13 +854,61 @@ def _character_bible_plan(book_id: int, request: CharacterBibleImportRequest) ->
 @app.get("/api/config")
 def get_config() -> dict[str, Any]:
     epubs = sorted(str(path.resolve()) for path in settings.root.glob("*.epub"))
+    gemini_keys = settings.gemini_keys()
     return {
-        "gemini_configured": bool(settings.gemini_key()),
+        "gemini_configured": bool(gemini_keys),
+        "gemini_key_count": len(gemini_keys),
+        "gemini_key_storage": "secrets/gemini_api_key.txt",
         "gemini_model": settings.gemini_model,
         "tts_status": tts_service.status,
         "tts_error": tts_service.error,
+        "tts_provider_available": tts_service.provider_available(),
         "undo_seconds": settings.undo_seconds,
         "available_epubs": epubs,
+    }
+
+
+@app.post("/api/settings/gemini-keys")
+def append_gemini_keys(request: GeminiKeysAppendRequest) -> dict[str, Any]:
+    normalized: list[str] = []
+    for raw in request.keys:
+        value = str(raw).strip()
+        if not value:
+            continue
+        if value.startswith("#") or len(value) > 512 or any(ch.isspace() for ch in value):
+            raise HTTPException(422, "Mỗi Gemini API key phải nằm trên một dòng, không chứa khoảng trắng và dài tối đa 512 ký tự.")
+        normalized.append(value)
+    if not normalized:
+        raise HTTPException(422, "Hãy nhập ít nhất một Gemini API key.")
+    result = settings.append_gemini_keys(normalized)
+    return {
+        "configured": result["total_count"] > 0,
+        "submitted_count": result["submitted_count"],
+        "added_count": result["added_count"],
+        "duplicate_count": result["duplicate_count"],
+        "total_count": result["total_count"],
+        "storage": "secrets/gemini_api_key.txt",
+    }
+
+
+@app.post("/api/settings/tts/probe")
+def probe_tts_provider() -> dict[str, Any]:
+    try:
+        tts_service.ensure_loaded()
+        voices = tts_service.voices()
+    except Exception as exc:
+        raise HTTPException(
+            503,
+            {
+                "code": "TTS_PROVIDER_UNAVAILABLE",
+                "message": str(exc),
+                "retryable": True,
+            },
+        ) from exc
+    return {
+        "status": tts_service.status,
+        "voice_count": len(voices),
+        "provider_available": tts_service.provider_available(),
     }
 
 
@@ -4433,7 +4485,7 @@ def _validated_job_payload(request: JobRequest) -> dict[str, Any]:
 def prepare_job_route(request: JobRequest) -> dict[str, Any]:
     if prepare_runtime_integration.runtime_mode == PRODUCTION:
         raise HTTPException(409, {"code": "BATCH_PREPARE_API_REQUIRED"})
-    if request.repair_mode != "off" and not settings.gemini_key():
+    if request.repair_mode != "off" and not settings.gemini_keys():
         raise HTTPException(400, "Chưa có GEMINI_API_KEY hoặc gemini_api_key.txt.")
     try:
         payload = _validated_job_payload(request)
@@ -4447,7 +4499,7 @@ def prepare_job_route(request: JobRequest) -> dict[str, Any]:
 def submit_job(request: JobRequest) -> dict[str, Any]:
     if prepare_runtime_integration.runtime_mode == PRODUCTION:
         raise HTTPException(409, {"code": "START_RENDER_UNAVAILABLE"})
-    if request.repair_mode != "off" and not settings.gemini_key():
+    if request.repair_mode != "off" and not settings.gemini_keys():
         raise HTTPException(400, "Chưa có GEMINI_API_KEY hoặc gemini_api_key.txt.")
     try:
         payload = _validated_job_payload(request)

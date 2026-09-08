@@ -310,8 +310,10 @@ Không copy log ra ngoài trước khi kiểm tra secret/path/text nhạy cảm.
 
 ### Chưa có Gemini key
 
-- Đặt `GEMINI_API_KEY`, hoặc dùng `secrets/gemini_api_key.txt`.
-- UI chỉ báo configured/not configured.
+- Mở **Cài đặt → Gemini API keys** và nhập 1-N key, mỗi dòng một key.
+- UI append key mới vào `secrets/gemini_api_key.txt`, giữ nguyên key cũ và bỏ qua key trùng; secret đã lưu không được đọc ngược về browser.
+- Các request Gemini dùng key theo round-robin và key mới có hiệu lực ngay, không cần restart runtime.
+- `GEMINI_API_KEY` vẫn được hỗ trợ cho cấu hình môi trường/automation; key trùng với biến môi trường không được ghi lặp vào file.
 - Resume job; block verified không bị gọi lại.
 
 ### Gemini lexical integrity failed
