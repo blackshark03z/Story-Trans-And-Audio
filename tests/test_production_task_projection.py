@@ -398,6 +398,105 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertEqual(projection["primary_action"]["key"], "START_RENDER_RANGE")
         self.assertIn("job:44", projection["task_key"])
 
+    def test_prepared_job_can_skip_complete_chapter_and_remain_exact_range(self) -> None:
+        projection = project_production_task(
+            {
+                "readiness": _readiness(
+                    _row(6, "PREPARED"),
+                    _row(7, "COMPLETE"),
+                    _row(8, "PREPARED"),
+                ),
+                "range_jobs": [
+                    {
+                        "id": 39,
+                        "status": "prepared",
+                        "chapter_count": 2,
+                        "all_chapters_match": True,
+                    }
+                ],
+            }
+        )
+        self.assertEqual(projection["task_type"], "START_RENDER_RANGE")
+        self.assertEqual(projection["canonical_task"]["render"]["job_id"], 39)
+        queue = {item["chapter_number"]: item for item in projection["chapter_queue"]}
+        self.assertEqual(queue[7]["status"], "complete")
+
+    def test_prepared_job_cannot_hide_noncomplete_chapter_outside_job(self) -> None:
+        projection = project_production_task(
+            {
+                "readiness": _readiness(
+                    _row(6, "PREPARED"),
+                    _row(7, "COMPLETE"),
+                    _row(
+                        8,
+                        "TEXT_BLOCKED",
+                        latest_speaker_draft_id=None,
+                        blockers=["bad text"],
+                    ),
+                ),
+                "range_jobs": [
+                    {
+                        "id": 39,
+                        "status": "prepared",
+                        "chapter_count": 1,
+                        "all_chapters_match": True,
+                    }
+                ],
+            }
+        )
+        self.assertEqual(projection["task_type"], "REVIEW_TEXT")
+        self.assertNotEqual(projection["task_type"], "START_RENDER_RANGE")
+
+    def test_projection_builder_matches_job_against_noncomplete_chapters(self) -> None:
+        readiness = _readiness(
+            _row(
+                6,
+                "PREPARED",
+                latest_speaker_draft_id=None,
+                speaker_state={"status": "APPROVED_CURRENT"},
+            ),
+            _row(
+                7,
+                "COMPLETE",
+                latest_speaker_draft_id=None,
+                speaker_state={"status": "APPROVED_CURRENT"},
+            ),
+            _row(
+                8,
+                "PREPARED",
+                latest_speaker_draft_id=None,
+                speaker_state={"status": "APPROVED_CURRENT"},
+            ),
+        )
+        db = object()
+        exact_job = {
+            "id": 39,
+            "status": "prepared",
+            "chapter_count": 2,
+            "all_chapters_match": True,
+        }
+        with patch(
+            "story_audio.production_task_projection.get_range_readiness",
+            return_value=readiness,
+        ), patch(
+            "story_audio.production_task_projection._exact_range_jobs",
+            return_value=[exact_job],
+        ) as exact_jobs:
+            projection = get_production_task_projection(
+                db,
+                book_id=1,
+                from_chapter=6,
+                to_chapter=8,
+            )
+        exact_jobs.assert_called_once_with(
+            db,
+            book_id=1,
+            from_chapter=6,
+            to_chapter=8,
+            chapter_ids=[1006, 1008],
+        )
+        self.assertEqual(projection["task_type"], "START_RENDER_RANGE")
+
     def test_subset_of_prepared_job_routes_to_owner_scope_without_starting(self) -> None:
         owner = {
             "live_job_id": 35,

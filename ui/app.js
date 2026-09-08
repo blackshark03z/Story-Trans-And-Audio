@@ -129,10 +129,20 @@ function parseProductionCommandEnvelope(payload,commandType,idempotencyKey){
   if(!payload||payload.schema!=='story-audio-production-command/v1'||payload.command_type!==commandType||payload.idempotency_key!==idempotencyKey||!outcomes.has(payload.outcome)||!payload.resulting_task_projection||!Array.isArray(payload.applied_items)||!Array.isArray(payload.failed_items))throw new Error('PRODUCTION_COMMAND_CONTRACT_INVALID');
   return payload;
 }
+function productionProjectionRangeIdentity(projection){
+  const identity=projection?.range_identity;
+  if(identity&&typeof identity==='object')return{bookId:Number(identity.book_id||identity.bookId||0),fromChapter:Number(identity.from_chapter||identity.fromChapter||0),toChapter:Number(identity.to_chapter||identity.toChapter||0)};
+  const match=String(identity||'').match(/^book:(\d+):(\d+)-(\d+)$/);
+  return match?{bookId:Number(match[1]),fromChapter:Number(match[2]),toChapter:Number(match[3])}:null;
+}
+function productionProjectionMatchesActiveRange(projection,range=state.productionRange){
+  if(!range)return true;
+  const identity=productionProjectionRangeIdentity(projection);
+  return !!identity&&identity.bookId===Number(range.bookId)&&identity.fromChapter===Number(range.fromChapter)&&identity.toChapter===Number(range.toChapter);
+}
 function syncProductionRangeReadinessFromProjection(projection){
-  const readiness=projection?.range_readiness,identity=projection?.range_identity,range=state.productionRange;
-  if(!readiness||!identity||!range)return;
-  if(Number(identity.book_id)!==Number(range.bookId)||Number(identity.from_chapter)!==Number(range.fromChapter)||Number(identity.to_chapter)!==Number(range.toChapter))return;
+  const readiness=projection?.range_readiness,range=state.productionRange;
+  if(!readiness||!range||!productionProjectionMatchesActiveRange(projection,range))return;
   state.productionRange={...range,readiness};
 }
 function productionCommandUiStatus(outcome){return{APPLIED:'APPLIED',PARTIAL:'PARTIAL',REJECTED:'FAILED',ACCEPTED:'ACCEPTED_ASYNC',UNKNOWN:'VERIFYING_UNKNOWN'}[outcome]||'FAILED'}
@@ -164,9 +174,18 @@ function renderProductionCommandStatus(){
 }
 async function applyProductionCommandEnvelope(envelope,epoch){
   if(epoch!==state.productionInteractionEpoch)return false;
-  const projection=parseProductionProjection(envelope.resulting_task_projection),preflight=envelope.resulting_preflight?parseProductionPreflight(envelope.resulting_preflight):null;
-  syncProductionRangeReadinessFromProjection(projection);
-  state.productionProjection=projection;state.productionProjectionKey=projection.canonical_task.task_key;state.productionPreflight=preflight;state.productionPreflightError=preflight?null:'PREFLIGHT_NOT_RELEVANT';state.productionCommand={...state.productionCommand,status:productionCommandUiStatus(envelope.outcome),active:false,commandId:envelope.command_id,message:envelope.operator_message||'',appliedItems:envelope.applied_items,failedItems:envelope.failed_items,stateTokens:envelope.state_tokens||null};
+  const projection=parseProductionProjection(envelope.resulting_task_projection),preflight=envelope.resulting_preflight?parseProductionPreflight(envelope.resulting_preflight):null,rangeMatches=productionProjectionMatchesActiveRange(projection);
+  if(rangeMatches)syncProductionRangeReadinessFromProjection(projection);
+  state.productionPreflight=preflight;state.productionPreflightError=preflight?null:'PREFLIGHT_NOT_RELEVANT';state.productionCommand={...state.productionCommand,status:productionCommandUiStatus(envelope.outcome),active:false,commandId:envelope.command_id,message:envelope.operator_message||'',appliedItems:envelope.applied_items,failedItems:envelope.failed_items,stateTokens:envelope.state_tokens||null};
+  if(state.productionRange&&!rangeMatches){
+    renderProductionCommandStatus();
+    const refreshed=await loadProductionTaskProjection();
+    if(epoch!==state.productionInteractionEpoch)return false;
+    if(refreshed&&typeof syncCanonicalProductionContext==='function')await syncCanonicalProductionContext(refreshed);
+    renderProductionCommandStatus();
+    return envelope;
+  }
+  state.productionProjection=projection;state.productionProjectionKey=projection.canonical_task.task_key;
   renderProductionShell();renderProductionCommandStatus();$('#productionPrimaryAction')?.scrollIntoView?.({block:'nearest'});focusProductionAfterAction('#productionPrimaryAction');
   if(typeof syncCanonicalProductionContext==='function')await syncCanonicalProductionContext(projection);
   if(epoch!==state.productionInteractionEpoch)return false;

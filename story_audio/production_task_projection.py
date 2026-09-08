@@ -815,10 +815,14 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
         ))
 
     range_jobs = [dict(job) for job in state.get("range_jobs") or []]
+    job_scope_rows = [
+        row for row in rows if row.get("state") not in _COMPLETE_STATES
+    ]
+    expected_job_chapter_count = len(job_scope_rows)
     exact_jobs = [
         job
         for job in range_jobs
-        if int(job.get("chapter_count") or 0) == len(rows)
+        if int(job.get("chapter_count") or 0) == expected_job_chapter_count
         and job.get("all_chapters_match", True)
         and str(job.get("status") or "").lower()
         in ({JOB_PREPARED_STATUS} | _ACTIVE_OR_RECOVERABLE)
@@ -1612,7 +1616,11 @@ def get_production_task_projection(
         voice_catalog=voice_catalog,
         store=store,
     )
-    chapter_ids = [int(item["chapter_id"]) for item in readiness["chapters"]]
+    chapter_ids = [
+        int(item["chapter_id"])
+        for item in readiness["chapters"]
+        if item.get("state") not in _COMPLETE_STATES
+    ]
     for item in readiness["chapters"]:
         draft_id = item.get("latest_speaker_draft_id")
         if draft_id:

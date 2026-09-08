@@ -62,6 +62,15 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertNotIn("===chapterId)return", sync)
         self.assertIn("syncProductionRangeReadinessFromProjection(projection)", self.js)
 
+    def test_chapter_command_cannot_replace_active_range_projection(self) -> None:
+        reconcile = self._function_source("applyProductionCommandEnvelope")
+        self.assertIn("productionProjectionMatchesActiveRange(projection)", reconcile)
+        self.assertIn("if(state.productionRange&&!rangeMatches)", reconcile)
+        self.assertIn("const refreshed=await loadProductionTaskProjection()", reconcile)
+        self.assertIn("syncCanonicalProductionContext(refreshed)", reconcile)
+        self.assertIn("function productionProjectionRangeIdentity(projection)", self.js)
+        self.assertIn("/^book:(\\d+):(\\d+)-(\\d+)$/", self.js)
+
     def test_complete_stage_offers_audio_actions(self) -> None:
         self.assertIn("function productionCompleteTaskContent(vm)", self.js)
         self.assertIn("productionCompleteOpenAudio", self.js)
