@@ -37,13 +37,26 @@ class DailyUseV1UiTests(unittest.TestCase):
         self.assertIn('id="homeFirstRun"', self.html)
         self.assertIn('data-home-import', self.html)
         self.assertIn('id="appNavMore"', self.html)
-        self.assertIn("<summary>Cài đặt</summary>", self.html)
+        self.assertIn("<summary>Tài nguyên</summary>", self.html)
         self.assertIn('id="productionContextReturn"', self.html)
         self.assertIn("function renderHomeStartAction", self.js)
         self.assertIn("function openBookImport", self.js)
         self.assertIn("function renderProductionContextReturn", self.js)
         self.assertIn("['production','character-review','voices','books','assignment','jobs','audio']", self.js)
         self.assertIn("['voices','books','assignment','jobs','audio']", self.js)
+
+    def test_production_first_use_is_a_real_empty_state(self) -> None:
+        self.assertIn("const hasBooks=(state.books||[]).length>0", self.js)
+        self.assertIn("key:hasBooks?'SELECT_SCOPE':'IMPORT_BOOK'", self.js)
+        self.assertIn("label:hasBooks?'Chọn sách & chương':'Nhập EPUB'", self.js)
+        self.assertIn("if(action==='IMPORT_BOOK'){openBookImport();return}", self.js)
+        self.assertIn("progressText.textContent=total?`${done} / ${total} chương hoàn tất`:'Chưa chọn phạm vi'", self.js)
+        self.assertIn("classList.toggle('production-first-use',firstUse)", self.js)
+        self.assertIn(".app-nav-more:not([open])>div{display:none}", self.css)
+        self.assertIn("#productionView.production-first-use .production-stage-strip", self.css)
+        self.assertIn("#productionView.production-first-use .production-task-queue", self.css)
+        self.assertIn("#productionView.production-first-use .production-technical-details", self.css)
+        self.assertNotIn('<strong>Kết quả</strong><span>Phạm vi được kiểm tra', self.js)
 
     def test_voice_assignment_reuses_contextual_production_flow(self) -> None:
         self.assertIn('id="openAssignmentWorkspace"', self.html)

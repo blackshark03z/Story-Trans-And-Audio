@@ -108,6 +108,7 @@ try {
   };
 
   // Stage A: visible scope selection, durable URL/context, refresh/navigation stability.
+  await waitFor(`document.querySelector("#productionPrimaryAction")?.textContent==="Chọn sách & chương"`);
   await click("#productionPrimaryAction");
   await waitFor(`document.querySelector("#productionScopeDialog")?.open===true`);
   await click(`[data-scope-book-id="${fixture.book_id}"]`);
