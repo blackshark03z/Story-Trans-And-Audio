@@ -271,6 +271,34 @@ try {
 
   await click("#clearProductionScope");
   await waitFor(`document.querySelector("#productionStateCard")?.dataset.productionState==="NO_SCOPE"`);
+
+  await evaluate(`(() => {
+    const working=JSON.stringify({bookId:999,fromChapter:3,toChapter:8,skipCompleted:false});
+    localStorage.setItem("storyAudio.productionWorkingContext.v1",working);
+    sessionStorage.setItem("storyAudio.productionWorkingContext.v1",working);
+    localStorage.setItem("storyAudio.productionScope.v2",JSON.stringify({bookId:999,fromChapter:3,toChapter:8,skipCompleted:false}));
+    localStorage.setItem("storyAudio.productionScope.v1",JSON.stringify({bookId:999,chapterId:9993}));
+    localStorage.setItem("storyAudio.assignmentContext.v1",JSON.stringify({bookId:999,fromChapter:3,toChapter:8}));
+    sessionStorage.setItem("storyAudio.repairPlanOpen.v1","9993");
+    location.hash="#/production?book=999&from=3&to=8";
+    return true;
+  })()`);
+  await send("Page.reload", { ignoreCache: true });
+  await waitFor(`document.readyState==="complete"`);
+  await waitFor(`localStorage.getItem("storyAudio.productionWorkingContext.v1")===null&&sessionStorage.getItem("storyAudio.productionWorkingContext.v1")===null&&localStorage.getItem("storyAudio.productionScope.v2")===null&&localStorage.getItem("storyAudio.productionScope.v1")===null&&localStorage.getItem("storyAudio.assignmentContext.v1")===null&&sessionStorage.getItem("storyAudio.repairPlanOpen.v1")===null`);
+  const orphanedContextPurged = await evaluate(`({
+    workingLocal:localStorage.getItem("storyAudio.productionWorkingContext.v1"),
+    workingSession:sessionStorage.getItem("storyAudio.productionWorkingContext.v1"),
+    range:localStorage.getItem("storyAudio.productionScope.v2"),
+    legacy:localStorage.getItem("storyAudio.productionScope.v1"),
+    assignment:localStorage.getItem("storyAudio.assignmentContext.v1"),
+    repair:sessionStorage.getItem("storyAudio.repairPlanOpen.v1"),
+    route:location.hash,
+    state:document.querySelector("#productionStateCard")?.dataset.productionState
+  })`);
+  if (orphanedContextPurged.route.includes("book=999") || orphanedContextPurged.state !== "NO_SCOPE") {
+    throw new Error(`Orphaned browser context survived reload: ${JSON.stringify(orphanedContextPurged)}`);
+  }
   if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
 
   const evidence = await evaluate(`({
@@ -298,6 +326,7 @@ try {
     layout1920,
     browserOpenLayout,
     environmentWarnings,
+    orphanedContextPurged,
     interactionCounts: { oneChapter: 3, range: 3 },
     restoredRange: "372-373",
     final: evidence,

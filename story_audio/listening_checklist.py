@@ -655,7 +655,7 @@ def _render_segment_card(segment: dict[str, Any], *, audio_url: str) -> str:
           </p>
         </div>
         <div class="selection-tags" aria-label="Selection reasons">
-          {"".join(f'<span class=\"tag\">{_html_escape(item)}</span>' for item in selection_categories)}
+          {''.join(f'<span class="tag">{_html_escape(item)}</span>' for item in selection_categories)}
         </div>
       </header>
       <details open>
@@ -692,9 +692,9 @@ def _render_segment_card(segment: dict[str, Any], *, audio_url: str) -> str:
       </details>
       <details>
         <summary>Risk flags and limitations</summary>
-        <p><strong>Risk flags:</strong> {_html_escape(", ".join(risk_flags) if risk_flags else "--")}</p>
+        <p><strong>Risk flags:</strong> {_html_escape(', '.join(risk_flags) if risk_flags else '--')}</p>
         <p><strong>Artifact issue:</strong> {_html_escape(segment.get("artifact_issue"))}</p>
-        <p><strong>Limitations:</strong> {_html_escape(", ".join(segment.get("source_limitations") or []) if segment.get("source_limitations") else "--")}</p>
+        <p><strong>Limitations:</strong> {_html_escape(', '.join(segment.get("source_limitations") or []) if segment.get("source_limitations") else '--')}</p>
       </details>
       {_review_controls(segment)}
     </article>

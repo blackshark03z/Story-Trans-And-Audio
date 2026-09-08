@@ -53,6 +53,16 @@ class OwnerRealUseAcceptanceUiTests(unittest.TestCase):
         self.assertIn("setAppRoute('assignment')",self.js)
         self.assertIn("rememberProductionWorkingContext",self.js)
 
+    def test_factory_reset_purges_orphaned_browser_context_after_books_load(self):
+        self.assertIn('function reconcilePersistedBrowserContextWithBooks()',self.js)
+        self.assertIn('reconcilePersistedBrowserContextWithBooks();const filtered=',self.js)
+        self.assertIn('sessionStorage.removeItem(PRODUCTION_WORKING_CONTEXT_STORAGE_KEY)',self.js)
+        self.assertIn('localStorage.removeItem(PRODUCTION_WORKING_CONTEXT_STORAGE_KEY)',self.js)
+        self.assertIn('localStorage.removeItem(ASSIGNMENT_CONTEXT_STORAGE_KEY)',self.js)
+        self.assertIn('localStorage.removeItem(PRODUCTION_RANGE_SCOPE_STORAGE_KEY)',self.js)
+        self.assertIn('localStorage.removeItem(PRODUCTION_SCOPE_STORAGE_KEY)',self.js)
+        self.assertIn("history.replaceState(null,'',cleanHash)",self.js)
+
     def test_contract_keeps_tts_knobs_truthful_and_product_complete_owner_gated(self):
         self.assertIn('Current product constraint: these values come from runtime Settings and are read-only.',self.doc)
         self.assertIn('No new persistence subsystem solely to make the currently fixed TTS knobs editable.',self.doc)
