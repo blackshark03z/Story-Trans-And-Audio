@@ -42,6 +42,9 @@ class DailyUseV1UiTests(unittest.TestCase):
         self.assertIn("function renderHomeStartAction", self.js)
         self.assertIn("function openBookImport", self.js)
         self.assertIn("function renderProductionContextReturn", self.js)
+        self.assertIn("Nhập truyện trước khi gán giọng", self.js)
+        self.assertIn("Bắt đầu bằng truyện đầu tiên", self.js)
+        self.assertIn("if(!(state.books||[]).length){openBookImport();return}", self.js)
         self.assertIn("['production','character-review','voices','books','assignment','jobs','audio']", self.js)
         self.assertIn("['voices','books','assignment','jobs','audio']", self.js)
 
