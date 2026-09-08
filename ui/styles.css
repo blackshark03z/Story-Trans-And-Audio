@@ -461,3 +461,40 @@ dialog{border:1px solid var(--studio-rule-strong);border-radius:7px;box-shadow:0
 @media(max-width:900px){main{padding-inline:14px}.production-range-context{grid-template-columns:1fr auto}.production-workbench{grid-template-columns:1fr}.production-task-queue{position:static;order:2;max-height:none;border-right:0;border-top:1px solid var(--studio-rule)}.production-chapter-queue{max-height:320px}.production-task-workspace{order:1;padding:18px}.production-primary-actions{margin:18px -18px -18px;padding-inline:18px}.production-stage-strip{display:flex}.production-stage-strip li{flex:1 0 142px}.audio-library-player{position:static}.assignment-page #assignmentRows{max-height:none;overflow:visible}.import-row{grid-template-columns:1fr 1fr}.import-row button,.import-row .check{align-self:center}}
 @media(max-width:620px){.topbar{padding-inline:14px}.brand-lockup{align-items:flex-start;flex-direction:column;gap:0}.app-nav{padding-inline:6px;overflow-x:auto}.app-nav>a{padding-inline:10px}.production-range-context{grid-template-columns:1fr}.production-task-workspace{padding:14px}.production-primary-actions{margin:16px -14px -14px;padding:10px 14px}.production-task-heading h2{font-size:24px}.production-primary-actions .dominant-production-action{width:100%}.job-page-grid,.import-row{grid-template-columns:1fr}.audio-library-list{max-height:none;overflow:visible}.home-summary-grid,.settings-summary-grid{grid-template-columns:1fr}.home-summary-grid>div,.settings-summary-grid>div{border-right:0;border-bottom:1px solid var(--studio-rule)}.home-summary-grid>div:last-child,.settings-summary-grid>div:last-child{border-bottom:0}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}.app-view,.audio-library-card,.book-card,.voice-library-row{animation:none!important;transition:none!important;transform:none!important}}
+
+/* ==========================================================================\n   Broadcast Control Room — palette pass 2\n   Deliberately removes the previous green brand identity. Cobalt is the\n   interaction signal; graphite is the studio rail; amber is operational.\n   ========================================================================== */
+:root{
+  --studio-paper:#eef2f6;
+  --studio-surface:#ffffff;
+  --studio-ink:#18222d;
+  --studio-muted:#657384;
+  --studio-rule:#cfd7e1;
+  --studio-rule-strong:#aeb9c8;
+  --studio-pine:#3558d4;
+  --studio-pine-deep:#202936;
+  --studio-sage:#dde5fb;
+  --studio-sage-soft:#eef2ff;
+  --studio-oxide:#d89b2b;
+  --studio-warning:#96640f;
+  --studio-danger:#c34a42;
+  --studio-info:#486b84;
+}
+html,body{background:#eef2f6}
+.topbar{background:#202936;border-bottom-color:#3a4553}
+.brand-lockup .eyebrow{color:#aeb9c8}.system-diagnostics>summary{color:#f2f5f8;border-color:#566171}.diagnostic-hint{color:#b8c2cf}
+.app-nav{background:rgba(248,250,252,.97);border-bottom-color:#cfd7e1}.app-nav>a{color:#5b6878}.app-nav>a:hover,.app-nav-more[open] summary,.app-nav-more summary:hover{background:#e9eef6;color:#202936}.app-nav>a.active{color:#3558d4;box-shadow:inset 0 -3px 0 #3558d4}.app-nav-more summary{color:#5b6878}
+.panel{background:#fff;border-color:#cfd7e1}.eyebrow{color:#708096}.muted,.hint,.section-guide{color:#657384}
+.primary{background:#3558d4}.primary:hover{background:#2947b4}.secondary{background:#e6ebf5;color:#263c68}.secondary:hover{background:#d8e0f0}.ghost{background:#edf0f4;color:#4d5b6b}.text-action{color:#3558d4}
+input,select,textarea{border-color:#bdc8d6!important}input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible,.app-nav a:focus-visible,.app-primary-link:focus-visible,.app-secondary-link:focus-visible{outline-color:rgba(53,88,212,.36)}
+.progress{background:#dbe1e9}.progress span,.production-range-progress .progress span{background:#3558d4}
+.production-range-context{background:#f8fafc;border-color:#cfd7e1}.production-stage-strip{background:#f7f9fc}.production-stage-strip li.current button{background:#e8edff!important;box-shadow:inset 0 -3px 0 #3558d4!important}.production-stage-strip li.complete button{background:#f2f5fa!important}.production-stage-strip li.locked button{background:#f8f9fb!important}.production-stage-strip li span,.production-stage-strip .stage-state{color:#708096}
+.production-workbench{border-color:#cfd7e1}.production-task-queue{background:#f5f7fa;border-color:#cfd7e1}.production-queue-head{border-color:#cfd7e1}.production-queue-item{border-color:#e0e5ec}.production-queue-item:hover{background:#edf1f7}.production-queue-item.selected{background:#e7ecff;box-shadow:inset 3px 0 0 #3558d4}.production-queue-item.blocked{box-shadow:inset 3px 0 0 #d89b2b}.production-queue-number{color:#6b798a}
+.production-task-heading{border-color:#cfd7e1}.production-task-summary{color:#596779}.production-result-note,.owner-decision-note{border-left-color:#5576dd;background:#eef2ff}.production-speaker-card{background:#f8fafc;border-color:#cfd7e1}.production-speaker-card blockquote{border-left-color:#3558d4}.production-context-list p{background:#f5f7fa}.production-voice-row{border-color:#dfe5ec}.production-range-metrics,.production-progress-summary{border-color:#cfd7e1}.production-range-metrics>div,.production-progress-summary>div{background:#f3f6fa;border-color:#cfd7e1}.production-range-metrics strong{color:#3558d4}.production-primary-actions{border-color:#cfd7e1}.production-technical-details{border-color:#cfd7e1}.production-execution-preview{background:#202936}
+.book-grid,.book-card,.chapter-list,.chapter-row{border-color:#cfd7e1}.book-card:hover,.chapter-row:hover{background:#eef2f7}.book-card.active{background:#e7ecff;box-shadow:inset 3px 0 0 #3558d4}
+.assignment-scope,.assignment-registry-table-wrap,.assignment-registry-table th,.assignment-registry-table td{border-color:#cfd7e1}.assignment-registry-table th{background:#edf1f6}.assignment-empty-state{background:#f4f6f9}
+.jobs-page-list,.job-page-card,.job-page-grid,.job-page-grid>div,.job-actions{border-color:#cfd7e1}.job-page-card{border-left-color:#8c9aab}.job-page-card.historical{border-left-color:#b8c1cc;background:#f4f6f8}.job-page-grid>div{background:#f4f6f9}
+.audio-library-filters,.audio-library-list,.audio-library-card{border-color:#cfd7e1}.audio-library-filters,.audio-library-qa-panel,.audio-range-download,.audio-library-empty{background:#f4f6f9}.audio-library-player{background:#e8edff;border-color:#aeb9c8}.audio-library-card:hover{background:#f2f5f9}.audio-library-card.selected{background:#e7ecff;box-shadow:inset 3px 0 0 #3558d4}
+.voice-library-list,.library-revisions-list,.voice-library-row,.library-revision-row{border-color:#cfd7e1}.voice-library-row:hover{background:#eef2f7}.voice-library-row.selected{background:#e7ecff;border-left-color:#3558d4}.library-selected-details,.upload-revision-section,.create-voice-section{background:#f7f9fb}
+.home-summary-grid,.settings-summary-grid,.home-summary-grid>div,.settings-summary-grid>div{border-color:#cfd7e1}.home-summary-grid>div,.settings-summary-grid>div{background:#f4f6f9}
+dialog{border-color:#aeb9c8;box-shadow:0 28px 72px rgba(23,31,42,.26)}dialog::backdrop{background:rgba(24,31,42,.56)}.toast{background:#202936;box-shadow:0 15px 34px rgba(20,28,39,.22)}
+.badge.completed,.status-dot.done,.audio-library-qa.accepted,.range-state-chip.state-complete,.runtime-identity.runtime-canonical .runtime-badge,.diag-good{background:#dff1ed!important;color:#176a61!important}.badge.paused,.range-state-chip.state-rendered_not_qa,.range-state-chip.state-casting_review,.range-state-chip.state-speaker_exceptions,.range-state-chip.state-text_blocked,.range-state-chip.state-voice_blocked{background:#fff0ce!important;color:#83560b!important}.badge.running,.badge.synthesizing,.badge.repairing,.badge.assembling,.range-state-chip.state-ready_to_prepare,.range-state-chip.state-rendering_or_paused,.range-state-chip.state-prepared{background:#e1e8ff!important;color:#2f4fb8!important}
