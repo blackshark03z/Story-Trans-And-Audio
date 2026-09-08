@@ -9,7 +9,7 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 - Reframed Story Audio as a complex desktop productivity application using Nielsen complex-app heuristics, Fluent 2 navigation/layout guidance, WCAG 2.2 interaction requirements, and the project frontend-design skill rather than continuing theme-only changes.
 - Replaced the horizontal application nav with a persistent desktop side rail, added explicit current-location feedback in the top bar, and kept resource destinations visible as a secondary navigation group; widths below 900px fall back to a compact horizontal nav.
 - Restructured Production into a chapter rail, primary task canvas, and contextual technical-details rail. Advanced/technical information is staged away from the dominant action while status, scope, and recovery remain visible.
-- Standardized Books, Assignment, Jobs, Audio, and Voice Library around the same master-detail/list grammar, cool neutral surfaces, cobalt interaction color, amber warnings, and restrained semantic success color.
+- Standardized Books, Assignment, Jobs, Audio, and Voice Library around the same master-detail/list grammar and a single semantic color system: cool neutral surfaces, indigo-cobalt interaction states, teal success, amber warning, red danger, and slate/blue informational states. Legacy green variables now resolve through the same tokens so old controls no longer drift visually.
 - Browser acceptance locks the shell itself: 820x900 uses horizontal navigation with full-width content; 1366x768 and 1920x1080 use vertical navigation with content offset from the rail and no horizontal overflow. Core real-browser journeys remain 11/11 PASS.
 
 ### Owner journey and daily workspace convergence
