@@ -4,12 +4,13 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
-### Studio cue-sheet interface
+### UX workbench redesign
 
-- Rebuilt the Story Audio visual system around a long-form recording-desk metaphor: compact pine studio rail, deliberate control typography, manuscript-specific serif excerpts, a continuous production rundown, and ledger-style Jobs/Audio/Books surfaces instead of a generic rounded-card dashboard.
-- Removed decorative gradients, repeated shadows, pill-heavy status styling, and all-caps eyebrow treatment from the dominant daily surfaces while preserving existing workflow IDs, routes, actions, and state semantics.
-- Kept Production as the dominant task surface with a chapter reel at left, a flat cue-sheet workspace at right, and a sticky bottom action rail; Assignment, Voice Library, Jobs, Audio, and Books now share the same restrained information hierarchy.
-- Post-redesign evidence: 11/11 core real-browser journeys pass, the golden isolated journey passes on immediate retry after its known browser-history timing flake, and 272 focused UI contract tests pass.
+- Reframed Story Audio as a complex desktop productivity application using Nielsen complex-app heuristics, Fluent 2 navigation/layout guidance, WCAG 2.2 interaction requirements, and the project frontend-design skill rather than continuing theme-only changes.
+- Replaced the horizontal application nav with a persistent desktop side rail, added explicit current-location feedback in the top bar, and kept resource destinations visible as a secondary navigation group; widths below 900px fall back to a compact horizontal nav.
+- Restructured Production into a chapter rail, primary task canvas, and contextual technical-details rail. Advanced/technical information is staged away from the dominant action while status, scope, and recovery remain visible.
+- Standardized Books, Assignment, Jobs, Audio, and Voice Library around the same master-detail/list grammar, cool neutral surfaces, cobalt interaction color, amber warnings, and restrained semantic success color.
+- Browser acceptance locks the shell itself: 820x900 uses horizontal navigation with full-width content; 1366x768 and 1920x1080 use vertical navigation with content offset from the rail and no horizontal overflow. Core real-browser journeys remain 11/11 PASS.
 
 ### Owner journey and daily workspace convergence
 

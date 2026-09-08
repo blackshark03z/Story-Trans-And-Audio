@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Story Audio</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=20260908-broadcast-control-room-1">
+  <link rel="stylesheet" href="/assets/styles.css?v=20260908-ux-workbench-1">
   <style>
     .casting-journey{display:grid;gap:12px;margin:16px 0;padding:16px;border:1px solid #cfd7e1;border-radius:5px;background:#f7f9fc}.casting-journey-head{display:flex;justify-content:space-between;align-items:start;gap:12px}.casting-journey-head h3{margin:2px 0;font-size:18px}.casting-journey-head>span{padding:5px 8px;border-radius:3px;background:#e1e8ff;color:#2f4fb8;font-size:12px;font-weight:800;white-space:nowrap}.casting-journey-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0;padding:0;list-style:none}.casting-journey-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 10px;border:1px solid #dfe5ec;border-radius:4px;background:#fff}.casting-journey-list li>div{display:grid;gap:2px}.casting-journey-list strong{font-size:12px}.casting-journey-list span{font-size:11px;color:var(--muted)}.casting-journey-list li.complete{border-color:#b8c1cc;background:#f3f5f8}.casting-journey-list li.complete strong:before{content:'✓ ';color:#176a61}.casting-journey-list li.current{border-color:#d89b2b;background:#fff8e8}.casting-journey-list li.current strong:before{content:'→ ';color:#96640f}.casting-journey-list li.blocked{background:#f4f6f9;opacity:.75}.casting-journey-list .text-action{font-size:11px;white-space:nowrap}@media(max-width:760px){.casting-journey-head{display:grid}.casting-journey-list{grid-template-columns:1fr}}
   </style>
@@ -12,8 +12,9 @@
 <body>
   <header class="topbar">
     <div class="brand-lockup">
-      <p class="eyebrow">Phòng thu truyện</p>
       <h1>Story Audio</h1>
+      <span class="topbar-route-divider" aria-hidden="true"></span>
+      <strong id="topbarRouteLabel" class="topbar-route-label">Sản xuất</strong>
     </div>
     <details id="systemDiagnostics" class="system-diagnostics">
       <summary>
@@ -48,7 +49,7 @@
     <a href="#/assignment" data-app-route="assignment" aria-label="Gán giọng">Gán giọng</a>
     <a href="#/jobs" data-app-route="jobs" aria-label="Công việc">Công việc</a>
     <a href="#/audio" data-app-route="audio" aria-label="Audio">Audio</a>
-    <details id="appNavMore" class="app-nav-more">
+    <details id="appNavMore" class="app-nav-more" open>
       <summary>Tài nguyên</summary>
       <div aria-label="Tài nguyên và cài đặt">
         <a href="#/home" data-app-route="home" aria-label="Trang chủ">Trang chủ</a>
