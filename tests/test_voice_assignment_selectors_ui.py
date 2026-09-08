@@ -185,9 +185,14 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIn("row.role==='narrator'||row.character_id", section)
         self.assertIn("Còn ${reviewCount} câu chưa xác định người nói.", section)
         self.assertIn("data-jump-to-speaker-review", section)
-        self.assertNotIn("data-registry-map", section)
-        self.assertNotIn("data-registry-new-character", section)
-        self.assertNotIn("data-registry-character-key", section)
+        self.assertIn("speakerReviewInvariantModel", self.js)
+        self.assertIn("renderManualSpeakerReviewRows", self.js)
+        self.assertIn("data-registry-map", self.js)
+        self.assertIn("data-registry-new-character", self.js)
+        self.assertIn("data-registry-character-key", self.js)
+        self.assertIn("Gemini chưa cấu hình", self.js)
+        self.assertIn("0 cần duyệt", self.js)
+        self.assertIn("0 cần quyết định", self.js)
         self.assertNotIn("data-voice-library-row=\"unresolved", section)
 
     def test_current_revision_speaker_state_controls_step_and_history(self) -> None:

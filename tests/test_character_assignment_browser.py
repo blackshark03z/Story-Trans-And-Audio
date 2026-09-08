@@ -62,6 +62,7 @@ class CharacterAssignmentFixtureHandler(ScopeFixtureHandler):
     command_responses: dict[str, dict] = {}
     commands: list[dict] = []
     suggestions: dict | None = None
+    gemini_configured = True
     next_character_id = 31
 
     @classmethod
@@ -82,6 +83,7 @@ class CharacterAssignmentFixtureHandler(ScopeFixtureHandler):
         cls.command_responses = {}
         cls.commands = []
         cls.suggestions = None
+        cls.gemini_configured = True
         cls.next_character_id = 31
 
     @classmethod
@@ -367,6 +369,15 @@ class CharacterAssignmentFixtureHandler(ScopeFixtureHandler):
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         query = parse_qs(parsed.query)
+        if parsed.path == "/api/config":
+            return self._json(
+                {
+                    "gemini_configured": bool(self.gemini_configured),
+                    "gemini_model": "gemini-fixture",
+                    "tts_status": "fixture",
+                    "available_epubs": [],
+                }
+            )
         if parsed.path == "/api/voice-catalog":
             return self._json(
                 {
@@ -414,7 +425,18 @@ class CharacterAssignmentFixtureHandler(ScopeFixtureHandler):
                         "target_count": len(targets),
                         "targets": targets,
                         "suggestions": [],
-                        "summary": {"total": 0, "analyzed": 0, "pending_review": len(targets)},
+                        "summary": {
+                            "total": 0,
+                            "unresolved_total": len(targets),
+                            "analyzed": 0,
+                            "analysis_required": len(targets),
+                            "pending_review": 0,
+                            "needs_human_decision": 0,
+                            "approved": 0,
+                            "corrected": 0,
+                            "deferred": 0,
+                            "error": 0,
+                        },
                     }
                 )
             return self._json(self.suggestions)
@@ -677,6 +699,53 @@ class CharacterAssignmentBrowserTests(unittest.TestCase):
         self.assertIn("SET_RANGE_VOICE_OVERRIDE", command_types)
         self.assertNotIn("CREATE_CHARACTER", command_types)
         self.assertNotIn("MAP_SPEAKER_TO_CHARACTER", command_types)
+
+
+    def test_missing_gemini_keeps_manual_review_visible_and_counts_consistent(self) -> None:
+        CharacterAssignmentFixtureHandler.reset()
+        CharacterAssignmentFixtureHandler.gemini_configured = False
+        server = ThreadingHTTPServer(("127.0.0.1", 0), CharacterAssignmentFixtureHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            result = subprocess.run(
+                [
+                    "node",
+                    "scripts/browser_speaker_review_invariant_smoke.mjs",
+                    f"http://127.0.0.1:{server.server_port}",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=60,
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        evidence = json.loads(result.stdout)
+        before = evidence["before"]
+        self.assertTrue(evidence["ok"])
+        self.assertTrue(before["geminiDisabled"])
+        self.assertEqual(before["geminiLabel"], "Gemini chưa cấu hình")
+        self.assertTrue(before["providerBlocker"])
+        self.assertEqual(before["suggestionCards"], 0)
+        self.assertEqual(before["manualCards"], 3)
+        self.assertEqual(before["manualMapActions"], 3)
+        self.assertEqual(before["queueTabs"], 0)
+        self.assertIn("3 câu chưa xác định", before["metrics"])
+        self.assertIn("3 chưa phân tích", before["metrics"])
+        self.assertIn("0 đề xuất", before["metrics"])
+        self.assertIn("0 cần duyệt", before["metrics"])
+        self.assertIn("0 cần quyết định", before["metrics"])
+        self.assertFalse(before["genericEmpty"])
+        self.assertEqual(evidence["after"]["manualCards"], 2)
+        self.assertIn("MAP_SPEAKER_TO_CHARACTER", evidence["after"]["commands"])
+        self.assertNotIn("GENERATE_SPEAKER_SUGGESTIONS", evidence["after"]["commands"])
 
 
 if __name__ == "__main__":

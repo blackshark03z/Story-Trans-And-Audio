@@ -194,7 +194,7 @@ class CurrentSpeakerStateTests(IsolatedTestCase):
         self.assertEqual(state["unresolved_count"], 1)
 
     def test_approved_current_plan_wins_over_stale_history(self) -> None:
-        chapter, revision_id = self._chapter("Narration.\n- Hold the gate.")
+        chapter, revision_id = self._chapter("Narration only.")
         now = utcnow()
         content_path, digest = self.store.put_json(
             {
@@ -217,6 +217,32 @@ class CurrentSpeakerStateTests(IsolatedTestCase):
         state = resolve_chapter_speaker_state(self.db, self.store, chapter)
         self.assertEqual(state["status"], APPROVED_CURRENT)
         self.assertEqual(state["approved_source"], "casting_plan")
+
+    def test_current_plan_that_leaves_dash_dialogue_unresolved_requires_analysis(self) -> None:
+        chapter, revision_id = self._chapter("Narration.\n- Hold the gate.")
+        now = utcnow()
+        content_path, digest = self.store.put_json(
+            {
+                "schema": "story-audio-casting-plan/v1",
+                "text_revision_id": revision_id,
+                "utterances": [],
+            },
+            namespace="casting",
+        )
+        with self.db.transaction() as connection:
+            connection.execute(
+                """
+                INSERT INTO casting_plans(
+                    chapter_id,text_revision_id,plan_revision,status,content_path,
+                    plan_sha256,narrator_voice_id,created_at,approved_at
+                ) VALUES(?,?,?,?,?,?,?,?,?)
+                """,
+                (chapter["id"], revision_id, 1, "approved", content_path, digest, "narrator", now, now),
+            )
+        state = resolve_chapter_speaker_state(self.db, self.store, chapter)
+        self.assertEqual(state["status"], ANALYSIS_REQUIRED)
+        self.assertEqual(state["unresolved_count"], 1)
+        self.assertTrue(state["blocks_progress"])
 
     def test_narrator_only_voice_override_creates_current_plan_without_old_draft(self) -> None:
         chapter, revision_id = self._chapter("Narration only.")

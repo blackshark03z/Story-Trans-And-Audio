@@ -17,7 +17,9 @@ from .db import Database
 from .speaker_assignment import SpeakerAssignmentError
 from .speaker_review import SpeakerReviewError, get_speaker_review_draft
 from .speaker_state import (
+    ANALYSIS_REQUIRED,
     APPROVED_CURRENT,
+    CURRENT_REVIEW_REQUIRED,
     NO_REVIEW_REQUIRED,
     resolve_chapter_speaker_state,
 )
@@ -835,6 +837,51 @@ def _sort_rows(item: dict[str, Any]) -> tuple[int, int, int, str]:
     return (group, priority, first, str(item.get("display_name") or "").casefold())
 
 
+def _aggregate_speaker_states(states: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not states:
+        return None
+    if len(states) == 1:
+        return dict(states[0])
+    statuses = [str(item.get("status") or "") for item in states]
+    if ANALYSIS_REQUIRED in statuses:
+        status = ANALYSIS_REQUIRED
+    elif CURRENT_REVIEW_REQUIRED in statuses:
+        status = CURRENT_REVIEW_REQUIRED
+    elif all(item == NO_REVIEW_REQUIRED for item in statuses):
+        status = NO_REVIEW_REQUIRED
+    else:
+        status = APPROVED_CURRENT
+    unresolved_targets: list[dict[str, Any]] = []
+    for item in states:
+        for target in item.get("unresolved_targets") or []:
+            unresolved_targets.append(
+                {
+                    **dict(target),
+                    "chapter_id": int(item.get("chapter_id") or 0),
+                    "chapter_number": int(item.get("chapter_number") or 0),
+                }
+            )
+    return {
+        "status": status,
+        "scope": "range",
+        "unresolved_count": sum(int(item.get("unresolved_count") or 0) for item in states),
+        "unresolved_targets": unresolved_targets,
+        "remaining_review_count": sum(int(item.get("remaining_review_count") or 0) for item in states),
+        "narrator_only": all(bool(item.get("narrator_only")) for item in states),
+        "blocks_progress": any(bool(item.get("blocks_progress")) for item in states),
+        "chapter_states": [
+            {
+                "chapter_id": int(item.get("chapter_id") or 0),
+                "chapter_number": int(item.get("chapter_number") or 0),
+                "status": str(item.get("status") or ""),
+                "unresolved_count": int(item.get("unresolved_count") or 0),
+                "remaining_review_count": int(item.get("remaining_review_count") or 0),
+            }
+            for item in states
+        ],
+    }
+
+
 def get_book_voice_registry(
     db: Database,
     store: ContentStore,
@@ -1022,6 +1069,6 @@ def get_book_voice_registry(
             "dialogue_detection": "dash-led dialogue utterances marked unresolved when still assigned narrator",
             "unresolved_dialogue_count": status_counts.get(UNRESOLVED_DIALOGUE_STATUS, 0),
         },
-        "speaker_state": speaker_states[0] if len(speaker_states) == 1 else None,
+        "speaker_state": _aggregate_speaker_states(speaker_states),
         "speaker_states": speaker_states,
     }

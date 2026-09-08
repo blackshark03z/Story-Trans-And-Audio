@@ -805,6 +805,10 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
             voice_catalog=_catalog(),
         )
         self.assertEqual(queue["status"], "not_analyzed")
+        self.assertEqual(queue["summary"]["unresolved_total"], len(unresolved_keys))
+        self.assertEqual(queue["summary"]["analysis_required"], len(unresolved_keys))
+        self.assertEqual(queue["summary"]["pending_review"], 0)
+        self.assertEqual(queue["suggestions"], [])
         self.assertEqual(
             int(self.db.fetch_one("SELECT COUNT(*) AS count FROM jobs")["count"]),
             0,

@@ -2068,7 +2068,13 @@ def get_speaker_review_queue(
             )
             payload["summary"] = {
                 **_queue_summary(payload["suggestions"]),
+                "unresolved_total": len(request["targets"]),
                 "analyzed": len(payload["suggestions"]),
+                "analysis_required": max(
+                    0,
+                    len(request["targets"])
+                    - len({str(item.get("unresolved_key") or "") for item in payload["suggestions"]}),
+                ),
                 "pending_review": sum(
                     1
                     for item in payload["suggestions"]
@@ -2087,8 +2093,15 @@ def get_speaker_review_queue(
             "suggestions": [],
             "summary": {
                 "total": 0,
+                "unresolved_total": len(request["targets"]),
                 "analyzed": 0,
-                "pending_review": len(request["targets"]),
+                "analysis_required": len(request["targets"]),
+                "pending_review": 0,
+                "needs_human_decision": 0,
+                "approved": 0,
+                "corrected": 0,
+                "deferred": 0,
+                "error": 0,
             },
         }
     payload = timed("analysis_payload_load", lambda: _load_run_from_event(store, event))
@@ -2120,7 +2133,13 @@ def get_speaker_review_queue(
     def build_summary() -> dict[str, Any]:
         return {
             **_queue_summary(payload["suggestions"]),
+            "unresolved_total": len(request["targets"]),
             "analyzed": len(payload["suggestions"]),
+            "analysis_required": max(
+                0,
+                len(request["targets"])
+                - len({str(item.get("unresolved_key") or "") for item in payload["suggestions"]}),
+            ),
             "pending_review": sum(
                 1
                 for item in payload["suggestions"]

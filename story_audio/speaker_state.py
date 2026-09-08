@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from typing import Any, Mapping
 
-from .casting import split_utterances
+from .casting import CastingError, get_plan, split_utterances
 from .character_assignment import is_unresolved_dialogue_text
 from .db import Database
 from .storage import ContentStore
@@ -31,6 +31,36 @@ def _unresolved_targets(text: str) -> list[dict[str, Any]]:
             }
         )
     return targets
+
+
+def _unresolved_after_current_plan(
+    db: Database,
+    store: ContentStore,
+    current_plan: Mapping[str, Any] | None,
+    targets: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    if not current_plan or not targets:
+        return targets
+    try:
+        plan = get_plan(db, store, int(current_plan["id"]))["plan"]
+    except (CastingError, OSError, ValueError, TypeError, KeyError):
+        return targets
+    assignments = {
+        str(item.get("utterance_id") or ""): item
+        for item in plan.get("utterances") or []
+        if isinstance(item, Mapping)
+    }
+    unresolved: list[dict[str, Any]] = []
+    for target in targets:
+        assignment = assignments.get(str(target.get("utterance_id") or ""))
+        resolved = bool(
+            assignment
+            and str(assignment.get("role") or "").lower() == "character"
+            and assignment.get("character_id") is not None
+        )
+        if not resolved:
+            unresolved.append(target)
+    return unresolved
 
 
 def _analysis_history(db: Database, chapter_id: int) -> list[dict[str, Any]]:
@@ -119,6 +149,9 @@ def resolve_chapter_speaker_state(
         ),
         None,
     )
+    unresolved_targets = _unresolved_after_current_plan(
+        db, store, current_plan, unresolved_targets
+    )
 
     drafts = [
         dict(row)
@@ -201,9 +234,11 @@ def resolve_chapter_speaker_state(
     status = ANALYSIS_REQUIRED
     approved_source: str | None = None
     remaining_review_count = 0
-    if current_plan:
+    if current_plan and not unresolved_targets:
         status = APPROVED_CURRENT
         approved_source = "casting_plan"
+    elif current_plan and unresolved_targets:
+        status = ANALYSIS_REQUIRED
     elif current_draft and str(current_draft.get("status") or "").lower() == "approved":
         target_count = int(current_draft.get("target_count") or 0)
         if unresolved_targets and target_count == 0:
