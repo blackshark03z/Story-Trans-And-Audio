@@ -233,6 +233,68 @@ class CharacterAssignmentServiceTests(IsolatedTestCase):
         self.assertEqual(narrator["line_count"], 4)
         self.assertEqual(len(registry["content_evidence"]["checked_revisions"]), 2)
 
+    def test_approved_zero_target_draft_cannot_suppress_unresolved_registry_rows(self) -> None:
+        chapter = self._seed_chapter(1, approved_plan=False)
+        revision = self.db.fetch_one(
+            "SELECT * FROM text_revisions WHERE id=?",
+            (int(chapter["active_text_revision_id"]),),
+        )
+        payload = {
+            "schema": "story-audio-speaker-assignment-draft/v1",
+            "status": "generated",
+            "input_fingerprint": "legacy-zero-target",
+            "book_id": self.book_id,
+            "chapter_id": int(chapter["id"]),
+            "text_revision_id": int(revision["id"]),
+            "text_revision_sha256": str(revision["content_sha256"]),
+            "character_bible_fingerprint": "legacy-bible",
+            "confirmed_assignment_context_sha256": "legacy-confirmed",
+            "model_id": "gemini-2.5-flash",
+            "prompt_version": "speaker-assignment-v2",
+            "mode": "unassigned_only",
+            "assignments": [],
+            "invalid_items": [],
+            "summary": {"target_count": 0, "valid_count": 0, "invalid_count": 0},
+        }
+        content_path, content_sha = self.store.put_json(payload, namespace="speaker_assignment")
+        now = utcnow()
+        with self.db.transaction() as connection:
+            connection.execute(
+                """INSERT INTO speaker_assignment_drafts(
+                   book_id,chapter_id,text_revision_id,input_fingerprint,character_bible_fingerprint,
+                   model_id,prompt_version,response_schema,mode,status,content_path,content_sha256,
+                   target_count,valid_count,invalid_count,cache_hit_count,cache_miss_count,created_at,approved_at
+                   ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    self.book_id,
+                    int(chapter["id"]),
+                    int(revision["id"]),
+                    "legacy-zero-target",
+                    "legacy-bible",
+                    "gemini-2.5-flash",
+                    "speaker-assignment-v2",
+                    "story-audio-speaker-assignment-draft/v1",
+                    "unassigned_only",
+                    "approved",
+                    content_path,
+                    content_sha,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    now,
+                    now,
+                ),
+            )
+        registry = self._registry(1, 1)
+        unresolved = [
+            row for row in registry["rows"] if row["status"] == "UNRESOLVED_DIALOGUE"
+        ]
+        self.assertEqual(len(unresolved), 1)
+        self.assertEqual(registry["summary"]["unresolved_dialogue"], 1)
+        self.assertEqual(registry["speaker_states"][0]["status"], "ANALYSIS_REQUIRED")
+
     def test_dash_dialogue_uses_raw_line_layout_for_continuation_utterances(self) -> None:
         active = "Intro. - Stop? Give me the bag. He turned away."
         source = "Intro.\n- Stop? Give me the bag.\nHe turned away."

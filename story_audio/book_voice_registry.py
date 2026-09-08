@@ -915,7 +915,11 @@ def get_book_voice_registry(
                 plan_collected = False
         if plan_collected:
             continue
-        draft = _latest_approved_speaker_draft_row(db, int(chapter["id"]))
+        draft = (
+            _latest_approved_speaker_draft_row(db, int(chapter["id"]))
+            if speaker_state["status"] in {APPROVED_CURRENT, NO_REVIEW_REQUIRED}
+            else None
+        )
         if not draft:
             if text:
                 _collect_from_text(rows, chapter=chapter, text=text)

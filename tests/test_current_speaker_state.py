@@ -173,6 +173,19 @@ class CurrentSpeakerStateTests(IsolatedTestCase):
         self.assertEqual(state["status"], ANALYSIS_REQUIRED)
         self.assertEqual(state["unresolved_count"], 1)
 
+    def test_approved_zero_target_draft_cannot_hide_unresolved_dialogue(self) -> None:
+        chapter, revision_id = self._chapter("Narration.\n- Hold the gate.")
+        draft_id = self._draft(chapter["id"], revision_id, target_count=0)
+        with self.db.transaction() as connection:
+            connection.execute(
+                "UPDATE speaker_assignment_drafts SET status='approved',approved_at=? WHERE id=?",
+                (utcnow(), draft_id),
+            )
+        state = resolve_chapter_speaker_state(self.db, self.store, chapter)
+        self.assertEqual(state["status"], ANALYSIS_REQUIRED)
+        self.assertEqual(state["unresolved_count"], 1)
+        self.assertIsNone(state["approved_source"])
+
     def test_current_draft_with_target_requires_review(self) -> None:
         chapter, revision_id = self._chapter("Narration.\n- Hold the gate.")
         self._draft(chapter["id"], revision_id, target_count=1)

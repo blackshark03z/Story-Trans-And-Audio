@@ -5,6 +5,7 @@ from collections.abc import Callable
 from typing import Any
 
 from .casting import CHUNKER_VERSION, get_plan, list_characters, split_utterances
+from .character_assignment import dash_dialogue_utterance_ids
 from .config import Settings
 from .db import Database, utcnow
 from .files import sha256_text
@@ -127,10 +128,13 @@ def build_speaker_assignment_request(
     if requested:
         selected_ids = requested
     else:
+        dash_dialogue_ids = dash_dialogue_utterance_ids(text, utterances)
         selected_ids = [
             str(item["utterance_id"])
             for item in utterances
-            if mode == "reanalyze" or _is_dialogue_span(
+            if mode == "reanalyze"
+            or str(item["utterance_id"]) in dash_dialogue_ids
+            or _is_dialogue_span(
                 int(item["start_offset"]), int(item["end_offset"]), dialogue_ranges
             )
         ]

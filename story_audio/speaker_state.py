@@ -205,8 +205,12 @@ def resolve_chapter_speaker_state(
         status = APPROVED_CURRENT
         approved_source = "casting_plan"
     elif current_draft and str(current_draft.get("status") or "").lower() == "approved":
-        status = APPROVED_CURRENT
-        approved_source = "speaker_draft"
+        target_count = int(current_draft.get("target_count") or 0)
+        if unresolved_targets and target_count == 0:
+            status = ANALYSIS_REQUIRED
+        else:
+            status = APPROVED_CURRENT
+            approved_source = "speaker_draft"
     elif not unresolved_targets:
         status = NO_REVIEW_REQUIRED
     elif current_draft:

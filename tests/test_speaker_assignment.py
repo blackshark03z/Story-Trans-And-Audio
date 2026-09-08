@@ -500,6 +500,41 @@ class SpeakerReviewTests(unittest.TestCase):
             self.assertEqual(result["reviewed_count"], 2)
             self.assertEqual(result["invalid_count"], 1)
 
+    def test_dash_prefixed_dialogue_is_included_in_assignment_targets(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config, db, store, _book, chapter, revision_id, _character = seed(Path(directory))
+            dash_text = "Narration before dialogue.\n- Hold the gate.\nNarration after dialogue."
+            content_path, digest = store.put_text(dash_text)
+            with db.connect() as connection:
+                connection.execute(
+                    """UPDATE text_revisions
+                       SET content_path=?,content_sha256=?,lexical_sha256=?,char_count=?
+                       WHERE id=?""",
+                    (
+                        content_path,
+                        digest,
+                        lexical_sha256(dash_text),
+                        len(dash_text),
+                        revision_id,
+                    ),
+                )
+                connection.execute(
+                    "UPDATE chapters SET char_count=? WHERE id=?",
+                    (len(dash_text), chapter),
+                )
+            request = build_speaker_assignment_request(
+                db,
+                store,
+                config,
+                chapter_id=chapter,
+                mode="unassigned_only",
+            )
+            self.assertEqual(len(request["targets"]), 1)
+            target_context = next(
+                item for item in request["targets"][0]["context"] if item["is_target"]
+            )
+            self.assertTrue(target_context["text"].strip().startswith("- Hold the gate"))
+
     def test_zero_target_draft_only_approval_is_valid_without_casting_plan(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             config, db, store, _book, chapter, _revision, _character = seed_zero_target(Path(directory))
