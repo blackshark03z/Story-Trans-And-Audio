@@ -451,9 +451,11 @@
           <p class="muted">Nhập EPUB hoặc chọn một sách để xem ngay các chương và việc có thể làm tiếp.</p>
         </div>
         <div class="row import-row">
-          <select id="epubPath"></select>
-          <button id="importBtn" class="secondary" data-runtime-mutation-control>Nhập EPUB</button>
+          <label class="epub-upload-field"><span>Chọn EPUB từ máy</span><input id="epubUpload" type="file" accept=".epub,application/epub+zip"></label>
+          <label id="epubExistingSource" class="epub-existing-source hidden"><span>Hoặc EPUB có sẵn</span><select id="epubPath"></select></label>
+          <button id="importBtn" class="secondary" data-runtime-mutation-control disabled>Nhập EPUB</button>
           <label class="check"><input id="showSmokeBooks" type="checkbox"> Hiện dữ liệu thử</label>
+          <small id="epubImportHint" class="muted">Chọn một file .epub từ máy để bắt đầu.</small>
         </div>
         <div id="books" class="book-grid"></div>
       </section>

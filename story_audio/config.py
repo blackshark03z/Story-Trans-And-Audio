@@ -49,6 +49,7 @@ class Settings:
     blobs_dir: Path = _DATA_DIR / "blobs"
     output_dir: Path = _DATA_DIR / "output"
     work_dir: Path = _DATA_DIR / "work"
+    imports_dir: Path = _DATA_DIR / "imports"
     log_dir: Path = ROOT / "logs"
     gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
     gemini_prompt_version: str = "punctuation-v1"
@@ -90,6 +91,7 @@ class Settings:
             self.blobs_dir,
             self.output_dir,
             self.work_dir,
+            self.imports_dir,
             self.preview_cache_dir,
             self.gemini_cache_dir,
             self.youtube_export_dir,

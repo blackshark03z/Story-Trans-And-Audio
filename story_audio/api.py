@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import signal
@@ -382,6 +383,9 @@ def _book_id_for_custom_ref(voice_ref: str) -> int | None:
 
 class ImportRequest(BaseModel):
     path: str
+
+
+MAX_EPUB_UPLOAD_BYTES = 256 * 1024 * 1024
 
 
 class JobRequest(BaseModel):
@@ -963,6 +967,48 @@ def production_batch_prepare_status(
     if result.http_status != 200:
         raise HTTPException(result.http_status, dict(result.payload))
     return dict(result.payload)
+
+
+@app.post("/api/books/import-upload")
+async def import_book_upload(epub: UploadFile = File(...)) -> dict[str, Any]:
+    filename = Path(epub.filename or "").name
+    if not filename.lower().endswith(".epub"):
+        raise HTTPException(400, "Hãy chọn một file EPUB (.epub).")
+    settings.imports_dir.mkdir(parents=True, exist_ok=True)
+    temporary_path = settings.imports_dir / f".upload-{uuid.uuid4().hex}.epub"
+    final_path: Path | None = None
+    created_source = False
+    digest = hashlib.sha256()
+    total = 0
+    try:
+        with temporary_path.open("wb") as target:
+            while chunk := await epub.read(1024 * 1024):
+                total += len(chunk)
+                if total > MAX_EPUB_UPLOAD_BYTES:
+                    raise HTTPException(413, "EPUB vượt quá giới hạn 256 MB.")
+                digest.update(chunk)
+                target.write(chunk)
+        if total == 0:
+            raise HTTPException(400, "File EPUB đang rỗng.")
+        final_path = settings.imports_dir / f"{digest.hexdigest()}.epub"
+        if final_path.exists():
+            temporary_path.unlink(missing_ok=True)
+        else:
+            temporary_path.replace(final_path)
+            created_source = True
+        return import_epub(final_path, db, store)
+    except HTTPException:
+        temporary_path.unlink(missing_ok=True)
+        if created_source and final_path is not None:
+            final_path.unlink(missing_ok=True)
+        raise
+    except Exception as exc:
+        temporary_path.unlink(missing_ok=True)
+        if created_source and final_path is not None:
+            final_path.unlink(missing_ok=True)
+        raise HTTPException(400, str(exc)) from exc
+    finally:
+        await epub.close()
 
 
 @app.post("/api/books/import")
