@@ -63,6 +63,8 @@ class AudioLibraryUiTests(unittest.TestCase):
             "card.append(main,actions,configuration)",
         ):
             self.assertIn(value, block)
+        self.assertIn("play.className='primary'", block)
+        self.assertIn("exportButton.className='ghost'", block)
         self.assertNotIn("innerHTML", block)
 
     def test_artifact_configuration_is_read_only_and_snapshot_scoped(self) -> None:

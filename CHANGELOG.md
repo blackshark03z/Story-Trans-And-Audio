@@ -4,6 +4,16 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Owner journey and daily workspace convergence
+
+- Completed the real Book 1 `Quang Âm Chi Ngoại` Chapters 6–8 owner journey through render, Human QA, COMPLETE, Audio playback and contiguous ZIP download while preserving the exact production scope.
+- Fixed skipped-complete PREPARE ownership and command reconciliation so completed chapters do not block an owning prepared Job and chapter-scoped QA results cannot transiently replace the active range projection.
+- Redesigned the daily workspace around `Sản xuất / Gán giọng / Công việc / Audio`; resource/configuration destinations now live under `Tài nguyên` or contextual detours.
+- Bounded long Production queue, Assignment, Jobs and Audio lists with workspace-local scrolling; kept the Production queue and selected Audio player visible on supported desktop widths; added reduced-motion handling.
+- Clarified action hierarchy: listening is the primary Audio-card action, video export is tertiary, and Jobs emphasizes start/resume/retry over diagnostics/copy/cancel actions.
+- Real runtime verification at 1280×800 and 1440×900 found no horizontal overflow, no replacement-character mojibake and no browser-console errors. The Chapters 6–8 output path still returns HTTP Range `206` for all accepted artifacts and a valid three-file ZIP.
+- Golden isolated browser journey passes on the redesigned candidate. The long Speaker Review browser fixture remains timing-sensitive around its deliberate 10.6-second provider-delay plus response-loss simulation; redesign does not change that command/timer logic, and focused Speaker/Voice UI contracts remain green.
+
 ### Repository operation and hygiene
 
 - Documented one canonical root-level operator path for start, verified

@@ -11,12 +11,12 @@ capability blocker.
 
 - **Goal:** Converge the existing Story Audio capabilities into one usable daily
   production flow that reaches final downloadable audio through the supported UI.
-- **Critical User Journey (CUJ):** select Book/chapter range ? inspect/fix text and
-  speaker identity ? review characters and voices with dialogue context ? approve
-  casting/settings ? PREPARE ? explicit START_RENDER ? monitor ? listen/repair ?
-  Human QA ? download.
+- **Critical User Journey (CUJ):** select Book/chapter range → inspect/fix text and
+  speaker identity → review characters and voices with dialogue context → approve
+  casting/settings → PREPARE → explicit START_RENDER → monitor → listen/repair →
+  Human QA → download.
 - **Acceptance Fixture / Golden Input:** canonical runtime `127.0.0.1:8772`, Book 1
-  `Quang ?m Chi Ngo?i`, contiguous Chapters 2?8. Owner real-use resumes this same
+  `Quang Âm Chi Ngoại`, contiguous Chapters 2–8. Owner real-use resumes this same
   fixture after each blocker instead of starting a new Goal.
 - **Acceptance:** the Owner can complete the full CUJ without DevTools, manual DB
   edits, hidden endpoints, or knowledge of backend terminology; every successful
@@ -47,7 +47,7 @@ capability blocker.
 
 Normal work uses Goal Execution. Any owner-test defect temporarily enters
 Systematic Debugging for the first CUJ blocker, then returns immediately to the
-same Chapters 2?8 journey. Use Product Acceptance only when the predefined CUJ
+same Chapters 2–8 journey. Use Product Acceptance only when the predefined CUJ
 appears complete. Tests and commits are `CHECKPOINT_OK` evidence, never product
 acceptance by themselves. Cleanup belongs to Workspace Hygiene only after Goal
 closure or when disk/worktree pressure directly blocks this Goal.
@@ -76,14 +76,14 @@ closure or when disk/worktree pressure directly blocks this Goal.
 UX_CONTRACT
 PRIMARY_USER=Story Audio owner producing and correcting narrated chapters every day
 PRIMARY_JOURNEY=Book -> chapters -> text/characters/voices -> casting/settings review -> PREPARE -> explicit START_RENDER -> progress -> listen/fix/regenerate -> Human QA/download
-PRIMARY_SURFACE=Sách for selection/state; Sản xuất for the current production task; Giọng for the selected Book voice library; Audio for playback/QA/output
+PRIMARY_SURFACE=Sản xuất for the current production task; Gán giọng for speaker/voice decisions; Công việc for monitor/recovery; Audio for playback/QA/output; Sách/Giọng/Storage/Settings remain under Tài nguyên or contextual detours
 INFORMATION_HIERARCHY=current owner action and blocker first; scope/status second; diagnostics/history advanced
 SCOPE_MODEL=one selected Book plus one chapter or contiguous chapter range; contextual routes preserve that scope
 PRIMARY_CONTROLS=state-specific owner actions with concrete labels; Back/return links preserve scope
 ADVANCED_CONTROLS=settings, history, Jobs, Storage, and diagnostics remain reachable without competing with daily navigation
 STATES=meaningful empty/loading/disabled-with-reason/error-with-recovery/running/completed states
 BULK_DESTRUCTIVE=no new destructive or bulk operation; existing archive/deactivate semantics remain explicit
-DISCOVERABILITY=top-level Sách / Sản xuất / Giọng / Audio plus contextual actions from Book/chapter/audio state
+DISCOVERABILITY=top-level Sản xuất / Gán giọng / Công việc / Audio; Tài nguyên exposes Sách / Giọng / Storage / Settings without competing with the daily CUJ
 ACCESSIBILITY=semantic labels, visible focus, keyboard order, live status, adequate targets and responsive reflow
 OWNER_PREFERENCE=NONE; the Goal already fixes the product journey and top-level intent model
 ```
@@ -111,10 +111,10 @@ POST_SUBMIT_DESTINATION=Job progress, then authoritative Audio playback/QA/outpu
 WORKSPACE_CONTRACT
 PRIMARY_TASK=advance the selected Book/chapter range to usable final audio or a bounded correction
 PRIMARY_WORKSPACE=state-specific Sách, Sản xuất, Giọng, or Audio workspace
-PERSISTENT_REGIONS=compact primary navigation and current Book/range context
+PERSISTENT_REGIONS=compact top primary navigation and current Book/range context
 CONTEXTUAL_REGIONS=chapter detail, casting blockers, voice settings, repair controls, QA/history
-NAVIGATION_MODEL=four owner-intent destinations; Jobs/Settings/Storage are secondary
-LAYOUT_ARCHETYPE=side navigation plus state-specific master-detail/contextual panels
+NAVIGATION_MODEL=four daily owner-intent destinations: Sản xuất, Gán giọng, Công việc, Audio; resource/configuration destinations stay under Tài nguyên
+LAYOUT_ARCHETYPE=compact top navigation plus state-specific master-detail/contextual workspaces
 VIEWPORT_BUDGET=current list/task dominates; secondary detail reflows below at narrow widths
 CONTENT_REPLACEMENT_STRATEGY=route and production state replace unrelated work instead of stacking every subsystem
 ADVANCED_CONTROL_STRATEGY=secondary navigation and labelled disclosure
