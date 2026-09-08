@@ -157,6 +157,22 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
         for label in ("Yêu cầu:", "Đã duyệt:", "Bị loại:", "Thất bại:"):
             self.assertIn(label, self.js)
 
+    def test_batch_completion_bar_exposes_selected_and_safe_paths_with_clear_outcomes(self) -> None:
+        for token in (
+            "speaker-review-batch-bar",
+            "Chấp nhận mục đã chọn",
+            "Chấp nhận tất cả an toàn",
+            "Chọn các mục đang hiển thị",
+            "Khi chấp nhận:",
+            "Khi chưa duyệt / Để sau / Chưa chắc:",
+            "Final Voice Map/PREPARE",
+            "batchApproveSelectedSpeakerSuggestions",
+            "reviewer_payload:payload",
+        ):
+            self.assertIn(token, self.js)
+        self.assertIn("position:sticky", self.css)
+        self.assertIn("speaker-review-batch-rules", self.css)
+
     def test_approved_history_and_corrections_preserve_future_render_boundary(self) -> None:
         self.assertIn("review_history", self.js)
         self.assertIn("audit_event_id", self.js)

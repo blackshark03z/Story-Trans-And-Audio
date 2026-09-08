@@ -4,6 +4,13 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Speaker Review batch completion
+
+- Added a persistent batch-review completion bar beneath Gemini speaker suggestions with separate `Chấp nhận mục đã chọn` and `Chấp nhận tất cả an toàn` paths, selection/clear/defer controls, and explicit explanations for accepted versus unresolved/deferred outcomes.
+- Explicitly selected batches may contain human-edited or MEDIUM/LOW-confidence decisions once each item validates; they are applied atomically across source analysis runs. Automatic `all safe` approval remains restricted to unchanged HIGH-confidence suggestions that pass server-side exclusion checks.
+- Accepted items write durable audit decisions and apply their Character/background-group/speaker mapping plus future voice configuration; they move out of the review queue. Unaccepted, deferred, uncertain, or invalid items do not mutate Character/voice state and continue blocking Final Voice Map/PREPARE for the affected scope.
+- Batch failure preserves selection/drafts and rolls back the whole transaction. Browser acceptance now locks the sticky batch bar, selection count, outcome guidance, safe batch path, and no PREPARE/render side effects.
+
 ### Provider task-completion recovery
 
 - Added in-app Gemini key management: paste 1-N keys one-per-line, append only new values to `secrets/gemini_api_key.txt`, preserve existing values, skip duplicates, never echo stored secrets back to the browser, and report only counts/status.

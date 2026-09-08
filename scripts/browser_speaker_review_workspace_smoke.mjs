@@ -199,6 +199,10 @@ try {
   const correctionHistoryVisible = await evaluate(`document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key1))})?.innerText.includes("Audit #") && document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key1))})?.innerText.includes("Audio đã chấp nhận hiện tại không bị thay đổi")`);
 
   await click('[data-speaker-review-view="NEEDS_REVIEW"]');
+  await click(attr("data-speaker-suggestion-select", key5));
+  const batchBarSelection = await waitFor(`(() => { const bar=document.querySelector('[data-speaker-review-batch-bar]'),accept=bar?.querySelector('[data-batch-selected-speaker-suggestions]'); return bar&&accept&&!accept.disabled&&accept.textContent.includes('(1)')?{selected:bar.querySelector('[data-speaker-selected-count]')?.textContent,hasRules:bar.innerText.includes('Khi chấp nhận:')&&bar.innerText.includes('Khi chưa duyệt / Để sau / Chưa chắc:'),safeAction:bar.innerText.includes('Chấp nhận tất cả an toàn')}:null })()`);
+  await click('[data-clear-speaker-selection]');
+  await waitFor(`document.querySelector('[data-batch-selected-speaker-suggestions]')?.disabled`);
   await click('[data-speaker-batch-preview] > summary');
   const batchExcludedUnsafe = await evaluate(`document.querySelector('[data-speaker-batch-preview]')?.textContent.includes(${JSON.stringify(key4)})`);
   await evaluate(`(() => { const button=document.querySelector('[data-batch-speaker-suggestions]'); button.click(); button.click(); return true })()`);
@@ -266,6 +270,7 @@ try {
     approvedMoved: !!approvedMoved,
     correctionHistoryVisible,
     batchExcludedUnsafe,
+    batchBarSelection,
     batchBusyVisible: !!batchBusyVisible,
     batchResultText,
     batchResultVisible,

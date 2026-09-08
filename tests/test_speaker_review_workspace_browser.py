@@ -417,6 +417,44 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
 
 
 class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
+    def test_batch_review_completion_bar_real_browser(self) -> None:
+        import subprocess
+
+        SpeakerReviewWorkspaceFixtureHandler.reset()
+        server = ThreadingHTTPServer(
+            ("127.0.0.1", 0), SpeakerReviewWorkspaceFixtureHandler
+        )
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            result = subprocess.run(
+                [
+                    "node",
+                    "scripts/browser_speaker_batch_review_smoke.mjs",
+                    f"http://127.0.0.1:{server.server_port}",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=45,
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        evidence = json.loads(result.stdout)
+        self.assertTrue(evidence["ok"])
+        self.assertEqual(evidence["selected"]["count"], "1")
+        self.assertTrue(evidence["selected"]["rules"])
+        self.assertTrue(evidence["selected"]["safe"])
+        self.assertTrue(evidence["payloadOk"])
+        self.assertTrue(evidence["noRender"])
+        self.assertEqual(evidence["afterPending"], evidence["beforePending"] - 1)
+
     def test_review_workspace_real_browser_certification(self) -> None:
         import subprocess
 
@@ -507,6 +545,9 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
         self.assertTrue(evidence["approvedMoved"])
         self.assertTrue(evidence["correctionHistoryVisible"])
         self.assertTrue(evidence["batchExcludedUnsafe"])
+        self.assertEqual(evidence["batchBarSelection"]["selected"], "1")
+        self.assertTrue(evidence["batchBarSelection"]["hasRules"])
+        self.assertTrue(evidence["batchBarSelection"]["safeAction"])
         self.assertTrue(evidence["batchBusyVisible"])
         self.assertTrue(evidence["batchResultVisible"], evidence["batchResultText"])
         self.assertTrue(

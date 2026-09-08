@@ -18,6 +18,7 @@ from story_audio.speaker_review_suggestions import (
     SpeakerReviewSuggestionError,
     _latest_queue_for_run,
     accept_speaker_review_suggestion,
+    accept_speaker_review_selected_batch_items,
     approve_high_confidence_suggestions,
     approve_speaker_review_batch_items,
     generate_speaker_review_suggestions,
@@ -243,6 +244,173 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
             },
             "usage_metadata": {"promptTokenCount": 12, "candidatesTokenCount": 6},
         }
+
+    def test_explicit_selected_batch_accepts_human_resolved_low_confidence_item(self) -> None:
+        registry = self._registry()
+        unresolved_keys = [
+            row["speaker_key"]
+            for row in registry["rows"]
+            if row["status"] == "UNRESOLVED_DIALOGUE"
+        ]
+        run = generate_speaker_review_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            skip_completed=False,
+            registry=registry,
+            voice_catalog=_catalog(),
+            unresolved_keys=unresolved_keys,
+            provider=self._provider,
+            idempotency_key="explicit-selected-batch-run",
+        )
+        low = next(item for item in run["suggestions"] if item["confidence"] == "LOW")
+        result = accept_speaker_review_selected_batch_items(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            items=[
+                {
+                    "analysis_run_id": run["analysis_run_id"],
+                    "unresolved_key": low["unresolved_key"],
+                    "reviewer_payload": {
+                        "proposed_resolution": "NEW_CHARACTER",
+                        "proposed_character_name": "Night Scout",
+                        "proposed_aliases": ["scout"],
+                        "voice_mode": "inherit",
+                    },
+                }
+            ],
+            voice_catalog=_catalog(),
+            idempotency_key="explicit-selected-batch-accept",
+        )
+        self.assertEqual(result["submitted_count"], 1)
+        queue = _latest_queue_for_run(
+            self.db, self.store, analysis_run_id=run["analysis_run_id"]
+        )
+        reviewed = next(
+            item
+            for item in queue["suggestions"]
+            if item["unresolved_key"] == low["unresolved_key"]
+        )
+        self.assertIn(reviewed["review_state"], {"ACCEPTED", "EDITED_AND_ACCEPTED"})
+        pending = [
+            item for item in queue["suggestions"]
+            if item["review_state"] == "PENDING_REVIEW"
+        ]
+        self.assertEqual(len(pending), len(run["suggestions"]) - 1)
+        refreshed_registry = get_book_voice_registry(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            skip_completed=False,
+            voice_catalog=_catalog(),
+        )
+        self.assertEqual(
+            refreshed_registry["summary"]["unresolved_dialogue"],
+            len(run["suggestions"]) - 1,
+        )
+        self.assertTrue(refreshed_registry["speaker_state"]["blocks_progress"])
+        with self.assertRaises(SpeakerReviewSuggestionError):
+            accept_speaker_review_selected_batch_items(
+                self.db,
+                self.store,
+                self.config,
+                book_id=self.book_id,
+                from_chapter=1,
+                to_chapter=2,
+                items=[
+                    {
+                        "analysis_run_id": run["analysis_run_id"],
+                        "unresolved_key": low["unresolved_key"],
+                        "reviewer_payload": {
+                            "proposed_resolution": "NARRATOR",
+                            "voice_mode": "keep",
+                        },
+                    }
+                ],
+                voice_catalog=_catalog(),
+                idempotency_key="explicit-selected-batch-overwrite-blocked",
+            )
+        self.assertIsNotNone(
+            self.db.fetch_one(
+                "SELECT id FROM characters WHERE book_id=? AND display_name=?",
+                (self.book_id, "Night Scout"),
+            )
+        )
+
+    def test_explicit_selected_batch_rolls_back_all_items_when_one_is_invalid(self) -> None:
+        registry = self._registry()
+        unresolved_keys = [
+            row["speaker_key"]
+            for row in registry["rows"]
+            if row["status"] == "UNRESOLVED_DIALOGUE"
+        ]
+        run = generate_speaker_review_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            skip_completed=False,
+            registry=registry,
+            voice_catalog=_catalog(),
+            unresolved_keys=unresolved_keys,
+            provider=self._provider,
+            idempotency_key="explicit-selected-batch-rollback-run",
+        )
+        high = next(item for item in run["suggestions"] if item["confidence"] == "HIGH")
+        low = next(item for item in run["suggestions"] if item["confidence"] == "LOW")
+        with self.assertRaises(SpeakerReviewSuggestionError):
+            accept_speaker_review_selected_batch_items(
+                self.db,
+                self.store,
+                self.config,
+                book_id=self.book_id,
+                from_chapter=1,
+                to_chapter=2,
+                items=[
+                    {
+                        "analysis_run_id": run["analysis_run_id"],
+                        "unresolved_key": high["unresolved_key"],
+                        "reviewer_payload": {
+                            "proposed_resolution": "EXISTING_CHARACTER",
+                            "existing_character_id": int(self.commander["id"]),
+                            "proposed_aliases": ["gate leader"],
+                            "voice_mode": "keep",
+                        },
+                    },
+                    {
+                        "analysis_run_id": run["analysis_run_id"],
+                        "unresolved_key": low["unresolved_key"],
+                        "reviewer_payload": {
+                            "proposed_resolution": "NEW_CHARACTER",
+                            "proposed_character_name": "",
+                            "voice_mode": "inherit",
+                        },
+                    },
+                ],
+                voice_catalog=_catalog(),
+                idempotency_key="explicit-selected-batch-rollback",
+            )
+        queue = _latest_queue_for_run(
+            self.db, self.store, analysis_run_id=run["analysis_run_id"]
+        )
+        states = {
+            item["unresolved_key"]: item["review_state"]
+            for item in queue["suggestions"]
+        }
+        self.assertEqual(states[high["unresolved_key"]], "PENDING_REVIEW")
+        self.assertEqual(states[low["unresolved_key"]], "PENDING_REVIEW")
 
     def _background_provider(
         self,

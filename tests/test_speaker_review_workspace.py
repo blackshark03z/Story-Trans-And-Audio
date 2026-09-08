@@ -64,7 +64,7 @@ class SpeakerReviewWorkspaceContractTests(unittest.TestCase):
             batch_exclusion_reasons(
                 {**safe, "approved_final_voice_map_available": False}
             ),
-            ["approved_final_voice_map_missing"],
+            [],
         )
 
     def test_command_lifecycle_hides_internal_status_names(self) -> None:

@@ -157,6 +157,7 @@ from .speaker_review import (
 from .speaker_review_suggestions import (
     SpeakerReviewSuggestionError,
     accept_speaker_review_suggestion,
+    accept_speaker_review_selected_batch_items,
     approve_high_confidence_suggestions,
     approve_speaker_review_batch_items,
     generate_speaker_review_suggestions,
@@ -2373,16 +2374,31 @@ def _production_command_executor(
             )
             submitted_items = payload.get("items")
             if isinstance(submitted_items, list) and submitted_items:
-                result = approve_speaker_review_batch_items(
+                normalized_items = [
+                    dict(item) for item in submitted_items if isinstance(item, dict)
+                ]
+                explicit_selected = any(
+                    isinstance(item.get("reviewer_payload"), dict)
+                    for item in normalized_items
+                )
+                if explicit_selected and not all(
+                    isinstance(item.get("reviewer_payload"), dict)
+                    for item in normalized_items
+                ):
+                    raise ProductionCommandError(
+                        "Selected speaker batch cannot mix explicit and automatic items"
+                    )
+                batch_handler = (
+                    accept_speaker_review_selected_batch_items
+                    if explicit_selected
+                    else approve_speaker_review_batch_items
+                )
+                result = batch_handler(
                     db,
                     store,
                     settings,
                     **_speaker_review_mutation_range(command_range),
-                    items=[
-                        dict(item)
-                        for item in submitted_items
-                        if isinstance(item, dict)
-                    ],
+                    items=normalized_items,
                     voice_catalog=voice_catalog,
                     custom_voice_context=custom_context,
                     idempotency_key=request.idempotency_key,
@@ -2434,8 +2450,17 @@ def _production_command_executor(
                     "queue_counts": result.get("queue_counts") or {},
                 },
                 operator_message=(
-                    "Đã duyệt các đề xuất tin cậy cao được chọn. "
-                    "Không có PREPARE hoặc render tự động."
+                    (
+                        "Đã duyệt nguyên tử các mục người dùng đã chọn. "
+                        if isinstance(submitted_items, list)
+                        and any(
+                            isinstance(item, dict)
+                            and isinstance(item.get("reviewer_payload"), dict)
+                            for item in submitted_items
+                        )
+                        else "Đã duyệt các đề xuất tin cậy cao an toàn. "
+                    )
+                    + "Không có PREPARE hoặc render tự động."
                 ),
             )
         if command_type == "CREATE_SPEAKER_PROPOSAL":

@@ -729,6 +729,70 @@ class ProductionCommandApiTests(IsolatedTestCase):
             "speaker-review-batch-items-0001",
         )
 
+    def test_explicit_selected_speaker_batch_routes_to_human_review_adapter(self) -> None:
+        items = [
+            {
+                "analysis_run_id": "gsr-selected-a",
+                "unresolved_key": "unresolved-dialogue:1:u0002-a",
+                "reviewer_payload": {
+                    "proposed_resolution": "NEW_CHARACTER",
+                    "proposed_character_name": "Selected Character",
+                    "voice_mode": "inherit",
+                },
+            }
+        ]
+        command = {
+            "command_type": "APPROVE_SPEAKER_REVIEW_BATCH",
+            "idempotency_key": "speaker-review-selected-items-0001",
+            "scope": {
+                "range": {
+                    "book_id": 1,
+                    "from_chapter": 2,
+                    "to_chapter": 10,
+                    "skip_completed": True,
+                }
+            },
+            "payload": {
+                "book_id": 1,
+                "from_chapter": 2,
+                "to_chapter": 10,
+                "skip_completed": True,
+                "items": items,
+            },
+        }
+        context = (
+            {
+                "book_id": 1,
+                "from_chapter": 2,
+                "to_chapter": 10,
+                "skip_completed": True,
+            },
+            object(),
+            None,
+            {"rows": []},
+        )
+        with (
+            patch("story_audio.api._project_production_command", self.projection),
+            patch(
+                "story_audio.api._speaker_review_command_context",
+                return_value=context,
+            ),
+            patch(
+                "story_audio.api.accept_speaker_review_selected_batch_items",
+                return_value={"submitted_count": 1, "items": items},
+            ) as accept_batch,
+            patch("story_audio.api.approve_speaker_review_batch_items") as safe_batch,
+        ):
+            response = self.client.post("/api/production/commands", json=command)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result["outcome"], "APPLIED")
+        self.assertIn("người dùng đã chọn", result["operator_message"])
+        accept_batch.assert_called_once()
+        safe_batch.assert_not_called()
+        self.assertEqual(accept_batch.call_args.kwargs["items"], items)
+
     def test_speaker_suggestion_stale_scope_returns_rejected_envelope(self) -> None:
         command = {
             "command_type": "GENERATE_SPEAKER_SUGGESTIONS",

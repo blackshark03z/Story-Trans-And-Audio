@@ -213,6 +213,13 @@ main{max-width:1240px;margin:18px auto;padding:0 20px 50px}.app-view{animation:n
 #appNav>a[data-app-route="books"],#appNav>a[data-app-route="voices"]{display:inline-flex}
 .home-first-run[hidden],.home-work-grid[hidden]{display:none!important}
 
+/* Speaker review batch completion bar: keep the final review action visible after long proposal lists. */
+.speaker-review-batch-bar{position:sticky;bottom:0;z-index:8;display:grid;gap:10px;margin-top:14px;padding:14px 16px;border:1px solid var(--color-primary-border);border-top:3px solid var(--color-primary);background:rgba(255,255,255,.97);box-shadow:0 -10px 28px rgba(28,37,48,.12);backdrop-filter:blur(10px)}
+.speaker-review-batch-summary{display:flex;align-items:center;gap:10px 18px;flex-wrap:wrap}.speaker-review-batch-summary strong{font-size:16px}.speaker-review-batch-summary span{font-size:12px;color:var(--color-text-muted)}.speaker-review-batch-summary b{color:var(--color-primary)}
+.speaker-review-batch-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.speaker-review-batch-actions .primary{margin-left:auto}
+.speaker-review-batch-rules{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding-top:10px;border-top:1px solid var(--color-border)}.speaker-review-batch-rules p{margin:0;font-size:11px;line-height:1.45;color:var(--color-text-muted)}.speaker-review-batch-rules strong{color:var(--color-text)}
+@media(max-width:900px){.speaker-review-batch-bar{position:static}.speaker-review-batch-actions .primary{margin-left:0}.speaker-review-batch-actions button{flex:1 1 180px}.speaker-review-batch-rules{grid-template-columns:1fr}}
+
 /* OWNER_PRODUCT_UX_CONVERGENCE_V1 */
 .production-primary-actions{position:static;z-index:auto;margin:18px 0 0;padding:0;background:none;justify-content:flex-end}
 .production-primary-actions .dominant-production-action{width:auto;min-width:230px}

@@ -2724,29 +2724,6 @@ def accept_speaker_review_suggestion(
     return {"applied": applied, "review": review}
 
 
-def _approved_final_voice_map_available(
-    db: Database,
-    suggestion: Mapping[str, Any],
-) -> bool:
-    chapter_id = int((suggestion.get("target") or {}).get("chapter_id") or 0)
-    if not chapter_id:
-        return False
-    return bool(
-        db.fetch_one(
-            """
-            SELECT 1
-            FROM chapters c
-            JOIN casting_plans cp ON cp.chapter_id=c.id
-            WHERE c.id=?
-              AND cp.status='approved'
-              AND cp.text_revision_id=c.active_text_revision_id
-            LIMIT 1
-            """,
-            (chapter_id,),
-        )
-    )
-
-
 def approve_high_confidence_suggestions(
     db: Database,
     store: ContentStore,
@@ -2814,10 +2791,6 @@ def approve_high_confidence_suggestions(
             raise SpeakerReviewSuggestionError(
                 f"Suggestion {key} is not safe for batch approval: {', '.join(reasons)}"
             )
-        if not _approved_final_voice_map_available(db, suggestion):
-            raise SpeakerReviewSuggestionError(
-                "Approved Final Voice Map is missing or stale"
-            )
         if suggestion.get("proposed_resolution") not in {
             "EXISTING_CHARACTER",
             "NEW_CHARACTER",
@@ -2876,6 +2849,135 @@ def approve_high_confidence_suggestions(
         "submitted_count": len(keys),
         "decision_ids": decision_ids,
         "queue_counts": queue_view_counts(queue.get("suggestions") or []),
+    }
+
+
+def accept_speaker_review_selected_batch_items(
+    db: Database,
+    store: ContentStore,
+    config: Settings,
+    *,
+    book_id: int,
+    from_chapter: int,
+    to_chapter: int,
+    items: Iterable[Mapping[str, Any]],
+    voice_catalog: EffectiveVoiceCatalog,
+    custom_voice_context: CustomVoiceContext | None = None,
+    idempotency_key: str,
+) -> dict[str, Any]:
+    """Atomically accept the operator's explicit selection.
+
+    Unlike automatic safe-batch approval, explicit selection may include
+    MEDIUM/LOW-confidence suggestions or edited reviewer payloads. Every item
+    must already resolve to a concrete decision; one invalid item rolls the
+    entire batch back so the UI never reports a partially accepted selection.
+    """
+
+    normalized: list[dict[str, Any]] = []
+    seen: set[tuple[str, str]] = set()
+    for item in items:
+        run_id = str(item.get("analysis_run_id") or "").strip()
+        unresolved_key = str(item.get("unresolved_key") or "").strip()
+        reviewer_payload = item.get("reviewer_payload")
+        identity = (run_id, unresolved_key)
+        if not all(identity) or not isinstance(reviewer_payload, Mapping):
+            raise SpeakerReviewSuggestionError(
+                "Selected batch items require analysis_run_id, unresolved_key, and reviewer_payload"
+            )
+        if identity in seen:
+            continue
+        seen.add(identity)
+        normalized.append(
+            {
+                "analysis_run_id": run_id,
+                "unresolved_key": unresolved_key,
+                "reviewer_payload": dict(reviewer_payload),
+            }
+        )
+    if not normalized:
+        raise SpeakerReviewSuggestionError("No suggestions selected for batch approval")
+
+    queue_cache: dict[str, dict[str, Any]] = {}
+    for item in normalized:
+        run_id = item["analysis_run_id"]
+        queue = queue_cache.setdefault(
+            run_id,
+            _latest_queue_for_run(db, store, analysis_run_id=run_id),
+        )
+        suggestion = next(
+            (
+                row
+                for row in queue.get("suggestions") or []
+                if str(row.get("unresolved_key")) == item["unresolved_key"]
+            ),
+            None,
+        )
+        if not suggestion:
+            raise SpeakerReviewSuggestionError(
+                f"Suggestion not found: {item['unresolved_key']}"
+            )
+        if str(suggestion.get("review_state") or "PENDING_REVIEW").upper() != "PENDING_REVIEW":
+            raise SpeakerReviewSuggestionError(
+                "Selected batch accepts only PENDING_REVIEW suggestions; use correction workflow for reviewed decisions"
+            )
+        if suggestion.get("stale") or suggestion.get("source_revision_current") is False:
+            raise SpeakerReviewSuggestionError(
+                "Selected batch cannot accept a suggestion from a stale text revision"
+            )
+
+    applied: list[dict[str, Any]] = []
+    try:
+        with db.transaction() as connection:
+            for item in normalized:
+                applied.append(
+                    accept_speaker_review_suggestion(
+                        db,
+                        store,
+                        config,
+                        book_id=book_id,
+                        from_chapter=from_chapter,
+                        to_chapter=to_chapter,
+                        analysis_run_id=item["analysis_run_id"],
+                        unresolved_key=item["unresolved_key"],
+                        reviewer_payload=item["reviewer_payload"],
+                        voice_catalog=voice_catalog,
+                        custom_voice_context=custom_voice_context,
+                        idempotency_key=(
+                            f"{idempotency_key}:{item['analysis_run_id']}:{item['unresolved_key']}"
+                        ),
+                        connection=connection,
+                    )
+                )
+    except SpeakerReviewSuggestionError:
+        raise
+    except Exception as exc:
+        raise SpeakerReviewSuggestionError(str(exc)) from exc
+
+    decision_ids = [
+        int(
+            ((item.get("review") or {}).get("decision") or {}).get("audit_event_id")
+        )
+        for item in applied
+        if ((item.get("review") or {}).get("decision") or {}).get("audit_event_id")
+    ]
+    run_ids = sorted({item["analysis_run_id"] for item in normalized})
+    return {
+        "applied": applied,
+        "submitted_count": len(normalized),
+        "decision_ids": decision_ids,
+        "queue_counts": {
+            run_id: queue_view_counts(
+                _latest_queue_for_run(db, store, analysis_run_id=run_id).get("suggestions") or []
+            )
+            for run_id in run_ids
+        },
+        "items": [
+            {
+                "analysis_run_id": item["analysis_run_id"],
+                "unresolved_key": item["unresolved_key"],
+            }
+            for item in normalized
+        ],
     }
 
 
@@ -2975,6 +3077,7 @@ __all__ = [
     "SpeakerReviewSuggestionError",
     "accept_speaker_review_suggestion",
     "approve_high_confidence_suggestions",
+    "accept_speaker_review_selected_batch_items",
     "approve_speaker_review_batch_items",
     "build_speaker_review_request",
     "generate_speaker_review_suggestions",
