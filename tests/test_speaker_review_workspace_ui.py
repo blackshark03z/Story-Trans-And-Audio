@@ -161,17 +161,21 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
         for token in (
             "speaker-review-batch-bar",
             "Chấp nhận mục đã chọn",
-            "Chấp nhận tất cả an toàn",
+            "Chấp nhận tất cả đủ điều kiện",
             "Chọn các mục đang hiển thị",
-            "Khi chấp nhận:",
-            "Khi chưa duyệt / Để sau / Chưa chắc:",
+            "checkbox trên từng đề xuất",
+            "Nếu chấp nhận tất cả đủ điều kiện",
+            "Nếu chấp nhận mục đã chọn",
+            "Sau khi batch hoàn tất",
             "Final Voice Map/PREPARE",
             "batchApproveSelectedSpeakerSuggestions",
             "reviewer_payload:payload",
         ):
             self.assertIn(token, self.js)
-        self.assertIn("position:sticky", self.css)
-        self.assertIn("speaker-review-batch-rules", self.css)
+        self.assertIn(".speaker-review-batch-bar{position:static", self.css)
+        self.assertNotIn(".speaker-review-batch-bar{position:sticky", self.css)
+        self.assertIn("speaker-review-batch-preview-grid", self.css)
+        self.assertIn("speaker-review-batch-ruleline", self.css)
 
     def test_approved_history_and_corrections_preserve_future_render_boundary(self) -> None:
         self.assertIn("review_history", self.js)

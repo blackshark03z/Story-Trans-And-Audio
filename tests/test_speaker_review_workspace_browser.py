@@ -43,7 +43,7 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
     speaker_queue_request_count = 0
     last_batch_result: dict | None = None
     server_annotations: dict[str, str] = {}
-    next_analysis_delay_seconds = 10.6
+    next_analysis_delay_seconds = 11.8
 
     @classmethod
     def reset(cls) -> None:
@@ -56,7 +56,7 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
         cls.speaker_queue_request_count = 0
         cls.last_batch_result = None
         cls.server_annotations = {}
-        cls.next_analysis_delay_seconds = 10.6
+        cls.next_analysis_delay_seconds = 11.8
         cls.suggestions = cls.queue()
 
     @classmethod
@@ -449,8 +449,12 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
         evidence = json.loads(result.stdout)
         self.assertTrue(evidence["ok"])
         self.assertEqual(evidence["selected"]["count"], "1")
-        self.assertTrue(evidence["selected"]["rules"])
+        self.assertTrue(evidence["selected"]["outcomes"])
+        self.assertTrue(evidence["selected"]["direct"])
         self.assertTrue(evidence["selected"]["safe"])
+        self.assertTrue(evidence["selected"]["staticPosition"])
+        self.assertTrue(evidence["selected"]["afterList"])
+        self.assertTrue(evidence["selected"]["noOpenDialog"])
         self.assertTrue(evidence["payloadOk"])
         self.assertTrue(evidence["noRender"])
         self.assertEqual(evidence["afterPending"], evidence["beforePending"] - 1)
@@ -548,6 +552,9 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
         self.assertEqual(evidence["batchBarSelection"]["selected"], "1")
         self.assertTrue(evidence["batchBarSelection"]["hasRules"])
         self.assertTrue(evidence["batchBarSelection"]["safeAction"])
+        self.assertTrue(evidence["batchBarSelection"]["staticPosition"])
+        self.assertTrue(evidence["batchBarSelection"]["afterList"])
+        self.assertTrue(evidence["batchBarSelection"]["noOpenDialog"])
         self.assertTrue(evidence["batchBusyVisible"])
         self.assertTrue(evidence["batchResultVisible"], evidence["batchResultText"])
         self.assertTrue(

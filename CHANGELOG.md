@@ -6,10 +6,10 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ### Speaker Review batch completion
 
-- Added a persistent batch-review completion bar beneath Gemini speaker suggestions with separate `Chấp nhận mục đã chọn` and `Chấp nhận tất cả an toàn` paths, selection/clear/defer controls, and explicit explanations for accepted versus unresolved/deferred outcomes.
+- Added a terminal inline batch-review completion block after the Gemini suggestion list with separate `Chấp nhận tất cả đủ điều kiện` and `Chấp nhận mục đã chọn` paths. Batch scope is chosen directly from the review queue; there is no second checkbox-selection modal. The block stays in normal document flow and only enters view after the operator reaches the end of the review list; it is not sticky or fixed to the viewport.
 - Explicitly selected batches may contain human-edited or MEDIUM/LOW-confidence decisions once each item validates; they are applied atomically across source analysis runs. Automatic `all safe` approval remains restricted to unchanged HIGH-confidence suggestions that pass server-side exclusion checks.
 - Accepted items write durable audit decisions and apply their Character/background-group/speaker mapping plus future voice configuration; they move out of the review queue. Unaccepted, deferred, uncertain, or invalid items do not mutate Character/voice state and continue blocking Final Voice Map/PREPARE for the affected scope.
-- Batch failure preserves selection/drafts and rolls back the whole transaction. Browser acceptance now locks the sticky batch bar, selection count, outcome guidance, safe batch path, and no PREPARE/render side effects.
+- Batch preview now distinguishes the exact outcome of the all-eligible path versus the selected-only path, including what remains pending afterward. Batch failure preserves selection/drafts and rolls back the whole transaction. Browser acceptance locks the sticky bar, selection count, scope/outcome guidance, safe batch path, and no PREPARE/render side effects.
 
 ### Provider task-completion recovery
 
