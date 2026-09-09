@@ -114,6 +114,7 @@ globalThis.document = {{
   }},
 }};
 function reviewedDecisionCount() {{ return 0; }}
+function epubImportSourceAvailable() {{ return true; }}
 {self._line('function runtimeAllowsMutation()')}
 {self._line('function syncMutationControls()')}
 state.runtimeIdentityResolved = false;
