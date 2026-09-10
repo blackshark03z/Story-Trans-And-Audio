@@ -52,6 +52,11 @@ from .character_assignment import (
 )
 from .active_output import annotate_chapter_rows, annotate_job_rows, get_active_output_bindings
 from .artifact_configuration import artifact_configuration_summary
+from .artifact_restore import (
+    AcceptedArtifactRestoreError,
+    inspect_accepted_artifact_restore,
+    restore_accepted_artifact,
+)
 from .batch_plan import build_batch_plan
 from .batch_prepare_clone_api import (
     MAX_REQUEST_BYTES,
@@ -719,6 +724,14 @@ class ProductionCommandRequest(BaseModel):
     )
     scope: dict[str, Any]
     payload: dict[str, Any] = Field(default_factory=dict)
+
+
+class AcceptedArtifactRestoreRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    chapter_id: int = Field(gt=0)
+    artifact_id: int = Field(gt=0)
+    expected_active_artifact_id: int = Field(gt=0)
 
 
 @asynccontextmanager
@@ -2003,6 +2016,34 @@ def _production_command_executor(
     scope = dict(request.scope)
 
     def execute() -> ProductionCommandMutation:
+        if command_type == "RESTORE_ACCEPTED_ARTIFACT":
+            restore_request = AcceptedArtifactRestoreRequest.model_validate(payload)
+            normalized_scope = normalize_scope(scope)
+            scope_artifact_id = int((normalized_scope.get("artifact") or {}).get("id") or 0)
+            if scope_artifact_id != restore_request.artifact_id:
+                raise ProductionCommandError(
+                    "Artifact trong phạm vi không khớp bản audio cần khôi phục."
+                )
+            result = restore_accepted_artifact(
+                db,
+                chapter_id=restore_request.chapter_id,
+                artifact_id=restore_request.artifact_id,
+                expected_active_artifact_id=restore_request.expected_active_artifact_id,
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=1,
+                applied_items=(
+                    {
+                        "chapter_id": result["chapter_id"],
+                        "artifact_id": result["artifact_id"],
+                        "previous_artifact_id": result["previous_artifact_id"],
+                        "approval_event_id": result["approval_event_id"],
+                        "reused": result["idempotent_reused"],
+                    },
+                ),
+                operator_message="Đã khôi phục bản audio đã duyệt làm bản hiện tại.",
+            )
         if command_type == "CONFIRM_REPAIR_DRAFT":
             result = _confirm_repair_draft(
                 RepairDraftReviewConfirmationRequest.model_validate(payload),
@@ -3445,6 +3486,7 @@ def execute_production_command(
         JobStartConflict,
         LookupError,
         ProductionCommandError,
+        AcceptedArtifactRestoreError,
         RangeInputError,
         RetryConflict,
         SpeakerAssignmentError,
@@ -3821,7 +3863,7 @@ def set_human_approval(chapter_id: int, request: HumanApprovalRequest) -> dict[s
 @app.get("/api/chapters/{chapter_id}/human-approval-history")
 def human_approval_history(chapter_id: int) -> dict[str, Any]:
     chapter = db.fetch_one(
-        "SELECT id,human_approval_json FROM chapters WHERE id=?",
+        "SELECT id,active_audio_artifact_id,human_approval_json FROM chapters WHERE id=?",
         (chapter_id,),
     )
     if not chapter:
@@ -3876,7 +3918,33 @@ def human_approval_history(chapter_id: int) -> dict[str, Any]:
             }
         )
     items.sort(key=lambda item: str(item.get("recorded_at") or ""), reverse=True)
-    return {"chapter_id": chapter_id, "items": items, "total": len(items)}
+    active_artifact_id = int(chapter["active_audio_artifact_id"] or 0) or None
+    for item in items:
+        artifact_id = int(item.get("artifact_id") or 0)
+        eligibility = (
+            inspect_accepted_artifact_restore(
+                db,
+                chapter_id=chapter_id,
+                artifact_id=artifact_id,
+            )
+            if artifact_id and str(item.get("status") or "").lower() == "approved"
+            else {"eligible": False, "code": "NOT_ACCEPTED", "message": ""}
+        )
+        item["restore_eligible"] = bool(
+            eligibility["eligible"]
+            and item.get("id") == eligibility.get("approval_event_id")
+        )
+        item["restore_code"] = eligibility["code"]
+        item["restore_message"] = eligibility["message"]
+        item["restore_label"] = (
+            "Khôi phục làm bản hiện tại" if item["restore_eligible"] else None
+        )
+    return {
+        "chapter_id": chapter_id,
+        "active_artifact_id": active_artifact_id,
+        "items": items,
+        "total": len(items),
+    }
 
 
 @app.get("/api/chapters/{chapter_id}/revisions")

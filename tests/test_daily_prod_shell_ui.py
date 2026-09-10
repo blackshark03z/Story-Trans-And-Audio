@@ -79,7 +79,7 @@ console.log(JSON.stringify({
         self.assertEqual(lines[0], '{"empty":"home","production":"production","unknown":"home"}')
         self.assertEqual(lines[1], '{"route":"voices","hash":"#/voices","visible":["voices"],"active":["voices"]}')
 
-    def test_production_shell_lists_five_operator_phases(self) -> None:
+    def test_production_shell_lists_four_owner_production_phases(self) -> None:
         match = re.search(
             r'<ol id="productionStageShell".*?</ol>',
             self.html,
@@ -88,14 +88,12 @@ console.log(JSON.stringify({
         self.assertIsNotNone(match)
         stage_html = match.group(0)
         expected = [
-            "Ch\u1ecdn ph\u1ea1m vi",
-            "Ki\u1ec3m tra n\u1ed9i dung v\u00e0 ng\u01b0\u1eddi n\u00f3i",
-            "Ki\u1ec3m tra nh\u00e2n v\u1eadt v\u00e0 gi\u1ecdng",
-            "Chu\u1ea9n b\u1ecb v\u00e0 render",
-            "Nghe v\u00e0 duy\u1ec7t",
-            "Ho\u00e0n t\u1ea5t v\u00e0 t\u1ea3i xu\u1ed1ng",
+            "Ph\u1ea1m vi",
+            "N\u1ed9i dung &amp; ng\u01b0\u1eddi n\u00f3i",
+            "Nh\u00e2n v\u1eadt &amp; gi\u1ecdng",
+            "Ki\u1ec3m tra &amp; t\u1ea1o audio",
         ]
-        self.assertEqual(stage_html.count("<li"), 6)
+        self.assertEqual(stage_html.count("<li"), 4)
         for label in expected:
             self.assertIn(f"<strong>{label}</strong>", stage_html)
 

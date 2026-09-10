@@ -264,6 +264,80 @@ class AudioLibraryApiTests(IsolatedTestCase):
         items = self._items()
         self.assertEqual([item["chapter_number"] for item in items], [10, 11])
 
+    def test_history_exposes_only_safe_historical_accepted_restore_action(self) -> None:
+        target = self.db.fetch_one(
+            "SELECT a.*,jc.job_id FROM artifacts a JOIN job_chapters jc ON jc.id=a.job_chapter_id WHERE a.id=?",
+            (self.new_artifact_id,),
+        )
+        self.db.audit(
+            "human_qa_recorded",
+            job_id=int(target["job_id"]),
+            chapter_id=self.chapter_id,
+            details={
+                "status": "approved",
+                "notes": "Bản cũ đã duyệt.",
+                "artifact_id": self.new_artifact_id,
+                "job_id": int(target["job_id"]),
+                "sha256": target["sha256"],
+                "duration_ms": int(target["duration_ms"]),
+                "qa_feedback": {},
+            },
+        )
+
+        data = self.client.get(
+            f"/api/chapters/{self.chapter_id}/human-approval-history"
+        ).json()
+        candidate = next(
+            item for item in data["items"] if item["artifact_id"] == self.new_artifact_id
+        )
+        self.assertEqual(data["active_artifact_id"], self.old_artifact_id)
+        self.assertTrue(candidate["restore_eligible"])
+        self.assertEqual(candidate["restore_label"], "Khôi phục làm bản hiện tại")
+
+    def test_restore_command_returns_common_envelope_and_refreshes_active_output(self) -> None:
+        target = self.db.fetch_one(
+            "SELECT a.*,jc.job_id FROM artifacts a JOIN job_chapters jc ON jc.id=a.job_chapter_id WHERE a.id=?",
+            (self.new_artifact_id,),
+        )
+        self.db.audit(
+            "human_qa_recorded",
+            job_id=int(target["job_id"]),
+            chapter_id=self.chapter_id,
+            details={
+                "status": "approved",
+                "artifact_id": self.new_artifact_id,
+                "job_id": int(target["job_id"]),
+                "sha256": target["sha256"],
+                "duration_ms": int(target["duration_ms"]),
+            },
+        )
+
+        with patch(
+            "story_audio.api._project_production_command",
+            lambda _scope: ({"canonical_task": {"task_key": "audio:restored"}}, None),
+        ):
+            response = self.client.post(
+                "/api/production/commands",
+                json={
+                    "command_type": "RESTORE_ACCEPTED_ARTIFACT",
+                    "idempotency_key": "restore-accepted-artifact-0001",
+                    "scope": {"artifact": {"id": self.new_artifact_id}},
+                    "payload": {
+                        "chapter_id": self.chapter_id,
+                        "artifact_id": self.new_artifact_id,
+                        "expected_active_artifact_id": self.old_artifact_id,
+                    },
+                },
+            )
+        self.assertEqual(response.status_code, 200, response.text)
+        envelope = response.json()
+        self.assertEqual(envelope["outcome"], "APPLIED")
+        self.assertEqual(envelope["applied_items"][0]["artifact_id"], self.new_artifact_id)
+        self.assertEqual(
+            self._items()[0]["artifact_id"],
+            self.new_artifact_id,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

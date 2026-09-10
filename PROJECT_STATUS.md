@@ -18,6 +18,8 @@
 - Canonical Deep Doctor: schema `16`, `sqlite_quick_check=ok`, active artifacts checked `7`, missing/bad hashes `0`, invalid speaker/casting links `0`, `critical_errors=0`.
 - Canonical `scripts/project_ci.py --ci`: `PROJECT_CI: PASS checks=46 source=buildos-policy` at the final candidate after the command-scope hardening, supervised restart, and no-scope Production refresh regression. One earlier raw `unittest discover` attempt was invalidated by Windows virtual-commit exhaustion while the completed VieNeu runtime still held its loaded model; supervised restart restored memory and the authoritative policy suite passed. System pagefile settings were not modified.
 - Provider routing for new Gemini work is `gemini-3.8-flash -> 3.7-flash -> 3.6-flash -> 3.5-flash`, with bounded key/model fallback and actual successful model recorded.
+- The remaining accepted-generation recovery gap is implemented on this candidate: `Duyệt audio -> Lịch sử QA -> Khôi phục làm bản hiện tại`. The state transition is atomic and fail-closed, preserves all historical data, requires exact accepted evidence plus file integrity, and cannot call PREPARE/START_RENDER/providers. Focused domain/API/UI coverage and a real Chromium fixture pass; final policy verification for this incremental commit is recorded in the handoff for the current task.
+- Accessibility reconciliation is complete: the Production stage strip now announces the four visible stages rather than the obsolete six-stage label.
 
 ## Archived snapshot
 

@@ -4,6 +4,13 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Accepted-audio restore journey — 2026-09-10
+
+- Added the missing user-facing recovery path in `Duyệt audio`: an earlier generation appears in `Lịch sử QA` with `Khôi phục làm bản hiện tại` only when its newest Artifact-scoped Human QA evidence is accepted and exactly matches the completed, verified audio file.
+- Restore now runs through the shared `POST /api/production/commands` envelope with an exact active-Artifact compare-and-swap. It atomically switches active/stale status and the chapter pointer, preserves every file/Job/revision, records an immutable restore audit event, and is idempotent for the same completed transition.
+- The restore fails closed on stale UI state, missing or changed file/hash/size, mismatched QA evidence, invalid Job binding, or a render currently executing for the chapter. It never invokes PREPARE, START_RENDER, Gemini, TTS, repair or regeneration.
+- Added domain, API, UI-contract and real Chromium coverage for the complete transition. The 1366×768 candidate has no horizontal overflow, does not autoplay after restore, and the Production stage accessibility label now correctly says `Bốn giai đoạn sản xuất`.
+
 ### Stable end-to-end owner journey closure — 2026-09-10
 
 - Converged the post-render product boundary so `Sản xuất` stops at handoff and `Duyệt audio` is the single Human QA workspace. Real browser verification on canonical port `8873` proved the Chapters 2–8 range reaches `HUMAN_QA`, shows `Đã bàn giao` with the single primary action `Mở Duyệt audio`, and exposes no playback or QA controls inside Production.

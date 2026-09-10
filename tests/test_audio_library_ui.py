@@ -244,6 +244,7 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertNotIn("/human-approval", audio_related)
         self.assertIn("HUMAN_QA_ACCEPT", self.js)
         self.assertIn("HUMAN_QA_NEEDS_FIXES", self.js)
+        self.assertIn("RESTORE_ACCEPTED_ARTIFACT", self.js)
         self.assertIn("/api/production/commands", self.js)
         submit = self._function_block("submitAudioQa")
         self.assertIn("runProductionCommand", submit)
@@ -251,6 +252,24 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertIn("notes", submit)
         self.assertNotIn("Chapter 369", self.html + self.js + self.css)
         self.assertNotIn("chapter 369", self.html + self.js + self.css)
+
+    def test_accepted_history_exposes_confirmed_restore_without_rendering(self) -> None:
+        self.assertIn('id="audioQaHistory"', self.html)
+        self.assertIn("Khôi phục làm bản hiện tại", self.js)
+        restore = self._function_block("restoreAcceptedAudioArtifact")
+        self.assertIn("window.confirm", restore)
+        self.assertIn("expected_active_artifact_id", restore)
+        self.assertIn("RESTORE_ACCEPTED_ARTIFACT", restore)
+        self.assertIn("runProductionCommand", restore)
+        for forbidden in ("PREPARE", "START_RENDER", "/api/jobs", "/api/voice-previews"):
+            self.assertNotIn(forbidden, restore)
+
+    def test_production_stage_accessibility_label_matches_four_visible_stages(self) -> None:
+        self.assertIn('aria-label="Bốn giai đoạn sản xuất"', self.html)
+        self.assertNotIn('aria-label="Sáu giai đoạn sản xuất"', self.html)
+        shell = self.html.split('id="productionStageShell"', 1)[1].split("</ol>", 1)[0]
+        self.assertEqual(shell.count("<li"), 4)
+        self.assertIn("grid-template-columns:repeat(4,minmax(0,1fr))", self.css)
 
     def test_audio_review_styles_cover_master_detail_queue_and_mobile_layout(self) -> None:
         for value in (
