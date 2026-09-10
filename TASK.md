@@ -46,6 +46,11 @@ capability blocker.
   explicit START_RENDER -> progress -> listen/repair -> QA/download composition
   remains `UNVERIFIED` until representative end-to-end evidence exists on the
   supported UI and the Owner has completed subjective real-use acceptance.
+- **Decision traceability:** use
+  `docs/STORY_AUDIO_GOLDEN_JOURNEY_DECISION_MATRIX.md` to bind each observed
+  defect to its accept/change/defer/cancel/failure path, invalidated state,
+  preserved state, and next action. The matrix is subordinate implementation
+  guidance; it does not amend this Goal or its acceptance.
 
 ### CADS event routing for this Goal
 
