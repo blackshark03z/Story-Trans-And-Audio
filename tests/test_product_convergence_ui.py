@@ -18,7 +18,7 @@ class ProductConvergenceUiTests(unittest.TestCase):
     def test_primary_navigation_matches_owner_intent(self) -> None:
         nav = re.search(r'<nav id="appNav".*?</nav>', self.html, re.DOTALL)
         self.assertIsNotNone(nav)
-        direct = nav.group(0).split('<details id="appNavMore"', 1)[0]
+        direct = nav.group(0).split('<div id="appNavMore"', 1)[0]
         labels = re.findall(r'<a [^>]*>([^<]+)</a>', direct)
         self.assertEqual(labels, ["Sản xuất", "Gán giọng", "Công việc", "Duyệt audio"])
 

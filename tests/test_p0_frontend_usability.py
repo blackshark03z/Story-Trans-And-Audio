@@ -19,12 +19,12 @@ class P0FrontendUsabilityTests(unittest.TestCase):
     def test_primary_navigation_is_one_consistent_vietnamese_set(self) -> None:
         nav = re.search(r'<nav id="appNav".*?</nav>', self.html, re.DOTALL)
         self.assertIsNotNone(nav)
-        direct = nav.group(0).split('<details id="appNavMore"', 1)[0]
+        direct = nav.group(0).split('<div id="appNavMore"', 1)[0]
         labels = re.findall(r'<a [^>]*>([^<]+)</a>', direct)
         self.assertEqual(labels, ["Sản xuất", "Gán giọng", "Công việc", "Duyệt audio"])
         for secondary in ("Trang chủ", "Sách", "Giọng", "Dung lượng", "Cài đặt"):
             self.assertIn(secondary, nav.group(0))
-        self.assertIn(">Tài nguyên<", nav.group(0))
+        self.assertIn('class="app-nav-group-label">Tài nguyên</span>', nav.group(0))
         self.assertNotIn(">More<", nav.group(0))
 
     def test_health_summary_hides_diagnostics_until_requested(self) -> None:

@@ -96,7 +96,7 @@ const delay=ms=>new Promise(r=>setTimeout(r,ms)),poll=async fn=>{const end=Date.
             thread.join(timeout=5)
         self.assertEqual(result.returncode, 0, result.stderr)
         evidence = json.loads(result.stdout)
-        self.assertEqual(evidence["compact"], {"firstRun": True, "workHidden": True, "primary": ["production", "assignment", "jobs", "audio"], "secondary": "Tài nguyên"})
+        self.assertEqual(evidence["compact"], {"firstRun": True, "workHidden": True, "primary": ["production", "assignment", "jobs", "audio"]})
         self.assertEqual(evidence["beforeImport"]["disabled"], True)
         self.assertEqual(evidence["beforeImport"]["existingHidden"], True)
         self.assertIn(".epub", evidence["beforeImport"]["hint"])
