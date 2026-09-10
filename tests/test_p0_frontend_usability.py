@@ -21,7 +21,7 @@ class P0FrontendUsabilityTests(unittest.TestCase):
         self.assertIsNotNone(nav)
         direct = nav.group(0).split('<details id="appNavMore"', 1)[0]
         labels = re.findall(r'<a [^>]*>([^<]+)</a>', direct)
-        self.assertEqual(labels, ["Sản xuất", "Gán giọng", "Công việc", "Audio"])
+        self.assertEqual(labels, ["Sản xuất", "Gán giọng", "Công việc", "Duyệt audio"])
         for secondary in ("Trang chủ", "Sách", "Giọng", "Dung lượng", "Cài đặt"):
             self.assertIn(secondary, nav.group(0))
         self.assertIn(">Tài nguyên<", nav.group(0))

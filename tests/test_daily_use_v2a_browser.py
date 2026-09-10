@@ -36,6 +36,39 @@ class NoBooksFixtureHandler(ScopeFixtureHandler):
 
 
 class DailyUseV2ABrowserTests(unittest.TestCase):
+    def test_production_no_scope_refreshes_after_books_finish_loading(self) -> None:
+        NoBooksFixtureHandler.imported = True
+        server = ThreadingHTTPServer(("127.0.0.1", 0), NoBooksFixtureHandler)
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        script = r'''
+const {spawn}=require('node:child_process'),{existsSync}=require('node:fs'),{mkdtemp,readFile,rm}=require('node:fs/promises'),{tmpdir}=require('node:os'),{join}=require('node:path');
+const base=process.argv[1],exe=[process.env.STORY_AUDIO_BROWSER_EXE,'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe','C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'].find(Boolean&&existsSync);if(!exe)throw Error('No Chromium browser');
+const delay=ms=>new Promise(r=>setTimeout(r,ms)),poll=async fn=>{const end=Date.now()+12000;let error;while(Date.now()<end){try{const value=await fn();if(value)return value}catch(e){error=e}await delay(50)}throw error||Error('Timed out')};
+(async()=>{const profile=await mkdtemp(join(tmpdir(),'story-audio-v2a-production-load-')),child=spawn(exe,['--headless=new','--disable-gpu','--no-first-run','--remote-debugging-port=0',`--user-data-dir=${profile}`,`${base}/#/production`],{stdio:'ignore'});let socket;try{const port=await poll(async()=>Number((await readFile(join(profile,'DevToolsActivePort'),'utf8')).split(/\r?\n/)[0])||null),page=await poll(async()=>{const pages=await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();return pages.find(p=>p.type==='page'&&p.url.startsWith(base))});socket=new WebSocket(page.webSocketDebuggerUrl);await new Promise((resolve,reject)=>{socket.onopen=resolve;socket.onerror=reject});let id=0;const pending=new Map();socket.onmessage=e=>{const message=JSON.parse(e.data),entry=pending.get(message.id);if(!entry)return;pending.delete(message.id);message.error?entry.reject(Error(message.error.message)):entry.resolve(message.result)};const send=(method,params={})=>new Promise((resolve,reject)=>{const request=++id;pending.set(request,{resolve,reject});socket.send(JSON.stringify({id:request,method,params}))}),evaluate=async expression=>{const result=await send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(result.exceptionDetails)throw Error(result.exceptionDetails.text);return result.result.value};await send('Runtime.enable');await poll(async()=>await evaluate(`state.books.length===1&&document.querySelector('#productionPrimaryAction')?.textContent==='Chọn sách & chương'`));console.log(JSON.stringify(await evaluate(`({heading:document.querySelector('#productionCurrentStepHeading').textContent.trim(),body:document.querySelector('#productionTaskContent').textContent.trim(),taskKey:document.querySelector('#productionTaskContent').dataset.productionTaskKey})`)));}finally{socket?.close();const exited=new Promise(resolve=>child.once('exit',resolve));child.kill();await exited;for(let attempt=0;;attempt+=1){try{await rm(profile,{recursive:true,force:true});break}catch(error){if(!['EBUSY','EPERM'].includes(error?.code)||attempt>=29)throw error;await delay(200)}}}})();
+'''
+        try:
+            result = subprocess.run(
+                ["node", "-e", script, f"http://127.0.0.1:{server.server_port}"],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=45,
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+            NoBooksFixtureHandler.imported = False
+        self.assertEqual(result.returncode, 0, result.stderr)
+        evidence = json.loads(result.stdout)
+        self.assertEqual(evidence["heading"], "Chọn sách và chương")
+        self.assertIn("Chọn sách và một hoặc nhiều chương liên tiếp", evidence["body"])
+        self.assertNotIn("Chưa có sách để sản xuất", evidence["body"])
+        self.assertEqual(evidence["taskKey"], "scope:ready:")
+
     def test_zero_book_home_offers_keyboard_import_and_compact_navigation(self) -> None:
         NoBooksFixtureHandler.imported = False
         server = ThreadingHTTPServer(("127.0.0.1", 0), NoBooksFixtureHandler)

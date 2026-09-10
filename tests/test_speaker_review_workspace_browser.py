@@ -502,7 +502,11 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
         self.assertEqual(evidence["queueRequestCountAfterJobsPolling"], 2)
         for name, control in evidence["jobsPollingControlStates"].items():
             self.assertTrue(control["sameNode"])
-            self.assertTrue(control.get("focused", True), f"{name}: {control}")
+            if control.get("focusExpected", True):
+                self.assertTrue(control.get("focused", True), f"{name}: {control}")
+            else:
+                self.assertTrue(control.get("disabled", False), f"{name}: {control}")
+                self.assertFalse(control.get("focused", False), f"{name}: {control}")
             self.assertEqual(control.get("blurCount", 0), 0)
         self.assertEqual(
             evidence["jobsPollingControlStates"]["name"]["selection"],
@@ -527,7 +531,8 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
         self.assertTrue(evidence["busyVisible"])
         self.assertTrue(evidence["characterFocus"])
         self.assertTrue(evidence["newCharacterFocus"])
-        self.assertTrue(evidence["voiceFocus"])
+        self.assertTrue(evidence["voiceEditingDeferred"])
+        self.assertTrue(evidence["correctionVoiceEditingDeferred"])
         self.assertTrue(evidence["invalidDecisionBlocked"])
         self.assertTrue(evidence["discardRestored"])
         self.assertTrue(evidence["discardNoMutation"])
@@ -609,8 +614,9 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
             == "unresolved-dialogue:1003:u0002-feedface0000"
         )
         self.assertEqual(edited["payload"]["reviewer_payload"]["existing_character_id"], 25)
-        self.assertEqual(edited["payload"]["reviewer_payload"]["suggested_voice_id"], "commander")
-        self.assertEqual(edited["payload"]["reviewer_payload"]["voice_scope"], "range")
+        self.assertEqual(edited["payload"]["reviewer_payload"]["voice_mode"], "keep")
+        self.assertNotIn("suggested_voice_id", edited["payload"]["reviewer_payload"])
+        self.assertNotIn("voice_scope", edited["payload"]["reviewer_payload"])
         self.assertEqual(edited["payload"]["reviewer_payload"]["proposed_aliases"], ["edited alias"])
 
 

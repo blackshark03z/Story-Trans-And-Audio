@@ -318,6 +318,48 @@ class ProductionTaskProjectionTests(unittest.TestCase):
                 self.assertEqual(projection["task_type"], expected)
                 self.assert_typed_section(projection, section)
 
+    def test_mixed_range_regenerates_analysis_before_reviewing_existing_exceptions(self) -> None:
+        rows = (
+            _row(1, "SPEAKER_EXCEPTIONS", blockers=["analysis required"]),
+            _row(2, "SPEAKER_EXCEPTIONS", blockers=["review required"]),
+        )
+        range_inputs = {
+            "summary": {
+                "total_chapters": 2,
+                "proposal_required_chapters": 1,
+                "speaker_exception_count": 1,
+            },
+            "proposal_chapters": [{
+                "chapter_id": rows[0]["chapter_id"],
+                "chapter_number": 1,
+                "chapter_title": "Chapter 1",
+                "reason": "analysis_required",
+                "draft_id": 11,
+            }],
+            "speaker_exception_queue": [{
+                "chapter_id": rows[1]["chapter_id"],
+                "chapter_number": 2,
+                "chapter_title": "Chapter 2",
+                "draft_id": 22,
+                "utterance_id": "u0002-mixed",
+                "sequence": 2,
+            }],
+            "ready_speaker_drafts": [],
+            "voice_exception_queue": [],
+            "casting_generation_ready": [],
+            "casting_approvals": [],
+            "blocked": [],
+            "skipped": [],
+        }
+        projection = project_production_task({
+            "readiness": _readiness(*rows),
+            "range_inputs": range_inputs,
+        })
+        self.assertEqual(projection["task_type"], "PREPARE_RANGE_INPUTS")
+        speaker = projection["canonical_task"]["speaker"]
+        self.assertEqual(speaker["proposal_chapters"][0]["chapter_number"], 1)
+        self.assertEqual(len(speaker["exception_queue"]), 1)
+
     def test_repair_required_precedes_stale_range_input_preparation(self) -> None:
         repair = _row(
             1,
@@ -667,7 +709,7 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertEqual(projection["user_stage"], 5)
         self.assertEqual(projection["current_stage_key"], "repair")
         self.assertEqual(projection["title"], "Cần sửa và tạo bản thay thế")
-        self.assertEqual(len(projection["phases"]), 5)
+        self.assertEqual(len(projection["phases"]), 4)
         self.assertEqual(projection["phases"][0]["label"], "Xác nhận nội dung và người nói")
         self.assertIsNone(projection["primary_action"])
         self.assertEqual(projection["chapter_queue"][0]["status"], "current")

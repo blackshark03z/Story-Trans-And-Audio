@@ -24,7 +24,7 @@ class DailyProductionShellUiTests(unittest.TestCase):
             ("production", "#/production", "Sản xuất"),
             ("assignment", "#/assignment", "Gán giọng"),
             ("jobs", "#/jobs", "Công việc"),
-            ("audio", "#/audio", "Audio"),
+            ("audio", "#/audio", "Duyệt audio"),
             ("storage", "#/storage", "Dung lượng"),
         ]
         self.assertIn('id="appNav"', self.html)
@@ -52,7 +52,7 @@ const views = ['home','production','voices','books','audio','settings'].map(rout
 const links = ['home','production','voices','books','audio','settings'].map(route => ({ dataset: { appRoute: route }, classList: { values: new Set(), toggle(k,v){ v ? this.values.add(k) : this.values.delete(k); } }, attrs: {}, setAttribute(k,v){ this.attrs[k]=v; }, removeAttribute(k){ delete this.attrs[k]; } }));
 globalThis.document = { querySelectorAll(selector){ return selector === '[data-app-view]' ? views : links; }, querySelector(selector){ return selector === '#appViewHeading' ? { textContent: '' } : null; } };
 const state = { currentRoute: 'home' };
-const APP_ROUTES={home:{hash:'#/home',label:'Trang chủ',heading:'Trang chủ'},production:{hash:'#/production',label:'Sản xuất',heading:'Sản xuất'},voices:{hash:'#/voices',label:'Thư viện giọng',heading:'Thư viện giọng'},books:{hash:'#/books',label:'Sách và nhân vật',heading:'Sách và nhân vật'},audio:{hash:'#/audio',label:'Audio đã tạo',heading:'Audio đã tạo'},settings:{hash:'#/settings',label:'Cài đặt',heading:'Cài đặt'}};
+const APP_ROUTES={home:{hash:'#/home',label:'Trang chủ',heading:'Trang chủ'},production:{hash:'#/production',label:'Sản xuất',heading:'Sản xuất'},voices:{hash:'#/voices',label:'Thư viện giọng',heading:'Thư viện giọng'},books:{hash:'#/books',label:'Sách và nhân vật',heading:'Sách và nhân vật'},audio:{hash:'#/audio',label:'Duyệt audio',heading:'Duyệt audio'},settings:{hash:'#/settings',label:'Cài đặt',heading:'Cài đặt'}};
 function routeFromHash(hash=window.location.hash){const key=String(hash||'').replace(/^#\\/?/,'').split(/[/?]/)[0]||'home';return APP_ROUTES[key]?key:'home'}
 function setAppRoute(route,{replace=false}={}){const next=APP_ROUTES[route]?route:'home';state.currentRoute=next;document.querySelectorAll('[data-app-view]').forEach(view=>{const active=view.dataset.appView===next;view.hidden=!active;view.setAttribute('aria-hidden',active?'false':'true')});document.querySelectorAll('[data-app-route]').forEach(link=>{const active=link.dataset.appRoute===next;link.classList.toggle('active',active);if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current')});const heading=document.querySelector('#appViewHeading');if(heading)heading.textContent=APP_ROUTES[next].heading;const desired=APP_ROUTES[next].hash;if(window.location.hash!==desired){if(replace)history.replaceState(null,'',desired);else history.pushState(null,'',desired)}}
 console.log(JSON.stringify({

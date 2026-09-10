@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Story Audio</title>
+  <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/assets/styles.css?v=20260909-speaker-batch-review-4">
   <style>
     .casting-journey{display:grid;gap:12px;margin:16px 0;padding:16px;border:1px solid var(--color-border);border-radius:5px;background:var(--color-surface-subtle)}.casting-journey-head{display:flex;justify-content:space-between;align-items:start;gap:12px}.casting-journey-head h3{margin:2px 0;font-size:18px}.casting-journey-head>span{padding:5px 8px;border-radius:3px;background:var(--color-primary-soft);color:var(--color-primary);font-size:12px;font-weight:800;white-space:nowrap}.casting-journey-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0;padding:0;list-style:none}.casting-journey-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 10px;border:1px solid var(--color-border);border-radius:4px;background:var(--color-surface)}.casting-journey-list li>div{display:grid;gap:2px}.casting-journey-list strong{font-size:12px}.casting-journey-list span{font-size:11px;color:var(--muted)}.casting-journey-list li.complete{border-color:#b9d8d2;background:var(--color-success-soft)}.casting-journey-list li.complete strong:before{content:'✓ ';color:var(--color-success)}.casting-journey-list li.current{border-color:#e4c48c;background:var(--color-warning-soft)}.casting-journey-list li.current strong:before{content:'→ ';color:var(--color-warning)}.casting-journey-list li.blocked{background:var(--color-surface-subtle);opacity:.75}.casting-journey-list .text-action{font-size:11px;white-space:nowrap}@media(max-width:760px){.casting-journey-head{display:grid}.casting-journey-list{grid-template-columns:1fr}}
@@ -48,7 +49,7 @@
     <a href="#/production" data-app-route="production" aria-label="Sản xuất">Sản xuất</a>
     <a href="#/assignment" data-app-route="assignment" aria-label="Gán giọng">Gán giọng</a>
     <a href="#/jobs" data-app-route="jobs" aria-label="Công việc">Công việc</a>
-    <a href="#/audio" data-app-route="audio" aria-label="Audio">Audio</a>
+    <a href="#/audio" data-app-route="audio" aria-label="Duyệt audio">Duyệt audio</a>
     <details id="appNavMore" class="app-nav-more" open>
       <summary>Tài nguyên</summary>
       <div aria-label="Tài nguyên và cài đặt">
@@ -556,96 +557,136 @@
         <div class="section-head">
           <div>
             <p class="eyebrow">Thành phẩm</p>
-            <h2 id="audioHeading">Nghe, duyệt và tải audio</h2>
+            <h2 id="audioHeading">Duyệt audio</h2>
           </div>
           <button id="refreshAudioLibrary" class="ghost" type="button">Làm mới</button>
         </div>
-        <p class="section-guide">Chọn chương để nghe lại, kiểm QA hoặc tải file. Danh sách giữ nguyên phạm vi sản xuất để bạn không phải tìm lại.</p>
+        <p class="section-guide">Đây là nơi duy nhất để nghe, duyệt, yêu cầu sửa và tải thành phẩm. Sản xuất chỉ tạo audio; khi render xong, công việc được bàn giao vào hàng đợi này.</p>
         <div id="audioLibraryStatus" class="audio-library-status muted" role="status" aria-live="polite">Chưa tải thư viện audio.</div>
-        <div class="audio-library-filters" aria-label="Audio Library filters">
+        <div id="audioReviewSummary" class="audio-review-summary" aria-label="Tóm tắt hàng đợi duyệt audio">
+          <div><strong id="audioPendingCount">0</strong><span>Chờ duyệt</span></div>
+          <div><strong id="audioNeedsFixesCount">0</strong><span>Cần sửa</span></div>
+          <div><strong id="audioAcceptedCount">0</strong><span>Đã duyệt</span></div>
+          <div><strong id="audioTotalCount">0</strong><span>Tổng audio</span></div>
+        </div>
+        <div class="audio-library-filters" aria-label="Bộ lọc hàng đợi audio">
           <label>Sách
             <select id="audioFilterBook"><option value="">Tất cả sách</option></select>
           </label>
           <label>Chương
             <input id="audioFilterChapter" inputmode="numeric" placeholder="Số hoặc tên chương">
           </label>
-          <label>Human QA
+          <label>Trạng thái
             <select id="audioFilterQa">
               <option value="">Tất cả trạng thái</option>
               <option value="pending">Chờ duyệt</option>
-              <option value="accepted">Đã chấp nhận</option>
               <option value="needs_fixes">Cần sửa</option>
+              <option value="accepted">Đã duyệt</option>
             </select>
           </label>
           <button id="clearAudioFilters" class="ghost" type="button">Xóa bộ lọc</button>
         </div>
-        <div id="audioLibraryPlayer" class="audio-library-player hidden" aria-live="polite">
-          <div>
-            <p class="eyebrow">Đang chọn</p>
-            <h3 id="audioLibraryPlayerTitle">—</h3>
-            <p id="audioLibraryPlayerMeta" class="muted"></p>
-          </div>
-          <audio id="audioLibraryAudio" controls preload="metadata" aria-label="Trình phát audio chương đang chọn"></audio>
-          <a id="audioLibraryDownload" class="secondary app-secondary-link" href="#" download>Tải audio</a>
+        <div class="audio-review-workspace">
+          <section class="audio-review-queue" aria-labelledby="audioQueueHeading">
+            <div class="audio-review-queue-head">
+              <div><p class="eyebrow">Hàng đợi</p><h3 id="audioQueueHeading">Audio cần xử lý</h3></div>
+              <span class="muted">Chọn một chương để mở chi tiết.</span>
+            </div>
+            <div id="audioLibraryList" class="audio-library-list audio-review-table" role="table" aria-label="Danh sách audio đã tạo"></div>
+            <div id="audioLibraryEmpty" class="audio-library-empty hidden">
+              <strong>Chưa có audio phù hợp.</strong>
+              <span>Audio mới sẽ xuất hiện ở đây sau khi render hoàn tất.</span>
+              <a class="secondary app-secondary-link" href="#/production">Mở Sản xuất</a>
+            </div>
+            <div id="audioLibraryError" class="issue error hidden">
+              <span id="audioLibraryErrorText">Không tải được thư viện audio.</span>
+              <button id="retryAudioLibrary" class="ghost" type="button">Thử lại</button>
+            </div>
+          </section>
+          <aside id="audioReviewDetail" class="audio-review-detail" aria-labelledby="audioReviewDetailHeading">
+            <div id="audioReviewDetailEmpty" class="audio-review-detail-empty">
+              <p class="eyebrow">Chi tiết</p>
+              <h3 id="audioReviewDetailHeading">Chọn một chương</h3>
+              <p>Player và hành động Human QA chỉ xuất hiện tại đây, không nằm trong màn hình Sản xuất.</p>
+            </div>
+            <div id="audioLibraryPlayer" class="audio-library-player hidden" aria-live="polite">
+              <div>
+                <p class="eyebrow">Audio đang chọn</p>
+                <h3 id="audioLibraryPlayerTitle">—</h3>
+                <p id="audioLibraryPlayerMeta" class="muted"></p>
+              </div>
+              <audio id="audioLibraryAudio" controls preload="metadata" aria-label="Trình phát audio chương đang chọn"></audio>
+              <div id="audioLibraryDetailActions" class="audio-review-detail-actions">
+                <a id="audioLibraryDownload" class="secondary app-secondary-link" href="#" download>Tải audio</a>
+                <button id="audioLibraryVideoExport" class="ghost" type="button">Xuất video</button>
+                <a id="audioLibraryVideoDownload" class="secondary app-secondary-link hidden" href="#" download>Tải video</a>
+              </div>
+              <p id="audioLibraryVideoStatus" class="audio-library-video-status muted"></p>
+              <video id="audioLibraryVideoPreview" class="audio-library-video-preview hidden" controls preload="metadata" aria-label="Video xuất từ audio đang chọn"></video>
+              <details id="audioArtifactConfiguration" class="audio-artifact-configuration">
+                <summary>Cấu hình đã dùng để tạo audio này</summary>
+                <pre id="audioArtifactConfigurationBody" class="audio-artifact-configuration-body muted">Mở để xem snapshot render bất biến.</pre>
+              </details>
+            </div>
+            <section id="audioLibraryQaPanel" class="audio-library-qa-panel hidden" aria-labelledby="audioQaHeading">
+              <div class="audio-qa-heading">
+                <div>
+                  <p class="eyebrow">Human QA</p>
+                  <h3 id="audioQaHeading">Nghe và duyệt</h3>
+                  <p id="audioQaIdentity" class="muted"></p>
+                </div>
+                <label>Tốc độ nghe thử
+                  <select id="audioQaPlaybackSpeed" aria-label="Tốc độ nghe thử">
+                    <option value="0.75">0.75x</option>
+                    <option value="1" selected>1.0x</option>
+                    <option value="1.25">1.25x</option>
+                    <option value="1.5">1.5x</option>
+                  </select>
+                </label>
+              </div>
+              <div class="audio-qa-primary-actions">
+                <button id="audioQaAccept" class="primary" type="button" data-runtime-mutation-control>Chấp nhận</button>
+                <button id="audioQaOpenRepair" class="secondary" type="button">Cần sửa</button>
+              </div>
+              <details id="audioQaRepairDetails" class="audio-qa-repair-details">
+                <summary>Chi tiết yêu cầu sửa</summary>
+                <fieldset class="audio-qa-feedback-options">
+                  <legend>Vấn đề cần sửa</legend>
+                  <label><input id="audioQaRepeatedWords" type="checkbox"> Lặp chữ hoặc lặp cụm từ</label>
+                  <label><input id="audioQaSlowOverall" type="checkbox"> Tốc độ tổng thể quá chậm</label>
+                  <label><input id="audioQaLocalPacing" type="checkbox"> Có đoạn cần nhanh hoặc chậm riêng</label>
+                  <label><input id="audioQaOther" type="checkbox"> Lỗi khác</label>
+                </fieldset>
+                <label>Tốc độ mong muốn cho bản thay thế
+                  <select id="audioQaReplacementSpeed" aria-label="Tốc độ mong muốn cho bản thay thế">
+                    <option value="1">1.0x</option>
+                    <option value="1.1">1.1x</option>
+                    <option value="1.25" selected>1.25x</option>
+                    <option value="1.5">1.5x</option>
+                  </select>
+                  <small>Áp dụng làm tốc độ trung bình; từng đoạn vẫn có thể được điều chỉnh riêng.</small>
+                </label>
+                <button id="audioQaMarkPosition" class="ghost" type="button">Đánh dấu vị trí đang nghe</button>
+                <label>Ghi chú phản hồi
+                  <textarea id="audioQaNote" rows="3" maxlength="4000" placeholder="Mô tả vấn đề cần sửa" required></textarea>
+                </label>
+                <div id="audioQaMarkerList" class="muted"></div>
+                <div class="audio-qa-actions">
+                  <button id="audioQaNeedsFixes" class="primary" type="button" data-runtime-mutation-control>Gửi yêu cầu sửa</button>
+                </div>
+              </details>
+              <div id="audioQaResult" class="audio-qa-result hidden" aria-live="polite"></div>
+              <details class="audio-qa-history-details">
+                <summary>Lịch sử QA</summary>
+                <div id="audioQaHistory" class="qa-history muted">Chưa tải lịch sử.</div>
+              </details>
+              <details>
+                <summary>Chi tiết kỹ thuật</summary>
+                <div id="audioQaVoiceSummary" class="muted"></div>
+              </details>
+            </section>
+          </aside>
         </div>
-        <div id="audioLibraryList" class="audio-library-list" aria-label="Danh sách audio đã tạo"></div>
-        <div id="audioLibraryEmpty" class="audio-library-empty hidden">
-          <strong>Chưa có audio hoàn thành.</strong>
-          <span>Bạn có thể quay lại Production để chọn chương và tiếp tục quy trình sản xuất.</span>
-          <a class="secondary app-secondary-link" href="#/production">Mở Production</a>
-        </div>
-        <div id="audioLibraryError" class="issue error hidden">
-          <span id="audioLibraryErrorText">Không tải được thư viện audio.</span>
-          <button id="retryAudioLibrary" class="ghost" type="button">Thử lại</button>
-        </div>
-        <section id="audioLibraryQaPanel" class="audio-library-qa-panel hidden" aria-labelledby="audioQaHeading">
-          <div>
-            <p class="eyebrow">Human QA</p>
-            <h3 id="audioQaHeading">Nghe và gửi phản hồi sửa</h3>
-            <p id="audioQaIdentity" class="muted"></p>
-            <details>
-              <summary>Chi tiết kỹ thuật</summary>
-              <div id="audioQaVoiceSummary" class="muted"></div>
-            </details>
-          </div>
-          <label>Tốc độ nghe thử
-            <select id="audioQaPlaybackSpeed" aria-label="Tốc độ nghe thử">
-              <option value="0.75">0.75x</option>
-              <option value="1" selected>1.0x</option>
-              <option value="1.25">1.25x</option>
-              <option value="1.5">1.5x</option>
-            </select>
-          </label>
-          <fieldset class="audio-qa-feedback-options">
-            <legend>Vấn đề cần sửa</legend>
-            <label><input id="audioQaRepeatedWords" type="checkbox"> Lặp chữ hoặc lặp cụm từ</label>
-            <label><input id="audioQaSlowOverall" type="checkbox"> Tốc độ tổng thể quá chậm</label>
-            <label><input id="audioQaLocalPacing" type="checkbox"> Có đoạn cần nhanh hoặc chậm riêng</label>
-            <label><input id="audioQaOther" type="checkbox"> Lỗi khác</label>
-          </fieldset>
-          <label>Tốc độ mong muốn cho bản thay thế
-            <select id="audioQaReplacementSpeed" aria-label="Tốc độ mong muốn cho bản thay thế">
-              <option value="1">1.0x</option>
-              <option value="1.1">1.1x</option>
-              <option value="1.25" selected>1.25x</option>
-              <option value="1.5">1.5x</option>
-            </select>
-            <small>Áp dụng làm tốc độ trung bình; từng đoạn vẫn có thể được điều chỉnh riêng.</small>
-          </label>
-          <button id="audioQaMarkPosition" class="ghost" type="button">Đánh dấu vị trí đang nghe</button>
-          <label>Ghi chú phản hồi
-            <textarea id="audioQaNote" rows="3" maxlength="4000" placeholder="Mô tả vấn đề cần sửa" required></textarea>
-          </label>
-          <div id="audioQaMarkerList" class="muted"></div>
-          <div class="audio-qa-actions">
-            <button id="audioQaNeedsFixes" class="primary" type="button" data-runtime-mutation-control>Gửi yêu cầu sửa</button>
-          </div>
-          <div id="audioQaResult" class="audio-qa-result hidden" aria-live="polite"></div>
-          <div>
-            <strong>Lịch sử QA</strong>
-            <div id="audioQaHistory" class="qa-history muted">Chưa tải lịch sử.</div>
-          </div>
-        </section>
 
         <section class="audio-range-download" aria-labelledby="audioRangeHeading">
           <div class="section-head">
@@ -1133,7 +1174,7 @@
     <p id="productionPrepareDialogStatus" class="production-auth-message"></p>
     <label class="check production-confirmation">
       <input id="productionPrepareDialogConfirmation" type="checkbox" onchange="updateProductionPrepareDialog()">
-      <span id="productionPrepareConfirmationCopy">Tôi xác nhận phạm vi đã chọn. Bước này chưa tạo audio.</span>
+      <span id="productionPrepareConfirmationCopy">Tôi đã kiểm tra phạm vi, bản đồ giọng và thông số TTS hiệu lực. PREPARE chưa tạo audio.</span>
     </label>
     <div class="production-auth-actions">
       <button class="ghost" type="button" onclick="document.querySelector('#productionPrepareAuthDialog').close()">Hủy</button>

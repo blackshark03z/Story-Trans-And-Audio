@@ -1,8 +1,23 @@
 ﻿# Trạng thái dự án
 
-> **Historical evidence only.** This 2026-08-25 snapshot is not current worker
-> authority. Read `TASK.md`, `AGENTS.md`, and live Git/runtime state for current
-> work; do not infer a Build OS lifecycle action from this document.
+> **Historical evidence only.** The older 2026-08-25 material below is not current worker
+> authority. Read `TASK.md`, `AGENTS.md`, live Git/runtime state, and the current
+> release-candidate section immediately below before using archived evidence.
+
+## Current release candidate — 2026-09-10
+
+**Verdict before final commit:** `STABLE_E2E_ACCEPTANCE_GREEN / FINAL_POLICY_PASS`.
+
+- Candidate worktree: `D:\Youtube\_worktrees\story-audio-product-reconciliation`; canonical runtime: `http://127.0.0.1:8873`; canonical data: `D:\Youtube\Story Trans And Audio\data`.
+- Product journey is now `Sản xuất -> Duyệt audio`: Production owns preparation/render and stops at handoff; playback, Human QA, repair request and download belong to the dedicated Audio Review workspace.
+- Real Book 1 range Chapters `2-8` completed as Job `#1`: `7/7` chapters, `409/409` verified segments, `0` failed, `0` pending. Active artifacts are `3, 6, 9, 12, 15, 18, 21`.
+- Standing owner approval was exercised through the real browser UI after playback and technical validation; all seven active artifacts are Human QA `accepted`. The completed range exposes `Nghe & tải 7 chương`, ZIP readiness is green, and the downloaded archive contains exactly seven chapter M4A files.
+- Real Chromium acceptance: seven Audio Review rows, Chapters `2-8` preselected for the contiguous ZIP, master-detail player ready and advancing, all seven artifact downloads return HTTP Range `206`, no horizontal overflow at 1280×800 / 1440×900, no runtime exceptions, and no failing application network request. The only browser-default favicon 404 was removed.
+- Completion continuity: `Bắt đầu lượt sản xuất mới` clears the closed working context and opens scope selection prefilled for Chapters `9-15`; no Job/provider/TTS mutation occurs from this navigation action.
+- Command safety: malformed nested Production scopes now fail before executor construction/mutation; focused Production command service/API coverage is `25/25` PASS.
+- Canonical Deep Doctor: schema `16`, `sqlite_quick_check=ok`, active artifacts checked `7`, missing/bad hashes `0`, invalid speaker/casting links `0`, `critical_errors=0`.
+- Canonical `scripts/project_ci.py --ci`: `PROJECT_CI: PASS checks=46 source=buildos-policy` at the final candidate after the command-scope hardening, supervised restart, and no-scope Production refresh regression. One earlier raw `unittest discover` attempt was invalidated by Windows virtual-commit exhaustion while the completed VieNeu runtime still held its loaded model; supervised restart restored memory and the authoritative policy suite passed. System pagefile settings were not modified.
+- Provider routing for new Gemini work is `gemini-3.8-flash -> 3.7-flash -> 3.6-flash -> 3.5-flash`, with bounded key/model fallback and actual successful model recorded.
 
 ## Archived snapshot
 

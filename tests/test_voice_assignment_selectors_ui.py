@@ -212,7 +212,10 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             "ng\u01b0\u1eddi n\u00f3i trong b\u1ea3n hi\u1ec7n t\u1ea1i.",
             section,
         )
-        self.assertIn("Ph\u00e2n t\u00edch ng\u01b0\u1eddi n\u00f3i cho Ch\u01b0\u01a1ng", section)
+        self.assertIn("Chu\u1ea9n b\u1ecb ph\u00e2n t\u00edch ng\u01b0\u1eddi n\u00f3i", section)
+        self.assertIn("data-prepare-speaker-analysis", section)
+        self.assertIn("speakerStatus==='ANALYSIS_REQUIRED'?prepareRangeInputs()", section)
+        self.assertNotIn("speakerStatus==='ANALYSIS_REQUIRED'&&state.config?.gemini_configured?generateSpeakerSuggestions", section)
         self.assertIn("Xem l\u1ecbch s\u1eed x\u00e1c \u0111\u1ecbnh ng\u01b0\u1eddi n\u00f3i", section)
         self.assertIn("\u0110\u00e3 c\u0169 so v\u1edbi Revision", section)
         self.assertIn("data-speaker-state-history", section)

@@ -35,6 +35,9 @@ class RealMediaGoldenJourneyLauncherTests(unittest.TestCase):
     def tearDown(self) -> None:
         self.temp.cleanup()
 
+    def test_launcher_pins_candidate_checkout_ahead_of_installed_packages(self) -> None:
+        self.assertEqual(str(self.launcher.REPO_ROOT), self.launcher.sys.path[0])
+
     def test_online_backup_includes_committed_wal_rows(self) -> None:
         source = self.root / "source.db"
         clone = self.root / "clone.db"
@@ -151,6 +154,10 @@ class RealMediaGoldenJourneyLauncherTests(unittest.TestCase):
             self.launcher,
             "_load_production_runtime_env",
             return_value=env,
+        ), mock.patch.object(
+            self.launcher,
+            "_load_operator_bootstrap_token",
+            return_value="fixture-secret",
         ):
             with mock.patch.dict(
                 self.launcher.os.environ,
@@ -161,4 +168,8 @@ class RealMediaGoldenJourneyLauncherTests(unittest.TestCase):
                 self.assertNotIn(
                     "PREPARE_OPERATOR_TOKEN",
                     self.launcher.os.environ,
+                )
+                self.assertEqual(
+                    self.launcher.os.environ["STORY_AUDIO_OPERATOR_TOKEN_BOOTSTRAP"],
+                    "fixture-secret",
                 )

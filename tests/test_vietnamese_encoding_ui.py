@@ -30,6 +30,10 @@ class VietnameseEncodingUiTests(unittest.TestCase):
             for marker in MOJIBAKE_MARKERS:
                 self.assertNotIn(marker, text, f"{relative} contains {marker!r}")
 
+    def test_template_option_values_do_not_contain_linebreak_whitespace(self) -> None:
+        app = (ROOT / "ui" / "app.js").read_text(encoding="utf-8")
+        self.assertNotRegex(app, r'<option\s+value="[^"\n]*\n\s*"')
+
     def test_charset_precedes_text_and_assets_are_cache_versioned(self) -> None:
         html = (ROOT / "ui" / "index.html").read_text(encoding="utf-8")
         self.assertLess(html.index('<meta charset="utf-8">'), html.index("<title>"))

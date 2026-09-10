@@ -636,15 +636,26 @@ def add_character_aliases(
     character_id: int,
     aliases: Iterable[str],
     idempotency_key: str | None = None,
+    connection: sqlite3.Connection | None = None,
 ) -> dict[str, Any]:
-    _character_row(db, book_id=book_id, character_id=character_id)
+    read_db = _ConnectionDatabaseView(db, connection) if connection is not None else db
+    _character_row(read_db, book_id=book_id, character_id=character_id)
     cleaned = _clean_alias_pairs(aliases)
     if not cleaned:
         return {"character_id": character_id, "aliases": [], "added_count": 0, "reused_count": 0}
     now = utcnow()
-    with db.transaction() as connection:
+    if connection is not None:
         return _insert_alias_pairs(
             connection,
+            book_id=book_id,
+            character_id=character_id,
+            alias_pairs=cleaned,
+            idempotency_key=idempotency_key,
+            now=now,
+        )
+    with db.transaction() as transaction:
+        return _insert_alias_pairs(
+            transaction,
             book_id=book_id,
             character_id=character_id,
             alias_pairs=cleaned,

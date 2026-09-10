@@ -16,6 +16,7 @@ from .custom_voice import CustomVoiceRepository
 from .db import Database, utcnow
 from .files import atomic_write_json, safe_slug, sha256_file, sha256_text
 from .gemini import GeminiRepairError, repair_punctuation
+from .gemini_routing import call_gemini_with_fallback
 from .gemini_cache import GeminiRepairCache
 from .storage import ContentStore
 from .synthesis_snapshot import (
@@ -283,6 +284,7 @@ def create_job(
         "target_chars": config.tts_target_chars,
         "silence_seconds": config.tts_silence_seconds,
         "gemini_model": config.gemini_model,
+        "gemini_models": config.gemini_models(),
         "gemini_prompt_version": config.gemini_prompt_version,
         "engine_version": f"vieneu:{config.tts_mode}",
         "chunker_version": CHUNKER_VERSION if casting_plan_id else "tts-segment-v1",
@@ -955,14 +957,36 @@ class PipelineWorker:
                 return int(source_revision["id"]), source_text
         job_settings = json.loads(job["settings_json"])
         repair_model = str(job_settings.get("gemini_model") or self.config.gemini_model)
+        snapshot_models = job_settings.get("gemini_models")
+        if isinstance(snapshot_models, list):
+            repair_models = []
+            for value in [repair_model, *snapshot_models]:
+                model = str(value or "").strip()
+                if model and model not in repair_models:
+                    repair_models.append(model)
+        else:
+            # Old Jobs intentionally remain pinned to the single snapshotted
+            # model; only newly prepared Jobs opt into the fallback chain.
+            repair_models = [repair_model]
         repair_prompt_version = str(
             job_settings.get("gemini_prompt_version") or self.config.gemini_prompt_version
         )
+        repair_route_id = (
+            repair_model
+            if len(repair_models) == 1
+            else "fallback:" + "->".join(repair_models)
+        )
         contract_fingerprint = self.repair_cache.contract_fingerprint(
+            model=repair_route_id, prompt_version=repair_prompt_version
+        )
+        primary_contract_fingerprint = self.repair_cache.contract_fingerprint(
             model=repair_model, prompt_version=repair_prompt_version
         )
         processor_version = f"gemini-repair:{contract_fingerprint}"
         checkpoint_prompt_version = f"{repair_prompt_version}:{contract_fingerprint}"
+        primary_checkpoint_prompt_version = (
+            f"{repair_prompt_version}:{primary_contract_fingerprint}"
+        )
         legacy_processor_version = f"{repair_model}:{repair_prompt_version}"
         legacy_compatible = self.repair_cache.legacy_checkpoint_is_compatible()
         reusable = self.db.fetch_all(
@@ -1039,10 +1063,18 @@ class PipelineWorker:
                     checkpoint_text = self.store.read_text(row["repaired_path"])
                     if (
                         source_sha == row["source_sha256"]
-                        and row["model_id"] == repair_model
+                        and str(row["model_id"] or "") in set(repair_models)
                         and (
                             row["prompt_version"] == checkpoint_prompt_version
-                            or (legacy_compatible and row["prompt_version"] == repair_prompt_version)
+                            or (
+                                str(row["model_id"] or "") == repair_model
+                                and row["prompt_version"] == primary_checkpoint_prompt_version
+                            )
+                            or (
+                                legacy_compatible
+                                and str(row["model_id"] or "") == repair_model
+                                and row["prompt_version"] == repair_prompt_version
+                            )
                         )
                     ):
                         accepted = self._validate_repaired_block(
@@ -1065,21 +1097,29 @@ class PipelineWorker:
                 except (OSError, UnicodeError, ValueError, ChapterNeedsReview):
                     pass
 
-            lookup = self.repair_cache.lookup(
-                source=source,
-                model=repair_model,
-                prompt_version=repair_prompt_version,
-            )
-            self.db.audit(
-                f"gemini_cache_{lookup.status}", job_id=job_id, chapter_id=chapter_id,
-                details={
-                    "block_index": block_index,
-                    "cache_key": lookup.cache_key,
-                    "reason": lookup.reason if lookup.status == "invalid" else None,
-                    "lookup_ms": round(lookup.lookup_ms, 3),
-                    "validation_ms": round(lookup.validation_ms, 3),
-                },
-            )
+            lookup = None
+            lookup_model = repair_model
+            for candidate_model in repair_models:
+                candidate_lookup = self.repair_cache.lookup(
+                    source=source,
+                    model=candidate_model,
+                    prompt_version=repair_prompt_version,
+                )
+                self.db.audit(
+                    f"gemini_cache_{candidate_lookup.status}", job_id=job_id, chapter_id=chapter_id,
+                    details={
+                        "block_index": block_index,
+                        "model": candidate_model,
+                        "cache_key": candidate_lookup.cache_key,
+                        "reason": candidate_lookup.reason if candidate_lookup.status == "invalid" else None,
+                        "lookup_ms": round(candidate_lookup.lookup_ms, 3),
+                        "validation_ms": round(candidate_lookup.validation_ms, 3),
+                    },
+                )
+                lookup = candidate_lookup
+                lookup_model = candidate_model
+                if candidate_lookup.status == "hit":
+                    break
             if lookup.status == "hit" and lookup.repaired_text and lookup.repaired_blob_path:
                 try:
                     accepted = self._validate_repaired_block(
@@ -1107,7 +1147,7 @@ class PipelineWorker:
                             source_sha,
                             lexical_sha256(source),
                             repaired_path,
-                            repair_model,
+                            lookup_model,
                             checkpoint_prompt_version,
                             utcnow(),
                             row["id"],
@@ -1116,9 +1156,6 @@ class PipelineWorker:
                 repaired_blocks[block_index] = accepted
                 continue
             try:
-                api_key = self.config.gemini_key()
-                if not api_key:
-                    raise ChapterNeedsReview("Chưa cấu hình GEMINI_API_KEY hoặc file key.")
                 with self.db.connect() as connection:
                     connection.execute(
                         "UPDATE repair_blocks SET status='running',attempt_count=attempt_count+1,error_message=NULL WHERE id=?",
@@ -1126,14 +1163,30 @@ class PipelineWorker:
                     )
                 self.db.audit(
                     "gemini_api_call", job_id=job_id, chapter_id=chapter_id,
-                    details={"block_index": block_index, "cache_key": lookup.cache_key},
+                    details={
+                        "block_index": block_index,
+                        "cache_key": lookup.cache_key,
+                        "model_chain": repair_models,
+                    },
                 )
-                result = repair_punctuation(
-                    api_key=api_key,
-                    model=repair_model,
-                    block_id=f"jc{job_chapter_id}-b{block_index}",
-                    text=source,
+                def repair_provider(*, api_key: str, model: str, request_data: dict[str, Any]):
+                    return repair_punctuation(
+                        api_key=api_key,
+                        model=model,
+                        block_id=str(request_data["block_id"]),
+                        text=str(request_data["text"]),
+                    )
+                routed = call_gemini_with_fallback(
+                    self.config,
+                    repair_provider,
+                    request_data={
+                        "block_id": f"jc{job_chapter_id}-b{block_index}",
+                        "text": source,
+                    },
+                    models=repair_models,
                 )
+                selected_model = routed.model
+                result = routed.value
                 accepted = self._validate_repaired_block(
                     block_index=block_index,
                     source=source,
@@ -1144,7 +1197,7 @@ class PipelineWorker:
                     manifest = self.repair_cache.store_result(
                         source=source,
                         repaired=accepted,
-                        model=repair_model,
+                        model=selected_model,
                         prompt_version=repair_prompt_version,
                     )
                     repaired_path = str(manifest["repaired_blob_path"])
@@ -1166,14 +1219,14 @@ class PipelineWorker:
                             source_sha,
                             lexical_sha256(source),
                             repaired_path,
-                            repair_model,
+                            selected_model,
                             checkpoint_prompt_version,
                             utcnow(),
                             row["id"],
                         ),
                     )
                 repaired_blocks[block_index] = accepted
-            except (GeminiRepairError, ChapterNeedsReview) as exc:
+            except (GeminiRepairError, ChapterNeedsReview, RuntimeError) as exc:
                 with self.db.connect() as connection:
                     connection.execute(
                         "UPDATE repair_blocks SET status='failed',error_message=? WHERE id=?",

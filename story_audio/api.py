@@ -122,6 +122,7 @@ from .production_commands import (
     ProductionCommandError,
     ProductionCommandMutation,
     ProductionCommandService,
+    normalize_scope,
 )
 from .range_input import (
     RangeInputError,
@@ -861,6 +862,7 @@ def get_config() -> dict[str, Any]:
         "gemini_key_count": len(gemini_keys),
         "gemini_key_storage": "secrets/gemini_api_key.txt",
         "gemini_model": settings.gemini_model,
+        "gemini_models": settings.gemini_models(),
         "tts_status": tts_service.status,
         "tts_error": tts_service.error,
         "tts_provider_available": tts_service.provider_available(),
@@ -2952,7 +2954,19 @@ def _production_command_executor(
                         "Replacement PREPARE requires the current reviewed repair draft."
                     )
             if "plan_fingerprint" in payload:
-                parsed = BatchPrepareApiRequest.model_validate(payload)
+                prepare_payload = dict(payload)
+                explicit_client_request_id = str(
+                    prepare_payload.get("client_request_id") or ""
+                ).strip()
+                if (
+                    explicit_client_request_id
+                    and explicit_client_request_id != request.idempotency_key
+                ):
+                    raise ProductionCommandError(
+                        "PREPARE client_request_id must match the production command idempotency_key"
+                    )
+                prepare_payload["client_request_id"] = request.idempotency_key
+                parsed = BatchPrepareApiRequest.model_validate(prepare_payload)
                 if command_type == "PREPARE_REPLACEMENT" and (
                     int(parsed.book_id) != int(replacement["book_id"])
                     or int(parsed.from_chapter)
@@ -3381,14 +3395,17 @@ def _production_command_from_body(command_body: Any) -> ProductionCommandRequest
             },
         )
     try:
-        return ProductionCommandRequest.model_validate(command_body)
-    except ValidationError as exc:
+        command = ProductionCommandRequest.model_validate(command_body)
+        normalize_scope(command.scope)
+        return command
+    except (ValidationError, ProductionCommandError) as exc:
+        errors = exc.errors() if isinstance(exc, ValidationError) else [{"msg": str(exc)}]
         raise HTTPException(
             400,
             {
                 "code": "PRODUCTION_COMMAND_CONTRACT_INVALID",
                 "message": "Production command request is incomplete or invalid.",
-                "errors": exc.errors(),
+                "errors": errors,
             },
         ) from exc
 

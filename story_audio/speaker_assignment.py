@@ -10,6 +10,7 @@ from .config import Settings
 from .db import Database, utcnow
 from .files import sha256_text
 from .gemini import assign_speakers
+from .gemini_routing import call_gemini_with_fallback
 from .gemini_cache import GeminiRepairCache, canonical_json
 from .storage import ContentStore
 
@@ -178,6 +179,7 @@ def build_speaker_assignment_request(
         "confirmed_assignment_context_sha256": sha256_text(canonical_json(confirmed_list)),
         "prompt_version": config.speaker_assignment_prompt_version,
         "model_id": config.gemini_model,
+        "model_chain": config.gemini_models(),
         "generation_settings": PROMPT_SETTINGS,
         "response_schema": DRAFT_SCHEMA,
         "mode": mode,
@@ -318,6 +320,8 @@ def generate_speaker_assignment_draft(
     assignments: list[dict[str, Any]] = []
     invalid_items: list[dict[str, str]] = []
     cache_hits = cache_misses = 0
+    preferred_model: str | None = None
+    model_provenance: list[dict[str, Any]] = []
     targets = request["targets"]
     for offset in range(0, len(targets), config.speaker_assignment_batch_size):
         batch = targets[offset:offset + config.speaker_assignment_batch_size]
@@ -326,15 +330,31 @@ def generate_speaker_assignment_draft(
             "request_input_fingerprint": request["input_fingerprint"],
             "batch": batch_request,
         }))
-        identity = cache.json_identity(
-            task_kind="speaker_assignment",
-            input_fingerprint=batch_fingerprint,
-            model=config.gemini_model,
-            prompt_version=config.speaker_assignment_prompt_version,
-            response_schema=DRAFT_SCHEMA,
-            settings=PROMPT_SETTINGS,
+        configured_models = config.gemini_models()
+        model_candidates = (
+            [preferred_model, *[model for model in configured_models if model != preferred_model]]
+            if preferred_model
+            else configured_models
         )
-        lookup = cache.lookup_json(identity) if not force_refresh else None
+        identity = None
+        lookup = None
+        selected_model = None
+        if not force_refresh:
+            for candidate_model in model_candidates:
+                candidate_identity = cache.json_identity(
+                    task_kind="speaker_assignment",
+                    input_fingerprint=batch_fingerprint,
+                    model=candidate_model,
+                    prompt_version=config.speaker_assignment_prompt_version,
+                    response_schema=DRAFT_SCHEMA,
+                    settings=PROMPT_SETTINGS,
+                )
+                candidate_lookup = cache.lookup_json(candidate_identity)
+                if candidate_lookup and candidate_lookup.status == "hit":
+                    identity = candidate_identity
+                    lookup = candidate_lookup
+                    selected_model = candidate_model
+                    break
         if lookup and lookup.status == "hit":
             response = lookup.payload or {}
             try:
@@ -347,20 +367,42 @@ def generate_speaker_assignment_draft(
             except SpeakerAssignmentError:
                 lookup = None
         if not lookup or lookup.status != "hit":
-            api_key = config.gemini_key()
-            if not api_key:
-                raise SpeakerAssignmentError("Gemini API key is not configured")
-            response = provider(api_key=api_key, model=config.gemini_model, request_data=batch_request)
+            routed = call_gemini_with_fallback(
+                config,
+                provider,
+                request_data=batch_request,
+                models=model_candidates,
+            )
+            selected_model = routed.model
+            response = routed.value
             validated = validate_speaker_assignment_response(
                 response,
                 target_ids=[item["utterance_id"] for item in batch],
                 allowed_character_ids=allowed_ids,
             )
+            identity = cache.json_identity(
+                task_kind="speaker_assignment",
+                input_fingerprint=batch_fingerprint,
+                model=selected_model,
+                prompt_version=config.speaker_assignment_prompt_version,
+                response_schema=DRAFT_SCHEMA,
+                settings=PROMPT_SETTINGS,
+            )
             cache.store_json(identity, response)
             cache_misses += 1
+        if not selected_model:
+            raise SpeakerAssignmentError("Gemini model provenance is missing")
+        preferred_model = selected_model
+        model_provenance.append({
+            "chunk_index": len(model_provenance) + 1,
+            "model_id": selected_model,
+            "target_count": len(batch),
+        })
         assignments.extend(validated["assignments"])
         invalid_items.extend(validated["invalid_items"])
 
+    models_used = list(dict.fromkeys(item["model_id"] for item in model_provenance))
+    primary_model = models_used[0] if models_used else config.gemini_model
     status = "partially_invalid" if invalid_items else "generated"
     payload = {
         "schema": DRAFT_SCHEMA,
@@ -372,7 +414,9 @@ def generate_speaker_assignment_draft(
         "text_revision_sha256": request["text_revision_sha256"],
         "character_bible_fingerprint": request["character_bible_fingerprint"],
         "confirmed_assignment_context_sha256": request["identity"]["confirmed_assignment_context_sha256"],
-        "model_id": config.gemini_model,
+        "model_id": primary_model,
+        "models_used": models_used,
+        "model_provenance": model_provenance,
         "prompt_version": config.speaker_assignment_prompt_version,
         "mode": mode,
         "assignments": assignments,
@@ -403,7 +447,7 @@ def generate_speaker_assignment_draft(
             (
                 request["book_id"], chapter_id, request["text_revision_id"],
                 request["input_fingerprint"], request["character_bible_fingerprint"],
-                config.gemini_model, config.speaker_assignment_prompt_version, DRAFT_SCHEMA,
+                primary_model, config.speaker_assignment_prompt_version, DRAFT_SCHEMA,
                 mode, status, content_path, content_sha, len(targets), len(assignments),
                 len(invalid_items), cache_hits, cache_misses, now,
             ),

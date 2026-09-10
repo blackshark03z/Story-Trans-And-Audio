@@ -456,7 +456,6 @@ def _repair_phases(repair: dict[str, Any]) -> list[dict[str, Any]]:
         "Hoàn tất cấu hình giọng",
         "Chuẩn bị bản thay thế",
         "Render bản thay thế",
-        "Nghe và duyệt bản mới",
     ]
     return [
         {

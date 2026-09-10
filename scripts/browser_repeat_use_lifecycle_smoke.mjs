@@ -149,6 +149,7 @@ try {
   })`);
   const assignmentScreenshot = await screenshot("repeat-use-assignment-complete-1366x768", 1366, 768);
 
+  await evaluate(`(()=>{state.productionPreflight={stale:true};state.productionPrepare={readiness:{stale:true},status:'ready',result:{stale:true},error:'old',clientRequestId:'old',submitting:false};state.productionRepair={taskKey:'old',mode:'plan',markers:[{time:1}]};state.productionQaNoteDraft='old qa note';state.productionQaComparisonArtifactId=999;state.audioQa={history:[{id:1}],loading:false,markers:[{time:2}]};state.audioArchive.selectedChapterIds=[77];state.audioLibrary.selectedArtifactId=88;state.audioLibrary.videoExports={88:{stale:true}};sessionStorage.setItem(REPAIR_PLAN_OPEN_STORAGE_KEY,'777')})()`);
   recordMutations = true;
   await evaluate("document.querySelector('#assignmentStartNextProduction').click()");
   await poll(() => evaluate("state.currentRoute === 'production' && document.querySelector('#productionScopeDialog')?.open === true"));
@@ -169,6 +170,19 @@ try {
       working: localStorage.getItem(PRODUCTION_WORKING_CONTEXT_STORAGE_KEY),
       assignment: localStorage.getItem(ASSIGNMENT_CONTEXT_STORAGE_KEY),
       sessionWorking: sessionStorage.getItem(PRODUCTION_WORKING_CONTEXT_STORAGE_KEY),
+      repairOpen: sessionStorage.getItem(REPAIR_PLAN_OPEN_STORAGE_KEY),
+    },
+    transient: {
+      preflight: state.productionPreflight,
+      prepareResult: state.productionPrepare?.result,
+      repairMarkers: state.productionRepair?.markers?.length,
+      qaNote: state.productionQaNoteDraft,
+      qaComparison: state.productionQaComparisonArtifactId,
+      qaHistory: state.audioQa?.history?.length,
+      qaMarkers: state.audioQa?.markers?.length,
+      archiveSelection: state.audioArchive?.selectedChapterIds?.length,
+      selectedArtifactId: state.audioLibrary?.selectedArtifactId,
+      videoExports: Object.keys(state.audioLibrary?.videoExports||{}).length,
     },
   })`);
   const nextScopeScreenshot = await screenshot("repeat-use-next-scope-820x900", 820, 900);
@@ -206,13 +220,14 @@ try {
 
   const artifactsUnchanged = JSON.stringify(before.artifacts) === JSON.stringify(artifactsAfter);
   const storageCleared = values => Object.values(values).every(value => value === null);
+  const transientCleared = value => value.preflight === null && value.prepareResult === null && value.repairMarkers === 0 && value.qaNote === '' && value.qaComparison === null && value.qaHistory === 0 && value.qaMarkers === 0 && value.archiveSelection === 0 && value.selectedArtifactId === null && value.videoExports === 0;
   const ok = before.task === "COMPLETE" && before.nextVisible &&
     assignment.startVisible && assignment.notice.includes("snapshot giọng của Job cũ không thay đổi") &&
     assignmentAfterReload.startVisible && assignmentAfterReload.registryStatus === "ready" && !assignmentAfterReload.registryError &&
     afterStart.hash === "#/production" && afterStart.context === null && afterStart.range === null &&
     Number(afterStart.bookId) === 1 && Number(afterStart.selection.bookId) === 1 &&
     Number(afterStart.selection.from) === 9 && Number(afterStart.selection.to) === 14 &&
-    afterStart.selection.skipCompleted === true && storageCleared(afterStart.storage) &&
+    afterStart.selection.skipCompleted === true && storageCleared(afterStart.storage) && transientCleared(afterStart.transient) &&
     assignmentAfterCancel.hash === "#/assignment" && assignmentAfterCancel.context === null && assignmentAfterCancel.range === null &&
     afterReentry.hash === "#/production" && afterReentry.context === null && afterReentry.range === null &&
     storageCleared(afterReentry.storage) && artifactsUnchanged &&

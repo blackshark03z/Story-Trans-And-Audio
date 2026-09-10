@@ -17,6 +17,7 @@ from .background_speakers import (
 from .chapter_voice_overrides import apply_chapter_voice_override
 from .character_assignment import (
     UNRESOLVED_DIALOGUE_STATUS,
+    add_character_aliases,
     apply_speaker_character_mapping,
     clear_speaker_character_mapping,
     create_assignment_character,
@@ -26,11 +27,17 @@ from .config import Settings
 from .db import Database, utcnow
 from .files import sha256_text
 from .gemini import suggest_speaker_review
+from .gemini_routing import call_gemini_with_fallback
 from .gemini_cache import GeminiRepairCache, canonical_json
 from .storage import ContentStore
 from .voice_eligibility import EffectiveVoiceCatalog
 from .voice_profile import get_book_voice_profile, resolve_voice
 from .voice_ref import CustomVoiceContext
+from .speaker_review import (
+    SpeakerReviewError,
+    get_speaker_review_draft,
+    review_speaker_assignment_row,
+)
 from .speaker_review_workspace import (
     APPROVED_STATES,
     batch_exclusion_reasons,
@@ -423,6 +430,7 @@ def build_speaker_review_request(
         "utterance_chunker": CHUNKER_VERSION,
         "prompt_version": PROMPT_VERSION,
         "model_id": config.gemini_model,
+        "model_chain": config.gemini_models(),
         "generation_settings": GENERATION_SETTINGS,
         "response_schema": SUGGESTION_SCHEMA,
     }
@@ -801,7 +809,7 @@ def _run_payload_matches_request_contract(
         LEGACY_PROMPT_VERSION,
     }:
         return False
-    if str(payload.get("model_id") or "") != str(config.gemini_model):
+    if str(payload.get("model_id") or "") not in set(config.gemini_models()):
         return False
     if int((payload.get("book") or {}).get("id") or 0) != int((request.get("book") or {}).get("id") or 0):
         return False
@@ -1570,6 +1578,60 @@ def _queue_summary(suggestions: list[Mapping[str, Any]]) -> dict[str, Any]:
     return counts
 
 
+def _speaker_identity_signature(item: Mapping[str, Any]) -> tuple[str, str] | None:
+    resolution = str(item.get("proposed_resolution") or "").strip().upper()
+    if resolution == "NARRATOR":
+        return ("NARRATOR", "narrator")
+    if resolution == "EXISTING_CHARACTER" and item.get("existing_character_id") is not None:
+        return ("CHARACTER", str(int(item["existing_character_id"])))
+    if resolution == "NEW_CHARACTER":
+        name = normalize_identity(str(item.get("proposed_character_name") or ""))
+        return ("NEW_CHARACTER", name) if name else None
+    if resolution == "BACKGROUND_GROUP":
+        gender = str(item.get("gender_hint") or "NEUTRAL_OR_UNKNOWN").strip().upper()
+        return ("BACKGROUND_GROUP", gender)
+    return None
+
+
+def _adjacent_continuity_conflict_keys(
+    suggestions: Iterable[Mapping[str, Any]],
+    targets: Iterable[Mapping[str, Any]],
+) -> set[str]:
+    suggestion_by_key = {
+        str(item.get("unresolved_key") or ""): item
+        for item in suggestions
+        if str(item.get("unresolved_key") or "")
+    }
+    target_by_key = {
+        str(target.get("unresolved_key") or ""): target
+        for target in targets
+        if str(target.get("unresolved_key") or "")
+    }
+    target_by_position = {
+        (
+            int(target.get("chapter_number") or 0),
+            int(target.get("sequence") or 0),
+        ): str(target.get("unresolved_key") or "")
+        for target in target_by_key.values()
+    }
+    conflicts: set[str] = set()
+    for key, item in suggestion_by_key.items():
+        if item.get("continuity_required") is not True:
+            continue
+        target = target_by_key.get(key) or {}
+        chapter_number = int(target.get("chapter_number") or 0)
+        sequence = int(target.get("sequence") or 0)
+        previous_key = target_by_position.get((chapter_number, sequence - 1))
+        previous = suggestion_by_key.get(str(previous_key or ""))
+        if not previous:
+            continue
+        current_signature = _speaker_identity_signature(item)
+        previous_signature = _speaker_identity_signature(previous)
+        if current_signature and previous_signature and current_signature != previous_signature:
+            conflicts.update({key, str(previous_key)})
+    return conflicts
+
+
 def _augment_suggestions(
     suggestions: list[dict[str, Any]],
     *,
@@ -1594,6 +1656,23 @@ def _augment_suggestions(
         name = normalize_identity(str(item.get("proposed_character_name") or ""))
         if name:
             proposed_name_keys.setdefault(name, []).append(str(item.get("unresolved_key") or ""))
+    near_duplicate_keys: set[str] = set()
+    distinct_names = list(proposed_name_keys)
+    for index, left in enumerate(distinct_names):
+        left_tokens = set(left.split())
+        for right in distinct_names[index + 1 :]:
+            right_tokens = set(right.split())
+            if min(len(left_tokens), len(right_tokens)) < 2:
+                continue
+            if left_tokens.issubset(right_tokens) or right_tokens.issubset(left_tokens):
+                near_duplicate_keys.update(proposed_name_keys[left])
+                near_duplicate_keys.update(proposed_name_keys[right])
+
+    continuity_conflict_keys = _adjacent_continuity_conflict_keys(
+        suggestions,
+        request.get("targets") or [],
+    )
+
     augmented: list[dict[str, Any]] = []
     for item in suggestions:
         target = by_key.get(str(item["unresolved_key"])) or (
@@ -1694,6 +1773,17 @@ def _augment_suggestions(
                     "Đề xuất tên nhân vật lặp trong cùng phạm vi; cần gộp hoặc "
                     "chọn nhân vật có sẵn."
                 )
+        if resolution == "NEW_CHARACTER" and str(proposal.get("unresolved_key") or "") in near_duplicate_keys:
+            proposal_warnings.append(
+                "Tên nhân vật gần trùng với một đề xuất khác trong cùng phạm vi; "
+                "cần gộp hoặc duyệt thủ công trước khi tạo Character."
+            )
+        if str(proposal.get("unresolved_key") or "") in continuity_conflict_keys:
+            proposal["continuity_conflict"] = True
+            proposal_warnings.append(
+                "Các lượt thoại liền kề yêu cầu cùng danh tính người nói nhưng đề xuất "
+                "đang mâu thuẫn; cần gộp hoặc duyệt thủ công trước khi batch."
+            )
         if duplicate_candidates:
             proposal_warnings = [
                 *proposal_warnings,
@@ -1819,9 +1909,10 @@ def generate_speaker_review_suggestions(
     existing_event = _latest_run_event(db, input_fingerprint=request["input_fingerprint"])
     if existing_event and not force_refresh:
         payload = _load_run_from_event(store, existing_event)
-        payload = _clean_queue_state(db, payload)
-        payload["reused"] = True
-        return payload
+        if _run_payload_matches_request_contract(payload, request=request, config=config):
+            payload = _clean_queue_state(db, payload)
+            payload["reused"] = True
+            return payload
 
     cache = GeminiRepairCache(store, config)
     allowed_character_ids = {
@@ -1834,6 +1925,8 @@ def generate_speaker_review_suggestions(
     failed_chunks: list[dict[str, Any]] = []
     usage_metadata: list[dict[str, Any]] = []
     cache_hits = cache_misses = request_count = 0
+    preferred_model: str | None = None
+    model_provenance: list[dict[str, Any]] = []
     targets = list(request["targets"])
     chunk_size = max(1, int(config.speaker_assignment_batch_size))
     try:
@@ -1848,33 +1941,63 @@ def generate_speaker_review_suggestions(
                     }
                 )
             )
-            identity = cache.json_identity(
-                task_kind="speaker_review_suggestion",
-                input_fingerprint=batch_fingerprint,
-                model=config.gemini_model,
-                prompt_version=PROMPT_VERSION,
-                response_schema=SUGGESTION_SCHEMA,
-                settings=GENERATION_SETTINGS,
+            configured_models = config.gemini_models()
+            model_candidates = (
+                [preferred_model, *[model for model in configured_models if model != preferred_model]]
+                if preferred_model
+                else configured_models
             )
-            lookup = cache.lookup_json(identity) if not force_refresh else None
+            identity = None
+            lookup = None
+            selected_model = None
+            if not force_refresh:
+                for candidate_model in model_candidates:
+                    candidate_identity = cache.json_identity(
+                        task_kind="speaker_review_suggestion",
+                        input_fingerprint=batch_fingerprint,
+                        model=candidate_model,
+                        prompt_version=PROMPT_VERSION,
+                        response_schema=SUGGESTION_SCHEMA,
+                        settings=GENERATION_SETTINGS,
+                    )
+                    candidate_lookup = cache.lookup_json(candidate_identity)
+                    if candidate_lookup and candidate_lookup.status == "hit":
+                        identity = candidate_identity
+                        lookup = candidate_lookup
+                        selected_model = candidate_model
+                        break
             if lookup and lookup.status == "hit":
                 raw_response = lookup.payload or {}
                 usage = {}
                 cache_hits += 1
             else:
-                api_key = config.gemini_key()
-                if not api_key:
-                    raise SpeakerReviewSuggestionError("Gemini API key is not configured")
-                request_count += 1
-                raw_response, usage = _provider_response(
-                    provider(
-                        api_key=api_key,
-                        model=config.gemini_model,
-                        request_data=batch_request,
-                    )
+                routed = call_gemini_with_fallback(
+                    config,
+                    provider,
+                    request_data=batch_request,
+                    models=model_candidates,
+                )
+                request_count += routed.attempt_count
+                selected_model = routed.model
+                raw_response, usage = _provider_response(routed.value)
+                identity = cache.json_identity(
+                    task_kind="speaker_review_suggestion",
+                    input_fingerprint=batch_fingerprint,
+                    model=selected_model,
+                    prompt_version=PROMPT_VERSION,
+                    response_schema=SUGGESTION_SCHEMA,
+                    settings=GENERATION_SETTINGS,
                 )
                 cache.store_json(identity, raw_response)
                 cache_misses += 1
+            if not selected_model:
+                raise SpeakerReviewSuggestionError("Gemini model provenance is missing")
+            preferred_model = selected_model
+            model_provenance.append({
+                "chunk_index": len(model_provenance) + 1,
+                "model_id": selected_model,
+                "target_count": len(batch),
+            })
             validated = validate_speaker_review_response(
                 raw_response,
                 target_keys=[item["unresolved_key"] for item in batch],
@@ -1919,6 +2042,8 @@ def generate_speaker_review_suggestions(
             }
         )
     )[:24]
+    models_used = list(dict.fromkeys(item["model_id"] for item in model_provenance))
+    primary_model = models_used[0] if models_used else config.gemini_model
     payload = {
         "schema": RUN_SCHEMA,
         "analysis_run_id": analysis_run_id,
@@ -1927,7 +2052,9 @@ def generate_speaker_review_suggestions(
         "request_schema": REQUEST_SCHEMA,
         "suggestion_schema": SUGGESTION_SCHEMA,
         "prompt_version": PROMPT_VERSION,
-        "model_id": config.gemini_model,
+        "model_id": primary_model,
+        "models_used": models_used,
+        "model_provenance": model_provenance,
         "scope": request["scope"],
         "book": request["book"],
         "text_revisions": request["text_revisions"],
@@ -2400,6 +2527,229 @@ def restore_speaker_suggestion_pending(
     )
 
 
+_CHARACTER_BIBLE_DRIFT = (
+    "Character Bible changed after this draft was generated. "
+    "Generate a new draft before approval."
+)
+
+
+def _current_approved_final_voice_map(
+    db: Database,
+    *,
+    chapter_id: int,
+) -> dict[str, Any] | None:
+    row = db.fetch_one(
+        """
+        SELECT cp.*
+        FROM casting_plans cp
+        JOIN chapters c ON c.id=cp.chapter_id
+        WHERE cp.chapter_id=?
+          AND cp.status='approved'
+          AND cp.text_revision_id=c.active_text_revision_id
+        ORDER BY cp.plan_revision DESC,cp.id DESC
+        LIMIT 1
+        """,
+        (int(chapter_id),),
+    )
+    return dict(row) if row else None
+
+
+def _reviewable_speaker_draft_for_target(
+    db: Database,
+    store: ContentStore,
+    config: Settings,
+    *,
+    chapter_id: int,
+    utterance_id: str,
+) -> dict[str, Any]:
+    rows = db.fetch_all(
+        """
+        SELECT id
+        FROM speaker_assignment_drafts
+        WHERE chapter_id=?
+        ORDER BY created_at DESC,id DESC
+        """,
+        (int(chapter_id),),
+    )
+    for row in rows:
+        try:
+            detail = get_speaker_review_draft(
+                db,
+                store,
+                config,
+                chapter_id=int(chapter_id),
+                draft_id=int(row["id"]),
+            )
+        except (SpeakerReviewError, OSError, ValueError):
+            continue
+        if str(detail.get("status") or "") not in {"generated", "partially_invalid"}:
+            continue
+        if not any(
+            str(item.get("utterance_id") or "") == str(utterance_id)
+            for item in detail.get("review_rows") or []
+        ):
+            continue
+        blocking = [
+            reason
+            for reason in detail.get("stale_reasons") or []
+            if reason != _CHARACTER_BIBLE_DRIFT
+        ]
+        if blocking:
+            continue
+        return detail
+    raise SpeakerReviewSuggestionError(
+        "Current Speaker Draft for this dialogue is missing or stale"
+    )
+
+
+def _apply_pre_final_speaker_decision(
+    db: Database,
+    store: ContentStore,
+    config: Settings,
+    *,
+    book_id: int,
+    suggestion: Mapping[str, Any],
+    resolution: str,
+    aliases: list[str],
+    reviewer_payload: Mapping[str, Any],
+    voice_mode: str,
+    voice_scope: str,
+    requested_voice: str | None,
+    idempotency_key: str,
+    connection: Any,
+) -> tuple[dict[str, Any], str]:
+    target = dict(suggestion.get("target") or {})
+    chapter_id = int(target.get("chapter_id") or 0)
+    utterance_id = str(target.get("utterance_id") or "").strip()
+    if not chapter_id or not utterance_id:
+        raise SpeakerReviewSuggestionError("Speaker suggestion target is incomplete")
+    if voice_mode not in {"", "keep", "preserve"} or requested_voice:
+        raise SpeakerReviewSuggestionError(
+            "Voice configuration belongs to the voice-assignment stage before Final Voice Map approval"
+        )
+    detail = _reviewable_speaker_draft_for_target(
+        db,
+        store,
+        config,
+        chapter_id=chapter_id,
+        utterance_id=utterance_id,
+    )
+    created_character = None
+    background_group = None
+    alias_result = None
+    if resolution == "EXISTING_CHARACTER":
+        character_id = reviewer_payload.get("existing_character_id") or suggestion.get(
+            "existing_character_id"
+        )
+        if isinstance(character_id, bool) or not isinstance(character_id, int) or int(character_id) <= 0:
+            raise SpeakerReviewSuggestionError("existing_character_id is required")
+        character_id = int(character_id)
+        alias_result = add_character_aliases(
+            db,
+            book_id=book_id,
+            character_id=character_id,
+            aliases=aliases,
+            idempotency_key=f"{idempotency_key}:aliases",
+            connection=connection,
+        )
+        speaker_type = "character"
+        decision_source = "manual_character"
+        final_speaker_key = f"character:{character_id}"
+    elif resolution == "NEW_CHARACTER":
+        name = str(
+            reviewer_payload.get("proposed_character_name")
+            or suggestion.get("proposed_character_name")
+            or ""
+        ).strip()
+        created_character = create_assignment_character(
+            db,
+            book_id=book_id,
+            display_name=name,
+            aliases=aliases,
+            gender=str(reviewer_payload.get("gender") or "unknown"),
+            role=str(reviewer_payload.get("role") or "unknown"),
+            idempotency_key=f"{idempotency_key}:character",
+            connection=connection,
+        )
+        character_id = int(created_character["character"]["id"])
+        speaker_type = "character"
+        decision_source = "manual_character"
+        final_speaker_key = f"character:{character_id}"
+    elif resolution == "BACKGROUND_GROUP":
+        gender_hint = str(
+            reviewer_payload.get("gender_hint")
+            or suggestion.get("gender_hint")
+            or ""
+        ).upper()
+        if bool(
+            reviewer_payload.get(
+                "continuity_required",
+                suggestion.get("continuity_required"),
+            )
+        ):
+            raise SpeakerReviewSuggestionError(
+                "A speaker requiring identity continuity cannot use a background group"
+            )
+        background_group = ensure_background_group_character(
+            connection,
+            book_id=book_id,
+            gender_hint=gender_hint,
+            idempotency_key=f"{idempotency_key}:background-group",
+        )
+        character_id = int(background_group["character"]["id"])
+        speaker_type = "character"
+        decision_source = "manual_character"
+        final_speaker_key = f"character:{character_id}"
+    elif resolution == "NARRATOR":
+        character_id = None
+        speaker_type = "narrator"
+        decision_source = "narrator"
+        final_speaker_key = "narrator"
+    else:
+        raise SpeakerReviewSuggestionError(
+            "This suggestion requires manual deferral, not approval"
+        )
+
+    row_review = review_speaker_assignment_row(
+        db,
+        store,
+        config,
+        chapter_id=chapter_id,
+        draft_id=int(detail["id"]),
+        target_id=utterance_id,
+        speaker_type=speaker_type,
+        character_id=character_id,
+        decision_source=decision_source,
+        operator_note="Accepted from speaker review workspace before Final Voice Map.",
+        connection=connection,
+        allow_character_bible_drift=True,
+    )
+    voice_intent = None
+    if voice_mode not in {"", "keep", "preserve"}:
+        voice_intent = {
+            "status": "pending_final_voice_map",
+            "mode": voice_mode,
+            "scope": voice_scope,
+            "voice_id": requested_voice,
+        }
+    applied = {
+        "mode": "speaker_draft_review",
+        "chapter_id": chapter_id,
+        "chapter_number": int(target.get("chapter_number") or suggestion.get("chapter_number") or 0),
+        "speaker_draft_id": int(detail["id"]),
+        "target_id": utterance_id,
+        "speaker_key": final_speaker_key,
+        "character_id": character_id,
+        "row_review": row_review,
+        "alias_result": alias_result,
+        "created_character": created_character,
+        "background_group": background_group,
+        "voice_intent": voice_intent,
+        "final_voice_map_changed": False,
+    }
+    return applied, final_speaker_key
+
+
 def accept_speaker_review_suggestion(
     db: Database,
     store: ContentStore,
@@ -2514,7 +2864,28 @@ def accept_speaker_review_suggestion(
     )
     applied: dict[str, Any]
     final_speaker_key: str
-    if resolution == "EXISTING_CHARACTER":
+    target_chapter_id = int((suggestion.get("target") or {}).get("chapter_id") or 0)
+    pre_final_voice_map = not bool(
+        target_chapter_id
+        and _current_approved_final_voice_map(db, chapter_id=target_chapter_id)
+    )
+    if pre_final_voice_map:
+        applied, final_speaker_key = _apply_pre_final_speaker_decision(
+            db,
+            store,
+            config,
+            book_id=book_id,
+            suggestion=suggestion,
+            resolution=resolution,
+            aliases=aliases,
+            reviewer_payload=reviewer_payload,
+            voice_mode=voice_mode,
+            voice_scope=voice_scope,
+            requested_voice=requested_voice,
+            idempotency_key=idempotency_key,
+            connection=connection,
+        )
+    elif resolution == "EXISTING_CHARACTER":
         character_id = reviewer_payload.get("existing_character_id") or suggestion.get("existing_character_id")
         if isinstance(character_id, bool) or not isinstance(character_id, int) or int(character_id) <= 0:
             raise SpeakerReviewSuggestionError("existing_character_id is required")
@@ -2658,7 +3029,7 @@ def accept_speaker_review_suggestion(
         )
     else:
         raise SpeakerReviewSuggestionError("This suggestion requires manual deferral, not approval")
-    if voice_change_requested and voice_scope == "range":
+    if not pre_final_voice_map and voice_change_requested and voice_scope == "range":
         target_chapter = int(
             (suggestion.get("target") or {}).get("chapter_number")
             or suggestion.get("chapter_number")

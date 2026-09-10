@@ -142,7 +142,7 @@ try {
 
   const humanQa = await show("HUMAN_QA");
   const humanQaScreenshot = await screenshot("phase5-human-qa-1366x768");
-  const emptyNeedsFix = await evaluate(`(()=>{document.querySelector('#productionQaNote').value='';document.querySelector('#productionQaNeedsFixes').click();return{toast:document.querySelector('#toast')?.textContent||document.querySelector('.toast')?.textContent||'',mutations:window.__phase5MutationCalls.slice()}})()`);
+  const humanQaHandoffNavigation = await evaluate(`(async()=>{const savedOpen=openAudioReviewFromProduction,calls=[];openAudioReviewFromProduction=async vm=>{calls.push({task:vm?.task_type,artifact:vm?.qa?.artifact_id||null})};document.querySelector('#productionPrimaryAction')?.click();await new Promise(resolve=>setTimeout(resolve,30));const result={calls,mutations:window.__phase5MutationCalls.slice()};openAudioReviewFromProduction=savedOpen;return result})()`);
   const repairRequired = await show("REPAIR_REQUIRED");
   const repairScreenshot = await screenshot("phase5-repair-required-1366x768");
   const complete = await show("COMPLETE");
@@ -154,14 +154,14 @@ try {
     complete: await show("COMPLETE", 820, 900),
   };
 
-  if (humanQa.stage !== "Giai đoạn 5 / 5" || !humanQa.playerVisible || !humanQa.qaActionsVisible || !humanQa.qaActionsAfterContext || humanQa.qaLabels.join("|") !== "Cần sửa|Chấp nhận" || humanQa.technicalOpen || humanQa.legacyVisible) throw new Error(`HUMAN_QA failed: ${JSON.stringify(humanQa)}`);
-  if (!emptyNeedsFix.toast.includes("ghi chú") || emptyNeedsFix.mutations.length) throw new Error(`HUMAN_QA note gate failed: ${JSON.stringify(emptyNeedsFix)}`);
-  if (repairRequired.stage !== "Giai đoạn 5 / 5" || !repairRequired.problemBeforePlan || repairRequired.repairAction !== "Xem kế hoạch sửa" || !repairRequired.historyVisible || repairRequired.technicalOpen || repairRequired.repairDetailsOpen || repairRequired.rawTechnicalVisible || repairRequired.legacyVisible || repairRequired.mutations.length) throw new Error(`REPAIR_REQUIRED failed: ${JSON.stringify(repairRequired)}`);
-  if (complete.stage !== "Giai đoạn 5 / 5" || !complete.completePrimaryVisible || complete.completePrimaryLabel !== "Mở audio đã hoàn tất" || !complete.downloadVisible || complete.downloadHref !== "/api/artifacts/9901/file" || complete.legacyVisible || complete.mutations.length || completeNavigation.route !== "audio" || !completeNavigation.hash.includes("#/audio?book=91&from=401&to=401") || completeNavigation.mutations.length) throw new Error(`COMPLETE failed: ${JSON.stringify({complete,completeNavigation})}`);
+  if (humanQa.stage !== "Đã bàn giao" || humanQa.playerVisible || humanQa.qaActionsVisible || humanQa.text.includes("Ghi chú QA") || humanQa.completePrimaryLabel !== "Mở Duyệt audio" || !humanQa.text.includes("Audio đã được bàn giao sang Duyệt audio") || humanQa.technicalOpen || humanQa.legacyVisible) throw new Error(`HUMAN_QA handoff failed: ${JSON.stringify(humanQa)}`);
+  if (humanQaHandoffNavigation.calls.length !== 1 || humanQaHandoffNavigation.calls[0].task !== "HUMAN_QA" || humanQaHandoffNavigation.calls[0].artifact !== 9901 || humanQaHandoffNavigation.mutations.length) throw new Error(`HUMAN_QA handoff navigation failed: ${JSON.stringify(humanQaHandoffNavigation)}`);
+  if (repairRequired.stage !== "Giai đoạn 4 / 4" || !repairRequired.problemBeforePlan || repairRequired.repairAction !== "Xem kế hoạch sửa" || !repairRequired.historyVisible || repairRequired.technicalOpen || repairRequired.repairDetailsOpen || repairRequired.rawTechnicalVisible || repairRequired.legacyVisible || repairRequired.mutations.length) throw new Error(`REPAIR_REQUIRED failed: ${JSON.stringify(repairRequired)}`);
+  if (complete.stage !== "Sản xuất hoàn tất" || !complete.completePrimaryVisible || complete.completePrimaryLabel !== "Mở audio đã hoàn tất" || !complete.downloadVisible || complete.downloadHref !== "/api/artifacts/9901/file" || complete.legacyVisible || complete.mutations.length || completeNavigation.route !== "audio" || !completeNavigation.hash.includes("#/audio?book=91&from=401&to=401") || completeNavigation.mutations.length) throw new Error(`COMPLETE failed: ${JSON.stringify({complete,completeNavigation})}`);
   if ([humanQa, repairRequired, complete, ...Object.values(narrow)].some(item => item.horizontal)) throw new Error(`Responsive layout failed: ${JSON.stringify(narrow)}`);
   if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
 
-  process.stdout.write(JSON.stringify({ok:true,humanQa,emptyNeedsFix,repairRequired,complete,completeNavigation,narrow:{humanQa:{horizontal:narrow.humanQa.horizontal},repairRequired:{horizontal:narrow.repairRequired.horizontal},complete:{horizontal:narrow.complete.horizontal}},screenshots:{humanQa:humanQaScreenshot,repairRequired:repairScreenshot,complete:completeScreenshot}}));
+  process.stdout.write(JSON.stringify({ok:true,humanQa,humanQaHandoffNavigation,repairRequired,complete,completeNavigation,narrow:{humanQa:{horizontal:narrow.humanQa.horizontal},repairRequired:{horizontal:narrow.repairRequired.horizontal},complete:{horizontal:narrow.complete.horizontal}},screenshots:{humanQa:humanQaScreenshot,repairRequired:repairScreenshot,complete:completeScreenshot}}));
 } finally {
   try { socket?.close(); } catch {}
   const browserExited = new Promise(resolve => child.exitCode !== null ? resolve() : child.once("exit", resolve));

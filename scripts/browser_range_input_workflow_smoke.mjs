@@ -318,16 +318,47 @@ try {
     __rangeFixture.phase="exceptions";loadProductionTaskProjection();
   })()`);
   const scenarioDStart = await primaryLabel();
-  await evaluate(`document.querySelector("#productionRangeSpeakerChoice").value="narrator"`);
+  const mutationCountBeforeReview = await evaluate(`__rangeFixture.calls.filter(item=>item.commandType).length`);
   await clickPrimary();
+  await poll(async () => evaluate(`state.currentRoute==="assignment"&&document.querySelector('[data-assignment-section="review"]')`), 10000);
   const scenarioD = await evaluate(`({
+    route:state.currentRoute,
+    hash:location.hash,
+    context:currentProductionWorkingContext(),
+    reviewOpen:!!document.querySelector('[data-assignment-section="review"]')?.open,
+    suggestionRequests:__rangeFixture.calls.filter(item=>item.path.startsWith('/api/production/speaker-review-suggestions')).length,
+    commandMutations:__rangeFixture.calls.filter(item=>item.commandType).length-${mutationCountBeforeReview}
+  })`);
+
+  await evaluate(`(()=>{setAppRoute("production");__rangeFixture.phase="exceptions";loadProductionTaskProjection();return true})()`);
+  await poll(async () => evaluate(`state.currentRoute==="production"&&!!document.querySelector('[data-range-speaker-manual-save]')`));
+  const clickManualSpeaker = async () => {
+    const remainingBefore = await evaluate(`__rangeFixture.exceptions.length`);
+    await evaluate(`(()=>{
+      const fallback=document.querySelector('.production-manual-speaker-fallback');
+      const select=document.querySelector('#productionRangeSpeakerChoice');
+      const button=document.querySelector('[data-range-speaker-manual-save]');
+      if(!fallback||!select||!button)throw new Error('Missing manual speaker fallback');
+      fallback.open=true;
+      const requested='narrator';
+      if(![...select.options].some(option=>option.value===requested))throw new Error('Missing exact manual speaker option: '+requested);
+      select.value=requested;
+      select.dispatchEvent(new Event('change',{bubbles:true}));
+      if(select.value!==requested)throw new Error('Manual speaker selection did not stick');
+      if(button.disabled)throw new Error('Manual speaker save is disabled');
+      button.click();
+      return true;
+    })()`);
+    await poll(async () => evaluate(`__rangeFixture.phase!=="exceptions"||__rangeFixture.exceptions.length<${remainingBefore}`), 5000);
+  };
+  await clickManualSpeaker();
+  const manualScenarioD = await evaluate(`({
     remaining:__rangeFixture.exceptions.length,
     visible:document.querySelector("[data-range-exception]")?.dataset.rangeException,
-    label:document.querySelector("#productionPrimaryAction").textContent.trim()
+    primary:document.querySelector("#productionPrimaryAction")?.textContent.trim()
   })`);
-  await evaluate(`document.querySelector("#productionRangeSpeakerChoice").value="narrator"`);
-  await clickPrimary();
-  const scenarioE = await evaluate(`({
+  await clickManualSpeaker();
+  const manualScenarioE = await evaluate(`({
     remaining:__rangeFixture.exceptions.length,
     speakerApprovalCalls:__rangeFixture.calls.filter(item=>item.commandType==="APPROVE_SPEAKER_DRAFTS").length,
     visible:document.querySelector("[data-range-exception]")?.dataset.rangeException
@@ -335,25 +366,9 @@ try {
   let exceptionRounds = 0;
   while (await evaluate(`__rangeFixture.phase==="exceptions"`)) {
     if (exceptionRounds++ >= 10) {
-      throw new Error("Speaker exception journey did not converge.");
+      throw new Error("Speaker exception manual fallback did not converge.");
     }
-    const remainingBefore = await evaluate(`__rangeFixture.exceptions.length`);
-    await evaluate(`document.querySelector("#productionRangeSpeakerChoice").value="narrator"`);
-    await clickPrimary();
-    try {
-      await poll(async () => evaluate(
-        `__rangeFixture.phase!=="exceptions"||__rangeFixture.exceptions.length<${remainingBefore}`
-      ), 5000);
-    } catch (error) {
-      const stalled = await evaluate(`({
-        phase:__rangeFixture.phase,
-        remaining:__rangeFixture.exceptions.length,
-        primary:document.querySelector("#productionPrimaryAction")?.textContent,
-        selected:document.querySelector("#productionRangeSpeakerChoice")?.value,
-        lastCalls:__rangeFixture.calls.slice(-5),
-      })`);
-      throw new Error(`Speaker exception stalled: ${JSON.stringify({ remainingBefore, stalled })}`);
-    }
+    await clickManualSpeaker();
   }
   const scenarioC = await evaluate(`({
     remaining:__rangeFixture.exceptions.length,
@@ -399,6 +414,8 @@ try {
     loadProductionTaskProjection();
   })()`);
   const scenarioJ = await evaluate(`(async()=>{
+    const fallback=document.querySelector(".production-manual-speaker-fallback");
+    if(fallback)fallback.open=true;
     const select=document.querySelector("#productionRangeSpeakerChoice");
     select.value="unknown";
     select.focus();
@@ -448,13 +465,24 @@ try {
   if (scenarioBStart !== "Xử lý điều kiện còn thiếu" || scenarioB.approvals < 1) {
     throw new Error(`Scenario B failed: ${JSON.stringify({ scenarioBStart, scenarioB })}`);
   }
-  if (scenarioDStart !== "Xử lý điều kiện còn thiếu"
-      || scenarioD.remaining !== 4
-      || scenarioD.visible === "u0-1") {
-    throw new Error(`Scenario D failed: ${JSON.stringify({ scenarioDStart, scenarioD })}`);
+  if (scenarioDStart !== "Mở Duyệt người nói"
+      || scenarioD.route !== "assignment"
+      || Number(scenarioD.context?.bookId) !== 71
+      || Number(scenarioD.context?.fromChapter) !== 101
+      || Number(scenarioD.context?.toChapter) !== 110
+      || scenarioD.context?.assignmentFocus !== "review"
+      || !scenarioD.reviewOpen
+      || scenarioD.suggestionRequests < 1
+      || scenarioD.commandMutations !== 0) {
+    throw new Error(`Scenario D review composition failed: ${JSON.stringify({ scenarioDStart, scenarioD })}`);
   }
-  if (scenarioE.remaining !== 3 || scenarioE.speakerApprovalCalls < 2) {
-    throw new Error(`Scenario E failed: ${JSON.stringify(scenarioE)}`);
+  if (manualScenarioD.remaining !== 4
+      || manualScenarioD.visible === "u0-1"
+      || manualScenarioD.primary !== "Mở Duyệt người nói") {
+    throw new Error(`Scenario D manual fallback failed: ${JSON.stringify(manualScenarioD)}`);
+  }
+  if (manualScenarioE.remaining !== 3 || manualScenarioE.speakerApprovalCalls < 2) {
+    throw new Error(`Scenario E manual fallback failed: ${JSON.stringify(manualScenarioE)}`);
   }
   if (scenarioC.remaining !== 0 || scenarioC.phase !== "voices") {
     throw new Error(`Scenario C failed: ${JSON.stringify(scenarioC)}`);
@@ -497,7 +525,8 @@ try {
     scenarioB,
     scenarioC,
     scenarioD,
-    scenarioE,
+    manualScenarioD,
+    manualScenarioE,
     scenarioFG,
     scenarioGEnd,
     scenarioCastingEvidence,

@@ -18,10 +18,13 @@ class OwnerRealUseAcceptanceUiTests(unittest.TestCase):
             self.assertIn(token,self.js)
         self.assertIn("if(task==='PREPARE_RANGE')return ownerReviewTaskContent(vm)",self.js)
 
-    def test_owner_journey_uses_five_task_phases_not_backend_modules(self):
-        for token in ('Phạm vi','Nội dung & người nói','Nhân vật & giọng','Kiểm tra & tạo audio','Nghe, sửa & hoàn tất'):
+    def test_owner_journey_keeps_four_production_phases_and_audio_qa_separate(self):
+        for token in ('Phạm vi','Nội dung & người nói','Nhân vật & giọng','Kiểm tra & tạo audio'):
             self.assertIn(token,self.js)
-        self.assertIn('Giai đoạn ${stage} / 5',self.js)
+        self.assertIn('Giai đoạn ${stage} / 4',self.js)
+        self.assertIn("audio:{hash:'#/audio',label:'Duyệt audio',heading:'Duyệt audio'}",self.js)
+        self.assertIn('Audio đã được bàn giao sang Duyệt audio',self.js)
+        self.assertNotIn('Nghe, sửa & hoàn tất',self.js)
 
     def test_prepare_and_start_render_are_distinct_owner_decisions(self):
         self.assertIn("if(task==='PREPARE_RANGE')",self.js)
@@ -29,6 +32,14 @@ class OwnerRealUseAcceptanceUiTests(unittest.TestCase):
         self.assertIn("primary.textContent='Chuẩn bị tạo audio'",self.js)
         self.assertIn("primary.textContent='Bắt đầu tạo audio'",self.js)
         self.assertIn('Snapshot này là bất biến.',self.js)
+
+    def test_pre_render_acknowledgement_is_bound_to_scope_voice_and_tts_fingerprint(self):
+        self.assertIn('function preRenderReviewFingerprint', self.js)
+        self.assertIn('planFingerprint:String(technical.plan_fingerprint', self.js)
+        self.assertIn('voiceIds,settings:{temperature:', self.js)
+        self.assertIn('Đầu vào vừa thay đổi. Hãy kiểm tra lại bản đồ giọng và thông số TTS rồi xác nhận lại.', self.js)
+        self.assertIn('bản đồ giọng và thông số TTS hiệu lực', self.js)
+        self.assertIn('await loadProductionTaskProjection({silent:true})', self.js)
 
     def test_subset_of_existing_job_opens_owner_scope_without_starting_render(self):
         branch_start=self.js.index("if(action==='OPEN_JOB_RANGE')")
@@ -52,6 +63,19 @@ class OwnerRealUseAcceptanceUiTests(unittest.TestCase):
         self.assertIn("setAppRoute('voices')",self.js)
         self.assertIn("setAppRoute('assignment')",self.js)
         self.assertIn("rememberProductionWorkingContext",self.js)
+
+    def test_next_cycle_resets_all_cycle_scoped_transient_state(self):
+        self.assertIn('function resetProductionCycleTransientState()', self.js)
+        for token in (
+            "state.productionPreflight=null",
+            "state.productionPrepare={readiness:null",
+            "state.productionRepair={taskKey:null,mode:null,markers:[]}",
+            "state.audioQa={history:[],loading:false,markers:[]}",
+            "state.audioLibrary.selectedArtifactId=null",
+            "sessionStorage.removeItem(REPAIR_PLAN_OPEN_STORAGE_KEY)",
+        ):
+            self.assertIn(token, self.js)
+        self.assertIn('resetProductionCycleTransientState();', self.js)
 
     def test_factory_reset_purges_orphaned_browser_context_after_books_load(self):
         self.assertIn('function reconcilePersistedBrowserContextWithBooks()',self.js)

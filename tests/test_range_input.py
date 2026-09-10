@@ -4,12 +4,14 @@ import tempfile
 from pathlib import Path
 from unittest.mock import patch
 
+from story_audio.db import utcnow
 from story_audio.range_input import (
     approve_ready_casting_plans,
     approve_ready_speaker_drafts,
     get_range_input_snapshot,
     prepare_range_inputs,
 )
+from story_audio.text import lexical_sha256
 from story_audio.voice_eligibility import EffectiveVoiceCatalog
 from story_audio.voice_profile import set_book_voice_profile
 from tests.base import IsolatedTestCase
@@ -172,6 +174,78 @@ class RangeInputWorkflowTests(IsolatedTestCase):
         final_snapshot = self.snapshot()
         self.assertEqual(final_snapshot["summary"]["proposal_required_chapters"], 0)
         self.assertEqual(final_snapshot["summary"]["ready_chapters"], 1)
+
+    def test_analysis_required_overrides_approved_zero_target_draft(self) -> None:
+        text = "Narration.\n- Hold the gate."
+        text_path, text_sha = self.store.put_text(text)
+        with self.db.transaction() as connection:
+            connection.execute(
+                """
+                UPDATE text_revisions
+                SET content_path=?,content_sha256=?,lexical_sha256=?,char_count=?
+                WHERE id=?
+                """,
+                (text_path, text_sha, lexical_sha256(text), len(text), self.revision_id),
+            )
+            connection.execute(
+                "UPDATE chapters SET char_count=? WHERE id=?",
+                (len(text), self.chapter_id),
+            )
+        now = utcnow()
+        content_path, content_sha = self.store.put_json(
+            {
+                "schema": "story-audio-speaker-assignment-draft/v1",
+                "status": "approved",
+                "book_id": self.book_id,
+                "chapter_id": self.chapter_id,
+                "text_revision_id": self.revision_id,
+                "assignments": [],
+                "invalid_items": [],
+                "summary": {"target_count": 0, "valid_count": 0, "invalid_count": 0},
+            },
+            namespace="speaker_assignment",
+        )
+        with self.db.transaction() as connection:
+            draft_id = int(
+                connection.execute(
+                    """
+                    INSERT INTO speaker_assignment_drafts(
+                        book_id,chapter_id,text_revision_id,input_fingerprint,
+                        character_bible_fingerprint,model_id,prompt_version,response_schema,
+                        mode,status,content_path,content_sha256,target_count,valid_count,
+                        invalid_count,created_at,approved_at
+                    ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+                    """,
+                    (
+                        self.book_id,
+                        self.chapter_id,
+                        self.revision_id,
+                        "legacy-zero-target",
+                        "legacy-bible",
+                        "gemini-3.8-flash",
+                        "speaker-assignment-v2",
+                        "story-audio-speaker-assignment-draft/v1",
+                        "unassigned_only",
+                        "approved",
+                        content_path,
+                        content_sha,
+                        0,
+                        0,
+                        0,
+                        now,
+                        now,
+                    ),
+                ).lastrowid
+            )
+
+        snapshot = self.snapshot()
+        self.assertEqual(snapshot["summary"]["proposal_required_chapters"], 1)
+        self.assertEqual(snapshot["summary"]["speaker_exception_count"], 0)
+        proposal = snapshot["proposal_chapters"][0]
+        self.assertEqual(proposal["reason"], "analysis_required")
+        self.assertEqual(proposal["draft_id"], draft_id)
+        self.assertGreater(proposal["unresolved_count"], 0)
+        self.assertEqual(proposal["current_revision_id"], self.revision_id)
 
     def test_batch_speaker_approval_is_idempotent_and_rejects_wrong_identity(self) -> None:
         prepared = self.prepare_with_provider(

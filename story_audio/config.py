@@ -8,6 +8,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 _GEMINI_KEY_LOCK = threading.RLock()
 _GEMINI_KEY_CURSOR = 0
+DEFAULT_GEMINI_MODEL_CHAIN = (
+    "gemini-3.8-flash",
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+)
 
 def canonical_production_db_path() -> Path:
     """Return the canonical production database path.
@@ -54,7 +60,7 @@ class Settings:
     work_dir: Path = _DATA_DIR / "work"
     imports_dir: Path = _DATA_DIR / "imports"
     log_dir: Path = ROOT / "logs"
-    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    gemini_model: str = os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL_CHAIN[0])
     gemini_prompt_version: str = "punctuation-v1"
     speaker_assignment_prompt_version: str = "speaker-assignment-v2"
     speaker_assignment_batch_size: int = 20
@@ -102,6 +108,33 @@ class Settings:
             self.root / "secrets",
         ):
             path.mkdir(parents=True, exist_ok=True)
+
+    def gemini_models(self) -> list[str]:
+        """Return the ordered Gemini model chain without duplicates.
+
+        The stable default is 3.8 Flash with descending Flash fallbacks.  An
+        explicit GEMINI_MODEL outside that chain stays pinned unless
+        GEMINI_FALLBACK_MODELS is also configured, preserving deterministic
+        custom/test model behavior.
+        """
+        primary = str(self.gemini_model or "").strip()
+        raw_fallbacks = os.getenv("GEMINI_FALLBACK_MODELS", "").strip()
+        if raw_fallbacks:
+            fallbacks = [
+                item.strip()
+                for item in raw_fallbacks.replace("\n", ",").split(",")
+                if item.strip()
+            ]
+        elif primary in DEFAULT_GEMINI_MODEL_CHAIN:
+            index = DEFAULT_GEMINI_MODEL_CHAIN.index(primary)
+            fallbacks = list(DEFAULT_GEMINI_MODEL_CHAIN[index + 1 :])
+        else:
+            fallbacks = []
+        result: list[str] = []
+        for value in [primary, *fallbacks]:
+            if value and value not in result:
+                result.append(value)
+        return result
 
     @property
     def gemini_key_file(self) -> Path:
