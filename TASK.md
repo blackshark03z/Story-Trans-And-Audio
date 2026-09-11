@@ -299,6 +299,66 @@ CANDIDATE_PREVIEW=PASS: served runtime shows ChanLee on direct assignment entry,
 OWNER_ACCEPTANCE=REQUIRED: no new production voice was created during verification; owner should supply a real reference sample and approve the live save result
 ```
 
+### Custom voice detail hierarchy
+
+```text
+UX_CONTRACT
+PRIMARY_USER=Owner inspecting a saved custom voice and deciding whether its current reference is suitable for future synthesis
+PRIMARY_JOURNEY=select saved voice -> understand which reference revision is current -> listen to the original reference or optionally create a synthesized test -> manage revisions only when needed
+PRIMARY_SURFACE=selected custom voice detail in Giọng
+INFORMATION_HIERARCHY=voice identity and current reference first; original-reference playback and synthesized test as two explicitly different actions; history, upload, and technical metadata advanced
+SCOPE_MODEL=one Book-owned logical voice; changing the current reference affects future synthesis only and never changes already-created audio
+PRIMARY_CONTROLS=Nghe audio tham chiếu, optional preview text, Tạo bản nghe thử, deactivate/reactivate
+ADVANCED_CONTROLS=revision history, set another revision as current, upload immutable revision, technical metadata
+STATES=no revision with an explanation; current revision ready; generating test; generated result; recoverable error
+BULK_DESTRUCTIVE=NOT_APPLICABLE
+DISCOVERABILITY=the current revision summary sits immediately below voice identity; the synthesized test has a separate labelled result area
+ACCESSIBILITY=clear Vietnamese labels, live status for generated output, explicit button names, keyboard-reachable advanced disclosure
+OWNER_PREFERENCE=owner explicitly reports that Used for synthesis, Generate Test Audio, and Nghe thử appear confusing or duplicated
+```
+
+```text
+WORKSPACE_CONTRACT
+PRIMARY_TASK=understand and verify the selected custom voice without deciphering revision terminology
+PRIMARY_WORKSPACE=compact selected-voice summary followed by one quality-check action
+PERSISTENT_REGIONS=voice identity, current reference, reference-listen action, and synthesized-test action
+CONTEXTUAL_REGIONS=generated test result and error state
+NAVIGATION_MODEL=remain in Giọng; no route change for playback or test generation
+LAYOUT_ARCHETYPE=single-column detail with one primary verification card and one advanced disclosure
+VIEWPORT_BUDGET=summary and controls wrap vertically below 700px without horizontal scrolling
+CONTENT_REPLACEMENT_STRATEGY=a new generated test replaces the previous test result; selecting another voice resets stale playback/result state
+ADVANCED_CONTROL_STRATEGY=history, revision switching, upload, and technical metadata live under one collapsed Nâng cao disclosure
+EXPECTED_SCROLL_BEHAVIOR=opening advanced content expands in place; playback and generated-result updates do not move page scroll
+ARCHETYPE_RATIONALE=voice verification is the frequent task; revision administration is occasional and must not dominate
+```
+
+```text
+UX_IMPLEMENTATION_REVIEW
+PRIMARY_SURFACE_DISCOVERABILITY=PASS: selecting a saved custom voice reveals its identity and current reference immediately
+SCOPE_CLARITY=PASS: the current Book remains visible; the copy states that only future synthesis uses the selected reference and existing audio is unchanged
+APPLY_REAPPLY_RESET_EXPLICITNESS=PASS: changing the current reference remains an explicit Advanced action; test generation is a separate explicit action
+ADVANCED_WITHOUT_DOMINATING=PASS: revision history, revision switching, upload, and technical metadata are collapsed under one Nâng cao disclosure
+DISABLED_STATE_EXPLANATION=PASS: no current reference disables test generation and gives the exact recovery path
+BULK_DESTRUCTIVE_SAFETY=NOT_APPLICABLE
+VISIBLE_HIERARCHY=PASS: current reference, original-reference playback, synthesized test, then Advanced administration
+CONTROL_DENSITY=PASS: duplicate disabled voice and revision controls were removed; one primary Tạo bản nghe thử action remains
+COHERENT_APPLICATION_COMPOSITION=PASS: reference playback verifies source material while generated playback verifies synthesized output, with distinct labels and endpoints
+DESTRUCTIVE_DIFFERENTIATION=PASS: deactivate remains outside the verification actions and no new destructive control was introduced
+EXISTING_WORKFLOW_PRESERVATION=PASS: the preview endpoint, preferred-revision endpoint, immutable revision upload, and Book-scoped voice model are unchanged
+INFORMATION_ARCHITECTURE=PASS: frequent verification is visible; occasional resource administration is advanced
+NAVIGATION=PASS: all actions remain inside Giọng and preserve the production return context
+WORKSPACE_LAYOUT=PASS: one compact current-reference card and one quality-check card precede a single Advanced disclosure
+VIEWPORT_BUDGET=PASS: live 1366px and 700px inspections show no horizontal overflow; controls stack at the narrow viewport
+PERSISTENT_CONTEXTUAL_CONTROLS=PASS: the current revision summary is persistent; generated output appears only after explicit generation
+LAYOUT_ARCHETYPE_FIT=PASS: single-column resource detail matches the bounded inspection task
+RESPONSIVE_WORKSPACE_BEHAVIOR=PASS: the reference action and test controls become full-width at 700px
+VERTICAL_SPRAWL_REDUCED=PASS: history, upload, and per-revision technical metadata no longer occupy the default detail view
+WORKSPACE_LAYOUT_SOLUTION=PASS: the owner can distinguish source playback from synthesized preview without reading implementation terms
+TECHNICAL_VALIDATION=PASS: JavaScript syntax, 275 focused contract tests, and the 11-stage browser journey assertions pass
+CANDIDATE_PREVIEW=PASS: canonical read-only runtime inspection shows ChanLee Revision 1 auto-selected, Advanced collapsed, distinct playback labels, and no horizontal overflow at 1366px/700px
+OWNER_ACCEPTANCE=REQUIRED: provider-backed test generation and live playback were intentionally not invoked; owner should visually confirm the revised wording and may explicitly test audio later
+```
+
 ## UX contract
 
 ```text

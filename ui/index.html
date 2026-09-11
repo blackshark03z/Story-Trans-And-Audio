@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Story Audio</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="/assets/styles.css?v=20260911-custom-voice-flow-2">
+  <link rel="stylesheet" href="/assets/styles.css?v=20260911-voice-detail-1">
   <style>
     .casting-journey{display:grid;gap:12px;margin:16px 0;padding:16px;border:1px solid var(--color-border);border-radius:5px;background:var(--color-surface-subtle)}.casting-journey-head{display:flex;justify-content:space-between;align-items:start;gap:12px}.casting-journey-head h3{margin:2px 0;font-size:18px}.casting-journey-head>span{padding:5px 8px;border-radius:3px;background:var(--color-primary-soft);color:var(--color-primary);font-size:12px;font-weight:800;white-space:nowrap}.casting-journey-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0;padding:0;list-style:none}.casting-journey-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 10px;border:1px solid var(--color-border);border-radius:4px;background:var(--color-surface)}.casting-journey-list li>div{display:grid;gap:2px}.casting-journey-list strong{font-size:12px}.casting-journey-list span{font-size:11px;color:var(--muted)}.casting-journey-list li.complete{border-color:#b9d8d2;background:var(--color-success-soft)}.casting-journey-list li.complete strong:before{content:'✓ ';color:var(--color-success)}.casting-journey-list li.current{border-color:#e4c48c;background:var(--color-warning-soft)}.casting-journey-list li.current strong:before{content:'→ ';color:var(--color-warning)}.casting-journey-list li.blocked{background:var(--color-surface-subtle);opacity:.75}.casting-journey-list .text-action{font-size:11px;white-space:nowrap}@media(max-width:760px){.casting-journey-head{display:grid}.casting-journey-list{grid-template-columns:1fr}}
   </style>
@@ -384,7 +384,7 @@
         <div id="libraryStatus" class="muted">Chọn sách để tải danh sách giọng.</div>
         <div id="libraryVoiceList" class="voice-library-list"></div>
         <div id="librarySelectedDetails" class="library-selected-details hidden">
-        <h3>Chi tiết giọng</h3>
+        <h3>Thông tin giọng</h3>
         <div id="libraryVoiceInfo" class="library-voice-info">
           <div class="voice-info-row">
             <span class="voice-info-label">Tên:</span>
@@ -403,51 +403,56 @@
           <button id="libraryDeactivate" class="secondary" disabled>Ngừng sử dụng giọng</button>
           <button id="libraryReactivate" class="secondary hidden" disabled>Sử dụng lại giọng</button>
         </div>
-        <h4>Revision History</h4>
-        <div id="libraryRevisionsStatus" class="muted">Loading revisions...</div>
-        <div id="libraryRevisionsList" class="library-revisions-list"></div>
+        <section class="library-current-reference" aria-labelledby="libraryCurrentReferenceHeading">
+          <div id="libraryActiveRevisionSummary">
+            <p class="eyebrow">Bản đang dùng để tạo audio</p>
+            <h4 id="libraryCurrentReferenceHeading">Đang tải…</h4>
+          </div>
+          <button id="libraryListenActiveReference" class="secondary" type="button" disabled>Nghe audio tham chiếu</button>
+        </section>
         <audio id="libraryReferenceAudio" preload="none" class="hidden"></audio>
-        <h4>Test Synthesis with Custom Text</h4>
-        <p class="muted">Choose a revision, enter optional text, then generate a short test audio.</p>
-        <div class="test-synthesis-panel">
+        <section class="test-synthesis-panel" aria-labelledby="libraryVoiceCheckHeading">
+          <p class="eyebrow">Kiểm tra chất giọng</p>
+          <h4 id="libraryVoiceCheckHeading">Tạo bản nghe thử</h4>
+          <p class="muted">Tạo một đoạn audio mới bằng bản tham chiếu đang dùng. Thao tác này khác với nghe lại audio tham chiếu ở trên.</p>
+          <p id="libraryTestRevisionSummary" class="preview-test-status">Đang xác định bản tham chiếu…</p>
           <div class="voice-form-group">
-            <label for="libraryTestVoice">Voice</label>
-            <input id="libraryTestVoice" disabled readonly>
-          </div>
-          <div class="voice-form-group">
-            <label for="libraryTestRevisionSelect">Revision</label>
-            <select id="libraryTestRevisionSelect" disabled>
-              <option value="">Choose a revision</option>
-            </select>
-          </div>
-          <div class="voice-form-group">
-            <label for="libraryPreviewText">Preview Text (optional)</label>
-            <textarea id="libraryPreviewText" class="voice-description-input" placeholder="Leave empty to use default sample" rows="3" maxlength="500"></textarea>
+            <label for="libraryPreviewText">Văn bản thử <span class="muted">(không bắt buộc)</span></label>
+            <textarea id="libraryPreviewText" class="voice-description-input" placeholder="Để trống để dùng câu mẫu mặc định" rows="3" maxlength="500"></textarea>
             <span id="libraryPreviewTextCounter" class="char-counter muted">0 / 500</span>
           </div>
           <div class="row">
-            <button id="libraryUseDefaultPreview" class="ghost">Use Default Sample</button>
-            <button id="libraryGenerateTestAudio" class="secondary" disabled>▶ Generate Test Audio</button>
+            <button id="libraryUseDefaultPreview" class="ghost">Dùng câu mẫu mặc định</button>
+            <button id="libraryGenerateTestAudio" class="primary" disabled>▶ Tạo bản nghe thử</button>
           </div>
-          <div id="libraryPreviewBox" class="voice-preview hidden">
+          <div id="libraryPreviewBox" class="voice-preview library-generated-preview hidden" role="status" aria-live="polite">
+            <strong>Bản nghe thử vừa tạo</strong>
             <audio id="libraryPreviewAudio" controls preload="metadata"></audio>
             <div id="libraryPreviewProvenance" class="muted"></div>
           </div>
-        </div>
-        <details class="upload-revision-section">
-          <summary><h4>Upload New Revision</h4></summary>
-          <p class="muted immutable-notice">Uploading new audio or transcript creates a new immutable revision. Existing revisions are never overwritten.</p>
-          <div class="upload-target-display">
-            <span class="upload-target-label">Uploading to voice:</span>
-            <strong id="libraryUploadTargetVoice" class="upload-target-voice">—</strong>
+        </section>
+        <details id="libraryVoiceAdvanced" class="library-voice-advanced">
+          <summary>Nâng cao: phiên bản và kỹ thuật</summary>
+          <div class="library-voice-advanced-content">
+            <h4>Lịch sử phiên bản</h4>
+            <div id="libraryRevisionsStatus" class="muted">Đang tải phiên bản…</div>
+            <div id="libraryRevisionsList" class="library-revisions-list"></div>
+            <details class="upload-revision-section">
+              <summary><h4>Thêm phiên bản tham chiếu</h4></summary>
+              <p class="muted immutable-notice">Audio hoặc transcript mới sẽ tạo một phiên bản riêng. Các phiên bản cũ không bị ghi đè.</p>
+              <div class="upload-target-display">
+                <span class="upload-target-label">Thêm vào giọng:</span>
+                <strong id="libraryUploadTargetVoice" class="upload-target-voice">—</strong>
+              </div>
+              <div class="upload-revision-grid">
+                <label>Audio tham chiếu<input id="libraryAudioFile" type="file" accept="audio/wav,audio/x-wav,audio/mp3,audio/mpeg" disabled></label>
+                <label>Transcript chính xác<textarea id="libraryTranscript" placeholder="Nhập đúng từng từ được đọc trong audio tham chiếu" rows="3" maxlength="10000" disabled></textarea><span id="libraryTranscriptCounter" class="char-counter muted">0 / 10000</span></label>
+              </div>
+              <button id="libraryUploadRevision" class="primary" disabled>Thêm phiên bản</button>
+              <div id="libraryUploadStatus" class="muted"></div>
+              <div id="libraryUploadError" class="issue error hidden"></div>
+            </details>
           </div>
-          <div class="upload-revision-grid">
-            <label>Reference Audio<input id="libraryAudioFile" type="file" accept="audio/wav,audio/x-wav,audio/mp3,audio/mpeg" disabled></label>
-            <label>Exact Transcript<textarea id="libraryTranscript" placeholder="Enter the exact transcript for the reference audio" rows="3" maxlength="10000" disabled></textarea><span id="libraryTranscriptCounter" class="char-counter muted">0 / 10000</span></label>
-          </div>
-          <button id="libraryUploadRevision" class="primary" disabled>Upload Revision</button>
-          <div id="libraryUploadStatus" class="muted"></div>
-          <div id="libraryUploadError" class="issue error hidden"></div>
         </details>
       </div>
         <div id="libraryError" class="issue error hidden" role="alert"></div>
@@ -1250,8 +1255,8 @@
   </dialog>
   <div id="toast" class="toast hidden"></div>
   <script src="/assets/production_state.js?v=20260727-production-preflight-1"></script>
-  <script src="/assets/app.js?v=20260911-custom-voice-flow-2"></script>
+  <script src="/assets/app.js?v=20260911-voice-detail-1"></script>
   <script src="/assets/casting_voice_map.js?v=20260726-vietnamese-flow-3"></script>
-  <script src="/assets/contextual_voice_detour.js?v=20260911-custom-voice-flow-2"></script>
+  <script src="/assets/contextual_voice_detour.js?v=20260911-voice-detail-1"></script>
 </body>
 </html>

@@ -14,6 +14,8 @@ const server = createServer(async (request, response) => {
   const path = new URL(request.url, "http://fixture").pathname;
   if (path === "/api/books") { response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify([{ id: 1, title: "Fixture Book", chapter_count: 4 }])); return; }
   if (path === "/api/voice-catalog") { response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify({ items: [] })); return; }
+  if (path === "/api/books/1/custom-voices") { response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify([{ id: 1, display_name: "Fixture Voice", description: null, is_active: true, preferred_synthesis_revision_id: 11 }])); return; }
+  if (path === "/api/custom-voices/1/revisions") { response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify([{ id: 11, revision_number: 1, duration_ms: 5000, sample_rate: 24000, channels: 1, audio_format: "wav", created_at: "2026-09-11T00:00:00Z" }])); return; }
   if (path === "/api/production/book-voice-registry") { response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify({ book: { id: 1, title: "Fixture Book" }, speaker_state: { status: "APPROVED_CURRENT", unresolved_count: 0 }, rows: [{ speaker_key: "narrator", role: "narrator", status: "READY", display_name: "Người kể chuyện", effective_voice: { id: "narrator", display_name: "Narrator" }, actions: { requires_casting_plan_creation: false } }] })); return; }
   if (path === "/api/production/task-projection") { response.writeHead(200, { "content-type": "application/json" }); response.end(JSON.stringify({ canonical_task: { task_key: "fixture", task_type: "READY_TO_PREPARE", title: "Ready", summary: "Ready", current_stage_key: "prepare", primary_action: { key: "PREPARE_RANGE", label: "Prepare", target: "prepare" } } })); return; }
   const asset = files[path]; if (!asset) { response.writeHead(404).end(); return; }
@@ -43,5 +45,24 @@ try {
   if (scoped['character-review'] !== 'complete' || scoped['confirm-casting'] !== 'complete' || scoped['casting-ready'] !== 'complete') throw new Error(`Scoped ready state is inaccurate: ${JSON.stringify(scoped)}`);
   const labels = await evaluate("[...document.querySelectorAll('#assignmentSummary [data-casting-journey-stage] strong')].map(node=>node.textContent)");
   if (!["Sách", "Character Review", "Assign Book Voice", "Confirm Final Casting", "Casting Ready"].every(label => labels.some(value => value.includes(label)))) throw new Error(`Missing visible stages: ${JSON.stringify(labels)}`);
-  process.stdout.write(JSON.stringify({ ok: true, stageCount: labels.length, unscoped, scoped }));
+  await evaluate("location.hash='#/voices?book=1&from=1&to=4'");
+  await poll(() => evaluate("!!document.querySelector('.voice-library-row')"));
+  await evaluate("document.querySelector('.voice-library-row').click(); true");
+  const voiceDetail = await poll(() => evaluate(`(() => {
+    const summary=document.querySelector('#libraryTestRevisionSummary')?.textContent||'';
+    if(!summary.includes('Fixture Voice')) return null;
+    return {
+      current:document.querySelector('#libraryActiveRevisionSummary')?.innerText||'',
+      referenceAction:document.querySelector('#libraryListenActiveReference')?.textContent||'',
+      testAction:document.querySelector('#libraryGenerateTestAudio')?.textContent||'',
+      testActionPrimary:document.querySelector('#libraryGenerateTestAudio')?.classList.contains('primary')||false,
+      generatedLabel:document.querySelector('#libraryPreviewBox>strong')?.textContent||'',
+      advancedOpen:document.querySelector('#libraryVoiceAdvanced')?.open||false,
+      duplicateVoiceInput:!!document.querySelector('#libraryTestVoice'),
+      duplicateRevisionSelect:!!document.querySelector('#libraryTestRevisionSelect'),
+      horizontalOverflow:document.documentElement.scrollWidth>document.documentElement.clientWidth
+    };
+  })()`));
+  if(!voiceDetail.current.includes('Revision 1')||voiceDetail.referenceAction!=='Nghe audio tham chiếu'||voiceDetail.testAction!=='▶ Tạo bản nghe thử'||!voiceDetail.testActionPrimary||voiceDetail.generatedLabel!=='Bản nghe thử vừa tạo'||voiceDetail.advancedOpen||voiceDetail.duplicateVoiceInput||voiceDetail.duplicateRevisionSelect||voiceDetail.horizontalOverflow)throw new Error(`Custom voice detail hierarchy is inaccurate: ${JSON.stringify(voiceDetail)}`);
+  process.stdout.write(JSON.stringify({ ok: true, stageCount: labels.length, unscoped, scoped, voiceDetail }));
 } finally { socket?.close(); const exited = child.exitCode === null ? new Promise(resolveExit => child.once("exit", resolveExit)) : Promise.resolve(); child.kill(); await Promise.race([exited, delay(2000)]); server.close(); await rm(profile, { recursive: true, force: true }); }
