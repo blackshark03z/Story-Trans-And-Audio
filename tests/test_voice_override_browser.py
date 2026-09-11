@@ -348,6 +348,12 @@ class VoiceOverrideBrowserTests(unittest.TestCase):
         evidence = json.loads(result.stdout)
         self.assertTrue(evidence["ok"])
         self.assertTrue(evidence["exactUrlNotReadOnly"])
+        self.assertTrue(evidence["workspaceScrollStable"])
+        self.assertGreater(evidence["workspaceScrollBefore"], 0)
+        self.assertLessEqual(
+            abs(evidence["workspaceScrollAfter"] - evidence["workspaceScrollBefore"]),
+            2,
+        )
         self.assertTrue(evidence["localUnsavedGuard"])
         self.assertTrue(evidence["bookDefaultRemainsIndependent"])
         self.assertTrue(evidence["localChoiceCancelled"])

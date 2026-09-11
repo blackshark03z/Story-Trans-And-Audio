@@ -389,6 +389,13 @@ class CharacterAssignmentServiceTests(IsolatedTestCase):
             registry["range"]["excluded_chapters"],
             [{"id": completed_chapter["id"], "chapter_number": 1, "reason": "completed"}],
         )
+        narrator = next(row for row in registry["rows"] if row["speaker_key"] == "narrator")
+        self.assertEqual(narrator["requested_scope"]["chapter_numbers"], [1, 2])
+        self.assertEqual(narrator["effective_scope"]["chapter_numbers"], [2])
+        self.assertGreater(
+            narrator["requested_scope"]["line_count"],
+            narrator["effective_scope"]["line_count"],
+        )
         self.assertEqual(len(unresolved), 1)
         self.assertEqual(unresolved[0]["chapter_numbers"], [2])
 

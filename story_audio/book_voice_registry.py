@@ -819,6 +819,18 @@ def _chapter_range_label(chapters: Iterable[int]) -> str:
     return "Chương " + ", ".join(ranges)
 
 
+def _row_scope_evidence(row: Mapping[str, Any]) -> dict[str, Any]:
+    chapter_numbers = [int(value) for value in row.get("chapter_numbers") or []]
+    return {
+        "chapter_numbers": chapter_numbers,
+        "chapter_range_label": str(
+            row.get("chapter_range_label") or _chapter_range_label(chapter_numbers)
+        ),
+        "chapter_count": len(chapter_numbers),
+        "line_count": int(row.get("line_count") or 0),
+    }
+
+
 def _sort_rows(item: dict[str, Any]) -> tuple[int, int, int, str]:
     if item["speaker_key"] == "narrator":
         return (0, 0, 0, "")
@@ -1013,6 +1025,29 @@ def get_book_voice_registry(
         for row in rows.values()
         if row.speaker_key == "narrator" or row.line_count > 0
     ]
+    requested_rows_by_key: dict[str, Mapping[str, Any]] = {}
+    if skip_completed and len(requested_chapters) != len(chapters):
+        requested_registry = get_book_voice_registry(
+            db,
+            store,
+            config,
+            book_id=book_id,
+            from_chapter=from_chapter,
+            to_chapter=to_chapter,
+            skip_completed=False,
+            voice_catalog=voice_catalog,
+            custom_voice_context=custom_voice_context,
+        )
+        requested_rows_by_key = {
+            str(item["speaker_key"]): item
+            for item in requested_registry.get("rows") or []
+        }
+    for payload_row in payload_rows:
+        payload_row["effective_scope"] = _row_scope_evidence(payload_row)
+        requested_row = requested_rows_by_key.get(str(payload_row["speaker_key"]))
+        payload_row["requested_scope"] = _row_scope_evidence(
+            requested_row or payload_row
+        )
     payload_rows.sort(key=_sort_rows)
     status_counts: dict[str, int] = {status: 0 for status in sorted(REGISTRY_STATUSES)}
     for row in payload_rows:

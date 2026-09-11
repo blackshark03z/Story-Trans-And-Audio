@@ -15,6 +15,7 @@ class ApprovedReviewFixtureHandler(SpeakerReviewWorkspaceFixtureHandler):
         voice = {"id": "narrator", "display_name": "Bình An"}
 
         def row(*, key: str, role: str, name: str, character_id: int | None) -> dict:
+            requested_chapters = [1, 2, 3, 4, 5, 6] if role == "narrator" else [1, 2, 4, 5, 6]
             return {
                 "speaker_key": key,
                 "role": role,
@@ -22,9 +23,32 @@ class ApprovedReviewFixtureHandler(SpeakerReviewWorkspaceFixtureHandler):
                 "character_role": "minor" if character_id else None,
                 "display_name": name,
                 "status": "READY",
-                "line_count": 1,
+                "line_count": 48 if role == "narrator" else 1,
                 "chapter_numbers": [1],
-                "sample_lines": [],
+                "chapter_range_label": "Chương 1",
+                "requested_scope": {
+                    "chapter_numbers": requested_chapters,
+                    "chapter_range_label": "Chương 1-6" if role == "narrator" else "Chương 1-2, 4-6",
+                    "chapter_count": len(requested_chapters),
+                    "line_count": 315 if role == "narrator" else 7,
+                },
+                "effective_scope": {
+                    "chapter_numbers": [1],
+                    "chapter_range_label": "Chương 1",
+                    "chapter_count": 1,
+                    "line_count": 48 if role == "narrator" else 1,
+                },
+                "sample_lines": [] if role == "narrator" else [
+                    {
+                        "chapter_number": chapter,
+                        "sequence": chapter,
+                        "utterance_id": f"sample-{chapter}",
+                        "text": "Một đoạn thoại đủ dài để kiểm tra vùng làm việc giữ nguyên vị trí cuộn sau khi dữ liệu được làm mới. " * 8,
+                        "context_before": [],
+                        "context_after": [],
+                    }
+                    for chapter in [1, 2, 4, 5, 6]
+                ],
                 "effective_voice": voice,
                 "current_book_default_voice": voice,
                 "assignment_source": "inherited",
@@ -83,7 +107,7 @@ class AssignmentCompletedReviewBrowserTests(unittest.TestCase):
 const {spawn}=require('node:child_process'),{existsSync}=require('node:fs'),{mkdtemp,readFile,rm}=require('node:fs/promises'),{tmpdir}=require('node:os'),{join}=require('node:path');
 const base=process.argv[1],exe=[process.env.STORY_AUDIO_BROWSER_EXE,'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe','C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe'].find(value=>value&&existsSync(value));if(!exe)throw Error('No Chromium browser');
 const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms)),poll=async fn=>{const end=Date.now()+12000;let error;while(Date.now()<end){try{const value=await fn();if(value)return value}catch(e){error=e}await delay(50)}throw error||Error('Timed out')};
-(async()=>{const profile=await mkdtemp(join(tmpdir(),'story-audio-approved-review-')),child=spawn(exe,['--headless=new','--disable-gpu','--no-first-run','--remote-debugging-port=0',`--user-data-dir=${profile}`,`${base}/#/assignment?book=1&from=1&to=6&skip_completed=1`],{stdio:'ignore'});let socket;try{const port=await poll(async()=>Number((await readFile(join(profile,'DevToolsActivePort'),'utf8')).split(/\r?\n/)[0])||null),page=await poll(async()=>{const pages=await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();return pages.find(item=>item.type==='page'&&item.url.startsWith(base))});socket=new WebSocket(page.webSocketDebuggerUrl);await new Promise((resolve,reject)=>{socket.onopen=resolve;socket.onerror=reject});let id=0;const pending=new Map();socket.onmessage=event=>{const message=JSON.parse(event.data),entry=pending.get(message.id);if(!entry)return;pending.delete(message.id);message.error?entry.reject(Error(message.error.message)):entry.resolve(message.result)};const send=(method,params={})=>new Promise((resolve,reject)=>{const request=++id;pending.set(request,{resolve,reject});socket.send(JSON.stringify({id:request,method,params}))}),evaluate=async expression=>{const result=await send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(result.exceptionDetails)throw Error(result.exceptionDetails.text);return result.result.value};await send('Runtime.enable');await poll(async()=>await evaluate(`document.querySelector('[data-assignment-section="voices"]')?.textContent.includes('Hứa Thanh')`));const evidence=await evaluate(`(()=>{const review=document.querySelector('[data-assignment-section="review"]'),voices=document.querySelector('[data-assignment-section="voices"]'),summary=voices.querySelector('.assignment-section-summary')?.textContent||'',notice=voices.querySelector('.assignment-unresolved-notice'),editor=voices.querySelector('[data-registry-editor="narrator"]');return{reviewOpen:review.open,voicesOpen:voices.open,reviewStatus:review.querySelector('summary small')?.textContent.trim(),reviewNext:review.querySelector('[data-assignment-review-next]')?.textContent.trim(),voiceTitle:voices.querySelector('summary strong')?.textContent.trim(),voiceGuide:voices.querySelector('.section-guide')?.textContent.trim(),scope:document.querySelector('#assignmentScope')?.textContent.trim(),voiceSummary:summary.replace(/\\s+/g,' ').trim(),hasUnresolvedNotice:!!notice,selectedVoiceScope:editor.querySelector('[data-registry-scope-key]')?.value,saveLabel:editor.querySelector('[data-registry-apply]')?.textContent.trim(),falseSpeakerBlocker:editor.textContent.includes('bản xác định người nói chưa được duyệt'),preflightDisabled:document.querySelector('[data-assignment-preflight-step] button')?.disabled}})()`);console.log(JSON.stringify(evidence));}finally{socket?.close();const exited=new Promise(resolve=>child.once('exit',resolve));child.kill();await exited;for(let attempt=0;;attempt+=1){try{await rm(profile,{recursive:true,force:true});break}catch(error){if(!['EBUSY','EPERM'].includes(error?.code)||attempt>=29)throw error;await delay(200)}}}})();
+(async()=>{const profile=await mkdtemp(join(tmpdir(),'story-audio-approved-review-')),child=spawn(exe,['--headless=new','--disable-gpu','--no-first-run','--remote-debugging-port=0',`--user-data-dir=${profile}`,`${base}/#/assignment?book=1&from=1&to=6&skip_completed=1`],{stdio:'ignore'});let socket;try{const port=await poll(async()=>Number((await readFile(join(profile,'DevToolsActivePort'),'utf8')).split(/\r?\n/)[0])||null),page=await poll(async()=>{const pages=await (await fetch(`http://127.0.0.1:${port}/json/list`)).json();return pages.find(item=>item.type==='page'&&item.url.startsWith(base))});socket=new WebSocket(page.webSocketDebuggerUrl);await new Promise((resolve,reject)=>{socket.onopen=resolve;socket.onerror=reject});let id=0;const pending=new Map();socket.onmessage=event=>{const message=JSON.parse(event.data),entry=pending.get(message.id);if(!entry)return;pending.delete(message.id);message.error?entry.reject(Error(message.error.message)):entry.resolve(message.result)};const send=(method,params={})=>new Promise((resolve,reject)=>{const request=++id;pending.set(request,{resolve,reject});socket.send(JSON.stringify({id:request,method,params}))}),evaluate=async expression=>{const result=await send('Runtime.evaluate',{expression,awaitPromise:true,returnByValue:true});if(result.exceptionDetails)throw Error(result.exceptionDetails.text);return result.result.value};await send('Runtime.enable');await poll(async()=>await evaluate(`document.querySelector('[data-assignment-section="voices"]')?.textContent.includes('Hứa Thanh')`));const scrollBefore=await evaluate(`(()=>{const rows=document.querySelector('#assignmentRows');rows.scrollTop=Math.min(240,rows.scrollHeight-rows.clientHeight);return rows.scrollTop})()`);await evaluate(`loadBookVoiceRegistry({force:true}).then(()=>true)`);const scrollAfter=await evaluate(`document.querySelector('#assignmentRows').scrollTop`);const evidence=await evaluate(`(()=>{const review=document.querySelector('[data-assignment-section="review"]'),voices=document.querySelector('[data-assignment-section="voices"]'),summary=voices.querySelector('.assignment-section-summary')?.textContent||'',notice=voices.querySelector('.assignment-unresolved-notice'),editor=voices.querySelector('[data-registry-editor="narrator"]'),narrator=document.querySelector('[data-voice-library-row="narrator"]'),character=document.querySelector('[data-voice-library-row="character:25"]'),table=voices.querySelector('[data-registry-scroll-region]');return{reviewOpen:review.open,voicesOpen:voices.open,reviewStatus:review.querySelector('summary small')?.textContent.trim(),reviewNext:review.querySelector('[data-assignment-review-next]')?.textContent.trim(),voiceTitle:voices.querySelector('summary strong')?.textContent.trim(),voiceGuide:voices.querySelector('.section-guide')?.textContent.trim(),scope:document.querySelector('#assignmentScope')?.textContent.trim(),voiceSummary:summary.replace(/\\s+/g,' ').trim(),narratorScope:narrator?.textContent||'',characterScope:character?.textContent||'',nestedVerticalScroll:table.scrollHeight>table.clientHeight+1,hasUnresolvedNotice:!!notice,selectedVoiceScope:editor.querySelector('[data-registry-scope-key]')?.value,saveLabel:editor.querySelector('[data-registry-apply]')?.textContent.trim(),falseSpeakerBlocker:editor.textContent.includes('bản xác định người nói chưa được duyệt'),preflightDisabled:document.querySelector('[data-assignment-preflight-step] button')?.disabled}})()`);evidence.scrollBefore=scrollBefore;evidence.scrollAfter=scrollAfter;console.log(JSON.stringify(evidence));}finally{socket?.close();const exited=new Promise(resolve=>child.once('exit',resolve));child.kill();await exited;for(let attempt=0;;attempt+=1){try{await rm(profile,{recursive:true,force:true});break}catch(error){if(!['EBUSY','EPERM'].includes(error?.code)||attempt>=29)throw error;await delay(200)}}}})();
 '''
         try:
             result = subprocess.run(
@@ -107,7 +131,14 @@ const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms)),poll=async fn=>{con
         self.assertEqual(evidence["voiceTitle"], "2. Vai có lời trong phạm vi và cấu hình giọng")
         self.assertIn("Đang xử lý Chương 1 (1/6 chương)", evidence["scope"])
         self.assertIn("Bỏ qua 5 chương đã hoàn tất", evidence["scope"])
-        self.assertIn("chỉ gồm người kể chuyện và nhân vật/nhóm có câu thoại", evidence["voiceGuide"])
+        self.assertIn("toàn bộ phạm vi đã chọn", evidence["voiceGuide"])
+        self.assertIn("Chương 1-6", evidence["narratorScope"])
+        self.assertIn("315 câu", evidence["narratorScope"])
+        self.assertIn("Đang xử lý: Chương 1 · 48 câu", evidence["narratorScope"])
+        self.assertIn("Chương 1-2, 4-6", evidence["characterScope"])
+        self.assertIn("7 câu", evidence["characterScope"])
+        self.assertIn("Đang xử lý: Chương 1 · 1 câu", evidence["characterScope"])
+        self.assertFalse(evidence["nestedVerticalScroll"])
         self.assertIn("2 vai có giọng", evidence["voiceSummary"])
         self.assertIn("1 nhân vật/nhóm có lời", evidence["voiceSummary"])
         self.assertIn("1 người kể chuyện", evidence["voiceSummary"])

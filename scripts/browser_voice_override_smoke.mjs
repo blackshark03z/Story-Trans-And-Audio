@@ -181,6 +181,20 @@ try {
     return !!section;
   })()`);
   await waitFor(`!!document.querySelector('[data-registry-apply="narrator"]')`);
+  const workspaceScrollBefore = await evaluate(`(() => {
+    const rows = document.querySelector('#assignmentRows');
+    rows.style.height = '220px';
+    rows.style.maxHeight = '220px';
+    rows.scrollTop = Math.min(180, rows.scrollHeight - rows.clientHeight);
+    return rows.scrollTop;
+  })()`);
+  await evaluate(`loadBookVoiceRegistry({force:true}).then(() => true)`);
+  const workspaceScrollAfter = await evaluate(`document.querySelector('#assignmentRows')?.scrollTop || 0`);
+  const workspaceScrollStable = workspaceScrollBefore > 0
+    && Math.abs(workspaceScrollAfter - workspaceScrollBefore) <= 2;
+  if (!workspaceScrollStable) {
+    throw new Error(`Assignment workspace scroll moved during refresh: ${workspaceScrollBefore} -> ${workspaceScrollAfter}`);
+  }
   await installCommandRecorder([]);
 
   const exactUrlNotReadOnly = await evaluate(`(() => {
@@ -383,6 +397,9 @@ try {
   process.stdout.write(JSON.stringify({
     ok: true,
     exactUrlNotReadOnly,
+    workspaceScrollStable,
+    workspaceScrollBefore,
+    workspaceScrollAfter,
     localUnsavedGuard,
     bookDefaultRemainsIndependent,
     localChoiceCancelled,
