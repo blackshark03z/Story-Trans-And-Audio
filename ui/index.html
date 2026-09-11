@@ -593,6 +593,20 @@
               <div><p class="eyebrow">Hàng đợi</p><h3 id="audioQueueHeading">Audio cần xử lý</h3></div>
               <span class="muted">Chọn một chương để mở chi tiết.</span>
             </div>
+            <div id="audioDeleteToolbar" class="audio-delete-toolbar" aria-label="Quản lý audio">
+              <div>
+                <button id="audioDeleteMode" class="ghost" type="button">Chọn audio để xóa</button>
+                <span id="audioDeleteSelectionStatus" class="muted" role="status" aria-live="polite">Chưa chọn audio nào.</span>
+              </div>
+              <div id="audioDeleteActions" class="audio-delete-actions hidden">
+                <button id="audioDeleteSelectVisible" class="text-action" type="button">Chọn tất cả đang hiển thị</button>
+                <button id="audioDeleteClear" class="text-action" type="button">Bỏ chọn</button>
+                <button id="audioDeleteSelected" class="danger-action" type="button">Xóa mục đã chọn</button>
+                <button id="audioDeleteAllVisible" class="danger-action danger-outline" type="button">Xóa tất cả đang hiển thị</button>
+                <button id="audioDeleteExit" class="ghost" type="button">Thoát chọn</button>
+              </div>
+              <p class="audio-delete-safety muted">“Xóa” chỉ bỏ bản hiện tại khỏi thư viện và đưa chương về trạng thái có thể tạo lại. File, Job và lịch sử QA vẫn được giữ.</p>
+            </div>
             <div id="audioLibraryList" class="audio-library-list audio-review-table" role="table" aria-label="Danh sách audio đã tạo"></div>
             <div id="audioLibraryEmpty" class="audio-library-empty hidden">
               <strong>Chưa có audio phù hợp.</strong>
@@ -704,6 +718,24 @@
         </section>
       </section>
     </section>
+
+    <dialog id="audioDeleteDialog" class="audio-delete-dialog" aria-labelledby="audioDeleteDialogTitle">
+      <div class="dialog-head">
+        <div><p class="eyebrow">Xác nhận phạm vi</p><h2 id="audioDeleteDialogTitle">Xóa audio khỏi thư viện</h2></div>
+        <button id="audioDeleteCancelTop" class="ghost" type="button">Đóng</button>
+      </div>
+      <p id="audioDeleteDialogSummary"></p>
+      <div id="audioDeleteDialogItems" class="audio-delete-preview-list"></div>
+      <div class="issue warning audio-delete-retention"><strong>Phần được giữ nguyên</strong><span>File audio, Job, lịch sử Human QA, text revision và casting plan không bị xóa.</span></div>
+      <label for="audioDeleteConfirmation">Nhập <strong id="audioDeleteConfirmationPhrase">—</strong> để xác nhận
+        <input id="audioDeleteConfirmation" autocomplete="off" spellcheck="false">
+      </label>
+      <p id="audioDeleteDialogError" class="issue error hidden" role="alert"></p>
+      <div class="audio-delete-dialog-actions">
+        <button id="audioDeleteCancel" class="ghost" type="button">Giữ lại và hủy</button>
+        <button id="audioDeleteConfirm" class="danger-action" type="button" disabled data-runtime-mutation-control>Xóa khỏi thư viện</button>
+      </div>
+    </dialog>
 
     <section id="settingsView" class="app-view" data-app-view="settings" aria-labelledby="settingsHeading" hidden>
       <section class="panel settings-panel">

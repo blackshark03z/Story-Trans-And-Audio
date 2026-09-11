@@ -20,6 +20,11 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from starlette.background import BackgroundTask
 
 from .audio_archive import AudioArchiveError, build_archive_plan, create_archive
+from .audio_library_removal import (
+    AudioLibraryRemovalError,
+    preview_audio_library_removal,
+    remove_audio_library_outputs,
+)
 from .config import canonical_production_db_path, settings
 from .casting import (
     CastingError,
@@ -656,6 +661,22 @@ class StorageCleanupRequest(BaseModel):
     confirmation: str = Field(min_length=1, max_length=100)
 
 
+class AudioLibraryRemovalPreviewRequest(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    artifact_ids: list[int] = Field(min_length=1, max_length=500)
+
+
+class AudioLibraryRemovalRequest(AudioLibraryRemovalPreviewRequest):
+    fingerprint: str = Field(pattern=r"^[0-9a-f]{64}$")
+    confirmation: str = Field(min_length=1, max_length=100)
+    idempotency_key: str = Field(
+        min_length=8,
+        max_length=200,
+        pattern=r"^[A-Za-z0-9][A-Za-z0-9._:-]{7,199}$",
+    )
+
+
 class RuntimeRestartRequest(BaseModel):
     confirmation: Literal["RESTART_STORY_AUDIO"]
 
@@ -1186,6 +1207,38 @@ def audio_library() -> dict[str, Any]:
         item["video_export"] = inspect_video_export(db, settings, artifact_id)
         items.append(item)
     return {"items": items, "total": len(items)}
+
+
+def _audio_library_removal_error(exc: AudioLibraryRemovalError) -> HTTPException:
+    status = 409 if exc.code.startswith("STALE") else 400
+    return HTTPException(status, {"code": exc.code, "message": str(exc)})
+
+
+@app.post("/api/audio-library/removal-preview")
+def audio_library_removal_preview(request: AudioLibraryRemovalPreviewRequest) -> dict[str, Any]:
+    try:
+        return preview_audio_library_removal(db, request.artifact_ids)
+    except AudioLibraryRemovalError as exc:
+        raise _audio_library_removal_error(exc) from exc
+
+
+@app.post("/api/audio-library/remove")
+def audio_library_remove(request: AudioLibraryRemovalRequest) -> dict[str, Any]:
+    try:
+        result = remove_audio_library_outputs(
+            db,
+            artifact_ids=request.artifact_ids,
+            fingerprint=request.fingerprint,
+            confirmation=request.confirmation,
+            idempotency_key=request.idempotency_key,
+        )
+    except AudioLibraryRemovalError as exc:
+        raise _audio_library_removal_error(exc) from exc
+    remaining = audio_library()
+    remaining_ids = {int(item["artifact_id"]) for item in remaining["items"]}
+    if remaining_ids.intersection(result["artifact_ids"]):
+        raise HTTPException(500, "Audio library reconciliation failed")
+    return {**result, "remaining_total": remaining["total"]}
 
 
 @app.get("/api/artifacts/{artifact_id}/configuration")

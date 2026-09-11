@@ -83,18 +83,33 @@ closure or when disk/worktree pressure directly blocks this Goal.
 
 ```text
 UX_CONTRACT
-PRIMARY_USER=Owner checking speakers and Gemini voice proposals before PREPARE
-PRIMARY_JOURNEY=selected range -> identify who speaks -> review Gemini voice proposals for those roles -> save accepted voice configuration -> preflight
-PRIMARY_SURFACE=Gán giọng for the current production scope
-INFORMATION_HIERARCHY=Step 1 speaker identity first; Step 2 current voice versus Gemini proposal and application scope; effective production subset and book-wide character count supporting
-SCOPE_MODEL=each role shows where it appears in the requested Book/range and, separately, what remains in the skip-completed production subset
-PRIMARY_CONTROLS=Step 1 labels bulk speaker review explicitly as Duyệt người nói hàng loạt; Step 2 owns Duyệt giọng Gemini hàng loạt with apply-all-eligible and apply-selected actions plus per-role edits
-ADVANCED_CONTROLS=existing dialogue context and technical history disclosures
-STATES=loading preserves requested scope; Step 1 speaker review and Step 2 voice review each expose distinct pending/completed/empty/conflict states; ready shows included/excluded counts and stable scroll position; errors remain read-only and recoverable
-BULK_DESTRUCTIVE=voice batch is non-destructive configuration mutation, atomic for its submitted set, and never changes accepted audio or starts PREPARE/render
-DISCOVERABILITY=scope explanation and speaking-role meaning are visible in the existing assignment step
-ACCESSIBILITY=plain text scope/status; existing semantic details and buttons retained; polling does not steal focus or scroll position
-OWNER_PREFERENCE=owner explicitly defines Duyệt hàng loạt as review of Gemini voice proposals in Step 2, not speaker identity review in Step 1
+PRIMARY_USER=Owner reviewing completed chapter audio and removing outputs that are no longer wanted
+PRIMARY_JOURNEY=open Duyệt audio -> scan readable rows -> select one or more current audio outputs -> review exact scope -> remove selected or all currently filtered outputs -> return to the reconciled library
+PRIMARY_SURFACE=Duyệt audio queue toolbar and each readable queue row
+INFORMATION_HIERARCHY=chapter/title and QA state first; selection second; playback/QA detail contextual; destructive actions visually separate from listen/download
+SCOPE_MODEL=checkboxes select exact active artifact IDs; Xóa tất cả means every row currently matching the visible filters, never hidden library rows
+PRIMARY_CONTROLS=select row, select all currently filtered, clear selection, Xóa audio đã chọn, Xóa tất cả đang hiển thị
+ADVANCED_CONTROLS=configuration snapshot, QA history, video export, and storage cleanup stay contextual or under Tài nguyên
+STATES=loading and errors disable deletion; empty selection explains how to enable it; preview lists count/books/chapters/bytes; stale targets reject the whole request and reload; success reconciles the library
+BULK_DESTRUCTIVE=two-step preview plus confirmation; exact artifact IDs and hashes are server-revalidated; operation removes current outputs from the library, preserves immutable Job/QA/history records, and does not cascade into text/casting or create new audio
+DISCOVERABILITY=selection and delete toolbar sit directly above the audio queue; labels state selected versus all currently displayed
+ACCESSIBILITY=row checkboxes have chapter labels; bulk status is live; dialog has named actions, safe cancel, keyboard focus, and no color-only warning
+OWNER_PREFERENCE=owner explicitly requests deletion by selection and deletion of all; all is bounded to the currently filtered visible result set to avoid deleting hidden rows
+```
+
+```text
+WORKSPACE_CONTRACT
+PRIMARY_TASK=review and manage completed audio without malformed rows or hidden destructive scope
+PRIMARY_WORKSPACE=master-detail audio workspace with the queue dominant until a row is selected
+PERSISTENT_REGIONS=summary, filters, compact selection toolbar, queue, and current detail
+CONTEXTUAL_REGIONS=player, Human QA, repair, configuration history, and delete confirmation
+NAVIGATION_MODEL=Audio remains one top-level destination; deletion does not navigate away
+LAYOUT_ARCHETYPE=master-detail desktop, stacked detail then queue below 1100px, card rows below 760px
+VIEWPORT_BUDGET=queue columns must fit the left pane without clipping; long chapter text truncates/wraps within its cell; controls wrap instead of squeezing metadata
+CONTENT_REPLACEMENT_STRATEGY=detail replaces its empty state; confirmation uses one modal rather than stacking permanent warning panels
+ADVANCED_CONTROL_STRATEGY=permanent storage cleanup remains under Dung lượng after a current output is removed
+EXPECTED_SCROLL_BEHAVIOR=page owns primary scroll; queue may scroll on wide desktop only; selection, deletion, polling, and reload preserve page position unless the selected detail is explicitly opened
+ARCHETYPE_RATIONALE=the owner needs list context while inspecting one audio, but narrow screens need full-width readable rows
 ```
 
 ## UX contract
@@ -109,7 +124,7 @@ SCOPE_MODEL=one selected Book plus one chapter or contiguous chapter range; cont
 PRIMARY_CONTROLS=state-specific owner actions with concrete labels; Back/return links preserve scope
 ADVANCED_CONTROLS=settings, history, Jobs, Storage, and diagnostics remain reachable without competing with daily navigation
 STATES=meaningful empty/loading/disabled-with-reason/error-with-recovery/running/completed states
-BULK_DESTRUCTIVE=no new destructive or bulk operation; existing archive/deactivate semantics remain explicit
+BULK_DESTRUCTIVE=Audio supports separately confirmed removal of selected or currently filtered active outputs; immutable artifacts, Jobs, QA history, text, and casting remain preserved
 DISCOVERABILITY=top-level Sản xuất / Gán giọng / Công việc / Audio; Tài nguyên exposes Sách / Giọng / Storage / Settings without competing with the daily CUJ
 ACCESSIBILITY=semantic labels, visible focus, keyboard order, live status, adequate targets and responsive reflow
 OWNER_PREFERENCE=NONE; the Goal already fixes the product journey and top-level intent model
@@ -160,7 +175,7 @@ RETURN_PATH=preserve Book/range when returning to setup or opening Audio
 
 RESOURCE_LIBRARY_CONTRACT
 RESOURCE_SCOPE=authoritative current/historical chapter audio and Jobs
-ROW_OR_ITEM_ACTIONS=play/open, inspect QA, fix through existing repair path, download current/final artifact
+ROW_OR_ITEM_ACTIONS=play/open, inspect QA, fix through existing repair path, download current/final artifact, or explicitly remove the current output from the library while retaining history
 STATUS_AND_OUTPUT=chapter, artifact identity, QA state/history, timestamps where already authoritative
 EMPTY_STATE=explain no usable audio and link to create/continue production
 SEARCH_FILTER=existing filters only where scale already justifies them

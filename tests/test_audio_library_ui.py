@@ -284,6 +284,39 @@ class AudioLibraryUiTests(unittest.TestCase):
         ):
             self.assertIn(value, self.css)
 
+    def test_audio_review_row_grid_wins_over_legacy_card_layout(self) -> None:
+        specific = ".audio-review-table-head,.audio-library-card.audio-review-row{grid-template-columns:minmax(145px,1.45fr)"
+        self.assertIn(specific, self.css)
+        self.assertGreater(self.css.index(specific), self.css.rindex(".audio-library-card{"))
+        self.assertIn(
+            "@media(max-width:760px){.audio-library-card.audio-review-row{grid-template-columns:1fr auto",
+            self.css,
+        )
+
+    def test_audio_removal_is_a_separate_confirmed_selection_flow(self) -> None:
+        for value in (
+            'id="audioDeleteMode"',
+            'id="audioDeleteSelected"',
+            'id="audioDeleteAllVisible"',
+            'id="audioDeleteDialog"',
+            'id="audioDeleteConfirmation"',
+            "File, Job và lịch sử QA vẫn được giữ",
+        ):
+            self.assertIn(value, self.html)
+        self.assertIn("audioDeleteSelectedIds()", self.js)
+        self.assertIn("deleteSelection", self.js)
+        self.assertIn("'/api/audio-library/removal-preview'", self.js)
+        self.assertIn("'/api/audio-library/remove'", self.js)
+        self.assertIn("fingerprint:preview.fingerprint", self.js)
+        self.assertIn("idempotency_key:preview.idempotency_key", self.js)
+        self.assertIn("window.scrollTo({top:scrollY", self.js)
+        self.assertIn("audio-delete-mode .audio-range-selector{display:none}", self.css)
+
+    def test_filter_change_clears_hidden_delete_selection(self) -> None:
+        block = self._function_block("audioFilterChanged")
+        self.assertIn("state.audioLibrary.deleteSelection=[]", block)
+        self.assertIn("renderAudioLibrary()", block)
+
 
 if __name__ == "__main__":
     unittest.main()
