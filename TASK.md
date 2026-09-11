@@ -81,6 +81,69 @@ closure or when disk/worktree pressure directly blocks this Goal.
 
 ## Current bounded UX correction
 
+### Production scope action placement
+
+```text
+UX_CONTRACT
+PRIMARY_USER=Owner continuing production for a selected Book and chapter range
+PRIMARY_JOURNEY=see current Book/chapters -> understand the active scope -> change the Book or chapters when needed
+PRIMARY_SURFACE=Phạm vi đang làm header on Sản xuất
+INFORMATION_HIERARCHY=current Book/chapter range first; its local change action beside it; progress and character inspection remain separate supporting controls
+SCOPE_MODEL=Đổi sách / chương opens the existing scope chooser and does not mutate the current scope until the existing confirmation flow completes
+PRIMARY_CONTROLS=Đổi sách / chương next to the current scope summary
+ADVANCED_CONTROLS=technical details remain separate
+STATES=the action is hidden before an initial scope exists and visible beside the scope after selection
+BULK_DESTRUCTIVE=NOT_APPLICABLE
+DISCOVERABILITY=the action is visually attached to the object it changes and names the fields it changes
+ACCESSIBILITY=button remains keyboard reachable after the current scope summary and keeps the existing focus behavior
+OWNER_PREFERENCE=owner requests a more logical, immediately understandable placement
+```
+
+```text
+WORKSPACE_CONTRACT
+PRIMARY_TASK=advance the current production scope
+PRIMARY_WORKSPACE=Sản xuất task workspace
+PERSISTENT_REGIONS=current scope, progress, production stages, chapter queue, and task surface
+CONTEXTUAL_REGIONS=character inspection and technical details
+NAVIGATION_MODEL=changing scope opens the existing modal from its current-scope context
+LAYOUT_ARCHETYPE=task workspace with compact scope header
+VIEWPORT_BUDGET=scope summary and its action share one flexible region; progress and character action keep their own columns
+CONTENT_REPLACEMENT_STRATEGY=no new region; the orphan action is moved into the scope identity group
+ADVANCED_CONTROL_STRATEGY=unchanged
+EXPECTED_SCROLL_BEHAVIOR=scope identity and action remain together without creating a second header row
+ARCHETYPE_RATIONALE=the action edits the named scope, so proximity communicates effect better than an isolated centered link
+```
+
+```text
+UX_IMPLEMENTATION_REVIEW
+PRIMARY_SURFACE_DISCOVERABILITY=PASS: change action is beside the current scope summary
+SCOPE_CLARITY=PASS: label names Book and chapters explicitly
+APPLY_REAPPLY_RESET_EXPLICITNESS=PASS: existing scope chooser and confirmation behavior preserved
+ADVANCED_WITHOUT_DOMINATING=NOT_APPLICABLE
+DISABLED_STATE_EXPLANATION=PASS: action remains hidden until a scope exists
+BULK_DESTRUCTIVE_SAFETY=NOT_APPLICABLE
+VISIBLE_HIERARCHY=PASS: scope identity and local action precede progress and stages
+CONTROL_DENSITY=PASS: one existing control moved; no duplicate added
+COHERENT_APPLICATION_COMPOSITION=PASS: orphan second-row link removed
+DESTRUCTIVE_DIFFERENTIATION=NOT_APPLICABLE
+EXISTING_WORKFLOW_PRESERVATION=PASS: existing openProductionScopeDialog handler retained
+INFORMATION_ARCHITECTURE=PASS: action is grouped with the object it changes
+NAVIGATION=PASS: existing modal route remains unchanged
+WORKSPACE_LAYOUT=PASS: three logical header regions now occupy three grid columns
+VIEWPORT_BUDGET=PASS: Chromium 1366x768 and 820x900 checks have no horizontal overflow
+PERSISTENT_CONTEXTUAL_CONTROLS=PASS: current-scope action remains persistent only after scope selection
+LAYOUT_ARCHETYPE_FIT=PASS: compact task-workspace header preserved
+RESPONSIVE_WORKSPACE_BEHAVIOR=PASS: title row wraps and stacks at <=560px
+VERTICAL_SPRAWL_REDUCED=NOT_APPLICABLE
+WORKSPACE_LAYOUT_SOLUTION=PASS: orphan second row is removed at the reported desktop state
+TASK_FLOW_ARCHITECTURE=PASS: scope change remains an edit of step 1, not a new step
+LINEAR_MULTISTEP_REASONING=PASS: production stage order is unchanged
+REVIEW_BEFORE_COMMIT=NOT_APPLICABLE
+EXECUTION_STATE_SEPARATION=PASS: no execution-state behavior changed
+RESOURCE_MANAGEMENT_SEPARATION=NOT_APPLICABLE
+POST_COMPLETION_DESTINATION=NOT_APPLICABLE
+```
+
 ### Audio detail scroll correction
 
 ```text

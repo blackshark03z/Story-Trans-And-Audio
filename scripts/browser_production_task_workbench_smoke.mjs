@@ -257,6 +257,16 @@ try {
   if (inspectionBC.inspected.taskKey !== inspectionBC.canonicalKey || !inspectionBC.inspected.qaHidden || inspectionBC.inspected.summaryHidden || !inspectionBC.inspected.labels.some(label=>label.includes("Việc tiếp theo")) || !inspectionBC.inspected.labels.some(label=>label.includes("Đang xem")) || inspectionBC.restoredKey !== inspectionBC.canonicalKey || !inspectionBC.summaryRestored) throw new Error(`Inspection changed canonical task: ${JSON.stringify(inspectionBC)}`);
   if (!malformedSafe.ok || malformedSafe.title !== "Không thể tải việc tiếp theo" || malformedSafe.summary !== "Trạng thái sản xuất chưa đầy đủ. Hãy làm mới để hệ thống kiểm tra lại." || malformedSafe.action !== "Xử lý điều kiện còn thiếu" || !malformedSafe.technical.includes("PROJECTION_CONTRACT_INVALID")) throw new Error(`Malformed projection was not fail-closed: ${JSON.stringify(malformedSafe)}`);
 
+  const inspectScopeAction = async (width, height) => {
+    await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
+    return evaluate(`(()=>{const context=document.querySelector('#productionRangeContext'),identity=document.querySelector('.production-scope-identity'),summary=document.querySelector('#productionScopeSummary'),action=document.querySelector('#productionChangeScope'),progress=document.querySelector('.production-range-progress'),character=document.querySelector('#openCharacterReview'),contextRect=context.getBoundingClientRect(),identityRect=identity.getBoundingClientRect(),actionRect=action.getBoundingClientRect();return{label:action.textContent.trim(),insideIdentity:action.closest('.production-scope-identity')===identity,visible:actionRect.width>0&&actionRect.height>0,contextHeight:Math.round(contextRect.height),actionTop:Math.round(actionRect.top),identityTop:Math.round(identityRect.top),identityBottom:Math.round(identityRect.bottom),progressVisible:progress.getClientRects().length>0,characterVisible:character.getClientRects().length>0,horizontal:document.documentElement.scrollWidth>innerWidth+1}})()`);
+  };
+  const scopeAction1366 = await inspectScopeAction(1366, 768);
+  const scopeAction820 = await inspectScopeAction(820, 900);
+  for (const layout of [scopeAction1366, scopeAction820]) {
+    if (layout.label !== "Đổi sách / chương" || !layout.insideIdentity || !layout.visible || layout.actionTop < layout.identityTop || layout.actionTop > layout.identityBottom || !layout.progressVisible || !layout.characterVisible || layout.horizontal) throw new Error(`Scope action layout failed: ${JSON.stringify(layout)}`);
+  }
+
   await send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   const desktop = await evaluate(`(() => ({horizontal:document.documentElement.scrollWidth>innerWidth+1,primaryVisible:document.querySelector("#productionPrimaryAction").getBoundingClientRect().top<innerHeight}))()`);
   if (desktop.horizontal || !desktop.primaryVisible) throw new Error(`1920 layout failed: ${JSON.stringify(desktop)}`);
@@ -266,7 +276,7 @@ try {
   if (inactiveProjectionPolling.route !== "assignment" || inactiveProjectionPolling.projection !== 0 || inactiveProjectionPolling.preflight !== 0) throw new Error(`Inactive view requested Production state: ${JSON.stringify(inactiveProjectionPolling)}`);
   if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
 
-  process.stdout.write(JSON.stringify({ ok: true, journeyA, journeyB, journeyC, pollingStability, journeyDEdit, journeyDReview, journeyEPrepare, journeyInfrastructure, journeyEStart, preparedEditCancel, journeyEStartBlocked, journeyERunning, monitorJobsNavigation, jobsRecoveryActions, jobsRecoveryVariants, journeyF, journeyG, qaHandoff, journeyH, commandLifecycle, qaCommandReconcile, rangeCommandContinuity, inspectionBC, prepareSkipCompleted, nullPrimaryMappings, malformedSafe, desktop, inactiveProjectionPolling, returnToProduction }));
+  process.stdout.write(JSON.stringify({ ok: true, journeyA, journeyB, journeyC, pollingStability, journeyDEdit, journeyDReview, journeyEPrepare, journeyInfrastructure, journeyEStart, preparedEditCancel, journeyEStartBlocked, journeyERunning, monitorJobsNavigation, jobsRecoveryActions, jobsRecoveryVariants, journeyF, journeyG, qaHandoff, journeyH, commandLifecycle, qaCommandReconcile, rangeCommandContinuity, inspectionBC, prepareSkipCompleted, nullPrimaryMappings, malformedSafe, scopeAction1366, scopeAction820, desktop, inactiveProjectionPolling, returnToProduction }));
 } finally {
   try { socket?.close(); } catch {}
   const browserExited = new Promise(resolve => {

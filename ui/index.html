@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Story Audio</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="/assets/styles.css?v=20260911-audio-scroll-fix-1">
+  <link rel="stylesheet" href="/assets/styles.css?v=20260911-scope-action-1">
   <style>
     .casting-journey{display:grid;gap:12px;margin:16px 0;padding:16px;border:1px solid var(--color-border);border-radius:5px;background:var(--color-surface-subtle)}.casting-journey-head{display:flex;justify-content:space-between;align-items:start;gap:12px}.casting-journey-head h3{margin:2px 0;font-size:18px}.casting-journey-head>span{padding:5px 8px;border-radius:3px;background:var(--color-primary-soft);color:var(--color-primary);font-size:12px;font-weight:800;white-space:nowrap}.casting-journey-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0;padding:0;list-style:none}.casting-journey-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 10px;border:1px solid var(--color-border);border-radius:4px;background:var(--color-surface)}.casting-journey-list li>div{display:grid;gap:2px}.casting-journey-list strong{font-size:12px}.casting-journey-list span{font-size:11px;color:var(--muted)}.casting-journey-list li.complete{border-color:#b9d8d2;background:var(--color-success-soft)}.casting-journey-list li.complete strong:before{content:'✓ ';color:var(--color-success)}.casting-journey-list li.current{border-color:#e4c48c;background:var(--color-warning-soft)}.casting-journey-list li.current strong:before{content:'→ ';color:var(--color-warning)}.casting-journey-list li.blocked{background:var(--color-surface-subtle);opacity:.75}.casting-journey-list .text-action{font-size:11px;white-space:nowrap}@media(max-width:760px){.casting-journey-head{display:grid}.casting-journey-list{grid-template-columns:1fr}}
   </style>
@@ -123,16 +123,18 @@
     <section id="productionView" class="app-view" data-app-view="production" aria-labelledby="productionHeading" hidden>
       <section class="panel production-shell-panel production-workbench-shell">
         <div id="productionRangeContext" class="production-range-context" aria-label="Phạm vi sản xuất hiện tại">
-          <div>
+          <div class="production-scope-identity">
             <p class="eyebrow">Phạm vi đang làm</p>
-            <strong id="productionScopeSummary">Chưa chọn phạm vi</strong>
+            <div class="production-scope-title-row">
+              <strong id="productionScopeSummary">Chưa chọn phạm vi</strong>
+              <button id="productionChangeScope" class="text-action hidden" type="button">Đổi sách / chương</button>
+            </div>
           </div>
           <div class="production-range-progress" aria-label="Tiến độ phạm vi">
             <span id="productionRangeProgressText">0 / 0 chương hoàn tất</span>
             <div class="progress"><span id="productionRangeProgressBar" style="width:0%"></span></div>
           </div>
           <button id="openCharacterReview" class="secondary hidden" type="button">Xem nhân vật</button>
-          <button id="productionChangeScope" class="text-action hidden" type="button">Đổi phạm vi</button>
         </div>
 
         <ol id="productionStageShell" class="production-stage-shell production-stage-strip" aria-label="Bốn giai đoạn sản xuất">

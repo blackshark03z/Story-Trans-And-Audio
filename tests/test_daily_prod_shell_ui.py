@@ -109,6 +109,25 @@ console.log(JSON.stringify({
         self.assertIn('role="status"', self.html)
         self.assertIn("primary.onclick=()=>runProductionPrimaryAction(vm)", self.js)
 
+    def test_change_scope_action_is_attached_to_the_scope_it_changes(self) -> None:
+        context = re.search(
+            r'<div id="productionRangeContext".*?</div>\s*\n\s*<ol id="productionStageShell"',
+            self.html,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(context)
+        scope_identity = re.search(
+            r'<div class="production-scope-identity">.*?</div>\s*</div>',
+            context.group(0),
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(scope_identity)
+        self.assertIn('id="productionScopeSummary"', scope_identity.group(0))
+        self.assertIn('id="productionChangeScope"', scope_identity.group(0))
+        self.assertIn('>Đổi sách / chương</button>', scope_identity.group(0))
+        self.assertEqual(context.group(0).count('id="productionChangeScope"'), 1)
+        self.assertIn(".production-scope-title-row{display:flex", self.css)
+
     def test_resolver_renders_completed_current_and_locked_stage_buttons(self) -> None:
         self.assertIn('aria-current="step"', self.js)
         self.assertIn('disabled aria-disabled="true"', self.js)

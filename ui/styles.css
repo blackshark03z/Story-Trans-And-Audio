@@ -648,6 +648,7 @@ input,select,textarea{border-color:#c5ceda!important;color:var(--color-text)!imp
 /* The shared library player is sticky on legacy screens. In master-detail review it
    must remain in document flow so its configuration disclosure cannot cover QA. */
 .audio-review-detail .audio-library-player{position:static;top:auto;z-index:auto}
+.production-scope-identity{display:grid;gap:4px;min-width:0}.production-scope-identity .eyebrow{margin:0}.production-scope-title-row{display:flex;align-items:baseline;gap:10px 14px;min-width:0;flex-wrap:wrap}.production-scope-title-row #productionScopeSummary{min-width:0}.production-scope-title-row #productionChangeScope{flex:none;padding:3px 0;white-space:nowrap}
 .audio-delete-toolbar{display:grid;gap:8px;margin:12px 0 0;padding:10px 12px;border:1px solid var(--color-border);border-radius:10px;background:var(--color-surface-subtle)}
 .audio-delete-toolbar>div,.audio-delete-actions,.audio-delete-dialog-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .audio-delete-safety{margin:0;font-size:12px}
@@ -666,3 +667,4 @@ input,select,textarea{border-color:#c5ceda!important;color:var(--color-text)!imp
 .audio-delete-dialog-actions{justify-content:flex-end;margin-top:16px}
 @media(max-width:1100px){.audio-review-table-head,.audio-library-card.audio-review-row{grid-template-columns:minmax(200px,1.4fr) minmax(120px,.8fr) 80px 120px minmax(110px,.7fr)}}
 @media(max-width:760px){.audio-library-card.audio-review-row{grid-template-columns:1fr auto;gap:8px 12px;padding:12px;border-radius:12px}.audio-delete-toolbar>div,.audio-delete-actions{align-items:stretch;flex-direction:column}.audio-delete-toolbar button{width:100%}.audio-delete-dialog-actions{align-items:stretch;flex-direction:column-reverse}.audio-delete-dialog-actions button{width:100%}}
+@media(max-width:560px){.production-scope-title-row{align-items:flex-start;flex-direction:column;gap:5px}}

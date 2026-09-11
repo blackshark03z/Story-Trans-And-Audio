@@ -37,7 +37,7 @@ class VietnameseEncodingUiTests(unittest.TestCase):
     def test_charset_precedes_text_and_assets_are_cache_versioned(self) -> None:
         html = (ROOT / "ui" / "index.html").read_text(encoding="utf-8")
         self.assertLess(html.index('<meta charset="utf-8">'), html.index("<title>"))
-        self.assertIn("styles.css?v=20260911-batch-review-visible-1", html)
+        self.assertIn("styles.css?v=20260911-scope-action-1", html)
         self.assertIn("production_state.js?v=20260727-production-preflight-1", html)
         self.assertIn("app.js?v=20260911-batch-review-visible-1", html)
 

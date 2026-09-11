@@ -83,6 +83,13 @@ class ProductionWorkflowBrowserTests(unittest.TestCase):
         self.assertTrue(evidence["commandLifecycle"]["K"]["restored"])
         self.assertTrue(evidence["desktop"]["primaryVisible"])
         self.assertFalse(evidence["desktop"]["horizontal"])
+        for viewport in ("scopeAction1366", "scopeAction820"):
+            self.assertEqual(evidence[viewport]["label"], "Đổi sách / chương")
+            self.assertTrue(evidence[viewport]["insideIdentity"])
+            self.assertTrue(evidence[viewport]["visible"])
+            self.assertTrue(evidence[viewport]["progressVisible"])
+            self.assertTrue(evidence[viewport]["characterVisible"])
+            self.assertFalse(evidence[viewport]["horizontal"])
         self.assertEqual(evidence["inactiveProjectionPolling"]["route"], "assignment")
         self.assertEqual(evidence["inactiveProjectionPolling"]["projection"], 0)
         self.assertEqual(evidence["inactiveProjectionPolling"]["preflight"], 0)
