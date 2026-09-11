@@ -230,7 +230,8 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             "workflowSections={...current,history:event.currentTarget.open}",
             section,
         )
-        self.assertIn("speakerStateResolved(result.speaker_state)", section)
+        self.assertIn("loadSpeakerReviewSuggestions({force:true})", section)
+        self.assertIn("renderGeminiVoiceBatch(context,registry)", section)
 
     def test_assignment_voice_actions_explain_scope_provenance_and_future_impact(self) -> None:
         section = self.js[

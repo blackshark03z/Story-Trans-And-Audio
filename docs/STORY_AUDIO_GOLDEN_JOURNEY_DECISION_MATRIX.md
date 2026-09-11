@@ -142,18 +142,25 @@ review. An existing Job that pins the old dependency is never edited in place.
 
 - **Entry/see `[A]`:** speaker review current; show narrator and every effective
   speaking role in included scope, voice/source/chapters/dialogue count and
-  availability. Book-wide characters are a different concept.
-- **Accept `[A]`:** keep valid inheritance or explicitly save a supported Book,
-  character, chapter, or range assignment for future work.
+  availability. When an approved speaker decision carries an explicit Gemini
+  voice proposal, show current versus proposed voice here, never in speaker
+  identity review. Book-wide characters are a different concept.
+- **Accept `[A]`:** apply all eligible or selected Gemini proposals atomically
+  to the effective included chapters, keep a valid current voice explicitly,
+  or save a supported Book, character, chapter, or range assignment.
 - **Change `[A]`:** choose another usable voice or use the contextual Voice
-  Library detour; detour return is unsaved until the normal Save action.
+  Library detour; detour return is unsaved until the normal Save action. A
+  rejected Gemini proposal is durably marked `DISMISSED` and does not reappear
+  as pending unless a newer proposal supersedes it.
 - **Defer/cancel `[A]`:** optional work may remain; required missing/unavailable
   voice blocks. Cancel discards only unsaved choice and returns to exact scope.
 - **Effects `[A]`:** invalidate affected future casting/acknowledgement; preserve
   text, speaker identity, unrelated overrides, history, and accepted audio.
 - **Failure/next `[A]`:** missing/inactive voice, catalog failure, stale save, or
-  conflict fails closed and never substitutes narrator; then move to the next
-  voice exception or Final Voice Map review.
+  conflicting proposals for one role fail closed and never substitute narrator.
+  Batch scope excludes completed chapters when `skip_completed` is active;
+  failure rolls back the submitted set. Then move to the next voice exception
+  or Final Voice Map review.
 
 ### 5. Review and approve Final Voice Map
 

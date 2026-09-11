@@ -164,6 +164,7 @@ from .speaker_review_suggestions import (
     SpeakerReviewSuggestionError,
     accept_speaker_review_suggestion,
     accept_speaker_review_selected_batch_items,
+    apply_approved_voice_suggestion_batch,
     approve_high_confidence_suggestions,
     approve_speaker_review_batch_items,
     generate_speaker_review_suggestions,
@@ -2589,6 +2590,94 @@ def _production_command_executor(
                     "reused": bool(result.get("idempotent_reused")),
                 },),
                 operator_message="Đã lưu bản nháp bản đồ giọng.",
+            )
+        if command_type in {
+            "APPLY_GEMINI_VOICE_SUGGESTION_BATCH",
+            "DISMISS_GEMINI_VOICE_SUGGESTION_BATCH",
+        }:
+            command_range, voice_catalog, custom_context, registry = (
+                _speaker_review_command_context(payload, scope)
+            )
+            submitted_items = payload.get("items")
+            if not isinstance(submitted_items, list) or not submitted_items:
+                raise ProductionCommandError("Voice suggestion batch requires items")
+            current_queue = get_speaker_review_queue(
+                db,
+                store,
+                settings,
+                book_id=int(command_range["book_id"]),
+                from_chapter=int(command_range["from_chapter"]),
+                to_chapter=int(command_range["to_chapter"]),
+                skip_completed=bool(command_range.get("skip_completed", True)),
+                registry=registry,
+                voice_catalog=voice_catalog,
+                custom_voice_context=custom_context,
+            )
+            current_sources = {
+                (
+                    str(
+                        item.get("source_analysis_run_id")
+                        or current_queue.get("analysis_run_id")
+                        or ""
+                    ),
+                    str(item.get("unresolved_key") or ""),
+                )
+                for item in current_queue.get("suggestions") or []
+            }
+            if any(
+                (
+                    str(item.get("analysis_run_id") or ""),
+                    str(item.get("unresolved_key") or ""),
+                )
+                not in current_sources
+                for item in submitted_items
+                if isinstance(item, dict)
+            ):
+                raise ProductionCommandError(
+                    "Voice suggestion is stale or outside the current production scope"
+                )
+            included_chapters = [
+                int(item["chapter_number"])
+                for item in (registry.get("range") or {}).get("included_chapters") or []
+            ]
+            result = apply_approved_voice_suggestion_batch(
+                db,
+                store,
+                book_id=int(command_range["book_id"]),
+                items=submitted_items,
+                included_chapter_numbers=included_chapters,
+                voice_catalog=voice_catalog,
+                custom_voice_context=custom_context,
+                idempotency_key=request.idempotency_key,
+                apply_changes=command_type == "APPLY_GEMINI_VOICE_SUGGESTION_BATCH",
+            )
+            dismissed = command_type == "DISMISS_GEMINI_VOICE_SUGGESTION_BATCH"
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=int(result.get("submitted_count") or len(submitted_items)),
+                applied_items=tuple(
+                    {
+                        "type": "gemini_voice_suggestion",
+                        "speaker_key": item["speaker_key"],
+                        "voice_id": item["voice_id"],
+                        "decision": "DISMISSED" if dismissed else "APPLIED",
+                    }
+                    for item in result.get("items") or []
+                ),
+                operator_message=(
+                    "Đã giữ giọng hiện tại cho các đề xuất đã chọn; có thể chỉnh từng vai bên dưới."
+                    if dismissed
+                    else "Đã áp dụng các giọng Gemini được duyệt cho đúng phạm vi đang xử lý. "
+                    "Audio đã chấp nhận không thay đổi; không tự PREPARE hoặc render."
+                ),
+                result_metadata={
+                    "requested_count": int(result.get("submitted_count") or 0),
+                    "applied_count": int(result.get("applied_count") or 0),
+                    "included_chapter_numbers": list(
+                        result.get("included_chapter_numbers") or []
+                    ),
+                    "reused": bool(result.get("reused")),
+                },
             )
         if command_type == "SAVE_VOICE_ASSIGNMENT":
             character_id = int(payload.pop("character_id"))

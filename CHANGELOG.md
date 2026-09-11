@@ -4,6 +4,12 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Gemini voice batch review belongs to Step 2 — 2026-09-11
+
+- Renamed the Step 1 bulk action to `Duyệt người nói hàng loạt`; it now states explicitly that it changes speaker/Character identity only.
+- Restored the approved Gemini voice proposals as a separate Step 2 review: current versus proposed voice, apply-all-eligible, apply-selected, and durable `Giữ giọng hiện tại` paths are visible before the per-role editors.
+- Voice batches are atomic, validate against the immutable approved Gemini proposal, and apply only to effective included chapters. They never call Gemini, PREPARE, render, or mutate accepted audio.
+
 ### Accepted-audio restore journey — 2026-09-10
 
 - Added the missing user-facing recovery path in `Duyệt audio`: an earlier generation appears in `Lịch sử QA` with `Khôi phục làm bản hiện tại` only when its newest Artifact-scoped Human QA evidence is accepted and exactly matches the completed, verified audio file.
@@ -25,7 +31,7 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 - Added a terminal inline batch-review completion block after the Gemini suggestion list with separate `Chấp nhận tất cả đủ điều kiện` and `Chấp nhận mục đã chọn` paths. Batch scope is chosen directly from the review queue; there is no second checkbox-selection modal. The block stays in normal document flow and only enters view after the operator reaches the end of the review list; it is not sticky or fixed to the viewport.
 - Explicitly selected batches may contain human-edited or MEDIUM/LOW-confidence decisions once each item validates; they are applied atomically across source analysis runs. Automatic `all safe` approval remains restricted to unchanged HIGH-confidence suggestions that pass server-side exclusion checks.
-- Accepted items write durable audit decisions and apply their Character/background-group/speaker mapping plus future voice configuration; they move out of the review queue. Unaccepted, deferred, uncertain, or invalid items do not mutate Character/voice state and continue blocking Final Voice Map/PREPARE for the affected scope.
+- Accepted items write durable audit decisions and apply their Character/background-group/speaker mapping only; voice proposals move to the separate Step 2 review. Unaccepted, deferred, uncertain, or invalid items do not mutate Character/voice state and continue blocking Final Voice Map/PREPARE for the affected scope.
 - Batch preview now distinguishes the exact outcome of the all-eligible path versus the selected-only path, including what remains pending afterward. Batch failure preserves selection/drafts and rolls back the whole transaction. Browser acceptance locks the end-of-list static completion block, selection count, scope/outcome guidance, safe batch path, and no PREPARE/render side effects.
 
 ### Provider task-completion recovery

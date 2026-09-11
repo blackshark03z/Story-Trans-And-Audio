@@ -53,6 +53,7 @@ ANALYSIS_EVENT = "speaker_review_analysis_generated"
 ANALYSIS_FAILED_EVENT = "speaker_review_analysis_failed"
 DECISION_EVENT = "speaker_review_suggestion_reviewed"
 NOTE_EVENT = "speaker_review_suggestion_noted"
+VOICE_BATCH_EVENT = "voice_suggestion_batch_applied"
 PROMPT_VERSION = "speaker-review-suggestions-v2"
 LEGACY_PROMPT_VERSION = "speaker-review-suggestions-v1"
 GENERATION_SETTINGS = {"temperature": 0, "response_mime_type": "application/json"}
@@ -2278,6 +2279,176 @@ def get_speaker_review_queue(
     return payload
 
 
+def apply_approved_voice_suggestion_batch(
+    db: Database,
+    store: ContentStore,
+    *,
+    book_id: int,
+    items: Iterable[Mapping[str, Any]],
+    included_chapter_numbers: Iterable[int],
+    voice_catalog: EffectiveVoiceCatalog,
+    custom_voice_context: CustomVoiceContext | None,
+    idempotency_key: str,
+    apply_changes: bool = True,
+) -> dict[str, Any]:
+    """Apply explicit, already-approved Gemini voice proposals atomically."""
+
+    submitted = [dict(item) for item in items if isinstance(item, Mapping)]
+    if not submitted:
+        raise SpeakerReviewSuggestionError("Voice suggestion batch is empty")
+    if len(submitted) > 100:
+        raise SpeakerReviewSuggestionError("Voice suggestion batch is too large")
+    chapters = sorted({int(value) for value in included_chapter_numbers if int(value) > 0})
+    if not chapters:
+        raise SpeakerReviewSuggestionError("Effective production scope is empty")
+    selectable = set(voice_catalog.selectable_ids)
+    prepared: list[dict[str, Any]] = []
+    seen_speakers: set[str] = set()
+    for raw in submitted:
+        analysis_run_id = str(raw.get("analysis_run_id") or "").strip()
+        unresolved_key = str(raw.get("unresolved_key") or "").strip()
+        expected_speaker_key = str(raw.get("speaker_key") or "").strip()
+        voice_id = str(raw.get("voice_id") or "").strip()
+        if not all((analysis_run_id, unresolved_key, expected_speaker_key, voice_id)):
+            raise SpeakerReviewSuggestionError("Voice suggestion batch item is incomplete")
+        if voice_id not in selectable:
+            raise SpeakerReviewSuggestionError("Suggested voice is no longer selectable")
+        queue = _clean_queue_state(
+            db,
+            _latest_queue_for_run(db, store, analysis_run_id=analysis_run_id),
+        )
+        suggestion = next(
+            (
+                item
+                for item in queue.get("suggestions") or []
+                if str(item.get("unresolved_key") or "") == unresolved_key
+            ),
+            None,
+        )
+        if not suggestion:
+            raise SpeakerReviewSuggestionError("Gemini voice proposal was not found")
+        review = suggestion.get("human_review") or {}
+        if str(review.get("decision") or "").upper() not in APPROVED_STATES:
+            raise SpeakerReviewSuggestionError(
+                "Voice proposal requires an approved speaker decision"
+            )
+        source = review.get("source_suggestion") or suggestion
+        if str(source.get("proposed_voice_handling") or "").upper() != "SUGGEST_AVAILABLE_VOICE":
+            raise SpeakerReviewSuggestionError("This item has no explicit Gemini voice proposal")
+        if str(source.get("suggested_voice_id") or "").strip() != voice_id:
+            raise SpeakerReviewSuggestionError("Submitted voice does not match the Gemini proposal")
+        resulting = review.get("resulting_mapping") or {}
+        resolution = str(
+            (review.get("reviewer_payload") or {}).get("proposed_resolution")
+            or source.get("proposed_resolution")
+            or ""
+        ).upper()
+        character_id = (
+            resulting.get("character_id")
+            or (review.get("reviewer_payload") or {}).get("existing_character_id")
+            or source.get("existing_character_id")
+        )
+        speaker_key = (
+            "narrator"
+            if resolution == "NARRATOR"
+            else f"character:{int(character_id)}"
+            if character_id is not None
+            else str(resulting.get("speaker_key") or "").strip()
+        )
+        if not speaker_key or speaker_key != expected_speaker_key:
+            raise SpeakerReviewSuggestionError(
+                "Approved speaker identity no longer matches the voice proposal"
+            )
+        if speaker_key in seen_speakers:
+            raise SpeakerReviewSuggestionError("Voice batch contains the same role more than once")
+        seen_speakers.add(speaker_key)
+        prepared.append(
+            {
+                "analysis_run_id": analysis_run_id,
+                "unresolved_key": unresolved_key,
+                "speaker_key": speaker_key,
+                "voice_id": voice_id,
+            }
+        )
+
+    spans: list[tuple[int, int]] = []
+    for chapter in chapters:
+        if not spans or chapter > spans[-1][1] + 1:
+            spans.append((chapter, chapter))
+        else:
+            spans[-1] = (spans[-1][0], chapter)
+
+    for row in db.fetch_all(
+        "SELECT details_json FROM audit_events WHERE event_code=? ORDER BY id DESC",
+        (VOICE_BATCH_EVENT,),
+    ):
+        try:
+            details = json.loads(row["details_json"] or "{}")
+        except (TypeError, ValueError):
+            continue
+        if details.get("idempotency_key") == idempotency_key:
+            return {**details, "reused": True}
+
+    applied: list[dict[str, Any]] = []
+    with db.transaction() as connection:
+        for item in prepared:
+            chapter_results: list[dict[str, Any]] = []
+            if apply_changes:
+                for start, end in spans:
+                    result = apply_chapter_voice_override(
+                        db,
+                        store,
+                        book_id=book_id,
+                        from_chapter=start,
+                        to_chapter=end,
+                        speaker_key=item["speaker_key"],
+                        operation="set",
+                        voice_id=item["voice_id"],
+                        voice_catalog=voice_catalog,
+                        idempotency_key=f"{idempotency_key}:{item['speaker_key']}:{start}-{end}",
+                        custom_voice_context=custom_voice_context,
+                        connection=connection,
+                        skip_missing=True,
+                    )
+                    chapter_results.extend(result.get("applied") or [])
+            if apply_changes and not chapter_results:
+                raise SpeakerReviewSuggestionError(
+                    "Approved role is not present in the effective production scope"
+                )
+            applied.append({**item, "chapters": chapter_results})
+        details = {
+            "schema": "story-audio-voice-suggestion-batch/v1",
+            "book_id": book_id,
+            "included_chapter_numbers": chapters,
+            "submitted_count": len(prepared),
+            "applied_count": len(applied) if apply_changes else 0,
+            "decision": "APPLIED" if apply_changes else "DISMISSED",
+            "items": [
+                {
+                    "analysis_run_id": item["analysis_run_id"],
+                    "unresolved_key": item["unresolved_key"],
+                    "speaker_key": item["speaker_key"],
+                    "voice_id": item["voice_id"],
+                }
+                for item in applied
+            ],
+            "idempotency_key": idempotency_key,
+        }
+        cursor = connection.execute(
+            """
+            INSERT INTO audit_events(event_code,job_id,chapter_id,details_json,created_at)
+            VALUES(?,?,?,?,?)
+            """,
+            (VOICE_BATCH_EVENT, None, None, json.dumps(details, ensure_ascii=False), utcnow()),
+        )
+    return {
+        **details,
+        "audit_event_id": int(cursor.lastrowid),
+        "applied": applied,
+        "reused": False,
+    }
+
+
 def _latest_queue_for_run(
     db: Database,
     store: ContentStore,
@@ -3447,6 +3618,7 @@ __all__ = [
     "SUGGESTION_SCHEMA",
     "SpeakerReviewSuggestionError",
     "accept_speaker_review_suggestion",
+    "apply_approved_voice_suggestion_batch",
     "approve_high_confidence_suggestions",
     "accept_speaker_review_selected_batch_items",
     "approve_speaker_review_batch_items",

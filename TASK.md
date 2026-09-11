@@ -83,18 +83,18 @@ closure or when disk/worktree pressure directly blocks this Goal.
 
 ```text
 UX_CONTRACT
-PRIMARY_USER=Owner checking speakers and voices before PREPARE
-PRIMARY_JOURNEY=selected range -> speaking-role coverage across that selection -> effective included chapters -> voice review
+PRIMARY_USER=Owner checking speakers and Gemini voice proposals before PREPARE
+PRIMARY_JOURNEY=selected range -> identify who speaks -> review Gemini voice proposals for those roles -> save accepted voice configuration -> preflight
 PRIMARY_SURFACE=Gán giọng for the current production scope
-INFORMATION_HIERARCHY=requested role coverage first; effective production subset second; book-wide character count supporting
+INFORMATION_HIERARCHY=Step 1 speaker identity first; Step 2 current voice versus Gemini proposal and application scope; effective production subset and book-wide character count supporting
 SCOPE_MODEL=each role shows where it appears in the requested Book/range and, separately, what remains in the skip-completed production subset
-PRIMARY_CONTROLS=bulk speaker review remains discoverable in pending and completed states; existing review, voice save, and preflight actions remain unchanged
+PRIMARY_CONTROLS=Step 1 labels bulk speaker review explicitly as Duyệt người nói hàng loạt; Step 2 owns Duyệt giọng Gemini hàng loạt with apply-all-eligible and apply-selected actions plus per-role edits
 ADVANCED_CONTROLS=existing dialogue context and technical history disclosures
-STATES=loading preserves requested scope; pending review exposes batch actions; completed review shows a truthful zero-pending batch state; ready shows included/excluded counts and stable scroll position; errors remain read-only and recoverable
-BULK_DESTRUCTIVE=NOT_APPLICABLE
+STATES=loading preserves requested scope; Step 1 speaker review and Step 2 voice review each expose distinct pending/completed/empty/conflict states; ready shows included/excluded counts and stable scroll position; errors remain read-only and recoverable
+BULK_DESTRUCTIVE=voice batch is non-destructive configuration mutation, atomic for its submitted set, and never changes accepted audio or starts PREPARE/render
 DISCOVERABILITY=scope explanation and speaking-role meaning are visible in the existing assignment step
 ACCESSIBILITY=plain text scope/status; existing semantic details and buttons retained; polling does not steal focus or scroll position
-OWNER_PREFERENCE=NONE; existing authority already distinguishes exact selected scope from Book character management
+OWNER_PREFERENCE=owner explicitly defines Duyệt hàng loạt as review of Gemini voice proposals in Step 2, not speaker identity review in Step 1
 ```
 
 ## UX contract

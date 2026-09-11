@@ -31,6 +31,7 @@ from story_audio.speaker_review_suggestions import (
     _latest_queue_for_run,
     accept_speaker_review_suggestion,
     accept_speaker_review_selected_batch_items,
+    apply_approved_voice_suggestion_batch,
     approve_high_confidence_suggestions,
     approve_speaker_review_batch_items,
     generate_speaker_review_suggestions,
@@ -257,6 +258,162 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
             },
             "usage_metadata": {"promptTokenCount": 12, "candidatesTokenCount": 6},
         }
+
+    def test_approved_gemini_voice_batch_applies_only_effective_chapters(self) -> None:
+        registry = self._registry()
+        key = next(
+            row["speaker_key"]
+            for row in registry["rows"]
+            if row["status"] == "UNRESOLVED_DIALOGUE"
+        )
+
+        def provider(**kwargs: Any) -> dict[str, Any]:
+            target = kwargs["request_data"]["targets"][0]
+            suggestion = self._suggestion(
+                str(target["unresolved_key"]), int(target["chapter_number"]), 0
+            )
+            suggestion.update(
+                {
+                    "proposed_voice_handling": "SUGGEST_AVAILABLE_VOICE",
+                    "suggested_voice_id": "new",
+                    "voice_rationale": "Use the proposed production voice.",
+                }
+            )
+            return {
+                "response": {
+                    "schema": "story-audio-gemini-speaker-review-suggestions/v1",
+                    "suggestions": [suggestion],
+                }
+            }
+
+        run = generate_speaker_review_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            skip_completed=False,
+            registry=registry,
+            voice_catalog=_catalog(),
+            unresolved_keys=[key],
+            provider=provider,
+            idempotency_key="voice-batch-analysis",
+        )
+        suggestion = run["suggestions"][0]
+        accepted = accept_speaker_review_suggestion(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            analysis_run_id=run["analysis_run_id"],
+            unresolved_key=key,
+            reviewer_payload={**suggestion, "voice_mode": "keep"},
+            voice_catalog=_catalog(),
+            idempotency_key="voice-batch-speaker-accept",
+        )
+        speaker_key = f"character:{int(accepted['applied']['character_id'])}"
+        chapter_two = self.db.fetch_one(
+            "SELECT id FROM chapters WHERE book_id=? AND chapter_number=2",
+            (self.book_id,),
+        )
+        chapter_two_plan_before = int(
+            self.db.fetch_one(
+                "SELECT id FROM casting_plans WHERE chapter_id=? AND status='approved' ORDER BY plan_revision DESC,id DESC LIMIT 1",
+                (int(chapter_two["id"]),),
+            )["id"]
+        )
+        result = apply_approved_voice_suggestion_batch(
+            self.db,
+            self.store,
+            book_id=self.book_id,
+            items=[
+                {
+                    "analysis_run_id": run["analysis_run_id"],
+                    "unresolved_key": key,
+                    "speaker_key": speaker_key,
+                    "voice_id": "new",
+                }
+            ],
+            included_chapter_numbers=[1],
+            voice_catalog=_catalog(),
+            custom_voice_context=None,
+            idempotency_key="voice-batch-apply",
+        )
+        self.assertEqual(result["included_chapter_numbers"], [1])
+        chapter_rows = self.db.fetch_all(
+            "SELECT id,chapter_number FROM chapters WHERE book_id=? ORDER BY chapter_number",
+            (self.book_id,),
+        )
+        voices = {}
+        for chapter in chapter_rows:
+            plan_row = self.db.fetch_one(
+                "SELECT id FROM casting_plans WHERE chapter_id=? AND status='approved' ORDER BY plan_revision DESC,id DESC LIMIT 1",
+                (int(chapter["id"]),),
+            )
+            plan = get_plan(self.db, self.store, int(plan_row["id"]))["plan"]
+            targets = [
+                item
+                for item in plan["utterances"]
+                if item.get("character_id") == int(self.commander["id"])
+            ]
+            if targets:
+                voices[int(chapter["chapter_number"])] = targets[0]["resolved_voice_id"]
+        self.assertEqual(voices, {1: "new"})
+        chapter_two_plan_after = int(
+            self.db.fetch_one(
+                "SELECT id FROM casting_plans WHERE chapter_id=? AND status='approved' ORDER BY plan_revision DESC,id DESC LIMIT 1",
+                (int(chapter_two["id"]),),
+            )["id"]
+        )
+        self.assertEqual(chapter_two_plan_after, chapter_two_plan_before)
+        replay = apply_approved_voice_suggestion_batch(
+            self.db,
+            self.store,
+            book_id=self.book_id,
+            items=[
+                {
+                    "analysis_run_id": run["analysis_run_id"],
+                    "unresolved_key": key,
+                    "speaker_key": speaker_key,
+                    "voice_id": "new",
+                }
+            ],
+            included_chapter_numbers=[1],
+            voice_catalog=_catalog(),
+            custom_voice_context=None,
+            idempotency_key="voice-batch-apply",
+        )
+        self.assertTrue(replay["reused"])
+        dismissed = apply_approved_voice_suggestion_batch(
+            self.db,
+            self.store,
+            book_id=self.book_id,
+            items=[
+                {
+                    "analysis_run_id": run["analysis_run_id"],
+                    "unresolved_key": key,
+                    "speaker_key": speaker_key,
+                    "voice_id": "new",
+                }
+            ],
+            included_chapter_numbers=[1],
+            voice_catalog=_catalog(),
+            custom_voice_context=None,
+            idempotency_key="voice-batch-dismiss",
+            apply_changes=False,
+        )
+        self.assertEqual(dismissed["decision"], "DISMISSED")
+        self.assertEqual(dismissed["applied_count"], 0)
+        projected = self._registry()
+        review = next(
+            item
+            for item in projected["voice_suggestion_reviews"]
+            if item["unresolved_key"] == key
+        )
+        self.assertEqual(review["decision"], "DISMISSED")
 
     def test_multichunk_transient_failure_falls_back_and_records_chunk_models(self) -> None:
         registry = self._registry()

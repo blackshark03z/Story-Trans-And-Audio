@@ -169,7 +169,7 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
             "Nếu chấp nhận tất cả đủ điều kiện",
             "Nếu chấp nhận mục đã chọn",
             "Sau khi batch hoàn tất",
-            "Nếu Final Voice Map chưa tồn tại, giọng không bị đổi ở đây",
+            "Giọng không bị đổi ở đây: Production chuyển sang bước 2",
             "batchApproveSelectedSpeakerSuggestions",
             "reviewer_payload:payload",
         ):
@@ -181,9 +181,13 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
 
     def test_completed_review_keeps_bulk_review_discoverable_without_repeat_action(self) -> None:
         self.assertIn("renderCompletedSpeakerBatchState", self.js)
-        self.assertIn("Duyệt hàng loạt: 0 chờ", self.js)
+        self.assertIn("Duyệt người nói hàng loạt", self.js)
         self.assertIn("data-speaker-review-batch-complete", self.js)
-        self.assertIn("không còn đề xuất chờ duyệt", self.js)
+        self.assertIn("không còn danh tính người nói chờ duyệt", self.js)
+        self.assertIn("Duyệt giọng Gemini hàng loạt", self.js)
+        self.assertIn("APPLY_GEMINI_VOICE_SUGGESTION_BATCH", self.js)
+        self.assertIn("DISMISS_GEMINI_VOICE_SUGGESTION_BATCH", self.js)
+        self.assertIn("Giữ giọng hiện tại", self.js)
 
     def test_approved_history_and_corrections_preserve_future_render_boundary(self) -> None:
         self.assertIn("review_history", self.js)

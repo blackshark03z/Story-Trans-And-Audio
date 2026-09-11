@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping
@@ -1058,6 +1059,29 @@ def get_book_voice_registry(
         if row["status"] in UNRESOLVED_STATUSES
     ]
     included_chapter_ids = {int(chapter["id"]) for chapter in chapters}
+    voice_suggestion_reviews: dict[tuple[str, str], dict[str, Any]] = {}
+    for event in db.fetch_all(
+        "SELECT id,details_json,created_at FROM audit_events WHERE event_code=? ORDER BY id",
+        ("voice_suggestion_batch_applied",),
+    ):
+        try:
+            details = json.loads(event["details_json"] or "{}")
+        except (TypeError, ValueError):
+            continue
+        if int(details.get("book_id") or 0) != int(book_id):
+            continue
+        for item in details.get("items") or []:
+            key = (
+                str(item.get("analysis_run_id") or ""),
+                str(item.get("unresolved_key") or ""),
+            )
+            if all(key):
+                voice_suggestion_reviews[key] = {
+                    **dict(item),
+                    "decision": str(details.get("decision") or "APPLIED"),
+                    "audit_event_id": int(event["id"]),
+                    "recorded_at": event["created_at"],
+                }
     return {
         "schema": REGISTRY_SCHEMA,
         "book": {
@@ -1131,4 +1155,5 @@ def get_book_voice_registry(
         },
         "speaker_state": _aggregate_speaker_states(speaker_states),
         "speaker_states": speaker_states,
+        "voice_suggestion_reviews": list(voice_suggestion_reviews.values()),
     }
