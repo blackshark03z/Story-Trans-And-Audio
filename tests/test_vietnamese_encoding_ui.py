@@ -39,7 +39,7 @@ class VietnameseEncodingUiTests(unittest.TestCase):
         self.assertLess(html.index('<meta charset="utf-8">'), html.index("<title>"))
         self.assertIn("styles.css?v=20260910-sidebar-resource-nav-1", html)
         self.assertIn("production_state.js?v=20260727-production-preflight-1", html)
-        self.assertIn("app.js?v=20260911-assignment-review-state-1", html)
+        self.assertIn("app.js?v=20260911-assignment-scope-roles-1", html)
 
     def test_operator_phase_copy_renders_as_unicode(self) -> None:
         script = """

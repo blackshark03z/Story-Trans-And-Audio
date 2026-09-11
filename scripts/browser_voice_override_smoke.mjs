@@ -180,7 +180,7 @@ try {
     if (section) section.open = true;
     return !!section;
   })()`);
-  await waitFor(`!!document.querySelector('[data-voice-save-guard="narrator"]')`);
+  await waitFor(`!!document.querySelector('[data-registry-apply="narrator"]')`);
   await installCommandRecorder([]);
 
   const exactUrlNotReadOnly = await evaluate(`(() => {
@@ -190,7 +190,8 @@ try {
       && location.hash.includes("to=10")
       && !!document.querySelector('[data-registry-scope-key="narrator"]')
       && !!document.querySelector('[data-registry-voice-key="narrator"]')
-      && !!document.querySelector('[data-registry-review-first="narrator"]')
+      && document.querySelector('[data-registry-scope-key="narrator"]')?.value === "book"
+      && document.querySelector('[data-registry-apply="narrator"]')?.textContent.includes("Lưu làm giọng mặc định cho sách")
       && !!document.querySelector('[data-registry-clear="narrator"]')
       && !document.querySelector('[data-voice-library-row="unknown"]')
       && !body.includes("Narrator/unknown");
@@ -206,6 +207,8 @@ try {
   })()`);
   const chapterOneHash = "#/assignment?book=1&from=1&to=1&focus=1001&source_task=REPAIR_REQUIRED&return_task=REPAIR_PREFLIGHT&assignment_focus=voices";
   await route(chapterOneHash);
+  await waitFor(`!!document.querySelector('[data-registry-apply="narrator"]')`);
+  await setSelect(attr("data-registry-scope-key", "narrator"), "chapter");
   await waitFor(`!!document.querySelector('[data-voice-save-guard="narrator"]')`);
   await setSelect(attr("data-registry-voice-key", "narrator"), "male");
   const localGuardEvidence = await evaluate(`(() => {
@@ -216,7 +219,6 @@ try {
       guardCopy: !!editor?.textContent.includes("Chưa thể lưu giọng riêng cho Chương 1 vì bản xác định người nói chưa được duyệt."),
       temporaryCopy: !!editor?.querySelector('.assignment-unsaved-choice:not(.hidden)')
         && !!editor?.textContent.includes("Lựa chọn tạm thời — chưa được lưu"),
-      dependencyCopy: !!editor?.textContent.includes("Duyệt bản xác định người nói hiện tại."),
       commandCount: window.__voiceOverrideCommands.length,
       text: editor?.textContent || "",
     };
@@ -225,14 +227,13 @@ try {
     && localGuardEvidence.reviewFirst
     && localGuardEvidence.guardCopy
     && localGuardEvidence.temporaryCopy
-    && localGuardEvidence.dependencyCopy
     && localGuardEvidence.commandCount === 0;
   if (!localUnsavedGuard) throw new Error(`Chapter 1 local-only voice guard is not honest or complete: ${JSON.stringify(localGuardEvidence)}`);
   await setSelect(attr("data-registry-scope-key", "narrator"), "book");
-  const bookScopeCannotBypassGuard = await evaluate(`!document.querySelector('[data-registry-apply="narrator"]')
-    && !!document.querySelector('[data-registry-review-first="narrator"]')
+  const bookDefaultRemainsIndependent = await evaluate(`document.querySelector('[data-registry-apply="narrator"]')?.textContent.includes("Lưu làm giọng mặc định cho sách")
+    && !document.querySelector('[data-registry-review-first="narrator"]')
     && window.__voiceOverrideCommands.length === 0`);
-  if (!bookScopeCannotBypassGuard) throw new Error("Book scope bypassed the Chapter 1 dependency guard.");
+  if (!bookDefaultRemainsIndependent) throw new Error("Book default was incorrectly coupled to the Chapter 1 scoped-override guard.");
   await click(attr("data-registry-cancel", "narrator"));
   const localChoiceCancelled = await evaluate(`document.querySelector('.assignment-unsaved-choice')?.classList.contains('hidden') && window.__voiceOverrideCommands.length === 0`);
   await evaluate(`window.__voiceOverrideReloadMarker = "chapter-one-guard"`);
@@ -241,7 +242,7 @@ try {
   browserErrors.length = 0;
   await waitFor(`Number(window.storyAudioAppState?.bookVoiceRegistry?.result?.range?.from_chapter) === 1
     && Number(window.storyAudioAppState?.bookVoiceRegistry?.result?.range?.to_chapter) === 1
-    && !!document.querySelector('[data-voice-save-guard="narrator"]')`);
+    && !!document.querySelector('[data-registry-apply="narrator"]')`);
   const exactScopeAfterReload = await evaluate(`(() => {
     const context = currentProductionWorkingContext();
     return context?.bookId === 1 && context?.fromChapter === 1 && context?.toChapter === 1 && context?.focusedChapterId === 1001;
@@ -383,7 +384,7 @@ try {
     ok: true,
     exactUrlNotReadOnly,
     localUnsavedGuard,
-    bookScopeCannotBypassGuard,
+    bookDefaultRemainsIndependent,
     localChoiceCancelled,
     exactScopeAfterReload,
     exactCommandScope,

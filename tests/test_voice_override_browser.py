@@ -349,7 +349,7 @@ class VoiceOverrideBrowserTests(unittest.TestCase):
         self.assertTrue(evidence["ok"])
         self.assertTrue(evidence["exactUrlNotReadOnly"])
         self.assertTrue(evidence["localUnsavedGuard"])
-        self.assertTrue(evidence["bookScopeCannotBypassGuard"])
+        self.assertTrue(evidence["bookDefaultRemainsIndependent"])
         self.assertTrue(evidence["localChoiceCancelled"])
         self.assertTrue(evidence["exactScopeAfterReload"])
         self.assertTrue(evidence["exactCommandScope"])

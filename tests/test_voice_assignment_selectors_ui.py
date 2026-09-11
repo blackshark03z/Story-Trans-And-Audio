@@ -143,7 +143,7 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertNotIn("Narrator/unknown", section)
         self.assertNotIn("disabled title=\"Override", section)
 
-    def test_chapter_voice_save_is_guarded_until_casting_plan_is_ready(self) -> None:
+    def test_voice_save_distinguishes_speaker_review_book_default_and_scoped_override(self) -> None:
         section = self.js[
             self.js.index("function renderRegistryActionCell"):
             self.js.index("function renderRegistryTableRow")
@@ -152,12 +152,17 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             "Chưa thể lưu giọng riêng cho Chương ${chapterNumber} vì bản xác định người nói chưa được duyệt.",
             section,
         )
+        self.assertIn(
+            "Ghi đè theo chương/phạm vi chỉ mở sau khi Bản đồ giọng hiện tại đã được duyệt.",
+            section,
+        )
         self.assertIn("Lựa chọn tạm thời — chưa được lưu", section)
         self.assertIn("Duyệt người nói trước", section)
+        self.assertIn("Duyệt bản đồ giọng trước", section)
         self.assertIn("Hủy lựa chọn chưa lưu", section)
-        self.assertIn("Lưu cấu hình giọng và hoàn tất bản đồ giọng", section)
-        self.assertIn("Duyệt bản xác định người nói hiện tại.", section)
-        self.assertIn("Tạo và duyệt bản đồ giọng cuối cùng.", section)
+        self.assertIn("Lưu làm giọng mặc định cho sách", section)
+        self.assertNotIn("Lưu cấu hình giọng và hoàn tất bản đồ giọng", section)
+        self.assertIn("scopeChoice==='book'?bookReady:durableReady", section)
 
     def test_range_command_scope_prefers_exact_working_context(self) -> None:
         section = self.js[
@@ -179,7 +184,8 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             self.js.index("function speakerSuggestionScopeKey")
         ]
         self.assertIn("1. Duyệt người nói", section)
-        self.assertIn("2. Thư viện nhân vật và cấu hình giọng", section)
+        self.assertIn("2. Vai có lời trong phạm vi và cấu hình giọng", section)
+        self.assertIn("nhân vật trong sách", section)
         self.assertIn("3. Kiểm tra sẵn sàng", section)
         self.assertIn("row.role==='unresolved_dialogue'||row.role==='unknown'", section)
         self.assertIn("row.role==='narrator'||row.character_id", section)
@@ -231,7 +237,9 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             self.js.index("async function saveRegistrySpeakerMapping")
         ]
         for label in (
-            "Lưu thay đổi giọng",
+            "Lưu làm giọng mặc định cho sách",
+            "Lưu giọng cho chương",
+            "Lưu giọng cho phạm vi",
             "Bỏ ghi đè và dùng giọng kế thừa",
             "Hủy lựa chọn chưa lưu",
             "Nghe thử giọng",

@@ -366,8 +366,8 @@ class CharacterAssignmentServiceTests(IsolatedTestCase):
         self.assertEqual(unresolved[0]["sample_lines"][0]["text"], "Give me the bag.")
 
     def test_skip_completed_filters_only_completed_chapters_and_keeps_remaining_dialogue(self) -> None:
-        self._seed_chapter(1, audio_status="completed")
-        self._seed_chapter(2)
+        completed_chapter = self._seed_chapter(1, audio_status="completed")
+        included_chapter = self._seed_chapter(2)
 
         registry = self._registry(1, 2, skip_completed=True)
         unresolved = [
@@ -376,6 +376,19 @@ class CharacterAssignmentServiceTests(IsolatedTestCase):
 
         self.assertEqual(registry["range"]["from_chapter"], 2)
         self.assertEqual(registry["range"]["to_chapter"], 2)
+        self.assertEqual(registry["range"]["requested_from_chapter"], 1)
+        self.assertEqual(registry["range"]["requested_to_chapter"], 2)
+        self.assertEqual(registry["range"]["requested_chapter_count"], 2)
+        self.assertEqual(registry["range"]["chapter_count"], 1)
+        self.assertTrue(registry["range"]["skip_completed"])
+        self.assertEqual(
+            registry["range"]["included_chapters"],
+            [{"id": included_chapter["id"], "chapter_number": 2}],
+        )
+        self.assertEqual(
+            registry["range"]["excluded_chapters"],
+            [{"id": completed_chapter["id"], "chapter_number": 1, "reason": "completed"}],
+        )
         self.assertEqual(len(unresolved), 1)
         self.assertEqual(unresolved[0]["chapter_numbers"], [2])
 

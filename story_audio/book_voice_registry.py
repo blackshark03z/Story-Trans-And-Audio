@@ -895,6 +895,13 @@ def get_book_voice_registry(
     custom_voice_context: CustomVoiceContext | None = None,
 ) -> dict[str, Any]:
     book = _book_row(db, book_id)
+    requested_chapters = _range_chapters(
+        db,
+        book_id=book_id,
+        from_chapter=from_chapter,
+        to_chapter=to_chapter,
+        skip_completed=False,
+    )
     chapters = _range_chapters(
         db,
         book_id=book_id,
@@ -1015,6 +1022,7 @@ def get_book_voice_registry(
         for row in payload_rows
         if row["status"] in UNRESOLVED_STATUSES
     ]
+    included_chapter_ids = {int(chapter["id"]) for chapter in chapters}
     return {
         "schema": REGISTRY_SCHEMA,
         "book": {
@@ -1028,6 +1036,23 @@ def get_book_voice_registry(
             "chapter_count": len(chapters),
             "chapter_ids": [int(item["id"]) for item in chapters],
             "focused_chapter_id": None,
+            "requested_from_chapter": int(requested_chapters[0]["chapter_number"]),
+            "requested_to_chapter": int(requested_chapters[-1]["chapter_number"]),
+            "requested_chapter_count": len(requested_chapters),
+            "skip_completed": bool(skip_completed),
+            "included_chapters": [
+                {"id": int(item["id"]), "chapter_number": int(item["chapter_number"])}
+                for item in chapters
+            ],
+            "excluded_chapters": [
+                {
+                    "id": int(item["id"]),
+                    "chapter_number": int(item["chapter_number"]),
+                    "reason": "completed",
+                }
+                for item in requested_chapters
+                if int(item["id"]) not in included_chapter_ids
+            ],
         },
         "persistence": {
             "migration_required": False,

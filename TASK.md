@@ -79,6 +79,24 @@ closure or when disk/worktree pressure directly blocks this Goal.
   duplicated; historical Text Revisions, Casting Plans, Jobs, snapshots, QA,
   and Artifacts remain immutable.
 
+## Current bounded UX correction
+
+```text
+UX_CONTRACT
+PRIMARY_USER=Owner checking speakers and voices before PREPARE
+PRIMARY_JOURNEY=selected range -> effective included chapters -> speaking roles -> voice review
+PRIMARY_SURFACE=Gán giọng for the current production scope
+INFORMATION_HIERARCHY=requested/effective scope first; speaking roles second; book-wide character count supporting
+SCOPE_MODEL=requested Book/range remains visible; skip-completed exclusions are explicit
+PRIMARY_CONTROLS=existing review, voice save, and preflight actions remain unchanged
+ADVANCED_CONTROLS=existing dialogue context and technical history disclosures
+STATES=loading preserves requested scope; ready shows included/excluded counts; errors remain read-only and recoverable
+BULK_DESTRUCTIVE=NOT_APPLICABLE
+DISCOVERABILITY=scope explanation and speaking-role meaning are visible in the existing assignment step
+ACCESSIBILITY=plain text scope/status; existing semantic details and buttons retained
+OWNER_PREFERENCE=NONE; existing authority already distinguishes exact selected scope from Book character management
+```
+
 ## UX contract
 
 ```text
