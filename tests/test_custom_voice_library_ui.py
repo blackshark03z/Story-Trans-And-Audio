@@ -155,7 +155,7 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         self.assertIn("libraryVoiceInfoDescription", section_text)
 
     def test_select_library_voice_handles_empty_description(self):
-        """selectLibraryVoice shows 'No description' for empty description."""
+        """selectLibraryVoice shows the Vietnamese empty-description state."""
         select_section = re.search(
             r"function selectLibraryVoice\([^)]*\)\{",
             self.js,
@@ -163,7 +163,7 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         self.assertIsNotNone(select_section)
         start = select_section.start()
         section_text = self.js[start:start+3000]
-        self.assertIn("No description", section_text)
+        self.assertIn("Không có mô tả", section_text)
 
     def test_select_library_voice_toggles_button_visibility(self):
         """selectLibraryVoice toggles button visibility with hidden class."""
@@ -272,7 +272,7 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         self.assertIsNotNone(create_section)
         section_text = create_section.group(0)
         self.assertIn("if(!name)", section_text)
-        self.assertIn("Voice name is required", section_text)
+        self.assertIn("Hãy nhập tên giọng", section_text)
 
     def test_create_validates_name_length(self):
         """createLibraryVoice validates name length <= 120 characters."""
@@ -284,7 +284,7 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         self.assertIsNotNone(create_section)
         section_text = create_section.group(0)
         self.assertIn("name.length>120", section_text)
-        self.assertIn("120 characters or less", section_text)
+        self.assertIn("120 ký tự", section_text)
 
     # Error handling tests
     def test_error_mapping_handles_invalid(self):
@@ -899,7 +899,7 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
     def test_create_voice_section_collapsible(self):
         """Create New Voice section is collapsible."""
         self.assertIn('create-voice-section', self.html)
-        self.assertIn('<details class="create-voice-section">', self.html)
+        self.assertIn('<details id="libraryCreateSection" class="create-voice-section">', self.html)
 
     def test_preview_text_counter_handler_wired(self):
         """Preview text character counter event handler is wired."""
@@ -1462,7 +1462,7 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
         """Add Voice section does not use broken inline form-grid layout."""
         # Find the Add Voice section
         create_section = re.search(
-            r'<h3>Add Voice</h3>.*?<button id="libraryCreate"',
+            r'<h3>Thêm giọng custom</h3>.*?<button id="libraryCreate"',
             self.html,
             re.DOTALL,
         )
@@ -1476,7 +1476,7 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
     def test_create_voice_name_and_description_separate_groups(self):
         """Name, description, and sample inputs use separate form groups."""
         create_section = re.search(
-            r'<h3>Add Voice</h3>.*?<button id="libraryCreate"',
+            r'<h3>Thêm giọng custom</h3>.*?<button id="libraryCreate"',
             self.html,
             re.DOTALL,
         )
@@ -1489,7 +1489,7 @@ class CustomVoiceLibraryUIContractTests(unittest.TestCase):
     def test_create_voice_labels_block_level(self):
         """Labels in Add Voice are block-level above controls."""
         create_section = re.search(
-            r'<h3>Add Voice</h3>.*?<button id="libraryCreate"',
+            r'<h3>Thêm giọng custom</h3>.*?<button id="libraryCreate"',
             self.html,
             re.DOTALL,
         )

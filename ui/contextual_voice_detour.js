@@ -5,7 +5,7 @@
 (function(root){
   const STORAGE_KEY = 'storyAudio.voiceDetour.v1'
   const MAX_AGE_MS = 2 * 60 * 60 * 1000
-  const ROUTES = new Set(['production', 'voices', 'books'])
+  const ROUTES = new Set(['production', 'assignment', 'voices', 'books'])
   const DESTINATIONS = new Set(['voices', 'books'])
   const ORIGINS = new Set(['book_profile', 'character_override', 'casting_plan', 'production_voice_blocker'])
   const ACTIONS = new Set(['create_voice', 'choose_voice', 'configure_book_voice', 'configure_character_override'])
@@ -20,11 +20,14 @@
   }
   function fieldAllowed(value){
     const field = String(value || '')
-    return PROFILE_FIELDS.has(field) || FIXED_FIELDS.has(field) || /^character-voice-\d+$/.test(field)
+    return PROFILE_FIELDS.has(field) || FIXED_FIELDS.has(field) || /^character-voice-\d+$/.test(field) || /^registry-voice-(?:narrator|character-\d+)$/.test(field)
   }
   function routeHash(route, context){
     if (route === 'production' && context?.bookId && context?.chapterId) {
       return `#/production?book=${context.bookId}&chapter=${context.chapterId}`
+    }
+    if (route === 'assignment' && context?.bookId && context?.fromChapter && context?.toChapter) {
+      return `#/assignment?book=${context.bookId}&from=${context.fromChapter}&to=${context.toChapter}${context.skipCompleted ? '&skip_completed=1' : ''}`
     }
     return route === 'books' ? '#/books' : route === 'voices' ? '#/voices' : '#/home'
   }
@@ -54,18 +57,24 @@
       fieldId,
       bookId,
       chapterId,
+      fromChapter: safeNumber(source.fromChapter),
+      toChapter: safeNumber(source.toChapter),
+      skipCompleted: !!source.skipCompleted,
+      speakerKey: typeof source.speakerKey === 'string' && source.speakerKey.length <= 100 ? source.speakerKey : '',
       characterId: safeNumber(source.characterId),
       castingPlanId: safeNumber(source.castingPlanId),
       castingPlanRevision: safeNumber(source.castingPlanRevision),
       selectedAssignmentKey: typeof source.selectedAssignmentKey === 'string' ? source.selectedAssignmentKey : '',
       createdVoiceId: safeNumber(source.createdVoiceId),
       createdAssignmentKey: typeof source.createdAssignmentKey === 'string' ? source.createdAssignmentKey : '',
+      resultAssignmentKey: typeof source.resultAssignmentKey === 'string' ? source.resultAssignmentKey : '',
       hasUnsavedDraft: !!source.hasUnsavedDraft,
       sourceDraft: sanitizeDraft(source.sourceDraft),
       createdAt,
     }
     if (context.originType === 'character_override' && !context.characterId) return null
     if (context.originType === 'casting_plan' && (!context.castingPlanId || !context.castingPlanRevision)) return null
+    if (context.returnRoute === 'assignment' && (!context.bookId || !context.fromChapter || !context.toChapter || !context.speakerKey)) return null
     return context
   }
   function sanitizeDraft(draft){
@@ -108,17 +117,20 @@
     if (typeof root.toast === 'function') root.toast(message, error)
   }
   function currentVoiceKeyForContext(context){
+    if (context.resultAssignmentKey) return context.resultAssignmentKey
     if (context.createdAssignmentKey) return context.createdAssignmentKey
     if (context.createdVoiceId) return `custom:${context.createdVoiceId}`
-    if (appState()?.selectedVoiceId) return `custom:${appState().selectedVoiceId}`
     return ''
+  }
+  function selectedLibraryVoiceKey(){
+    const id = safeNumber(appState()?.selectedVoiceId)
+    return id ? `custom:${id}` : ''
   }
   function catalogItem(key){
     return typeof root.voiceCatalogItem === 'function' ? root.voiceCatalogItem(key) : null
   }
-  async function refreshCatalog(){
-    if (typeof root.loadVoiceCatalog === 'function') await root.loadVoiceCatalog()
-    if (typeof root.loadCustomVoices === 'function') await root.loadCustomVoices()
+  async function refreshCatalog(context = loadContext()){
+    if (typeof root.loadVoiceCatalog === 'function') await root.loadVoiceCatalog(context?.bookId || null)
   }
   function validateReturnTarget(context, assignmentKey = ''){
     if (!normalizeContext(context)) return {ok:false, reason:'Return context is malformed or expired.'}
@@ -132,7 +144,7 @@
         return {ok:false, reason:'Final Voice Map changed; the stale voice edit was not applied.'}
       }
     }
-    if (context.originType === 'character_override') {
+    if (context.originType === 'character_override' && context.returnRoute !== 'assignment') {
       const exists = (appState()?.casting?.characters || []).some(item => Number(item.id) === Number(context.characterId))
       if (!exists) return {ok:false, reason:'Character no longer exists; the voice edit was not applied.'}
     }
@@ -152,6 +164,10 @@
       const voice = byId(`character-voice-${context.characterId}`)
       if (assignment) draft[`character-assignment-${context.characterId}`] = assignment.value || ''
       if (voice) draft[`character-voice-${context.characterId}`] = voice.value || ''
+    }
+    if (context?.returnRoute === 'assignment' && context.fieldId) {
+      const voice = byId(context.fieldId)
+      if (voice) draft[context.fieldId] = voice.value || ''
     }
     return sanitizeDraft(draft)
   }
@@ -175,6 +191,9 @@
     if (!field || field.tagName !== 'SELECT') return false
     field.value = assignmentKey
     field.dataset.voiceDetourUnsaved = '1'
+    if (context.returnRoute === 'assignment' && context.speakerKey && typeof root.rememberRegistryDraft === 'function') {
+      root.rememberRegistryDraft(context.speakerKey)
+    }
     if (context.originType === 'character_override') {
       const assignment = byId(`character-assignment-${context.characterId}`)
       if (assignment) assignment.value = 'custom'
@@ -214,8 +233,14 @@
         const book = appState()?.books?.find(item => Number(item.id) === Number(context.bookId))
         if (book && appState()) appState().book = book
         if (typeof root.openChapter === 'function') await root.openChapter(context.chapterId, {initialTab:'casting', replaceScopeRoute:true})
-        await refreshCatalog()
+        await refreshCatalog(context)
         if (typeof root.openCasting === 'function') await root.openCasting()
+      } else if (context.returnRoute === 'assignment') {
+        const hash = routeHash('assignment', context)
+        if (typeof root.history?.replaceState === 'function') root.history.replaceState(null, '', hash)
+        if (typeof root.setAppRoute === 'function') root.setAppRoute('assignment', {replace:true})
+        else root.location.hash = hash
+        if (typeof root.loadBookVoiceRegistry === 'function') await root.loadBookVoiceRegistry({force:true})
       } else if (typeof root.setAppRoute === 'function') {
         root.setAppRoute(context.returnRoute)
       } else {
@@ -237,11 +262,13 @@
       return false
     }
   }
-  function navigateToDestination(context){
+  async function navigateToDestination(context){
     const destination = context.destination || 'voices'
+    if (destination === 'voices') appState().selectedVoiceId = null
     if (typeof root.setAppRoute === 'function') root.setAppRoute(destination)
     else root.location.hash = routeHash(destination, context)
     if (typeof root.history?.replaceState === 'function') root.history.replaceState(null, '', `${routeHash(destination, context)}?detour=voice-setup`)
+    if (destination === 'voices' && typeof root.refreshLibrary === 'function') await root.refreshLibrary()
     renderDetourBanner()
   }
   function beginDetour(context){
@@ -254,8 +281,8 @@
     normalized.hasUnsavedDraft = !!normalized.sourceDraft
     const saved = saveContext(normalized)
     if (!saved) return null
-    root.setTimeout?.(() => {
-      navigateToDestination(saved)
+    root.setTimeout?.(async () => {
+      await navigateToDestination(saved)
       speak('Đã mở Thư viện giọng. Tạo hoặc cấu hình giọng xong thì quay lại nơi chọn giọng.')
     }, 0)
     return saved
@@ -330,6 +357,16 @@
     const item = catalogItem(key)
     return !!item && item.selectable !== false && item.active !== false
   }
+  function useSelectedVoice(){
+    const context = loadContext()
+    const key = selectedLibraryVoiceKey()
+    const validation = validateReturnTarget(context, key)
+    if (!validation.ok) { speak(validation.reason, true); return false }
+    context.resultAssignmentKey = key
+    saveContext(context)
+    restoreContext()
+    return true
+  }
   function renderDetourBanner(){
     const view = byId('voicesView')
     if (!view) return
@@ -338,47 +375,80 @@
       banner = root.document.createElement('section')
       banner.id = 'voiceDetourBanner'
       banner.className = 'panel voice-detour-banner hidden'
-      banner.innerHTML = '<div><p class="eyebrow">Đường vòng chọn giọng</p><h2>Quay lại đúng nơi đang cấu hình</h2><p id="voiceDetourStatus" class="muted" role="status"></p></div><div class="voice-detour-banner-actions"><button id="voiceDetourReturn" class="primary" type="button">Quay lại nơi chọn giọng</button><button id="voiceDetourCancel" class="secondary" type="button">Hủy đường vòng</button></div>'
+      banner.innerHTML = '<div><p class="eyebrow">Cấu hình giọng nhân vật</p><h2 id="voiceDetourTitle">Thêm hoặc chọn giọng</h2><p id="voiceDetourStatus" class="muted" role="status"></p></div><div class="voice-detour-banner-actions"><button id="voiceDetourUse" class="primary" type="button" disabled>Dùng giọng này</button><button id="voiceDetourReturn" class="secondary" type="button">Quay lại không thay đổi</button><button id="voiceDetourCancel" class="ghost" type="button">Hủy đường vòng</button></div>'
       view.insertBefore(banner, view.firstElementChild)
     }
     const context = loadContext()
     banner.classList.toggle('hidden', !context)
-    if (!context) return
-    const usable = targetVoiceUsable(context)
-    const key = currentVoiceKeyForContext(context)
-    byId('voiceDetourStatus').textContent = usable ? `${key} đã có trong catalog. Quay lại sẽ chỉ chọn tạm thời, chưa lưu.` : 'Hãy tạo voice và thêm revision usable. Nếu chưa xong, quay lại sẽ không tự chọn giọng.'
-    byId('voiceDetourReturn').onclick = () => restoreContext()
+    const bookSelect = byId('libraryBookSelect')
+    if (!context) {
+      if (bookSelect) bookSelect.disabled = false
+      view.classList.remove('voice-create-mode')
+      byId('libraryUseCreatedVoice')?.classList.add('hidden')
+      return
+    }
+    if (bookSelect && context.bookId) {
+      bookSelect.value = String(context.bookId)
+      bookSelect.disabled = true
+    }
+    const createMode = context.operation === 'create_voice'
+    view.classList.toggle('voice-create-mode', createMode)
+    const createSection = byId('libraryCreateSection')
+    if (createMode && createSection) {
+      createSection.open = true
+      if (createSection.dataset.detourFocused !== String(context.createdAt)) {
+        createSection.dataset.detourFocused = String(context.createdAt)
+        root.setTimeout?.(() => byId('libraryNewName')?.focus?.({preventScroll:true}), 0)
+      }
+    }
+    const selectedKey = selectedLibraryVoiceKey()
+    const item = selectedKey ? catalogItem(selectedKey) : null
+    const usable = !!item && item.selectable !== false && item.active !== false
+    const selectedName = item?.display_name || appState()?.libraryVoices?.find?.(voice => Number(voice.id) === Number(appState()?.selectedVoiceId))?.display_name || ''
+    byId('voiceDetourTitle').textContent = createMode ? 'Thêm giọng custom cho đúng sách' : 'Chọn giọng để dùng'
+    byId('voiceDetourStatus').textContent = usable ? `“${selectedName}” đã sẵn sàng. Chọn Dùng giọng này để quay lại đúng ô cấu hình; thay đổi vẫn chưa được lưu.` : createMode ? 'Điền form Thêm giọng custom bên dưới. Sau khi lưu thành công, giọng sẽ xuất hiện trong danh sách cấu hình nhân vật.' : 'Chọn một giọng đang sử dụng trong danh sách bên dưới.'
+    const useButton = byId('voiceDetourUse')
+    useButton.disabled = !usable
+    useButton.onclick = useSelectedVoice
+    const localUseButton = byId('libraryUseCreatedVoice')
+    if (localUseButton) {
+      const createdIsSelected = safeNumber(context.createdVoiceId) === safeNumber(appState()?.selectedVoiceId)
+      localUseButton.classList.toggle('hidden', !(createMode && usable && createdIsSelected))
+      localUseButton.onclick = useSelectedVoice
+    }
+    byId('voiceDetourReturn').onclick = () => restoreContext({cancel:true})
     byId('voiceDetourCancel').onclick = () => restoreContext({cancel:true})
   }
-  async function afterVoiceMutation(){
+  async function afterVoiceMutation(result){
     const context = loadContext()
     if (!context) return
-    if (appState()?.selectedVoiceId) {
-      context.createdVoiceId = safeNumber(appState().selectedVoiceId)
+    const createdVoiceId = result?.ok ? safeNumber(result?.voice?.id) : null
+    if (createdVoiceId) {
+      context.createdVoiceId = createdVoiceId
       context.createdAssignmentKey = context.createdVoiceId ? `custom:${context.createdVoiceId}` : ''
       saveContext(context)
     }
-    await refreshCatalog().catch(() => {})
+    await refreshCatalog(context).catch(() => {})
     renderDetourBanner()
   }
   function wrapLibraryHandlers(){
     const createButton = byId('libraryCreate')
     if (createButton && createButton.dataset.voiceDetourWrapped !== '1' && typeof root.createLibraryVoice === 'function') {
       const original = root.createLibraryVoice
-      root.createLibraryVoice = async function(...args){ const result = await original.apply(this, args); await afterVoiceMutation(); return result }
+      root.createLibraryVoice = async function(...args){ const result = await original.apply(this, args); await afterVoiceMutation(result); return result }
       createButton.onclick = root.createLibraryVoice
       createButton.dataset.voiceDetourWrapped = '1'
     }
     const uploadButton = byId('libraryUploadRevision')
     if (uploadButton && uploadButton.dataset.voiceDetourWrapped !== '1' && typeof root.uploadLibraryRevision === 'function') {
       const original = root.uploadLibraryRevision
-      root.uploadLibraryRevision = async function(...args){ const result = await original.apply(this, args); await afterVoiceMutation(); return result }
+      root.uploadLibraryRevision = async function(...args){ const result = await original.apply(this, args); await afterVoiceMutation(null); return result }
       uploadButton.onclick = root.uploadLibraryRevision
       uploadButton.dataset.voiceDetourWrapped = '1'
     }
     if (typeof root.setPreferredSynthesisRevision === 'function' && !root.setPreferredSynthesisRevision.voiceDetourWrapped) {
       const original = root.setPreferredSynthesisRevision
-      const wrapped = async function(...args){ const result = await original.apply(this, args); await afterVoiceMutation(); return result }
+      const wrapped = async function(...args){ const result = await original.apply(this, args); await afterVoiceMutation(null); return result }
       wrapped.voiceDetourWrapped = true
       root.setPreferredSynthesisRevision = wrapped
     }
@@ -418,6 +488,8 @@
     beginDetour,
     restoreContext,
     validateReturnTarget,
+    selectionChanged: renderDetourBanner,
+    useSelectedVoice,
   }
   root.StoryAudioVoiceDetour = exported
   if (typeof module !== 'undefined' && module.exports) module.exports = exported

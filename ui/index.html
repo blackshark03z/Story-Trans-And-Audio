@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Story Audio</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="/assets/styles.css?v=20260911-scope-action-1">
+  <link rel="stylesheet" href="/assets/styles.css?v=20260911-custom-voice-flow-2">
   <style>
     .casting-journey{display:grid;gap:12px;margin:16px 0;padding:16px;border:1px solid var(--color-border);border-radius:5px;background:var(--color-surface-subtle)}.casting-journey-head{display:flex;justify-content:space-between;align-items:start;gap:12px}.casting-journey-head h3{margin:2px 0;font-size:18px}.casting-journey-head>span{padding:5px 8px;border-radius:3px;background:var(--color-primary-soft);color:var(--color-primary);font-size:12px;font-weight:800;white-space:nowrap}.casting-journey-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0;padding:0;list-style:none}.casting-journey-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 10px;border:1px solid var(--color-border);border-radius:4px;background:var(--color-surface)}.casting-journey-list li>div{display:grid;gap:2px}.casting-journey-list strong{font-size:12px}.casting-journey-list span{font-size:11px;color:var(--muted)}.casting-journey-list li.complete{border-color:#b9d8d2;background:var(--color-success-soft)}.casting-journey-list li.complete strong:before{content:'✓ ';color:var(--color-success)}.casting-journey-list li.current{border-color:#e4c48c;background:var(--color-warning-soft)}.casting-journey-list li.current strong:before{content:'→ ';color:var(--color-warning)}.casting-journey-list li.blocked{background:var(--color-surface-subtle);opacity:.75}.casting-journey-list .text-action{font-size:11px;white-space:nowrap}@media(max-width:760px){.casting-journey-head{display:grid}.casting-journey-list{grid-template-columns:1fr}}
   </style>
@@ -326,17 +326,17 @@
     <section id="voicesView" class="app-view" data-app-view="voices" aria-labelledby="voicesHeading" hidden>
       <section class="panel preset-voice-preview-panel">
         <div>
-          <h2 id="voicesHeading">Thư viện giọng</h2>
-          <p class="muted">Preview preset voices and manage reusable custom reference voices. This area does not render chapters.</p>
+          <h2>Nghe thử giọng có sẵn</h2>
+          <p class="muted">Khu vực phụ để nghe thử preset. Việc thêm giọng custom nằm ở phần chính phía trên.</p>
         </div>
         <div class="form-grid">
-          <label>Preset Voice
+          <label>Giọng có sẵn
             <select id="presetVoiceSelect"><option value="">Chưa tải danh sách giọng</option></select>
           </label>
         </div>
         <div class="row">
-          <button id="loadPresetVoices" class="secondary">Load Preset Voices</button>
-          <button id="previewPresetVoice" class="secondary" disabled>▶ Preview 10–20s</button>
+          <button id="loadPresetVoices" class="secondary">Tải danh sách giọng</button>
+          <button id="previewPresetVoice" class="secondary" disabled>▶ Nghe thử 10–20 giây</button>
         </div>
         <div id="presetPreviewBox" class="voice-preview hidden">
           <audio id="presetPreviewAudio" controls preload="metadata"></audio>
@@ -346,35 +346,62 @@
 
       <section class="panel custom-voice-library-panel">
         <div>
-          <h2>Book Voice Library</h2>
-          <p class="muted">Add and manage custom reference voices for the selected BOOK.</p>
+          <h2 id="voicesHeading">Giọng custom của sách</h2>
+          <p class="muted">Thêm giọng từ audio tham chiếu và dùng lại cho nhân vật trong cùng sách. Lưu giọng không tạo audio chương.</p>
         </div>
         <div class="row">
-          <label for="libraryBookSelect">BOOK<select id="libraryBookSelect"></select></label>
-          <button id="refreshLibrary" class="secondary">Refresh Voices</button>
-          <label class="check"><input id="showInactiveVoices" type="checkbox"> Show inactive voices</label>
+          <label for="libraryBookSelect">Sách<select id="libraryBookSelect"></select></label>
+          <button id="refreshLibrary" class="secondary">Làm mới danh sách</button>
+          <label class="check"><input id="showInactiveVoices" type="checkbox"> Hiện giọng đã ngừng sử dụng</label>
         </div>
-        <div id="libraryStatus" class="muted">Choose a BOOK to load its voices.</div>
+        <p id="libraryScopeHelp" class="muted">Giọng được lưu cho toàn bộ sách đã chọn, không chỉ riêng phạm vi chương đang làm.</p>
+        <details id="libraryCreateSection" class="create-voice-section">
+          <summary><h3>Thêm giọng custom</h3><span class="muted">Tên giọng + audio tham chiếu + transcript chính xác</span></summary>
+          <div class="create-voice-form">
+            <div class="voice-form-group">
+              <label for="libraryNewName">Tên giọng</label>
+              <input id="libraryNewName" placeholder="Ví dụ: Giọng Hứa Thanh" maxlength="120">
+            </div>
+            <div class="voice-form-group">
+              <label for="libraryNewDescription">Mô tả <span class="muted">(không bắt buộc)</span></label>
+              <textarea id="libraryNewDescription" class="voice-description-input" placeholder="Đặc điểm hoặc mục đích sử dụng" rows="3"></textarea>
+            </div>
+            <div class="voice-form-group">
+              <label for="libraryNewAudioFile">Audio tham chiếu</label>
+              <input id="libraryNewAudioFile" type="file" accept="audio/wav,audio/x-wav,audio/mp3,audio/mpeg">
+              <span class="muted">WAV hoặc MP3, tối đa 50 MB.</span>
+            </div>
+            <div class="voice-form-group">
+              <label for="libraryNewTranscript">Transcript chính xác</label>
+              <textarea id="libraryNewTranscript" placeholder="Nhập đúng từng từ được đọc trong audio tham chiếu" rows="3" maxlength="10000"></textarea>
+            </div>
+          </div>
+          <button id="libraryCreate" class="primary">Lưu giọng</button>
+          <div id="libraryCreateStatus" class="voice-create-status hidden" role="status" aria-live="polite"></div>
+          <button id="libraryUseCreatedVoice" class="primary hidden" type="button">Dùng giọng này và quay lại</button>
+        </details>
+        <h3 class="voice-library-existing-title">Giọng đã lưu</h3>
+        <div id="libraryStatus" class="muted">Chọn sách để tải danh sách giọng.</div>
         <div id="libraryVoiceList" class="voice-library-list"></div>
         <div id="librarySelectedDetails" class="library-selected-details hidden">
-        <h3>Voice Details</h3>
+        <h3>Chi tiết giọng</h3>
         <div id="libraryVoiceInfo" class="library-voice-info">
           <div class="voice-info-row">
-            <span class="voice-info-label">Name:</span>
+            <span class="voice-info-label">Tên:</span>
             <span id="libraryVoiceInfoName" class="voice-info-value">—</span>
           </div>
           <div class="voice-info-row">
-            <span class="voice-info-label">Status:</span>
+            <span class="voice-info-label">Trạng thái:</span>
             <span id="libraryVoiceInfoStatus" class="voice-info-badge"></span>
           </div>
           <div class="voice-info-row">
-            <span class="voice-info-label">Description:</span>
+            <span class="voice-info-label">Mô tả:</span>
             <span id="libraryVoiceInfoDescription" class="voice-info-value muted">—</span>
           </div>
         </div>
         <div class="row">
-          <button id="libraryDeactivate" class="secondary" disabled>Deactivate Voice</button>
-          <button id="libraryReactivate" class="secondary hidden" disabled>Reactivate Voice</button>
+          <button id="libraryDeactivate" class="secondary" disabled>Ngừng sử dụng giọng</button>
+          <button id="libraryReactivate" class="secondary hidden" disabled>Sử dụng lại giọng</button>
         </div>
         <h4>Revision History</h4>
         <div id="libraryRevisionsStatus" class="muted">Loading revisions...</div>
@@ -423,29 +450,7 @@
           <div id="libraryUploadError" class="issue error hidden"></div>
         </details>
       </div>
-      <details class="create-voice-section">
-        <summary><h3>Add Voice</h3></summary>
-        <div class="create-voice-form">
-          <div class="voice-form-group">
-            <label for="libraryNewName">Name</label>
-            <input id="libraryNewName" placeholder="Voice name" maxlength="120">
-          </div>
-          <div class="voice-form-group">
-            <label for="libraryNewDescription">Description (optional)</label>
-            <textarea id="libraryNewDescription" class="voice-description-input" placeholder="Optional description" rows="3"></textarea>
-          </div>
-          <div class="voice-form-group">
-            <label for="libraryNewAudioFile">Sample audio</label>
-            <input id="libraryNewAudioFile" type="file" accept="audio/wav,audio/x-wav,audio/mp3,audio/mpeg">
-          </div>
-          <div class="voice-form-group">
-            <label for="libraryNewTranscript">Exact transcript</label>
-            <textarea id="libraryNewTranscript" placeholder="Exact words spoken in the sample audio" rows="3" maxlength="10000"></textarea>
-          </div>
-        </div>
-        <button id="libraryCreate" class="primary">Save Voice</button>
-      </details>
-        <div id="libraryError" class="issue error hidden"></div>
+        <div id="libraryError" class="issue error hidden" role="alert"></div>
       </section>
     </section>
 
@@ -1245,8 +1250,8 @@
   </dialog>
   <div id="toast" class="toast hidden"></div>
   <script src="/assets/production_state.js?v=20260727-production-preflight-1"></script>
-  <script src="/assets/app.js?v=20260911-batch-review-visible-1"></script>
+  <script src="/assets/app.js?v=20260911-custom-voice-flow-2"></script>
   <script src="/assets/casting_voice_map.js?v=20260726-vietnamese-flow-3"></script>
-  <script src="/assets/contextual_voice_detour.js?v=20260720-daily-prod-2b2"></script>
+  <script src="/assets/contextual_voice_detour.js?v=20260911-custom-voice-flow-2"></script>
 </body>
 </html>

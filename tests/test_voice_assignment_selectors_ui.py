@@ -17,7 +17,7 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
 
     def test_central_voice_catalog_state_and_loader_exist(self) -> None:
         self.assertIn("voiceCatalog:{items:[]}", self.js)
-        self.assertIn("async function loadVoiceCatalog()", self.js)
+        self.assertIn("async function loadVoiceCatalog(bookIdOverride=null)", self.js)
         self.assertIn("/api/voice-catalog", self.js)
         self.assertIn("function voiceCatalogItems()", self.js)
         self.assertIn("function voiceCatalogItem(key)", self.js)

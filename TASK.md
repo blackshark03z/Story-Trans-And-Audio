@@ -238,6 +238,67 @@ EXPECTED_SCROLL_BEHAVIOR=page owns primary scroll; queue may scroll on wide desk
 ARCHETYPE_RATIONALE=the owner needs list context while inspecting one audio, but narrow screens need full-width readable rows
 ```
 
+### Contextual custom voice creation and return
+
+```text
+UX_CONTRACT
+PRIMARY_USER=Owner resolving a missing or unsuitable character voice inside the current production scope
+PRIMARY_JOURNEY=character voice field -> add custom voice for the current Book -> save one sample-backed usable voice -> explicitly use it -> return to the exact field with an unsaved preselection
+PRIMARY_SURFACE=the existing Thêm giọng mới action beside the character or Book voice selector
+INFORMATION_HIERARCHY=custom voice creation first during a create detour; current Book and return destination supporting; existing voice management, revisions, and provider preview secondary
+SCOPE_MODEL=a new custom voice belongs to the originating Book and becomes selectable only in that Book; the chapter range is preserved context, not voice ownership scope
+PRIMARY_CONTROLS=Tên giọng, audio tham chiếu, transcript chính xác, Lưu giọng, Dùng giọng này
+ADVANCED_CONTROLS=existing voice management, immutable revision history, preferred revision, deactivate/reactivate, and provider-backed preview remain available without leading the create flow
+STATES=loading; inline validation with retained inputs; saved-and-ready with exact voice identity; safe cancel/no-change; stale return context rejected
+BULK_DESTRUCTIVE=NOT_APPLICABLE
+DISCOVERABILITY=Thêm giọng mới opens and focuses the creation form rather than the generic selected-voice detail
+ACCESSIBILITY=labelled inputs, status region, deterministic focus, explicit disabled reason, and keyboard-reachable use/return actions
+OWNER_PREFERENCE=owner requires a saved voice to appear immediately in the originating character voice list
+```
+
+```text
+CREATE_FLOW_CONTRACT
+TASK_GOAL=Create one usable Book-owned custom voice and make it available to the originating character voice selector
+LINEAR_OR_NONLINEAR=linear create-and-return path; library management remains a separate peer task
+STEPS=open from character/Book voice -> confirm Book scope -> enter name/audio/transcript -> Lưu giọng -> see saved-ready result -> Dùng giọng này -> verify unsaved selection at origin -> explicit Lưu applies it
+STEP_DEPENDENCIES=save requires all mandatory fields; use requires the exact successful active usable voice and a fresh Book-scoped catalog
+BACK_BEHAVIOR=return/cancel preserves production scope and unsaved source fields and does not substitute an old library selection
+NEXT_VALIDATION=validate before upload; verify returned voice identity and catalog selectability after save; reject stale origin before preselection
+FINAL_REVIEW_STEP=NOT_APPLICABLE because saving a local reference resource does not call TTS or alter an assignment
+PRIMARY_COMMIT_ACTION=Lưu giọng creates the logical voice and immutable first reference revision atomically
+CANCEL_EXIT_BEHAVIOR=Quay lại không thay đổi restores the exact origin without changing its selected voice
+DRAFT_PERSISTENCE=source assignment draft is preserved for the bounded same-tab detour; incomplete new-voice form is not persisted
+POST_SUBMIT_DESTINATION=saved-ready result in Voice Library, followed by explicit Dùng giọng này and unsaved preselection in the exact originating selector
+```
+
+```text
+UX_IMPLEMENTATION_REVIEW
+PRIMARY_SURFACE_DISCOVERABILITY=PASS: every current narrator/character voice selector exposes Thêm giọng custom locally
+SCOPE_CLARITY=PASS: Voice Library locks and names the originating Book; chapter 1-5 remains return context rather than voice ownership
+APPLY_REAPPLY_RESET_EXPLICITNESS=PASS: Lưu giọng creates the resource; Dùng giọng này preselects it; the originating Lưu action remains the only assignment commit
+ADVANCED_WITHOUT_DOMINATING=PASS: preset preview and revision management no longer lead the create detour
+DISABLED_STATE_EXPLANATION=PASS: Dùng giọng này stays disabled until an active selectable custom voice is explicitly selected
+BULK_DESTRUCTIVE_SAFETY=NOT_APPLICABLE
+VISIBLE_HIERARCHY=PASS: Book scope, create form, saved voices, then revision details
+CONTROL_DENSITY=PASS: one local create action per voice editor and one explicit use/return action group
+COHERENT_APPLICATION_COMPOSITION=PASS: create is a contextual detour from Gán giọng, not a competing production stage
+DESTRUCTIVE_DIFFERENTIATION=NOT_APPLICABLE
+EXISTING_WORKFLOW_PRESERVATION=PASS: source draft and exact chapter range survive create/cancel/use; no automatic assignment save
+INFORMATION_ARCHITECTURE=PASS: reusable Book voice is created in Giọng and consumed in Gán giọng
+NAVIGATION=PASS: runtime check returned from Hứa Thanh to the exact selector at Book 1, chapters 1-5
+WORKSPACE_LAYOUT=PASS: custom creation is first in create mode; supporting management remains below
+VIEWPORT_BUDGET=PASS: default runtime viewport reflows to the compact top navigation without horizontal overlap
+PERSISTENT_CONTEXTUAL_CONTROLS=PASS: the return banner states the destination and save boundary throughout the detour
+LAYOUT_ARCHETYPE_FIT=PASS: bounded contextual creation flow with progressive disclosure
+RESPONSIVE_WORKSPACE_BEHAVIOR=PASS: default narrow runtime view stacks controls and preserves readable labels
+VERTICAL_SPRAWL_REDUCED=PASS: preset section is hidden during the create intent and the form opens directly
+WORKSPACE_LAYOUT_SOLUTION=PASS: current Book custom-voice workspace is prioritized for creation
+CREATE_FLOW_COMPLETENESS=PASS: open -> locked Book -> create-ready form -> explicit use -> exact unsaved selector was exercised; isolated tests cover successful save/catalog refresh
+TECHNICAL_VALIDATION=PASS: 270 focused contract tests and 11 browser/voice-regression tests pass at final working tree
+CANDIDATE_PREVIEW=PASS: served runtime shows ChanLee on direct assignment entry, exact-scope cancel, explicit use, and no browser errors
+OWNER_ACCEPTANCE=REQUIRED: no new production voice was created during verification; owner should supply a real reference sample and approve the live save result
+```
+
 ## UX contract
 
 ```text
