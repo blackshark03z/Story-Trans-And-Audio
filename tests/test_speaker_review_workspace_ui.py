@@ -179,6 +179,12 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
         self.assertIn("speaker-review-batch-preview-grid", self.css)
         self.assertIn("speaker-review-batch-ruleline", self.css)
 
+    def test_completed_review_keeps_bulk_review_discoverable_without_repeat_action(self) -> None:
+        self.assertIn("renderCompletedSpeakerBatchState", self.js)
+        self.assertIn("Duyệt hàng loạt: 0 chờ", self.js)
+        self.assertIn("data-speaker-review-batch-complete", self.js)
+        self.assertIn("không còn đề xuất chờ duyệt", self.js)
+
     def test_approved_history_and_corrections_preserve_future_render_boundary(self) -> None:
         self.assertIn("review_history", self.js)
         self.assertIn("audit_event_id", self.js)
