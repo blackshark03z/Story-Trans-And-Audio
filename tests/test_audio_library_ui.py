@@ -293,6 +293,16 @@ class AudioLibraryUiTests(unittest.TestCase):
             self.css,
         )
 
+    def test_audio_review_player_stays_in_flow_and_cannot_cover_qa_when_scrolling(self) -> None:
+        legacy_sticky = ".audio-library-player{position:sticky"
+        review_override = ".audio-review-detail .audio-library-player{position:static;top:auto;z-index:auto}"
+        self.assertIn(legacy_sticky, self.css)
+        self.assertIn(review_override, self.css)
+        self.assertGreater(self.css.index(review_override), self.css.rindex(legacy_sticky))
+        player = self.html.split('id="audioLibraryPlayer"', 1)[1].split("</div>\n            <section", 1)[0]
+        self.assertIn('id="audioArtifactConfiguration"', player)
+        self.assertIn('id="audioLibraryQaPanel"', self.html)
+
     def test_audio_removal_is_a_separate_confirmed_selection_flow(self) -> None:
         for value in (
             'id="audioDeleteMode"',

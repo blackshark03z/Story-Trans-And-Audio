@@ -81,6 +81,69 @@ closure or when disk/worktree pressure directly blocks this Goal.
 
 ## Current bounded UX correction
 
+### Audio detail scroll correction
+
+```text
+UX_CONTRACT
+PRIMARY_USER=Owner listening to and reviewing one completed chapter audio
+PRIMARY_JOURNEY=select an audio row -> listen/read its metadata -> review or act in Human QA -> inspect optional history/details
+PRIMARY_SURFACE=Duyệt audio detail pane
+INFORMATION_HIERARCHY=selected audio and player first; Human QA immediately after; immutable configuration and technical history remain optional disclosures
+SCOPE_MODEL=the currently selected audio only; scrolling never changes selection or QA state
+PRIMARY_CONTROLS=player, download/export, and available Human QA action
+ADVANCED_CONTROLS=configuration snapshot, repair details, QA history, and technical details
+STATES=empty selection, selected audio, accepted, needs-fixes, loading/error behavior remain unchanged
+BULK_DESTRUCTIVE=NOT_APPLICABLE
+DISCOVERABILITY=detail follows the selected queue row without a floating layer obscuring later controls
+ACCESSIBILITY=source order and keyboard order match the visible scroll order; no sticky overlap hides focused controls
+OWNER_PREFERENCE=NONE; this restores the already visible document order reported by the owner
+```
+
+```text
+WORKSPACE_CONTRACT
+PRIMARY_TASK=listen to one selected audio and complete or inspect Human QA
+PRIMARY_WORKSPACE=master-detail audio workspace
+PERSISTENT_REGIONS=queue and selected detail column; the top application shell remains fixed
+CONTEXTUAL_REGIONS=selected audio player, QA controls, configuration, history, and technical details
+NAVIGATION_MODEL=select a queue row, then scroll naturally through that row's detail
+LAYOUT_ARCHETYPE=master-detail desktop, stacked detail and queue at narrower widths
+VIEWPORT_BUDGET=detail content uses one continuous readable column without overlapping layers
+CONTENT_REPLACEMENT_STRATEGY=the selected detail replaces the empty state
+ADVANCED_CONTROL_STRATEGY=configuration and history remain disclosures in normal document flow
+EXPECTED_SCROLL_BEHAVIOR=page/detail content scrolls in source order; the player is not sticky inside the Audio review detail and never covers Human QA
+ARCHETYPE_RATIONALE=the owner needs list context beside detail, but no detail subsection is important enough to obscure another action
+```
+
+```text
+UX_IMPLEMENTATION_REVIEW
+PRIMARY_SURFACE_DISCOVERABILITY=PASS: existing Duyệt audio master-detail surface
+SCOPE_CLARITY=PASS: selected chapter identity remains visible in detail
+APPLY_REAPPLY_RESET_EXPLICITNESS=NOT_APPLICABLE
+ADVANCED_WITHOUT_DOMINATING=PASS: configuration/history remain disclosures in document flow
+DISABLED_STATE_EXPLANATION=NOT_APPLICABLE
+BULK_DESTRUCTIVE_SAFETY=NOT_APPLICABLE
+VISIBLE_HIERARCHY=PASS: player precedes Human QA without overlap
+CONTROL_DENSITY=PASS: no controls added
+COHERENT_APPLICATION_COMPOSITION=PASS: master-detail composition preserved
+DESTRUCTIVE_DIFFERENTIATION=NOT_APPLICABLE
+EXISTING_WORKFLOW_PRESERVATION=PASS: CSS-only positioning correction plus regression coverage
+INFORMATION_ARCHITECTURE=PASS: selected output and QA relationship unchanged
+NAVIGATION=PASS: route and selection behavior unchanged
+WORKSPACE_LAYOUT=PASS: detail subsections remain in one non-overlapping flow
+VIEWPORT_BUDGET=PASS: Chromium 1366x768 geometry check
+PERSISTENT_CONTEXTUAL_CONTROLS=PASS: application shell stays persistent; detail content does not float
+LAYOUT_ARCHETYPE_FIT=PASS: master-detail remains legible
+RESPONSIVE_WORKSPACE_BEHAVIOR=PASS: existing <=1100px stacked rule preserved
+VERTICAL_SPRAWL_REDUCED=NOT_APPLICABLE
+WORKSPACE_LAYOUT_SOLUTION=PASS: removed the conflicting sticky layer
+TASK_FLOW_ARCHITECTURE=PASS: listen -> QA source order now matches visible order
+LINEAR_MULTISTEP_REASONING=NOT_APPLICABLE
+REVIEW_BEFORE_COMMIT=NOT_APPLICABLE
+EXECUTION_STATE_SEPARATION=PASS: no production execution state changed
+RESOURCE_MANAGEMENT_SEPARATION=PASS: fix remains within Audio resource review
+POST_COMPLETION_DESTINATION=NOT_APPLICABLE
+```
+
 ```text
 UX_CONTRACT
 PRIMARY_USER=Owner reviewing completed chapter audio and removing outputs that are no longer wanted

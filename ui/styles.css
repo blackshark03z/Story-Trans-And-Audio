@@ -645,6 +645,9 @@ input,select,textarea{border-color:#c5ceda!important;color:var(--color-text)!imp
 /* Audio queue rows also carry the legacy card class. Keep this five-column grid authoritative. */
 .audio-review-table-head,.audio-library-card.audio-review-row{grid-template-columns:minmax(145px,1.45fr) minmax(90px,.9fr) minmax(65px,.55fr) minmax(100px,.8fr) minmax(90px,.8fr);gap:10px;align-items:center;padding:10px 12px}
 .audio-library-card.audio-review-row{border-radius:0}
+/* The shared library player is sticky on legacy screens. In master-detail review it
+   must remain in document flow so its configuration disclosure cannot cover QA. */
+.audio-review-detail .audio-library-player{position:static;top:auto;z-index:auto}
 .audio-delete-toolbar{display:grid;gap:8px;margin:12px 0 0;padding:10px 12px;border:1px solid var(--color-border);border-radius:10px;background:var(--color-surface-subtle)}
 .audio-delete-toolbar>div,.audio-delete-actions,.audio-delete-dialog-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .audio-delete-safety{margin:0;font-size:12px}
