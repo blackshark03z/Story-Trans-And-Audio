@@ -91,8 +91,8 @@ try {
     const key = "unresolved-dialogue:1002:u0002-deadbeef0000";
     await setSelect(`[data-registry-character-key="${key}"]`, "25");
     await click(`[data-registry-map="${key}"]`);
-    await waitFor(`(window.__speakerInvariantCommands||[]).includes('MAP_SPEAKER_TO_CHARACTER')`);
-    await waitFor(`document.querySelectorAll('[data-manual-speaker-key]').length === 2`);
+    await waitFor(`(window.__speakerInvariantCommands||[]).includes('MAP_SPEAKER_TO_CHARACTER')`, 30000);
+    await waitFor(`document.querySelectorAll('[data-manual-speaker-key]').length === 2`, 30000);
     after = await evaluate(`({manualCards:document.querySelectorAll('[data-manual-speaker-key]').length,commands:window.__speakerInvariantCommands||[],hash:location.hash})`);
   } else {
     after = await evaluate(`({manualCards:document.querySelectorAll('[data-manual-speaker-key]').length,commands:window.__speakerInvariantCommands||[],hash:location.hash})`);

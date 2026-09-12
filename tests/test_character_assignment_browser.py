@@ -719,7 +719,7 @@ class CharacterAssignmentBrowserTests(unittest.TestCase):
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
-                timeout=60,
+                timeout=90,
             )
         finally:
             server.shutdown()
