@@ -25,7 +25,11 @@ class ProjectCiContractTests(unittest.TestCase):
         self.assertEqual(source, "buildos-policy")
         policy = json.loads((ROOT / ".buildos-policy.json").read_text(encoding="utf-8"))
         expected = [
-            (f"buildos:{gate['id']}", "test", gate["argv"])
+            (
+                f"buildos:{gate['id']}",
+                "test",
+                [project_ci.sys.executable, *gate["argv"][1:]],
+            )
             for gate in policy["project_lifecycle"]["quality_gates"]
         ]
         self.assertEqual(
@@ -48,6 +52,14 @@ class ProjectCiContractTests(unittest.TestCase):
                 "unittest",
                 "tests.test_project_ci_contract",
             ],
+        )
+
+    def test_windows_policy_python_is_bound_to_ci_interpreter(self) -> None:
+        self.assertEqual(
+            project_ci._bind_python(
+                [r"D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe", "-m", "unittest"]
+            ),
+            [project_ci.sys.executable, "-m", "unittest"],
         )
 
 

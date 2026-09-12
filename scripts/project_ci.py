@@ -28,12 +28,18 @@ def buildos_policy_checks(root:Path)->list[tuple[str,str,list[str]]]:
         argv=gate.get('argv')
         if not gate_id or not isinstance(argv,list) or not argv or not all(isinstance(item,str) and item for item in argv):
             raise ValueError('invalid Build OS project lifecycle quality gate')
-        checks.append((f'buildos:{gate_id}','test',argv))
+        checks.append((f'buildos:{gate_id}','test',_bind_python(argv)))
     return checks
 
 def executable_project(root:Path)->bool:
     markers=('package.json','pyproject.toml','setup.py','setup.cfg','requirements.txt','go.mod','Cargo.toml','composer.json')
     return any((root/m).is_file() for m in markers) or any((root/d).exists() for d in ('src','app','server','packages'))
+
+def _bind_python(argv:list[str])->list[str]:
+    bound=list(argv)
+    executable=bound[0].replace('\\','/').rsplit('/',1)[-1].casefold() if bound else ''
+    if executable in {'python','python3','python.exe','python3.exe'}:bound[0]=sys.executable
+    return bound
 
 def _cmd(value:str)->list[str]|None:
     if not value or value.strip().upper() in PLACEHOLDERS:return None
@@ -41,8 +47,7 @@ def _cmd(value:str)->list[str]|None:
     # A Product CI run must keep the interpreter selected by the caller. On
     # Windows, resolving a literal `python` in a child process can silently
     # escape the active venv and execute an unrelated PATH installation.
-    if argv and argv[0].casefold() in {'python','python3'}:argv[0]=sys.executable
-    return argv
+    return _bind_python(argv)
 
 def _declared_caps(raw:str)->set[str]:
     if not raw or raw.strip().upper() in PLACEHOLDERS:return set()
