@@ -333,9 +333,20 @@ class BookVoiceRegistryTests(IsolatedTestCase):
             self.db.fetch_one("SELECT COUNT(*) AS count FROM casting_plans")["count"]
         )
 
-    def test_narrator_range_override_persists_as_exact_approved_plan_revisions(self) -> None:
+    def test_narrator_range_override_persists_as_reviewable_draft_revisions(self) -> None:
         before_plans = self._plan_count()
+        before_approved = self._approved_plan_count()
         chapter_one = self._chapter(1)
+        previous_approved = self.db.fetch_one(
+            """
+            SELECT id,status,plan_sha256,content_path
+            FROM casting_plans
+            WHERE chapter_id=? AND status='approved'
+            ORDER BY plan_revision DESC,id DESC
+            LIMIT 1
+            """,
+            (int(chapter_one["id"]),),
+        )
         before_revision = int(
             self.db.fetch_one(
                 "SELECT MAX(plan_revision) AS revision FROM casting_plans WHERE chapter_id=?",
@@ -367,11 +378,29 @@ class BookVoiceRegistryTests(IsolatedTestCase):
             (int(chapter_one["id"]),),
         )
         self.assertEqual(int(latest["plan_revision"]), before_revision + 1)
-        self.assertEqual(latest["status"], "approved")
+        self.assertEqual(latest["status"], "draft")
+        self.assertEqual(self._approved_plan_count(), before_approved)
+        preserved = self.db.fetch_one(
+            "SELECT status,plan_sha256,content_path FROM casting_plans WHERE id=?",
+            (int(previous_approved["id"]),),
+        )
+        self.assertEqual(preserved["status"], "approved")
+        self.assertEqual(preserved["plan_sha256"], previous_approved["plan_sha256"])
+        self.assertEqual(preserved["content_path"], previous_approved["content_path"])
         latest_plan = get_plan(self.db, self.store, int(latest["id"]))["plan"]
         narrator_items = [item for item in latest_plan["utterances"] if item["role"] == "narrator"]
         self.assertTrue(narrator_items)
         self.assertTrue(all(item["resolved_voice_id"] == "male" for item in narrator_items))
+        approved = approve_plan(self.db, self.store, int(latest["id"]))
+        self.assertEqual(approved["status"], "approved")
+        self.assertEqual(self._approved_plan_count(), before_approved)
+        self.assertEqual(
+            self.db.fetch_one(
+                "SELECT status FROM casting_plans WHERE id=?",
+                (int(previous_approved["id"]),),
+            )["status"],
+            "archived",
+        )
         self.assertIsNone(
             self.db.fetch_one(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='pending_chapter_voice_overrides'"
@@ -594,14 +623,15 @@ class BookVoiceRegistryTests(IsolatedTestCase):
         chapter = self._chapter(3)
         plan_row = self.db.fetch_one(
             """
-            SELECT id
+            SELECT id,status
             FROM casting_plans
-            WHERE chapter_id=? AND status='approved'
+            WHERE chapter_id=?
             ORDER BY plan_revision DESC,id DESC
             LIMIT 1
             """,
             (int(chapter["id"]),),
         )
+        self.assertEqual(plan_row["status"], "draft")
         plan = get_plan(self.db, self.store, int(plan_row["id"]))["plan"]
         unknown_item = next(item for item in plan["utterances"] if item["role"] == "unknown")
         self.assertEqual(unknown_item["resolved_voice_id"], "female")

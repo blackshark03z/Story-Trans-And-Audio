@@ -350,7 +350,7 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
         voices = {}
         for chapter in chapter_rows:
             plan_row = self.db.fetch_one(
-                "SELECT id FROM casting_plans WHERE chapter_id=? AND status='approved' ORDER BY plan_revision DESC,id DESC LIMIT 1",
+                "SELECT id FROM casting_plans WHERE chapter_id=? ORDER BY plan_revision DESC,id DESC LIMIT 1",
                 (int(chapter["id"]),),
             )
             plan = get_plan(self.db, self.store, int(plan_row["id"]))["plan"]

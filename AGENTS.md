@@ -11,9 +11,20 @@ standard, not as a lifecycle engine. Keep exactly one active Product Goal and
 Critical User Journey (CUJ) in `TASK.md`; internal commits/checkpoints are
 evidence, not new phases or completion claims.
 
+This root `AGENTS.md` is the minimum CADS activation contract. On first contact
+or stale context, reconstruct current reality from `TASK.md`, `ARCHITECTURE.md`,
+the active `docs/decisions/` index, Git/source, tests and the identified runtime
+before planning. When the CADS skill library is reachable, open only the routed
+playbook needed for the current event; otherwise follow this minimum contract
+and do not claim that an unavailable playbook was executed.
+
 Route work by event:
 
-- unclear/new owner outcome -> Product Goal Framing;
+- unclear/new owner outcome or material design uncertainty -> Product / Design
+  Framing;
+- a durable system-shape, technology, runtime, state, deployment, ownership or
+  authority decision -> Architecture Description, only to the depth justified by
+  its consequence;
 - normal bounded implementation -> Goal Execution;
 - a user-visible blocker/regression in the active journey -> Systematic Debugging,
   remove the first real blocker, then immediately resume the same CUJ/fixture;
@@ -52,6 +63,12 @@ fixture. Do not reintroduce legacy Build OS lifecycle commands, generations,
 leases, adoption, recovery, or record-commit workflows. Historical Build OS
 material remains evidence only.
 
+Accepted material direction that could change a later session's scope,
+architecture, authoritative path, acceptance or expensive line of investigation
+belongs in `docs/decisions/`. Keep the active index short and do not create
+records for routine reversible edits. `TASK.md` remains current context rather
+than historical decision authority.
+
 For Story Audio user-facing changes, preserve these project-specific interaction
 invariants:
 
@@ -86,8 +103,9 @@ UI Quality Review, not changes to the universal CADS Standard.
 
 ## Current context
 
-`TASK.md` records the active product objective. `ARCHITECTURE.md` and
-`docs/DAILY_PRODUCTION_WORKFLOW.md` define durable product behavior; Git and
-tests are the truth for current implementation. `README.md` is the operator and
-developer entry point. Treat old `NEXT_TASK.md`, `PROJECT_STATUS.md`, `.ai/`,
-and Build OS package material as historical unless a current source verifies it.
+`TASK.md` records the active product objective. `ARCHITECTURE.md`, the active
+`docs/decisions/` index, and `docs/DAILY_PRODUCTION_WORKFLOW.md` define durable
+architecture, accepted direction and product behavior; Git and tests are the
+truth for current implementation. `README.md` is the operator and developer
+entry point. Treat old `NEXT_TASK.md`, `PROJECT_STATUS.md`, `.ai/`, and Build OS
+package material as historical unless a current source verifies it.

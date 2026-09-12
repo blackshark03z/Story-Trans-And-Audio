@@ -94,29 +94,20 @@ The owner can complete the full journey without knowing internal routes, hidden 
 
 Until UAT-12 passes, the verdict remains owner-acceptance pending/blocked rather than PRODUCT_COMPLETE.
 
-## UAT-13 — Restore a previously accepted audio generation
+## UAT-13 — One current audio per chapter
 
-- In `Duyệt audio`, the QA history is the single discovery point for earlier generations of the selected chapter.
-- Only the newest Human QA result for an exact historical Artifact may offer `Khôi phục làm bản hiện tại`, and only when that result is `Đã chấp nhận` with matching Job, SHA-256, duration, verified file and completed Job binding.
-- The owner sees the chapter and Artifact identity and must confirm the switch explicitly.
-- Restore changes only the chapter's active-output pointer, Artifact active/stale status, and authoritative approval snapshot in one transaction. It preserves every Artifact file, Job, Casting Plan, Text Revision and audit event.
-- Restore is rejected if the active Artifact changed since the screen loaded, the file/evidence changed, or a render for the chapter is active. It never invokes PREPARE, START_RENDER, TTS, Gemini, repair or regeneration.
-- After success, the Audio Review detail refreshes to the restored Artifact without autoplay; the displaced Artifact remains available as history and can only become current again if it independently has exact accepted QA evidence.
-
-### UX contract for UAT-13
-
-- Entry point: selected chapter in `Duyệt audio` → `Lịch sử QA`.
-- Primary action stays `Nghe và duyệt`; restore is a secondary resource-history action, not a competing primary CTA.
-- Loading and failure remain local to QA history. A rejected restore keeps the current player and active output unchanged and tells the owner to reload or resolve the specific blocker.
-- Keyboard and responsive behavior use the existing native button/details controls; the action must not create horizontal overflow at the supported 1366×768 desktop viewport.
-
-### Resource library contract for accepted audio
-
-- Stable asset identity is `Artifact.id`; filename, Job identity, SHA-256, duration and Human QA audit evidence are metadata, not a replacement identity.
-- Durable library state lives in SQLite plus the immutable Artifact file. Browser state is only a projection and must supply the exact active Artifact it observed.
-- Reuse policy is explicit activation of an already accepted Artifact. Replacement/regeneration is a different Production journey and must never occur as fallback.
-- Historical accepted Artifacts remain visible through QA history; superseding changes active/stale status without deleting history.
-- Missing file, changed hash/size, missing approval evidence, stale active pointer and active render all fail closed.
+- Each chapter has at most one current audio bundle in `Duyệt audio`.
+- A newly verified render replaces the current bundle, clears the previous QA
+  decision and appears as `Chờ Human QA`; it never inherits approval from an
+  older output.
+- After the current pointer changes, the superseded final audio, master WAV,
+  timeline and segment WAV files are deleted. There is no QA-history or restore
+  action for old audio.
+- `Xóa mục đã chọn` and `Xóa tất cả đang hiển thị` permanently delete the exact
+  selected current audio bundles after scope preview and explicit confirmation.
+- Deleting or replacing audio does not delete the Book, current text, Casting
+  Plan, Job record, or custom voice/revisions. It never invokes PREPARE,
+  START_RENDER, TTS, Gemini, repair, or regeneration.
 
 ## Non-goals for the current blocker fix
 

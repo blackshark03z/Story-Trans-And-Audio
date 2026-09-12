@@ -100,6 +100,15 @@ class AudioLibraryUiTests(unittest.TestCase):
         unknown_tail = block[block.index("return{label:'Chưa xác định'") :]
         self.assertNotIn("accepted", unknown_tail)
 
+    def test_pending_filter_and_summary_share_the_same_status_group(self) -> None:
+        group = self._function_block("audioQaFilterGroup")
+        summary = self._function_block("renderAudioReviewSummary")
+        filtered = self._function_block("filteredAudioLibraryItems")
+        self.assertIn("String(status||'pending').toLowerCase()", group)
+        self.assertIn("audioQaFilterGroup(item.human_qa_status)===status", summary)
+        self.assertIn("set('audioPendingCount',count('pending'))", summary)
+        self.assertIn("audioQaFilterGroup(item.human_qa_status)!==qa", filtered)
+
     def test_repair_feedback_separates_playback_and_replacement_speed(self) -> None:
         for value in (
             'id="audioQaPlaybackSpeed"',
@@ -111,29 +120,33 @@ class AudioLibraryUiTests(unittest.TestCase):
             "Gửi yêu cầu sửa",
         ):
             self.assertIn(value, self.html)
-        self.assertIn("Xem kế hoạch sửa", self.js)
+        self.assertIn("Tiếp tục sửa audio", self.js)
         self.assertIn("audio.playbackRate=Number(event.target.value||1)", self.js)
         self.assertIn("global_speed_target:speed", self.js)
         self.assertIn("repeated_words:repeated", self.js)
         self.assertIn("local_pacing_adjustment_required:local", self.js)
         self.assertIn("position_markers:state.audioQa.markers", self.js)
-        self.assertIn("if(changed)state.audioQa.markers=[]", self.js)
+        self.assertIn("if(changed)state.audioQa.markers=savedAudioQaMarkers(item)", self.js)
+        self.assertIn("draft={repeated:Boolean($('#audioQaRepeatedWords')?.checked)", self.js)
+        self.assertIn("$('#audioQaRepeatedWords').checked=draft.repeated", self.js)
         self.assertIn("submit.disabled=true", self.js)
         self.assertIn("Đang lưu phản hồi…", self.js)
         self.assertIn("qa_feedback", self.js)
 
-    def test_repair_plan_confirmation_is_a_separate_single_action(self) -> None:
+    def test_repair_request_opens_one_combined_review_and_keeps_media_gates_separate(self) -> None:
         block = self._function_block("productionRepairPlanContent")
         for value in (
-            "Kế hoạch sửa Chương",
+            "Kiểm tra toàn bộ bản sửa",
             "Khắc phục đoạn bị lặp chữ",
-            "Xác nhận kế hoạch sửa",
+            "Xác nhận bản sửa",
             "Quay lại nghe audio",
-            "Áp dụng sửa chữa",
+            "Vị trí cần xử lý",
             "Chi tiết kỹ thuật",
         ):
             self.assertIn(value, block)
         self.assertIn("CONFIRM_REPAIR_PLAN", self.js)
+        self.assertIn("APPLY_REPAIR_PLAN", self.js)
+        self.assertIn("CONFIRM_REPAIR_DRAFT", self.js)
         self.assertIn("repairPlanRequestedFromHash", self.js)
         self.assertIn("repair_plan=1", self.js)
         self.assertIn("openAudioQaRepairPlan", self.js)
@@ -141,6 +154,8 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertIn("REPAIR_PLAN_OPEN_STORAGE_KEY", self.js)
         self.assertIn("consumeRepairPlanOpen", self.js)
         self.assertNotIn("PREPARE", block)
+        submit = self._function_block("submitAudioQa")
+        self.assertIn("await openAudioQaRepairPlan(previous)", submit)
 
     def test_playback_and_download_use_only_api_safe_relative_url(self) -> None:
         safe_block = self._function_block("safeAudioLibraryUrl")
@@ -244,7 +259,7 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertNotIn("/human-approval", audio_related)
         self.assertIn("HUMAN_QA_ACCEPT", self.js)
         self.assertIn("HUMAN_QA_NEEDS_FIXES", self.js)
-        self.assertIn("RESTORE_ACCEPTED_ARTIFACT", self.js)
+        self.assertNotIn("RESTORE_ACCEPTED_ARTIFACT", self.js)
         self.assertIn("/api/production/commands", self.js)
         submit = self._function_block("submitAudioQa")
         self.assertIn("runProductionCommand", submit)
@@ -253,16 +268,11 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertNotIn("Chapter 369", self.html + self.js + self.css)
         self.assertNotIn("chapter 369", self.html + self.js + self.css)
 
-    def test_accepted_history_exposes_confirmed_restore_without_rendering(self) -> None:
-        self.assertIn('id="audioQaHistory"', self.html)
-        self.assertIn("Khôi phục làm bản hiện tại", self.js)
-        restore = self._function_block("restoreAcceptedAudioArtifact")
-        self.assertIn("window.confirm", restore)
-        self.assertIn("expected_active_artifact_id", restore)
-        self.assertIn("RESTORE_ACCEPTED_ARTIFACT", restore)
-        self.assertIn("runProductionCommand", restore)
-        for forbidden in ("PREPARE", "START_RENDER", "/api/jobs", "/api/voice-previews"):
-            self.assertNotIn(forbidden, restore)
+    def test_audio_review_does_not_expose_history_or_restore(self) -> None:
+        self.assertNotIn('id="audioQaHistory"', self.html)
+        self.assertNotIn("Khôi phục làm bản hiện tại", self.js)
+        self.assertNotIn("restoreAcceptedAudioArtifact", self.js)
+        self.assertNotIn("RESTORE_ACCEPTED_ARTIFACT", self.js)
 
     def test_production_stage_accessibility_label_matches_four_visible_stages(self) -> None:
         self.assertIn('aria-label="Bốn giai đoạn sản xuất"', self.html)
@@ -303,6 +313,48 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertIn('id="audioArtifactConfiguration"', player)
         self.assertIn('id="audioLibraryQaPanel"', self.html)
 
+    def test_machine_triage_sits_between_player_and_human_qa_and_discards_stale_response(self) -> None:
+        player = self.html.index('id="audioLibraryPlayer"')
+        machine = self.html.index('id="automatedAudioQaPanel"')
+        human = self.html.index('id="audioLibraryQaPanel"')
+        self.assertLess(player, machine)
+        self.assertLess(machine, human)
+        for value in (
+            "Điểm máy &amp; đoạn cần nghe",
+            'id="automatedAudioQaSummary"',
+            'id="automatedAudioQaScore"',
+            "Độ đúng lời đọc, độ giống giọng và độ tự nhiên chưa được chấm tự động.",
+            "automatedAudioQaIdentity(selected)!==identity",
+            "requestId!==automatedAudioQaState().requestId",
+            "/api/audio-library/${Number(item.artifact_id)}/automated-qa",
+            "pointTime=formatDurationMs(point.timestamp_ms)||'0:00'",
+            "audio.currentTime=Math.max(0,Number(point.timestamp_ms||0)/1000)",
+            "if(options.force){const current=automatedAudioQaState();state.audioLibrary.automatedQa={state:'not_loaded'",
+            "Có thể mất khoảng 1 phút; Player và Human QA vẫn dùng được.",
+            "assessment.technical_score",
+            "assessment.coverage_percent",
+            "Tiếp theo:",
+            "Máy phát hiện ${Number(resultSummary.risk_count||0)} dấu hiệu kỹ thuật và gom thành ${points.length} điểm cần nghe.",
+            "points.slice(0,5)",
+            "Xem thêm ${remaining} điểm",
+            "Thu gọn danh sách",
+            "if(changed){const detail=$('#audioReviewDetail');if(detail)detail.scrollTop=0}",
+        ):
+            self.assertIn(value, self.html + self.js)
+        self.assertNotIn("localStorage.setItem('automated", self.js)
+        self.assertIn(".automated-audio-qa-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))", self.css)
+        self.assertIn(".automated-audio-qa-shortlist,.automated-audio-qa-more-list{display:grid;gap:7px}", self.css)
+        self.assertIn("grid-template-columns:48px minmax(0,1fr)", self.css)
+        self.assertIn("height:auto!important;min-height:0", self.css)
+        self.assertIn("-webkit-line-clamp:2", self.css)
+        self.assertNotIn(".automated-audio-qa-shortlist{max-height:", self.css)
+
+    def test_audio_review_detail_and_repair_form_own_readable_layout(self) -> None:
+        self.assertIn("@media(min-width:1101px){.audio-review-detail{position:sticky", self.css)
+        self.assertIn("max-height:calc(100vh - var(--ux-topbar-height) - 24px);overflow-y:auto", self.css)
+        self.assertIn(".audio-qa-feedback-options label{display:grid;grid-template-columns:20px minmax(0,1fr)", self.css)
+        self.assertIn('.audio-qa-feedback-options input[type="checkbox"]{width:18px!important', self.css)
+
     def test_audio_removal_is_a_separate_confirmed_selection_flow(self) -> None:
         for value in (
             'id="audioDeleteMode"',
@@ -310,7 +362,7 @@ class AudioLibraryUiTests(unittest.TestCase):
             'id="audioDeleteAllVisible"',
             'id="audioDeleteDialog"',
             'id="audioDeleteConfirmation"',
-            "File, Job và lịch sử QA vẫn được giữ",
+            "Job, văn bản, cấu hình giọng và custom voice vẫn được giữ",
         ):
             self.assertIn(value, self.html)
         self.assertIn("audioDeleteSelectedIds()", self.js)

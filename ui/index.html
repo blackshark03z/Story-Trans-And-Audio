@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Story Audio</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="/assets/styles.css?v=20260911-voice-detail-1">
+  <link rel="stylesheet" href="/assets/styles.css?v=20260913-unified-repair-2">
   <style>
     .casting-journey{display:grid;gap:12px;margin:16px 0;padding:16px;border:1px solid var(--color-border);border-radius:5px;background:var(--color-surface-subtle)}.casting-journey-head{display:flex;justify-content:space-between;align-items:start;gap:12px}.casting-journey-head h3{margin:2px 0;font-size:18px}.casting-journey-head>span{padding:5px 8px;border-radius:3px;background:var(--color-primary-soft);color:var(--color-primary);font-size:12px;font-weight:800;white-space:nowrap}.casting-journey-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0;padding:0;list-style:none}.casting-journey-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 10px;border:1px solid var(--color-border);border-radius:4px;background:var(--color-surface)}.casting-journey-list li>div{display:grid;gap:2px}.casting-journey-list strong{font-size:12px}.casting-journey-list span{font-size:11px;color:var(--muted)}.casting-journey-list li.complete{border-color:#b9d8d2;background:var(--color-success-soft)}.casting-journey-list li.complete strong:before{content:'✓ ';color:var(--color-success)}.casting-journey-list li.current{border-color:#e4c48c;background:var(--color-warning-soft)}.casting-journey-list li.current strong:before{content:'→ ';color:var(--color-warning)}.casting-journey-list li.blocked{background:var(--color-surface-subtle);opacity:.75}.casting-journey-list .text-action{font-size:11px;white-space:nowrap}@media(max-width:760px){.casting-journey-head{display:grid}.casting-journey-list{grid-template-columns:1fr}}
   </style>
@@ -617,7 +617,7 @@
                 <button id="audioDeleteAllVisible" class="danger-action danger-outline" type="button">Xóa tất cả đang hiển thị</button>
                 <button id="audioDeleteExit" class="ghost" type="button">Thoát chọn</button>
               </div>
-              <p class="audio-delete-safety muted">“Xóa” chỉ bỏ bản hiện tại khỏi thư viện và đưa chương về trạng thái có thể tạo lại. File, Job và lịch sử QA vẫn được giữ.</p>
+              <p class="audio-delete-safety muted">“Xóa” xóa vĩnh viễn file audio hiện tại và đưa chương về trạng thái có thể tạo lại. Job, văn bản, cấu hình giọng và custom voice vẫn được giữ.</p>
             </div>
             <div id="audioLibraryList" class="audio-library-list audio-review-table" role="table" aria-label="Danh sách audio đã tạo"></div>
             <div id="audioLibraryEmpty" class="audio-library-empty hidden">
@@ -655,6 +655,45 @@
                 <pre id="audioArtifactConfigurationBody" class="audio-artifact-configuration-body muted">Mở để xem snapshot render bất biến.</pre>
               </details>
             </div>
+            <section id="automatedAudioQaPanel" class="automated-audio-qa hidden" aria-labelledby="automatedAudioQaHeading" aria-live="polite">
+              <div>
+                <p class="eyebrow">Máy kiểm tra</p>
+                <h3 id="automatedAudioQaHeading">Điểm máy &amp; đoạn cần nghe</h3>
+                <p id="automatedAudioQaStatus" class="muted">Chọn audio hiện tại để kiểm tra kỹ thuật.</p>
+              </div>
+              <div id="automatedAudioQaSummary" class="automated-audio-qa-summary hidden">
+                <div><strong id="automatedAudioQaScore">—</strong><span>Điểm kỹ thuật</span></div>
+                <div><strong id="automatedAudioQaCoverage">—</strong><span>Đã kiểm tra sâu</span></div>
+                <div><strong id="automatedAudioQaConfidence">—</strong><span>Mức tin cậy</span></div>
+              </div>
+              <p id="automatedAudioQaLimit" class="automated-audio-qa-limit hidden">Hiện máy chỉ chấm kỹ thuật. Độ đúng lời đọc, độ giống giọng và độ tự nhiên chưa được chấm tự động.</p>
+              <div id="automatedAudioQaShortlist" class="automated-audio-qa-shortlist"></div>
+              <div id="automatedAudioQaRepairBar" class="automated-audio-qa-repair-bar hidden">
+                <div>
+                  <strong>Một bản sửa cho cả chương</strong>
+                  <span id="automatedAudioQaRepairSelection">Chưa có điểm nào được chọn.</span>
+                </div>
+                <button id="automatedAudioQaCreateRepairRequest" class="primary" type="button">Tạo một yêu cầu sửa</button>
+              </div>
+              <section id="automatedAudioQaCandidate" class="automated-audio-qa-candidate hidden" aria-labelledby="automatedAudioQaCandidateHeading">
+                <div>
+                  <p class="eyebrow">Bản sửa thử cho đúng đoạn</p>
+                  <h4 id="automatedAudioQaCandidateHeading">So sánh trước khi thay audio</h4>
+                  <p id="automatedAudioQaCandidateStatus" class="muted"></p>
+                </div>
+                <div id="automatedAudioQaCandidateComparison" class="automated-audio-qa-candidate-comparison"></div>
+                <div class="automated-audio-qa-ab">
+                  <label>Bản hiện tại<audio id="automatedAudioQaCurrentSegment" controls preload="metadata" aria-label="Nghe đoạn hiện tại"></audio></label>
+                  <label>Bản sửa thử<audio id="automatedAudioQaCandidateSegment" controls preload="metadata" aria-label="Nghe đoạn sửa thử"></audio></label>
+                </div>
+                <p class="automated-audio-qa-candidate-effect">Chưa thay audio chương và chưa đưa ra kết luận Human QA.</p>
+                <div class="automated-audio-qa-candidate-actions">
+                  <button id="automatedAudioQaDiscardCandidate" class="secondary" type="button">Giữ bản hiện tại</button>
+                  <button id="automatedAudioQaAcceptCandidate" class="primary" type="button" data-runtime-mutation-control>Dùng bản sửa</button>
+                </div>
+              </section>
+              <p id="automatedAudioQaNext" class="automated-audio-qa-next hidden"></p>
+            </section>
             <section id="audioLibraryQaPanel" class="audio-library-qa-panel hidden" aria-labelledby="audioQaHeading">
               <div class="audio-qa-heading">
                 <div>
@@ -703,10 +742,6 @@
                 </div>
               </details>
               <div id="audioQaResult" class="audio-qa-result hidden" aria-live="polite"></div>
-              <details class="audio-qa-history-details">
-                <summary>Lịch sử QA</summary>
-                <div id="audioQaHistory" class="qa-history muted">Chưa tải lịch sử.</div>
-              </details>
               <details>
                 <summary>Chi tiết kỹ thuật</summary>
                 <div id="audioQaVoiceSummary" class="muted"></div>
@@ -1255,7 +1290,7 @@
   </dialog>
   <div id="toast" class="toast hidden"></div>
   <script src="/assets/production_state.js?v=20260727-production-preflight-1"></script>
-  <script src="/assets/app.js?v=20260911-voice-detail-1"></script>
+  <script src="/assets/app.js?v=20260913-unified-repair-2"></script>
   <script src="/assets/casting_voice_map.js?v=20260726-vietnamese-flow-3"></script>
   <script src="/assets/contextual_voice_detour.js?v=20260911-voice-detail-1"></script>
 </body>

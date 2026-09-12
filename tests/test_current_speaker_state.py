@@ -244,7 +244,7 @@ class CurrentSpeakerStateTests(IsolatedTestCase):
         self.assertEqual(state["unresolved_count"], 1)
         self.assertTrue(state["blocks_progress"])
 
-    def test_narrator_only_voice_override_creates_current_plan_without_old_draft(self) -> None:
+    def test_narrator_only_voice_override_creates_reviewable_draft_without_old_plan(self) -> None:
         chapter, revision_id = self._chapter("Narration only.")
         set_book_voice_profile(
             self.db,
@@ -275,7 +275,7 @@ class CurrentSpeakerStateTests(IsolatedTestCase):
             (chapter["id"],),
         )
         self.assertEqual(int(plan["text_revision_id"]), revision_id)
-        self.assertEqual(plan["status"], "approved")
+        self.assertEqual(plan["status"], "draft")
 
 
 if __name__ == "__main__":

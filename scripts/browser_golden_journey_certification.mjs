@@ -305,51 +305,47 @@ try {
   await click("#audioQaOpenRepair");
   await waitFor(`document.querySelector("#audioQaRepairDetails")?.open===true`);
   await click("#audioQaRepeatedWords");
+  await click("#audioQaMarkPosition");
   await input("#audioQaNote", "Fixture defect at marker; needs same-data rerender.");
   await click("#audioQaNeedsFixes");
   await waitFor(`!window.storyAudioAppState.productionCommand.active`, 20000);
-  await waitFor(`window.storyAudioAppState.audioLibrary.items.some(item=>Number(item.artifact_id)===Number(${firstArtifact})&&String(item.human_qa_status)==="needs_fixes")`, 20000);
-  await waitFor(`document.querySelector("[data-audio-qa-repair-plan]")`, 10000);
-  await click("[data-audio-qa-repair-plan]");
-  await waitFor(`window.storyAudioAppState.currentRoute==="production"`, 20000);
+  try {
+    await waitFor(`window.storyAudioAppState.currentRoute==="production"`, 20000);
+  } catch (error) {
+    const diagnostic = await evaluate(`({route:window.storyAudioAppState.currentRoute,command:window.storyAudioAppState.productionCommand,status:window.storyAudioAppState.audioLibrary.items.map(item=>({id:item.artifact_id,qa:item.human_qa_status})),selected:window.storyAudioAppState.audioLibrary.selectedArtifactId,result:document.querySelector('#audioQaResult')?.innerText||'',errors:${JSON.stringify(browserErrors)}})`);
+    throw new Error(`Needs-fixes did not open unified repair: ${JSON.stringify(diagnostic)}`);
+  }
   await waitFor(`window.storyAudioAppState.productionProjection?.canonical_task?.task_type==="REPAIR_REQUIRED"`, 20000);
   const repairState = await evaluate(`({
     qaActionsHidden: !document.querySelector("#productionQaActions") || document.querySelector("#productionQaActions")?.classList.contains("hidden"),
     productionPlayer: !!document.querySelector("#productionQaAudio"),
-    openPlan: !!document.getElementById("repairOpenPlan"),
-    confirmPlan: !!document.getElementById("repairConfirmPlan"),
+    confirmUnified: !!document.getElementById("repairConfirmUnified"),
+    markerCount: document.querySelectorAll("[data-repair-marker]").length,
     body: document.querySelector("#productionTaskContent")?.innerText || ""
   })`);
-  if ((!repairState.openPlan && !repairState.confirmPlan) || repairState.productionPlayer) throw new Error(`Repair-plan entry missing or Production regained QA controls: ${JSON.stringify(repairState)}`);
+  if (!repairState.confirmUnified || repairState.markerCount !== 1 || repairState.productionPlayer) throw new Error(`Unified repair entry missing or Production regained QA controls: ${JSON.stringify(repairState)}`);
   evidence.stages.push("needs_fixes");
-  evidence.stages.push("repair_handoff");
+  evidence.stages.push("automatic_repair_handoff");
 
-  // Stage G: confirm the repair plan and stop before any replacement execution.
-  await evaluate(`(()=>{const open=document.querySelector("#repairOpenPlan");if(open)open.click();return true})()`);
-  await waitFor(`document.querySelector("#repairConfirmPlan")`);
-  await click("#repairConfirmPlan");
+  // Stage G: one owner confirmation persists plan, draft and review; it stops before PREPARE.
+  await click("#repairConfirmUnified");
   await waitFor(`!window.storyAudioAppState.productionCommand.active`, 20000);
-  const repairPlan = await waitFor(`(() => {
-    const apply=document.querySelector("#repairApplyPlan");
-    if(!apply || apply.disabled)return null;
-    return {heading:document.querySelector(".production-repair-plan h3")?.textContent,applyEnabled:!apply.disabled,confirmCount:document.querySelectorAll("#repairConfirmPlan").length};
-  })()`);
-  if (repairPlan.heading !== "Đã xác nhận" || repairPlan.confirmCount !== 0) throw new Error(`Repair plan confirmation failed: ${JSON.stringify(repairPlan)}`);
+  let repairPlan;
+  try {
+    repairPlan = await waitFor(`(() => {
+      const prepare=document.querySelector("#repairPrepareReplacement");
+      if(!prepare || prepare.disabled)return null;
+      return {heading:document.querySelector(".production-repair-review h3")?.textContent,prepareEnabled:!prepare.disabled,confirmCount:document.querySelectorAll("#repairConfirmUnified").length};
+    })()`);
+  } catch (error) {
+    const diagnostic = await evaluate(`({command:window.storyAudioAppState.productionCommand,repair:window.storyAudioAppState.productionProjection?.canonical_task?.repair,body:document.querySelector('#productionTaskContent')?.innerText||'',toast:document.querySelector('#toast')?.innerText||'',errors:${JSON.stringify(browserErrors)}})`);
+    throw new Error(`Unified repair confirmation did not reach PREPARE: ${JSON.stringify(diagnostic)}`);
+  }
+  if (repairPlan.heading !== "Đã xác nhận toàn bộ bản sửa" || repairPlan.confirmCount !== 0) throw new Error(`Unified repair confirmation failed: ${JSON.stringify(repairPlan)}`);
   evidence.repairPlan = repairPlan;
-  evidence.stages.push("repair_plan_confirmed");
+  evidence.stages.push("repair_review_confirmed");
 
-  // Stage H: apply the confirmed plan, review the targeted draft, then confirm it.
-  await click("#repairApplyPlan");
-  await waitFor(`!window.storyAudioAppState.productionCommand.active`, 20000);
-  await waitFor(`document.querySelector("#repairReviewDraft")`, 20000);
-  await click("#repairReviewDraft");
-  await waitFor(`document.querySelector("#repairConfirmDraft")`, 20000);
-  await click("#repairConfirmDraft");
-  await waitFor(`!window.storyAudioAppState.productionCommand.active`, 20000);
-  await waitFor(`document.querySelector("#repairPrepareReplacement")?.disabled===false`, 20000);
-  evidence.stages.push("repair_draft_confirmed");
-
-  // Stage I: replacement PREPARE and replacement START_RENDER.
+  // Stage H: replacement PREPARE and replacement START_RENDER.
   await click("#repairPrepareReplacement");
   await waitFor(`!window.storyAudioAppState.productionCommand.active`, 20000);
   try {

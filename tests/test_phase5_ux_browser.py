@@ -39,6 +39,8 @@ class Phase5UxBrowserTests(unittest.TestCase):
         self.assertEqual(evidence["humanQa"]["stage"], "Đã bàn giao")
         self.assertFalse(evidence["humanQa"]["playerVisible"])
         self.assertFalse(evidence["humanQa"]["qaActionsVisible"])
+        self.assertTrue(evidence["humanQa"]["nextCycleVisible"])
+        self.assertEqual(evidence["humanQa"]["nextCycleLabel"], "Bắt đầu lượt sản xuất mới")
         self.assertEqual(evidence["humanQaHandoffNavigation"]["mutations"], [])
         self.assertTrue(evidence["repairRequired"]["problemBeforePlan"])
         self.assertFalse(evidence["repairRequired"]["rawTechnicalVisible"])

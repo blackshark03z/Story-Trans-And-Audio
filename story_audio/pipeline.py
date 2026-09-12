@@ -14,6 +14,11 @@ from .config import Settings
 from .casting import CHUNKER_VERSION, validate_approved_plan
 from .custom_voice import CustomVoiceRepository
 from .db import Database, utcnow
+from .audio_retention import purge_audio_history
+from .chapter_repair_execution import (
+    ChapterRepairInstructionError,
+    materialize_offline_repair_segments,
+)
 from .files import atomic_write_json, safe_slug, sha256_file, sha256_text
 from .gemini import GeminiRepairError, repair_punctuation
 from .gemini_routing import call_gemini_with_fallback
@@ -522,6 +527,28 @@ def start_prepared_job(
                     }
         if str(job["status"]) != JOB_PREPARED_STATUS:
             raise JobStartConflict(f"Job #{job_id} is not in '{JOB_PREPARED_STATUS}' status")
+        try:
+            settings_snapshot = json.loads(str(job["settings_json"] or "{}"))
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise JobStartConflict(f"Prepared job #{job_id} has invalid settings") from exc
+        repair_instruction = settings_snapshot.get("repair_instruction")
+        if isinstance(repair_instruction, dict) and not (
+            repair_instruction.get("schema") == "story-audio-repair-instruction/v2"
+            and repair_instruction.get("execution_mode") in {
+                "offline_segment_batch",
+                "hybrid_segment_batch",
+            }
+            and repair_instruction.get("execution_ready") is True
+        ):
+            reasons = ", ".join(
+                str(value)
+                for value in repair_instruction.get("execution_blockers") or [
+                    "legacy_or_uncompiled_repair_instruction"
+                ]
+            )
+            raise JobStartConflict(
+                f"Prepared replacement job #{job_id} cannot start safely: {reasons}"
+            )
         chapters = connection.execute(
             "SELECT chapter_id FROM job_chapters WHERE job_id=? ORDER BY sequence",
             (job_id,),
@@ -842,6 +869,21 @@ class PipelineWorker:
         self._set_job(job_id, "synthesizing", "tts", current_chapter_number=chapter["chapter_number"])
         chapter_work = self.config.work_dir / f"job_{job_id}" / f"chapter_{int(chapter['chapter_number']):04d}"
         segment_dir = chapter_work / "segments"
+        repair_instruction = settings_snapshot.get("repair_instruction")
+        if repair_instruction:
+            try:
+                segments = materialize_offline_repair_segments(
+                    self.db,
+                    self.config,
+                    chapter_id=chapter_id,
+                    instruction=dict(repair_instruction),
+                    target_segments=segments,
+                    target_dir=segment_dir,
+                    store=self.store,
+                    tts=self.tts,
+                )
+            except ChapterRepairInstructionError as exc:
+                raise ChapterNeedsReview(f"Repair instruction blocked: {exc}") from exc
         for position, segment in enumerate(segments):
             self._control(job_id)
             segment_path = segment_dir / f"{int(segment['segment_index']):06d}.wav"
@@ -1681,10 +1723,6 @@ class PipelineWorker:
         )
         now = utcnow()
         with self.db.transaction() as connection:
-            connection.execute(
-                "UPDATE artifacts SET status='stale' WHERE chapter_id=? AND artifact_type=? AND status='active' AND id<>?",
-                (chapter_id, f"chapter_{output_format}", final_artifact),
-            )
             connection.execute("UPDATE artifacts SET status='active' WHERE id=?", (final_artifact,))
             connection.execute(
                 "INSERT OR IGNORE INTO artifact_dependencies(parent_artifact_id,child_artifact_id) VALUES(?,?)",
@@ -1695,9 +1733,19 @@ class PipelineWorker:
                 (timeline_artifact, final_artifact),
             )
             connection.execute(
-                "UPDATE chapters SET active_audio_artifact_id=?,audio_status='completed',updated_at=? WHERE id=?",
+                "UPDATE chapters SET active_audio_artifact_id=?,audio_status='completed',human_approval_json=NULL,updated_at=? WHERE id=?",
                 (final_artifact, now, chapter_id),
             )
+            connection.execute(
+                "DELETE FROM audit_events WHERE chapter_id=? AND event_code='human_qa_recorded'",
+                (chapter_id,),
+            )
+        purge_audio_history(
+            self.db,
+            output_root=self.config.output_dir,
+            work_root=self.config.work_dir,
+            chapter_ids=[chapter_id],
+        )
         return final_artifact
 
     def _insert_artifact(

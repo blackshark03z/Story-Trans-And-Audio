@@ -736,13 +736,13 @@ def _row_to_payload(
         for chapter_number in chapter_numbers
     }
     durable_chapters = planned_chapters | approved_draft_chapters
-    durable_override_ready = bool(
+    scoped_voice_ready = bool(
         row.chapter_numbers
         and row.chapter_numbers <= durable_chapters
-        and row.plan_statuses <= {"approved"}
+        and row.plan_statuses <= {"draft", "approved"}
     )
     requires_casting_plan_creation = bool(
-        durable_override_ready and row.chapter_numbers - planned_chapters
+        scoped_voice_ready and row.chapter_numbers - planned_chapters
     )
     return {
         "speaker_key": row.speaker_key,
@@ -784,13 +784,13 @@ def _row_to_payload(
         "actions": {
             "can_save_book_default": row.role in {"narrator", "unknown"} or row.character_id is not None,
             "can_create_range_or_chapter_override": bool(
-                durable_override_ready
+                scoped_voice_ready
                 and (row.role in {"narrator", "unknown"} or row.character_id is not None)
             ),
             "chapter_override_blocker": (
                 None
-                if durable_override_ready
-                else "APPROVED_CASTING_PLAN_REQUIRED"
+                if scoped_voice_ready
+                else "APPROVED_SPEAKER_REVIEW_REQUIRED"
             ),
             "requires_casting_plan_creation": requires_casting_plan_creation,
             "can_remove_override": bool(plan_override_voice),

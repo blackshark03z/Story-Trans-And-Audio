@@ -92,7 +92,7 @@ class DailyUseV1UiTests(unittest.TestCase):
         self.assertIn("required></textarea>", self.html)
         self.assertIn("if(status==='needs_fixes'&&!notes.trim())", self.js)
         self.assertIn("window.confirm", self.js)
-        self.assertIn("/human-approval-history", self.js)
+        self.assertNotIn("/human-approval-history", self.js)
         self.assertEqual(self.js.count("const accept=$('#productionQaAccept'),needs=$('#productionQaNeedsFixes')"), 1)
         self.assertEqual(self.js.count("accept.onclick=()=>updateProductionQa('approved')"), 1)
         self.assertEqual(self.js.count("needs.onclick=()=>updateProductionQa('needs_fixes')"), 1)

@@ -160,7 +160,7 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertEqual(projection["canonical_task"]["render"]["job_id"], 44)
         self.assert_typed_section(projection, "render")
 
-    def test_human_qa_keeps_current_target_when_comparison_is_available(self) -> None:
+    def test_human_qa_keeps_only_current_target_and_repair_goals(self) -> None:
         qa = _row(
             1,
             "RENDERED_NOT_QA",
@@ -169,7 +169,6 @@ class ProductionTaskProjectionTests(unittest.TestCase):
             artifact_duration_ms=334080,
             artifact_size_bytes=5407866,
             qa_replacement=True,
-            qa_previous_artifact={"artifact_id": 114, "duration_ms": 324800},
             qa_repair_goals={"repeated_words": True, "global_speed_target": 1.25},
         )
 
@@ -178,7 +177,7 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         details = projection["canonical_task"]["qa"]
         self.assertEqual(details["artifact_id"], 117)
         self.assertTrue(details["replacement"])
-        self.assertEqual(details["previous_artifact"]["artifact_id"], 114)
+        self.assertNotIn("previous_artifact", details)
         self.assertTrue(details["repair_goals"]["repeated_words"])
 
     def test_ready_range_is_the_only_prepare_gate(self) -> None:
@@ -592,6 +591,30 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertEqual(render["repair_summary"]["global_speed_target"], 1.25)
         self.assertTrue(render["repair_summary"]["repeated_words"])
 
+    def test_prepared_replacement_with_unsupported_instruction_hides_start(self) -> None:
+        projection = project_production_task(
+            {
+                "readiness": _readiness(_row(1, "REPAIR_REQUIRED", replacement_for_artifact_id=39)),
+                "range_jobs": [
+                    {
+                        "id": 44,
+                        "status": "prepared",
+                        "chapter_count": 1,
+                        "all_chapters_match": True,
+                        "replacement_for_artifact_id": 39,
+                        "repair_summary": {
+                            "execution_ready": False,
+                            "execution_blockers": ["unsupported_markers_present"],
+                            "machine_action_count": 0,
+                        },
+                    }
+                ],
+            }
+        )
+        self.assertEqual(projection["task_type"], "RECOVER_RENDER")
+        self.assertIsNone(projection["primary_action"])
+        self.assertIn("không thực sự được sửa", projection["task_summary"])
+
     def test_current_qa_output_precedes_historical_recovery_job(self) -> None:
         current = _row(1, "RENDERED_NOT_QA", active_artifact_id=114)
         projection = project_production_task({
@@ -829,7 +852,7 @@ class ProductionTaskProjectionAuditTests(IsolatedTestCase):
                 ),
             )
 
-    def test_pending_replacement_uses_pinned_predecessor_and_repair_goals(self) -> None:
+    def test_pending_replacement_uses_current_job_repair_goals_without_old_audio(self) -> None:
         instruction = {
             "schema": "story-audio-repair-instruction/v1",
             "replacement_for_artifact_id": self.artifact_id,
@@ -869,9 +892,8 @@ class ProductionTaskProjectionAuditTests(IsolatedTestCase):
             artifact_id=self.new_artifact_id,
         )
 
-        self.assertEqual(result["previous_artifact"]["artifact_id"], self.artifact_id)
-        self.assertEqual(result["previous_artifact"]["human_qa_status"], "needs_fixes")
-        self.assertTrue(result["repair_goals"]["repeated_words"])
+        self.assertNotIn("previous_artifact", result)
+        self.assertFalse(result["repair_goals"]["repeated_words"])
         self.assertEqual(result["repair_goals"]["global_speed_target"], 1.25)
         self.assertTrue(result["repair_goals"]["local_pacing_adjustment_required"])
 

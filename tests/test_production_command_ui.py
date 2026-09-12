@@ -128,30 +128,26 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertNotIn("fetch('/api/production/batch-prepare", self.js)
         self.assertNotIn("api('/api/production/range-inputs/", self.js)
 
-    def test_apply_repair_plan_is_a_separate_review_only_command(self) -> None:
-        source = self._function_source("applyRepairPlan")
+    def test_one_review_action_persists_the_internal_evidence_chain_without_preparing(self) -> None:
+        source = self._function_source("confirmUnifiedRepair")
+        self.assertIn("commandType:'CONFIRM_REPAIR_PLAN'", source)
         self.assertIn("commandType:'APPLY_REPAIR_PLAN'", source)
-        self.assertIn("runProductionCommand", source)
-        self.assertIn("Đang áp dụng kế hoạch sửa…", source)
-        self.assertIn("repairReviewDraft", self.js)
-        self.assertIn("Đã tạo bản sửa để kiểm tra.", self.js)
-        self.assertNotIn("prepareReplacementArtifact(vm)", source)
-
-    def test_repair_draft_review_uses_one_confirm_command_and_a_storage_gated_next_cta(self) -> None:
-        source = self._function_source("confirmRepairDraft")
         self.assertIn("commandType:'CONFIRM_REPAIR_DRAFT'", source)
         self.assertIn("runProductionCommand", source)
-        self.assertIn("Đang lưu bản sửa…", source)
-        self.assertIn("repairDraftReviewContent", self.js)
-        self.assertIn("Kiểm tra bản sửa Chương", self.js)
+        self.assertIn("Đang xác nhận toàn bộ…", source)
+        self.assertIn("Kiểm tra toàn bộ bản sửa", self.js)
         self.assertIn("Xác nhận bản sửa", self.js)
         self.assertIn("Chuẩn bị bản thay thế", self.js)
         self.assertIn("Chưa đủ dung lượng để chuẩn bị bản thay thế", self.js)
-        self.assertIn("Tốc độ phát lại để nghe audio không làm thay đổi", self.js)
+        self.assertIn("Hãy đánh dấu ít nhất một đoạn bị lặp chữ.", source)
+        self.assertIn("Hãy chọn tốc độ riêng cho ít nhất một đoạn.", source)
+        self.assertIn("Mỗi vị trí sửa cần có thời điểm nghe cụ thể.", source)
         self.assertIn("repairAddMarker", self.js)
-        self.assertIn("'repairConfirmDraft'", self.js)
+        self.assertIn("'repairConfirmUnified'", self.js)
         self.assertIn("'repairPrepareReplacement'", self.js)
-        self.assertIn("Chuẩn bị bản thay thế chưa tạo audio và chưa sử dụng TTS.", self.js)
+        self.assertNotIn("prepareReplacementArtifact", source)
+        self.assertNotIn("PREPARE_REPLACEMENT", source)
+        self.assertNotIn("START_RENDER", source)
         self.assertIn("Đang chuẩn bị bản thay thế…", self.js)
         self.assertIn("repair.storage?.prepare_allowed!==true", self.js)
 
@@ -208,6 +204,22 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertIn("Audio đã tạo và snapshot giọng của Job cũ không thay đổi", self.js)
         self.assertIn("thay đổi chỉ có hiệu lực khi bạn PREPARE/render một lượt mới", self.js)
 
+    def test_post_render_handoff_can_defer_review_and_start_another_cycle(self) -> None:
+        start = self.js.index("function ownerQaHandoffTaskContent")
+        end = self.js.index("function ownerCompleteTaskContent", start)
+        handoff = self.js[start:end]
+        self.assertIn('id="ownerStartNextProduction"', handoff)
+        self.assertIn("Bắt đầu lượt sản xuất mới", handoff)
+        self.assertIn("Bạn có thể duyệt sau.", handoff)
+        self.assertIn("không duyệt, xóa hay thay đổi audio và Job hiện có", handoff)
+        cycle = self.js[
+            self.js.index("async function startNextProductionCycle") :
+            self.js.index("function castingJourneyReadyState")
+        ]
+        self.assertIn("resetCompletedProductionContext", cycle)
+        self.assertIn("openProductionScopeDialog(preferred)", cycle)
+        self.assertIn("Audio chờ duyệt vẫn được giữ", cycle)
+
     def test_prepare_checkpoint_reuses_the_same_idempotency_request_after_reload(self) -> None:
         self.assertIn("PRODUCTION_COMMAND_CHECKPOINT_KEY", self.js)
         self.assertIn("persistProductionCommandCheckpoint", self.js)
@@ -259,11 +271,11 @@ class ProductionCommandUiTests(unittest.TestCase):
             "REPAIR_REQUIRED",
             "Sửa audio",
             "Ghi chú QA",
-            "Bản cũ được giữ nguyên",
-            "Xác nhận nội dung và người nói",
-            "Hoàn tất cấu hình giọng",
-            "Kế hoạch sửa Chương",
-            "Xác nhận kế hoạch sửa",
+            "audio cũ sẽ bị xóa vĩnh viễn",
+            "Yêu cầu sửa",
+            "Kiểm tra toàn bộ",
+            "Kiểm tra toàn bộ bản sửa",
+            "Xác nhận bản sửa",
             "Duyệt người nói Chương",
             "Hoàn tất giọng cho Chương",
             "openRepairAssignment",
@@ -285,17 +297,19 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertIn("classList.toggle('hidden',hideVerdicts)", self.js)
         self.assertIn("productionCommandBusy()", self.js)
 
-    def test_repair_plan_confirmation_replaces_handlers_and_blocks_busy_resubmission(self) -> None:
+    def test_unified_repair_confirmation_replaces_handlers_and_blocks_busy_resubmission(self) -> None:
         start = self.js.index("function bindProductionRepairActions")
-        end = self.js.index("async function confirmRepairPlan", start)
+        end = self.js.index("async function refreshUnifiedRepairView", start)
         bindings = self.js[start:end]
-        confirm_start = end
+        confirm_start = self.js.index("async function confirmUnifiedRepair", end)
         confirm_end = self.js.index("async function prepareReplacementArtifact", confirm_start)
         confirm = self.js[confirm_start:confirm_end]
-        self.assertIn("confirmPlan.onclick=()=>confirmRepairPlan(vm)", bindings)
-        self.assertNotIn("repairConfirmPlan')?.addEventListener", bindings)
+        self.assertIn("confirmUnified.onclick=()=>confirmUnifiedRepair(vm)", bindings)
+        self.assertNotIn("repairConfirmUnified')?.addEventListener", bindings)
         self.assertIn("if(productionCommandBusy())return;", confirm)
         self.assertIn("CONFIRM_REPAIR_PLAN", confirm)
+        self.assertIn("APPLY_REPAIR_PLAN", confirm)
+        self.assertIn("CONFIRM_REPAIR_DRAFT", confirm)
         self.assertIn("journey==='REPAIR_REQUIRED'?null:primary", self.js)
 
 

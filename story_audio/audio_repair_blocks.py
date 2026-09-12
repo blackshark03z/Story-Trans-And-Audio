@@ -9,6 +9,7 @@ from typing import Any
 
 from .config import Settings
 from .db import Database, utcnow
+from .audio_retention import purge_audio_history
 from .files import atomic_write_json, safe_slug, sha256_file, sha256_text
 from .storage import ContentStore
 from .synthesis_snapshot import load_segment_synthesis_input
@@ -722,17 +723,16 @@ def accept_audio_repair_block_candidate(
         )
         final_artifact_id = int(final_cursor.lastrowid)
         conn.execute(
-            """UPDATE artifacts SET status='stale'
-               WHERE chapter_id=? AND artifact_type IN (?, ?) AND status='active' AND id<>?""",
-            (repair_block["chapter_id"], f"chapter_{output_format}", f"chapter_final_{output_format}", final_artifact_id),
-        )
-        conn.execute(
             "UPDATE audio_repair_blocks SET status='accepted', accepted_at=? WHERE id=?",
             (now, repair_block_id),
         )
         conn.execute(
-            "UPDATE chapters SET active_audio_artifact_id=?, audio_status='completed', updated_at=? WHERE id=?",
+            "UPDATE chapters SET active_audio_artifact_id=?, audio_status='completed', human_approval_json=NULL, updated_at=? WHERE id=?",
             (final_artifact_id, now, repair_block["chapter_id"]),
+        )
+        conn.execute(
+            "DELETE FROM audit_events WHERE chapter_id=? AND event_code='human_qa_recorded'",
+            (repair_block["chapter_id"],),
         )
         conn.execute(
             "UPDATE job_chapters SET artifact_id=? WHERE id=?",
@@ -746,6 +746,13 @@ def accept_audio_repair_block_candidate(
             "INSERT OR IGNORE INTO artifact_dependencies(parent_artifact_id,child_artifact_id) VALUES(?,?)",
             (timeline_artifact_id, final_artifact_id),
         )
+
+    purge_audio_history(
+        db,
+        output_root=config.output_dir,
+        work_root=config.work_dir,
+        chapter_ids=[repair_block["chapter_id"]],
+    )
 
     db.audit(
         "audio_repair_block_candidate_accepted",

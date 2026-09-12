@@ -299,6 +299,53 @@ class ProductionCommandApiTests(IsolatedTestCase):
         self.assertEqual(result["failed_items"][0]["character_id"], 12)
         self.assertIn("unavailable", result["failed_items"][0]["reason"])
 
+    def test_book_voice_default_creates_missing_first_use_profile(self) -> None:
+        command = {
+            "command_type": "SET_BOOK_VOICE_DEFAULT",
+            "idempotency_key": "first-use-narrator-default-0001",
+            "scope": {
+                "range": {"book_id": 1, "from_chapter": 1, "to_chapter": 1}
+            },
+            "payload": {
+                "book_id": 1,
+                "speaker_key": "narrator",
+                "voice_id": "Bình An",
+            },
+        }
+
+        saved = {}
+
+        def save_profile(book_id, request):
+            saved["book_id"] = book_id
+            saved["profile"] = request.model_dump()
+            return {"config_version": 1, **saved["profile"]}
+
+        with (
+            patch("story_audio.api._project_production_command", self.projection),
+            patch("story_audio.api.get_book_voice_profile", return_value=None),
+            patch(
+                "story_audio.api.write_book_voice_profile",
+                side_effect=save_profile,
+            ),
+        ):
+            response = self.client.post("/api/production/commands", json=command)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result["outcome"], "APPLIED")
+        self.assertEqual(result["applied_count"], 1)
+        self.assertEqual(saved["book_id"], 1)
+        self.assertEqual(
+            saved["profile"],
+            {
+                "narrator_voice_id": "Bình An",
+                "male_dialogue_voice_id": "Bình An",
+                "female_dialogue_voice_id": "Bình An",
+                "unknown_fallback": "narrator",
+                "unknown_voice_id": None,
+            },
+        )
+
     def test_range_voice_override_uses_common_command_envelope(self) -> None:
         command = {
             "command_type": "SET_RANGE_VOICE_OVERRIDE",

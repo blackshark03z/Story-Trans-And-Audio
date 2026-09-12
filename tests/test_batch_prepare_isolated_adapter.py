@@ -206,7 +206,7 @@ class BatchPrepareIsolatedAdapterTests(Phase10FixtureMixin):
         self.assertEqual(pin["tts_settings"]["tts_attempt_limit"], 1)
         self.assertNotIn("repair_instruction", pin["tts_settings"])
 
-    def test_reviewed_repair_snapshot_pins_render_instruction_without_text_mutation(self) -> None:
+    def test_reviewed_repair_without_bound_locations_fails_closed(self) -> None:
         prepare_plan = copy.deepcopy(self.plan(from_chapter=10, to_chapter=10))
         with self.database.transaction() as connection:
             chapter = connection.execute(
@@ -296,17 +296,11 @@ class BatchPrepareIsolatedAdapterTests(Phase10FixtureMixin):
             plan_fingerprint=prepare_plan["plan_fingerprint"],
         )
 
-        snapshot = json.loads(provider(binding=binding, plan=prepare_plan)[0].voice_snapshot_json)
-        instruction = snapshot["tts_settings"]["repair_instruction"]
-
-        self.assertEqual(instruction["repair_draft_review_evidence_id"], review_evidence_id)
-        self.assertEqual(instruction["replacement_for_artifact_id"], artifact_id)
-        self.assertTrue(instruction["repeated_words"])
-        self.assertEqual(instruction["global_speed_target"], 1.25)
-        self.assertTrue(instruction["local_pacing_adjustment_required"])
-        self.assertEqual(instruction["marker_count"], 0)
-        self.assertEqual(instruction["handling"], "render_remediation_instruction")
-        self.assertFalse(instruction["source_text_mutated"])
+        with self.assertRaisesRegex(
+            IsolatedAdapterError,
+            "replacement repair instruction is stale",
+        ):
+            provider(binding=binding, plan=prepare_plan)
 
     def test_large_committed_evidence_uses_compact_bounded_references(self) -> None:
         count = 100

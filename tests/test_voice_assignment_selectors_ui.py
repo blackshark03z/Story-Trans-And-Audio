@@ -150,20 +150,17 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             self.js.index("function renderRegistryTableRow")
         ]
         self.assertIn(
-            "Chưa thể lưu giọng riêng cho Chương ${chapterNumber} vì bản xác định người nói chưa được duyệt.",
+            "Chưa thể lưu giọng riêng vì bản xác định người nói chưa được duyệt.",
             section,
         )
-        self.assertIn(
-            "Ghi đè theo chương/phạm vi chỉ mở sau khi Bản đồ giọng hiện tại đã được duyệt.",
-            section,
-        )
+        self.assertNotIn("Bản đồ giọng hiện tại đã được duyệt", section)
         self.assertIn("Lựa chọn tạm thời — chưa được lưu", section)
         self.assertIn("Duyệt người nói trước", section)
-        self.assertIn("Duyệt bản đồ giọng trước", section)
+        self.assertNotIn("Duyệt bản đồ giọng trước", section)
         self.assertIn("Hủy lựa chọn chưa lưu", section)
         self.assertIn("Lưu làm giọng mặc định cho sách", section)
         self.assertNotIn("Lưu cấu hình giọng và hoàn tất bản đồ giọng", section)
-        self.assertIn("scopeChoice==='book'?bookReady:durableReady", section)
+        self.assertIn("scopeChoice==='book'?bookReady:scopedReady", section)
 
     def test_range_command_scope_prefers_exact_working_context(self) -> None:
         section = self.js[

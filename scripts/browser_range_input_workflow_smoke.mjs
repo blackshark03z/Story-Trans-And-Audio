@@ -177,7 +177,7 @@ try {
     state.dialog=null;
     state.casting=null;
     state.speakerReview=null;
-    state.voiceCatalog={items:[
+    state.voiceCatalog={book_id:71,items:[
       {assignment_key:"voice:a",display_name:"Giọng A",source_kind:"preset",selectable:true,active:true},
       {assignment_key:"voice:b",display_name:"Giọng B",source_kind:"preset",selectable:true,active:true},
     ]};

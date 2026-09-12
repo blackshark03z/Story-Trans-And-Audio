@@ -57,9 +57,8 @@ class GoldenJourneyCertificationTests(unittest.TestCase):
             "first_render",
             "first_review_handoff",
             "needs_fixes",
-            "repair_handoff",
-            "repair_plan_confirmed",
-            "repair_draft_confirmed",
+            "automatic_repair_handoff",
+            "repair_review_confirmed",
             "replacement_render",
             "replacement_review_handoff",
             "accept_replacement",
@@ -69,11 +68,11 @@ class GoldenJourneyCertificationTests(unittest.TestCase):
         self.assertGreater(browser["firstArtifact"], 0)
         self.assertGreater(browser["replacementArtifact"], 0)
         self.assertNotEqual(browser["replacementArtifact"], browser["firstArtifact"])
-        self.assertTrue(browser["repairPlan"]["applyEnabled"])
+        self.assertTrue(browser["repairPlan"]["prepareEnabled"])
         self.assertEqual(browser["repairPlan"]["confirmCount"], 0)
         self.assertTrue(browser["accessibility"]["buttonsNamed"])
 
-        self.assertEqual(isolated["qa_audit_count"], 2)
+        self.assertEqual(isolated["qa_audit_count"], 1)
         self.assertEqual(isolated["schema"], 16)
         self.assertEqual(isolated["chapter"]["audio_status"], "completed")
         self.assertEqual(int(isolated["chapter"]["active_audio_artifact_id"]), int(browser["replacementArtifact"]))

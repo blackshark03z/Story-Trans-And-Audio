@@ -48,6 +48,10 @@ from .human_approval import (
     resolve_repair_draft_evidence,
     resolve_repair_draft_review_evidence,
 )
+from .chapter_repair_execution import (
+    ChapterRepairInstructionError,
+    compile_chapter_repair_instruction,
+)
 from .storage import ContentStore
 from .voice_eligibility import EffectiveVoiceCatalog, require_casting_plan_eligible
 
@@ -239,8 +243,22 @@ class DatabaseAuthoritativeSnapshotProvider:
         ):
             raise IsolatedAdapterError("reviewed repair draft no longer matches prepared inputs")
         markers = list(review.get("markers") or [])
+        try:
+            compiled = compile_chapter_repair_instruction(
+                self.db,
+                chapter_id=chapter_id,
+                artifact_id=active_artifact_id,
+                markers=markers,
+                repeated_words=bool(review.get("repeated_words")),
+                global_speed_target=review.get("global_speed_target"),
+                local_pacing_adjustment_required=bool(
+                    review.get("local_pacing_adjustment_required")
+                ),
+            )
+        except ChapterRepairInstructionError as exc:
+            raise IsolatedAdapterError(f"replacement repair instruction is stale: {exc}") from exc
         return {
-            "schema": "story-audio-repair-instruction/v1",
+            "schema": "story-audio-repair-instruction/v2",
             "replacement_for_artifact_id": active_artifact_id,
             "qa_evidence_id": int(review.get("qa_evidence_id") or 0),
             "repair_plan_evidence_id": int(review.get("repair_plan_evidence_id") or 0),
@@ -258,6 +276,7 @@ class DatabaseAuthoritativeSnapshotProvider:
             "marker_count": len(markers),
             "handling": "render_remediation_instruction",
             "source_text_mutated": False,
+            **compiled,
         }
 
     def __call__(

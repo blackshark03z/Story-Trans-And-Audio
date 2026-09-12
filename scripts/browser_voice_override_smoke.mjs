@@ -230,7 +230,7 @@ try {
     return {
       noApply: !document.querySelector('[data-registry-apply="narrator"]'),
       reviewFirst: !!document.querySelector('[data-registry-review-first="narrator"]'),
-      guardCopy: !!editor?.textContent.includes("Chưa thể lưu giọng riêng cho Chương 1 vì bản xác định người nói chưa được duyệt."),
+      guardCopy: !!editor?.textContent.includes("Chưa thể lưu giọng riêng vì bản xác định người nói chưa được duyệt."),
       temporaryCopy: !!editor?.querySelector('.assignment-unsaved-choice:not(.hidden)')
         && !!editor?.textContent.includes("Lựa chọn tạm thời — chưa được lưu"),
       commandCount: window.__voiceOverrideCommands.length,

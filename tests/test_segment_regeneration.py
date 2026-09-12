@@ -29,6 +29,7 @@ from story_audio.segment_regeneration import (
     regenerate_verified_segment,
     reject_segment_candidate,
 )
+from story_audio.machine_audio_repair import accept_machine_repair_candidate
 from story_audio.storage import ContentStore
 from tests.base import IsolatedTestCase
 
@@ -416,10 +417,55 @@ class TestSegmentRegeneration(IsolatedTestCase):
         # Verify chapter unchanged
         chapter = dict(self.db.fetch_one("SELECT * FROM chapters WHERE id=?", (self.chapter_id,)))
         self.assertEqual(chapter["active_audio_artifact_id"], orig_chapter["active_audio_artifact_id"])
-        
+
         # Verify candidate WAV still exists (for audit)
         self.assertTrue(Path(attempt["wav_path"]).exists())
 
+    @patch('story_audio.segment_regeneration._reassemble_chapter_with_candidate')
+    def test_machine_candidate_accept_keeps_only_current_audio_and_no_attempt_history(self, mock_reassemble):
+        candidate_dir = self.config.work_dir / f"job_{self.job_id}" / "chapter_0001" / "machine_repair"
+        candidate_dir.mkdir(parents=True, exist_ok=True)
+        candidate_path = candidate_dir / f"segment_{self.segment_id}_trim_leading_silence_1.wav"
+        self._create_test_wav(candidate_path, duration_ms=800)
+        with self.db.connect() as conn:
+            conn.execute(
+                """INSERT INTO segment_attempts(segment_id,attempt_number,status,wav_path,audio_sha256,duration_ms,created_at)
+                   VALUES(?,?,?,?,?,?,?)""",
+                (self.segment_id, 1, "candidate", str(candidate_path), sha256_file(candidate_path), 800, utcnow()),
+            )
+            attempt_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+        master_path = self.config.work_dir / "machine_accept_master.wav"
+        timeline_path = self.config.work_dir / "machine_accept_timeline.json"
+        self._create_test_wav(master_path, duration_ms=800)
+        timeline_path.write_text(json.dumps({"schema_version": 2, "duration_ms": 800}), encoding="utf-8")
+        mock_reassemble.return_value = {
+            "master_wav": master_path,
+            "master_duration_ms": 800,
+            "timeline_json": timeline_path,
+            "final_path": master_path,
+            "temp_dir": self.config.work_dir / "machine_accept_temp",
+        }
+        old_segment_path = self.segment_wav
+        old_artifact = self.db.fetch_one("SELECT sha256 FROM artifacts WHERE id=?", (self.artifact_id,))
+
+        result = accept_machine_repair_candidate(
+            self.db,
+            self.store,
+            self.config,
+            artifact_id=self.artifact_id,
+            artifact_sha256=old_artifact["sha256"],
+            segment_id=self.segment_id,
+            attempt_id=attempt_id,
+        )
+
+        self.assertEqual(result["human_qa"], "pending")
+        self.assertEqual(self.db.fetch_one("SELECT COUNT(*) AS count FROM segment_attempts WHERE segment_id=?", (self.segment_id,))["count"], 0)
+        current_segment = self.db.fetch_one("SELECT wav_path,audio_sha256 FROM segments WHERE id=?", (self.segment_id,))
+        self.assertEqual(Path(current_segment["wav_path"]), candidate_path)
+        self.assertTrue(candidate_path.exists())
+        self.assertFalse(old_segment_path.exists())
+        self.assertIsNone(self.db.fetch_one("SELECT id FROM artifacts WHERE id=?", (self.artifact_id,)))
     def test_list_attempts_shows_active_candidate_history(self):
         """Test listing all attempts for a segment."""
         # Create multiple attempts

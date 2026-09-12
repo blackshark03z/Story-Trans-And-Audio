@@ -492,10 +492,16 @@ class CastingTests(unittest.TestCase):
             with patch.object(worker, "_run_command", side_effect=fake_command), patch.object(worker, "_ffprobe_ms", return_value=4000):
                 worker._assemble(job, chapter, chapter["text_revision_id"], config.work_dir / f"job_{job['id']}" / "chapter_0001")
                 first_artifacts = [dict(row) for row in db.fetch_all(
-                    "SELECT path,sha256 FROM artifacts WHERE job_chapter_id=?", (chapter["id"],)
+                    "SELECT id,path,sha256 FROM artifacts WHERE job_chapter_id=?", (chapter["id"],)
                 )]
                 worker._assemble(job, chapter, chapter["text_revision_id"], config.work_dir / f"job_{job['id']}" / "chapter_0001")
-            self.assertTrue(all(sha256_file(Path(row["path"])) == row["sha256"] for row in first_artifacts))
+            self.assertTrue(all(not Path(row["path"]).exists() for row in first_artifacts))
+            self.assertTrue(all(db.fetch_one("SELECT id FROM artifacts WHERE id=?", (row["id"],)) is None for row in first_artifacts))
+            current_artifacts = [dict(row) for row in db.fetch_all(
+                "SELECT path,sha256 FROM artifacts WHERE job_chapter_id=?", (chapter["id"],)
+            )]
+            self.assertEqual(len(current_artifacts), 3)
+            self.assertTrue(all(sha256_file(Path(row["path"])) == row["sha256"] for row in current_artifacts))
             timeline = next(config.output_dir.rglob("segment_timeline.json"))
             payload = json.loads(timeline.read_text(encoding="utf-8"))
             self.assertEqual(payload["schema_version"], 2)

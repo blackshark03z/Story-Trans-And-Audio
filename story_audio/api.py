@@ -25,6 +25,7 @@ from .audio_library_removal import (
     preview_audio_library_removal,
     remove_audio_library_outputs,
 )
+from .current_audio_triage import CurrentAudioTriageError, analyze_current_audio
 from .config import canonical_production_db_path, settings
 from .casting import (
     CastingError,
@@ -57,11 +58,6 @@ from .character_assignment import (
 )
 from .active_output import annotate_chapter_rows, annotate_job_rows, get_active_output_bindings
 from .artifact_configuration import artifact_configuration_summary
-from .artifact_restore import (
-    AcceptedArtifactRestoreError,
-    inspect_accepted_artifact_restore,
-    restore_accepted_artifact,
-)
 from .batch_plan import build_batch_plan
 from .batch_prepare_clone_api import (
     MAX_REQUEST_BYTES,
@@ -589,8 +585,14 @@ class HumanQaPositionMarker(BaseModel):
 
     timestamp: float = Field(ge=0)
     segment_id: int | None = Field(default=None, gt=0)
+    segment_audio_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     utterance_id: str | None = Field(default=None, max_length=100)
     issue_type: str | None = Field(default=None, max_length=100)
+    risk_kind: str | None = Field(default=None, max_length=100)
+    repair_kind: Literal[
+        "trim_leading_silence", "trim_trailing_silence", "reduce_peak", "normalize_loudness"
+    ] | None = None
+    machine_finding_key: str | None = Field(default=None, max_length=300)
     note: str | None = Field(default=None, max_length=1000)
 
 
@@ -640,8 +642,15 @@ class RepairMarkerRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     timestamp_seconds: float | None = Field(default=None, ge=0)
+    segment_id: int | None = Field(default=None, gt=0)
+    segment_audio_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     nearest_utterance: str | None = Field(default=None, max_length=1000)
     issue: Literal["repeated_words", "too_slow", "too_fast", "needs_pause"]
+    risk_kind: str | None = Field(default=None, max_length=100)
+    repair_kind: Literal[
+        "trim_leading_silence", "trim_trailing_silence", "reduce_peak", "normalize_loudness"
+    ] | None = None
+    machine_finding_key: str | None = Field(default=None, max_length=300)
     note: str | None = Field(default=None, max_length=2000)
     local_pace: float | None = Field(default=None, ge=0.5, le=2.0)
 
@@ -748,14 +757,6 @@ class ProductionCommandRequest(BaseModel):
     payload: dict[str, Any] = Field(default_factory=dict)
 
 
-class AcceptedArtifactRestoreRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    chapter_id: int = Field(gt=0)
-    artifact_id: int = Field(gt=0)
-    expected_active_artifact_id: int = Field(gt=0)
-
-
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     clone_read_only_runtime = prepare_runtime_integration.runtime_mode == CLONE_DISABLED
@@ -842,10 +843,8 @@ def _decorate_human_approval(
         stored_artifact_id = int(normalized.get("artifact_id") or 0)
         matches_active = bool(stored_artifact_id and active_artifact_id and stored_artifact_id == active_artifact_id)
         normalized["matches_active_artifact"] = matches_active
-        if normalized.get("status") == "approved" and not matches_active:
-            warning = "Bản audio hiện tại khác với bản đã chốt trước đó. Cần kiểm tra lại."
-        if warning:
-            normalized["warning"] = warning
+        if not matches_active:
+            normalized = None
     else:
         matches_active = False
 
@@ -855,9 +854,6 @@ def _decorate_human_approval(
         raw_status = str(normalized.get("status") or "").lower()
         if raw_status == "approved" and normalized.get("matches_active_artifact", matches_active):
             status = "accepted"
-            label = "Đã chốt"
-        elif raw_status == "approved":
-            status = "approved_stale"
             label = "Đã chốt"
         elif raw_status == "needs_fixes" and normalized.get(
             "matches_active_artifact", matches_active
@@ -1209,6 +1205,116 @@ def audio_library() -> dict[str, Any]:
     return {"items": items, "total": len(items)}
 
 
+@app.get("/api/audio-library/{artifact_id}/automated-qa")
+def automated_audio_qa(artifact_id: int) -> dict[str, Any]:
+    try:
+        return analyze_current_audio(db.path, artifact_id)
+    except CurrentAudioTriageError as exc:
+        if exc.code == "MISSING_ARTIFACT":
+            raise HTTPException(404, {"code": exc.code, "message": str(exc)}) from exc
+        if exc.code == "STALE_ARTIFACT":
+            raise HTTPException(409, {"code": exc.code, "message": str(exc)}) from exc
+        return {
+            "state": "blocked",
+            "mode": "blocked",
+            "artifact": {"id": artifact_id},
+            "shortlist": [],
+            "summary": {"risk_detected": False},
+            "human_qa": "required",
+            "mutation_performed": False,
+            "message": str(exc),
+            "code": exc.code,
+        }
+
+
+@app.post("/api/audio-library/{artifact_id}/machine-repair-candidate")
+@_serialized_production_mutation
+def create_machine_audio_repair_candidate(
+    artifact_id: int,
+    body: dict[str, Any] = Body(...),
+) -> dict[str, Any]:
+    """Create one exact-segment, offline candidate without changing current audio."""
+
+    from .machine_audio_repair import MachineAudioRepairError, create_machine_repair_candidate
+
+    try:
+        return create_machine_repair_candidate(
+            db,
+            settings,
+            artifact_id=artifact_id,
+            artifact_sha256=str(body.get("artifact_sha256") or ""),
+            segment_id=int(body.get("segment_id") or 0),
+            repair_kind=str(body.get("repair_kind") or ""),
+        )
+    except (MachineAudioRepairError, ValueError) as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@app.get("/api/audio-library/{artifact_id}/machine-repair-candidate")
+def current_machine_audio_repair_candidate(
+    artifact_id: int,
+    artifact_sha256: str = Query(..., min_length=1),
+) -> dict[str, Any]:
+    """Return the temporary candidate for this exact current artifact, if any."""
+
+    from .machine_audio_repair import MachineAudioRepairError, get_machine_repair_candidate
+
+    try:
+        return {
+            "candidate": get_machine_repair_candidate(
+                db,
+                settings,
+                artifact_id=artifact_id,
+                artifact_sha256=artifact_sha256,
+            )
+        }
+    except MachineAudioRepairError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@app.post("/api/segments/{segment_id}/machine-repair-candidate/{attempt_id}/discard")
+@_serialized_production_mutation
+def discard_machine_audio_repair_candidate(segment_id: int, attempt_id: int) -> dict[str, Any]:
+    """Delete one temporary machine-repair candidate, preserving current audio."""
+
+    from .machine_audio_repair import MachineAudioRepairError, discard_machine_repair_candidate
+
+    try:
+        return discard_machine_repair_candidate(
+            db,
+            settings,
+            segment_id=segment_id,
+            attempt_id=attempt_id,
+        )
+    except MachineAudioRepairError as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
+@app.post("/api/audio-library/{artifact_id}/machine-repair-candidate/{attempt_id}/accept")
+@_serialized_production_mutation
+def accept_machine_audio_repair_candidate(
+    artifact_id: int,
+    attempt_id: int,
+    body: dict[str, Any] = Body(...),
+) -> dict[str, Any]:
+    """Accept one exact machine candidate; Human QA remains pending."""
+
+    from .machine_audio_repair import MachineAudioRepairError, accept_machine_repair_candidate
+
+    try:
+        return accept_machine_repair_candidate(
+            db,
+            store,
+            settings,
+            artifact_id=artifact_id,
+            artifact_sha256=str(body.get("artifact_sha256") or ""),
+            segment_id=int(body.get("segment_id") or 0),
+            attempt_id=attempt_id,
+        )
+    except (MachineAudioRepairError, ValueError) as exc:
+        raise HTTPException(409, str(exc)) from exc
+
+
 def _audio_library_removal_error(exc: AudioLibraryRemovalError) -> HTTPException:
     status = 409 if exc.code.startswith("STALE") else 400
     return HTTPException(status, {"code": exc.code, "message": str(exc)})
@@ -1231,6 +1337,8 @@ def audio_library_remove(request: AudioLibraryRemovalRequest) -> dict[str, Any]:
             fingerprint=request.fingerprint,
             confirmation=request.confirmation,
             idempotency_key=request.idempotency_key,
+            output_root=settings.output_dir,
+            work_root=settings.work_dir,
         )
     except AudioLibraryRemovalError as exc:
         raise _audio_library_removal_error(exc) from exc
@@ -1768,12 +1876,14 @@ def _confirm_repair_plan(
             request.local_pacing_adjustment_required
         ),
         "operator_note": (request.operator_note or "").strip() or None,
+        "position_markers": list((approval.get("qa_feedback") or {}).get("position_markers") or []),
     }
     if not (
         selection["repeated_words"]
         or selection["global_speed_target"] is not None
         or selection["local_pacing_adjustment_required"]
         or selection["operator_note"]
+        or selection["position_markers"]
     ):
         raise ProductionCommandError("Chọn ít nhất một nội dung sửa trước khi xác nhận.")
 
@@ -1898,6 +2008,7 @@ def _apply_repair_plan(
         "repeated_words": bool(plan.get("repeated_words")),
         "global_speed_target": plan.get("global_speed_target"),
         "local_pacing_adjustment_required": bool(plan.get("local_pacing_adjustment_required")),
+        "position_markers": list(plan.get("position_markers") or []),
         "review_items": [
             "repeated_words_locations" if plan.get("repeated_words") else None,
             "local_pacing" if plan.get("local_pacing_adjustment_required") else None,
@@ -2011,8 +2122,13 @@ def _confirm_repair_draft(
     markers = [
         {
             "timestamp_seconds": marker.timestamp_seconds,
+            "segment_id": marker.segment_id,
+            "segment_audio_sha256": marker.segment_audio_sha256,
             "nearest_utterance": (marker.nearest_utterance or "").strip() or None,
             "issue": marker.issue,
+            "risk_kind": marker.risk_kind,
+            "repair_kind": marker.repair_kind,
+            "machine_finding_key": marker.machine_finding_key,
             "note": (marker.note or "").strip() or None,
             "local_pace": marker.local_pace,
         }
@@ -2070,34 +2186,6 @@ def _production_command_executor(
     scope = dict(request.scope)
 
     def execute() -> ProductionCommandMutation:
-        if command_type == "RESTORE_ACCEPTED_ARTIFACT":
-            restore_request = AcceptedArtifactRestoreRequest.model_validate(payload)
-            normalized_scope = normalize_scope(scope)
-            scope_artifact_id = int((normalized_scope.get("artifact") or {}).get("id") or 0)
-            if scope_artifact_id != restore_request.artifact_id:
-                raise ProductionCommandError(
-                    "Artifact trong phạm vi không khớp bản audio cần khôi phục."
-                )
-            result = restore_accepted_artifact(
-                db,
-                chapter_id=restore_request.chapter_id,
-                artifact_id=restore_request.artifact_id,
-                expected_active_artifact_id=restore_request.expected_active_artifact_id,
-            )
-            return ProductionCommandMutation(
-                outcome="APPLIED",
-                submitted_count=1,
-                applied_items=(
-                    {
-                        "chapter_id": result["chapter_id"],
-                        "artifact_id": result["artifact_id"],
-                        "previous_artifact_id": result["previous_artifact_id"],
-                        "approval_event_id": result["approval_event_id"],
-                        "reused": result["idempotent_reused"],
-                    },
-                ),
-                operator_message="Đã khôi phục bản audio đã duyệt làm bản hiện tại.",
-            )
         if command_type == "CONFIRM_REPAIR_DRAFT":
             result = _confirm_repair_draft(
                 RepairDraftReviewConfirmationRequest.model_validate(payload),
@@ -2877,7 +2965,17 @@ def _production_command_executor(
             if speaker_key in {"narrator", "unknown"}:
                 profile = get_book_voice_profile(db, book_id)
                 if not profile:
-                    raise ProductionCommandError("Book Voice Profile is missing")
+                    # First-use books do not have a profile yet. Seed every
+                    # required fallback with the explicitly selected voice so
+                    # this same command can create the profile it promises to
+                    # save; later edits may specialize male/female defaults.
+                    profile = {
+                        "narrator_voice_id": voice_id,
+                        "male_dialogue_voice_id": voice_id,
+                        "female_dialogue_voice_id": voice_id,
+                        "unknown_fallback": "narrator",
+                        "unknown_voice_id": None,
+                    }
                 profile_payload = {
                     "narrator_voice_id": (
                         voice_id if speaker_key == "narrator" else profile["narrator_voice_id"]
@@ -2979,9 +3077,11 @@ def _production_command_executor(
                 submitted_count=max(1, int(result.get("chapter_count") or 0)),
                 applied_items=applied_items,
                 operator_message=(
-                    "Da go ghi de giong cho pham vi da chon."
+                    "Đã lưu việc bỏ ghi đè vào Bản đồ giọng nháp. "
+                    "Hãy kiểm tra và duyệt ở bước tiếp theo."
                     if is_clear
-                    else "Da ap dung giong cho pham vi da chon."
+                    else "Đã lưu lựa chọn giọng vào Bản đồ giọng nháp của phạm vi. "
+                    "Hãy kiểm tra và duyệt ở bước tiếp theo."
                 ),
             )
         if command_type == "SAVE_VOICE_ASSIGNMENTS":
@@ -3212,7 +3312,7 @@ def _production_command_executor(
                     for row in prepared_rows
                 ),
                 operator_message=(
-                    "Đã chuẩn bị bản render lại. Bản audio bị từ chối vẫn được giữ trong lịch sử."
+                    "Đã chuẩn bị bản render lại. Audio hiện tại chỉ được thay thế sau khi bản mới tạo và kiểm tra file thành công."
                     if command_type == "PREPARE_REPLACEMENT"
                     else "Đã chuẩn bị phạm vi. Chưa bắt đầu render."
                 ),
@@ -3628,7 +3728,6 @@ def execute_production_command(
         JobStartConflict,
         LookupError,
         ProductionCommandError,
-        AcceptedArtifactRestoreError,
         RangeInputError,
         RetryConflict,
         SpeakerAssignmentError,
@@ -3961,6 +4060,10 @@ def set_human_approval(chapter_id: int, request: HumanApprovalRequest) -> dict[s
     }
     with db.transaction() as connection:
         connection.execute(
+            "DELETE FROM audit_events WHERE chapter_id=? AND event_code='human_qa_recorded'",
+            (chapter_id,),
+        )
+        connection.execute(
             "UPDATE chapters SET human_approval_json=?, updated_at=? WHERE id=?",
             (json.dumps(approval, ensure_ascii=False), recorded_at, chapter_id),
         )
@@ -3999,93 +4102,6 @@ def set_human_approval(chapter_id: int, request: HumanApprovalRequest) -> dict[s
         "human_approval": human_approval,
         "active_output": active_output,
         "idempotent_reused": False,
-    }
-
-
-@app.get("/api/chapters/{chapter_id}/human-approval-history")
-def human_approval_history(chapter_id: int) -> dict[str, Any]:
-    chapter = db.fetch_one(
-        "SELECT id,active_audio_artifact_id,human_approval_json FROM chapters WHERE id=?",
-        (chapter_id,),
-    )
-    if not chapter:
-        raise HTTPException(404, "Chapter not found.")
-    rows = db.fetch_all(
-        """
-        SELECT id,job_id,details_json,created_at
-        FROM audit_events
-        WHERE chapter_id=? AND event_code='human_qa_recorded'
-        ORDER BY id DESC
-        """,
-        (chapter_id,),
-    )
-    items: list[dict[str, Any]] = []
-    for row in rows:
-        try:
-            details = json.loads(row["details_json"] or "{}")
-        except (TypeError, ValueError):
-            details = {}
-        items.append(
-            {
-                "id": int(row["id"]),
-                "status": details.get("status"),
-                "notes": details.get("notes") or "",
-                "artifact_id": details.get("artifact_id"),
-                "job_id": details.get("job_id") or row["job_id"],
-                "sha256": details.get("sha256"),
-                "duration_ms": details.get("duration_ms"),
-                "qa_feedback": details.get("qa_feedback") or {},
-                "recorded_at": row["created_at"],
-                "source": "audit",
-            }
-        )
-    current = _parse_human_approval(chapter["human_approval_json"])
-    if current and not any(
-        item["artifact_id"] == current.get("artifact_id")
-        and item["recorded_at"] == current.get("recorded_at")
-        for item in items
-    ):
-        items.append(
-            {
-                "id": None,
-                "status": current.get("status"),
-                "notes": current.get("notes") or "",
-                "artifact_id": current.get("artifact_id"),
-                "job_id": current.get("job_id"),
-                "sha256": current.get("sha256"),
-                "duration_ms": current.get("duration_ms"),
-                "qa_feedback": current.get("qa_feedback") or {},
-                "recorded_at": current.get("recorded_at"),
-                "source": "legacy_snapshot",
-            }
-        )
-    items.sort(key=lambda item: str(item.get("recorded_at") or ""), reverse=True)
-    active_artifact_id = int(chapter["active_audio_artifact_id"] or 0) or None
-    for item in items:
-        artifact_id = int(item.get("artifact_id") or 0)
-        eligibility = (
-            inspect_accepted_artifact_restore(
-                db,
-                chapter_id=chapter_id,
-                artifact_id=artifact_id,
-            )
-            if artifact_id and str(item.get("status") or "").lower() == "approved"
-            else {"eligible": False, "code": "NOT_ACCEPTED", "message": ""}
-        )
-        item["restore_eligible"] = bool(
-            eligibility["eligible"]
-            and item.get("id") == eligibility.get("approval_event_id")
-        )
-        item["restore_code"] = eligibility["code"]
-        item["restore_message"] = eligibility["message"]
-        item["restore_label"] = (
-            "Khôi phục làm bản hiện tại" if item["restore_eligible"] else None
-        )
-    return {
-        "chapter_id": chapter_id,
-        "active_artifact_id": active_artifact_id,
-        "items": items,
-        "total": len(items),
     }
 
 

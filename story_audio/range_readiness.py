@@ -65,8 +65,6 @@ def _human_qa_status(raw: Any, active_artifact_id: int | None) -> str:
     matches_active = bool(stored_artifact_id and active_artifact_id and stored_artifact_id == active_artifact_id)
     if status == "approved" and matches_active:
         return "accepted"
-    if status == "approved":
-        return "approved_stale"
     if status == "needs_fixes" and matches_active:
         return "needs_fixes"
     return "pending"

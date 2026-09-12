@@ -26,7 +26,9 @@ class AudioLibraryApiTests(IsolatedTestCase):
         import story_audio.api as api_module
 
         self._original_db = api_module.db
+        self._original_settings = api_module.settings
         api_module.db = self.db
+        api_module.settings = seeded["config"]
         from story_audio.api import app
 
         self.client = TestClient(app)
@@ -35,6 +37,7 @@ class AudioLibraryApiTests(IsolatedTestCase):
         import story_audio.api as api_module
 
         api_module.db = self._original_db
+        api_module.settings = self._original_settings
         self._multipart_patcher.stop()
         super().tearDown()
 
@@ -60,7 +63,7 @@ class AudioLibraryApiTests(IsolatedTestCase):
         self.assertIn(self.chapter_id, chapter_ids)
         self.assertNotIn(self.pending_chapter_id, chapter_ids)
 
-    def test_remove_current_audio_preserves_immutable_artifact_file_job_and_qa(self) -> None:
+    def test_remove_current_audio_deletes_media_and_qa_but_preserves_inputs(self) -> None:
         artifact = self.db.fetch_one(
             "SELECT path,job_chapter_id,sha256 FROM artifacts WHERE id=?",
             (self.old_artifact_id,),
@@ -98,14 +101,10 @@ class AudioLibraryApiTests(IsolatedTestCase):
         )
         self.assertIsNone(chapter["active_audio_artifact_id"])
         self.assertEqual(chapter["audio_status"], "not_created")
-        preserved = self.db.fetch_one(
-            "SELECT path,job_chapter_id,sha256,deleted_at FROM artifacts WHERE id=?",
-            (self.old_artifact_id,),
-        )
-        self.assertEqual(dict(preserved), {**dict(artifact), "deleted_at": None})
-        self.assertTrue(__import__("pathlib").Path(path).exists())
+        self.assertIsNone(self.db.fetch_one("SELECT id FROM artifacts WHERE id=?", (self.old_artifact_id,)))
+        self.assertFalse(__import__("pathlib").Path(path).exists())
         self.assertIsNotNone(self.db.fetch_one("SELECT id FROM jobs WHERE id=1"))
-        self.assertIsNotNone(
+        self.assertIsNone(
             self.db.fetch_one(
                 "SELECT id FROM audit_events WHERE event_code='human_qa_recorded' AND chapter_id=?",
                 (self.chapter_id,),
@@ -162,7 +161,7 @@ class AudioLibraryApiTests(IsolatedTestCase):
         self.assertEqual(response.json()["detail"]["code"], "ACTIVE_JOB_CONFLICT")
         self.assertEqual(self._items()[0]["artifact_id"], self.old_artifact_id)
 
-    def test_removal_request_is_idempotent(self) -> None:
+    def test_repeated_removal_does_not_retain_history_or_delete_again(self) -> None:
         preview = self.client.post(
             "/api/audio-library/removal-preview",
             json={"artifact_ids": [self.old_artifact_id]},
@@ -176,9 +175,13 @@ class AudioLibraryApiTests(IsolatedTestCase):
         first = self.client.post("/api/audio-library/remove", json=body)
         second = self.client.post("/api/audio-library/remove", json=body)
         self.assertEqual(first.status_code, 200)
-        self.assertEqual(second.status_code, 200)
+        self.assertEqual(second.status_code, 409)
         self.assertFalse(first.json()["reused"])
-        self.assertTrue(second.json()["reused"])
+        self.assertEqual(second.json()["detail"]["code"], "STALE_SCOPE")
+        self.assertEqual(
+            int(self.db.fetch_one("SELECT COUNT(*) AS count FROM audit_events WHERE event_code='audio_library_outputs_removed'")["count"]),
+            0,
+        )
 
     def test_batch_removal_applies_to_every_exact_previewed_artifact(self) -> None:
         now = utcnow()
@@ -227,7 +230,7 @@ class AudioLibraryApiTests(IsolatedTestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["removed_count"], 2)
         self.assertEqual(self._items(), [])
-        self.assertTrue(second_path.exists())
+        self.assertFalse(second_path.exists())
 
     def test_safe_file_url_does_not_expose_absolute_path(self) -> None:
         item = self._items()[0]
@@ -258,9 +261,9 @@ class AudioLibraryApiTests(IsolatedTestCase):
             )
         item = self._items()[0]
         self.assertEqual(item["human_qa_status"], "pending")
-        self.assertEqual(item["human_approval_status"], "needs_fixes")
+        self.assertEqual(item["human_approval_status"], "pending")
         self.assertEqual(item["human_approval_label"], "Chưa chốt")
-        self.assertFalse(item["human_approval_matches_active_artifact"])
+        self.assertIsNone(item["human_approval_matches_active_artifact"])
 
         approval = {
             "status": "approved",
@@ -433,57 +436,14 @@ class AudioLibraryApiTests(IsolatedTestCase):
         items = self._items()
         self.assertEqual([item["chapter_number"] for item in items], [10, 11])
 
-    def test_history_exposes_only_safe_historical_accepted_restore_action(self) -> None:
-        target = self.db.fetch_one(
-            "SELECT a.*,jc.job_id FROM artifacts a JOIN job_chapters jc ON jc.id=a.job_chapter_id WHERE a.id=?",
-            (self.new_artifact_id,),
+    def test_audio_history_and_restore_are_not_product_capabilities(self) -> None:
+        self.assertEqual(
+            self.client.get(f"/api/chapters/{self.chapter_id}/human-approval-history").status_code,
+            404,
         )
-        self.db.audit(
-            "human_qa_recorded",
-            job_id=int(target["job_id"]),
-            chapter_id=self.chapter_id,
-            details={
-                "status": "approved",
-                "notes": "Bản cũ đã duyệt.",
-                "artifact_id": self.new_artifact_id,
-                "job_id": int(target["job_id"]),
-                "sha256": target["sha256"],
-                "duration_ms": int(target["duration_ms"]),
-                "qa_feedback": {},
-            },
-        )
-
-        data = self.client.get(
-            f"/api/chapters/{self.chapter_id}/human-approval-history"
-        ).json()
-        candidate = next(
-            item for item in data["items"] if item["artifact_id"] == self.new_artifact_id
-        )
-        self.assertEqual(data["active_artifact_id"], self.old_artifact_id)
-        self.assertTrue(candidate["restore_eligible"])
-        self.assertEqual(candidate["restore_label"], "Khôi phục làm bản hiện tại")
-
-    def test_restore_command_returns_common_envelope_and_refreshes_active_output(self) -> None:
-        target = self.db.fetch_one(
-            "SELECT a.*,jc.job_id FROM artifacts a JOIN job_chapters jc ON jc.id=a.job_chapter_id WHERE a.id=?",
-            (self.new_artifact_id,),
-        )
-        self.db.audit(
-            "human_qa_recorded",
-            job_id=int(target["job_id"]),
-            chapter_id=self.chapter_id,
-            details={
-                "status": "approved",
-                "artifact_id": self.new_artifact_id,
-                "job_id": int(target["job_id"]),
-                "sha256": target["sha256"],
-                "duration_ms": int(target["duration_ms"]),
-            },
-        )
-
         with patch(
             "story_audio.api._project_production_command",
-            lambda _scope: ({"canonical_task": {"task_key": "audio:restored"}}, None),
+            lambda _scope: ({"canonical_task": {"task_key": "audio:no-history"}}, None),
         ):
             response = self.client.post(
                 "/api/production/commands",
@@ -499,13 +459,8 @@ class AudioLibraryApiTests(IsolatedTestCase):
                 },
             )
         self.assertEqual(response.status_code, 200, response.text)
-        envelope = response.json()
-        self.assertEqual(envelope["outcome"], "APPLIED")
-        self.assertEqual(envelope["applied_items"][0]["artifact_id"], self.new_artifact_id)
-        self.assertEqual(
-            self._items()[0]["artifact_id"],
-            self.new_artifact_id,
-        )
+        self.assertEqual(response.json()["outcome"], "REJECTED")
+        self.assertEqual(self._items()[0]["artifact_id"], self.old_artifact_id)
 
 
 if __name__ == "__main__":

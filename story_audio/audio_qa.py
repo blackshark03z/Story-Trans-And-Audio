@@ -713,6 +713,25 @@ def _analyze_audio_file(
     }
 
 
+def analyze_audio_file(
+    path: Path,
+    *,
+    ffmpeg_path: str = "ffmpeg",
+    ffprobe_path: str = "ffprobe",
+    thresholds: QaThresholds | None = None,
+) -> dict[str, Any]:
+    """Measure an existing audio file without writing a report or changing state."""
+
+    values = thresholds or QaThresholds()
+    return _analyze_audio_file(
+        path,
+        ffmpeg_path=ffmpeg_path,
+        ffprobe_path=ffprobe_path,
+        thresholds=values,
+        timeout_seconds=values.analysis_timeout_seconds,
+    )
+
+
 def _load_json(path: Path, *, label: str) -> Any:
     try:
         return json.loads(path.read_text(encoding="utf-8"))

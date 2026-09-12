@@ -770,7 +770,7 @@ class CharacterAssignmentServiceTests(IsolatedTestCase):
         self.assertEqual(row["effective_voice"]["id"], "narrator")
         self.assertTrue(row["actions"]["can_create_range_or_chapter_override"])
 
-    def test_chapter_voice_action_is_blocked_without_approved_casting_plan(self) -> None:
+    def test_chapter_voice_action_is_blocked_without_approved_speaker_state(self) -> None:
         self._seed_chapter(1, approved_plan=False)
 
         registry = self._registry(1, 1)
@@ -782,7 +782,7 @@ class CharacterAssignmentServiceTests(IsolatedTestCase):
         )
         self.assertEqual(
             narrator["actions"]["chapter_override_blocker"],
-            "APPROVED_CASTING_PLAN_REQUIRED",
+            "APPROVED_SPEAKER_REVIEW_REQUIRED",
         )
 
     def test_unresolved_speaker_key_round_trip_uses_exact_chapter_and_utterance(self) -> None:

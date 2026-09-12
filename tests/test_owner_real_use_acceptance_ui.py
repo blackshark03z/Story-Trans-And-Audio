@@ -70,7 +70,7 @@ class OwnerRealUseAcceptanceUiTests(unittest.TestCase):
             "state.productionPreflight=null",
             "state.productionPrepare={readiness:null",
             "state.productionRepair={taskKey:null,mode:null,markers:[]}",
-            "state.audioQa={history:[],loading:false,markers:[],activeArtifactId:null}",
+            "state.audioQa={markers:[]}",
             "state.audioLibrary.selectedArtifactId=null",
             "sessionStorage.removeItem(REPAIR_PLAN_OPEN_STORAGE_KEY)",
         ):
