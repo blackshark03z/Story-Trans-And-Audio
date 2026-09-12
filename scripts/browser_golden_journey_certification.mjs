@@ -126,12 +126,20 @@ try {
   await evaluate(`location.hash="#/jobs"`);
   await waitFor(`window.storyAudioAppState.currentRoute==="jobs"`);
   const journeyHistory = await send("Page.getNavigationHistory");
-  const productionEntry = journeyHistory.entries.slice(0,journeyHistory.currentIndex).reverse().find(entry => entry.url.includes("#/production?") && entry.url.includes(`book=${fixture.book_id}`) && entry.url.includes(`from=${fixture.chapter_number}`));
+  let productionIndex = -1;
+  for (let index = journeyHistory.currentIndex - 1; index >= 0; index -= 1) {
+    const entry = journeyHistory.entries[index];
+    if (entry.url.includes("#/production?") && entry.url.includes(`book=${fixture.book_id}`) && entry.url.includes(`from=${fixture.chapter_number}`)) {
+      productionIndex = index;
+      break;
+    }
+  }
   const jobsEntry = journeyHistory.entries[journeyHistory.currentIndex];
-  if (!productionEntry || !jobsEntry) throw new Error("Browser history did not retain Production and Jobs entries.");
-  await evaluate(`history.back(); true`);
+  if (productionIndex < 0 || !jobsEntry) throw new Error("Browser history did not retain Production and Jobs entries.");
+  const productionHistoryDelta = productionIndex - journeyHistory.currentIndex;
+  await evaluate(`history.go(${productionHistoryDelta}); true`);
   await waitFor(`window.storyAudioAppState.currentRoute==="production"`, 30000);
-  await evaluate(`history.forward(); true`);
+  await evaluate(`history.go(${-productionHistoryDelta}); true`);
   await waitFor(`window.storyAudioAppState.currentRoute==="jobs"`, 30000);
   await evaluate(`location.hash=${JSON.stringify(`#/production?book=${fixture.book_id}&from=${fixture.chapter_number}&to=${fixture.chapter_number}`)}`);
   await waitFor(`window.storyAudioAppState.productionProjection?.canonical_task&&window.storyAudioAppState.productionRange?.fromChapter===${fixture.chapter_number}`);
