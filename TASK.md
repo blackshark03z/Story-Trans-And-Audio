@@ -1277,3 +1277,13 @@ lexical path identity until validation, while data-root identity is still
 resolved explicitly for canonical-root protection. The existing real-symlink
 oracle is unchanged and must pass on the final GitHub subject; the
 platform-independent mocked symlink check must also remain green.
+
+GitHub run `34722048251` on subject
+`ba73e644a117f5c680b306a4b75ea73a72fd4836` passed the browser, golden-journey,
+and native-symlink criteria, then reached the TTS integration group and exposed
+28 identical fixture setup errors: the offline test attempted to patch
+`vieneu.Vieneu` by importing an optional provider package not installed in the
+declared qualification environment. The shared correction supplies a local
+module fake through `sys.modules`; it neither installs nor loads VieNeu and does
+not change product code or provider behavior. All TTS assertions remain
+unchanged and must be rerun on the final subject.
