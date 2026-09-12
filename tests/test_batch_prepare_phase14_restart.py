@@ -7,6 +7,7 @@ import shutil
 import socket
 import sqlite3
 import subprocess
+import sys
 import time
 import unittest
 import urllib.error
@@ -17,7 +18,7 @@ from pathlib import Path
 from tests.batch_prepare_phase10_fixture import Phase10FixtureMixin
 
 
-PYTHON = Path(r"D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe")
+PYTHON = Path(sys.executable)
 WORKER = Path("tests/batch_prepare_phase13_runtime_worker.py").resolve()
 TOKEN = "phase14-restart-synthetic-token"
 
