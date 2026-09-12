@@ -8,6 +8,7 @@ import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import wave
@@ -17,7 +18,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TEST_ROOT = Path(r"C:\StoryAudio_GoldenJourney_Test")
+TEST_ROOT = Path(tempfile.gettempdir()) / "StoryAudio_GoldenJourney_Test"
 MARKER_TEXT = "muc tieu cua lao la tran phap truyen tong o ben trong."
 
 
