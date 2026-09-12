@@ -129,9 +129,9 @@ try {
   const productionEntry = journeyHistory.entries.slice(0,journeyHistory.currentIndex).reverse().find(entry => entry.url.includes("#/production?") && entry.url.includes(`book=${fixture.book_id}`) && entry.url.includes(`from=${fixture.chapter_number}`));
   const jobsEntry = journeyHistory.entries[journeyHistory.currentIndex];
   if (!productionEntry || !jobsEntry) throw new Error("Browser history did not retain Production and Jobs entries.");
-  await send("Page.navigateToHistoryEntry", { entryId: productionEntry.id });
+  await evaluate(`history.back(); true`);
   await waitFor(`window.storyAudioAppState.currentRoute==="production"`, 30000);
-  await send("Page.navigateToHistoryEntry", { entryId: jobsEntry.id });
+  await evaluate(`history.forward(); true`);
   await waitFor(`window.storyAudioAppState.currentRoute==="jobs"`, 30000);
   await evaluate(`location.hash=${JSON.stringify(`#/production?book=${fixture.book_id}&from=${fixture.chapter_number}&to=${fixture.chapter_number}`)}`);
   await waitFor(`window.storyAudioAppState.productionProjection?.canonical_task&&window.storyAudioAppState.productionRange?.fromChapter===${fixture.chapter_number}`);
