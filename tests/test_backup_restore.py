@@ -149,7 +149,9 @@ class BackupRestoreTests(unittest.TestCase):
             self.assertTrue((restored_data / "blobs" / revision["content_path"]).exists())
             artifact = restored_db.fetch_one("SELECT path,sha256 FROM artifacts WHERE status='active'")
             restored_artifact = Path(artifact["path"])
-            self.assertTrue(restored_artifact.is_relative_to(restored_data))
+            self.assertTrue(
+                restored_artifact.resolve().is_relative_to(restored_data.resolve())
+            )
             self.assertTrue(restored_artifact.exists())
             self.assertEqual(sha256_file(restored_artifact), artifact["sha256"])
             with self.assertRaises(BackupError):
