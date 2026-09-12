@@ -32,5 +32,11 @@ jobs:
         run: python -m pip install poetry
       - name: Install project dependencies from canonical/autodetected command
         run: python scripts/project_ci.py --install --ci
+      - name: Locate Chromium for browser acceptance
+        shell: bash
+        run: |
+          browser_path="$(command -v google-chrome || command -v chromium || command -v chromium-browser)"
+          test -n "$browser_path"
+          echo "STORY_AUDIO_BROWSER_EXE=$browser_path" >> "$GITHUB_ENV"
       - name: Run canonical product checks (fail closed)
         run: python scripts/project_ci.py --ci
