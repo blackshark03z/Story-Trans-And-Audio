@@ -172,13 +172,13 @@ try {
     new Promise(resolve => child.once("exit", resolve)),
     delay(2000),
   ]);
-  for (let attempt = 0; attempt < 4; attempt += 1) {
+  for (let attempt = 0; attempt < 30; attempt += 1) {
     try {
       await rm(profile, { recursive: true, force: true });
       break;
     } catch (error) {
-      if (error?.code !== "EBUSY" || attempt === 3) throw error;
-      await delay(150);
+      if (!["EBUSY", "ENOTEMPTY", "EPERM"].includes(error?.code) || attempt === 29) throw error;
+      await delay(200);
     }
   }
 }
