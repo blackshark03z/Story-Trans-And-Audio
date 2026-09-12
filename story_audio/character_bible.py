@@ -158,7 +158,9 @@ def parse_character_bible(raw: bytes, *, source_label: str = "character_bible.js
             if len(indexes) > 1:
                 for index in indexes:
                     records[index]["errors"].append(f"duplicate normalized {label} in file: {normalized}")
-    safe_label = Path(source_label).name[:255] or "character_bible.json"
+    # Treat both Windows and POSIX separators as path boundaries regardless of
+    # the host OS so imported provenance never persists a caller's directory.
+    safe_label = Path(source_label.replace("\\", "/")).name[:255] or "character_bible.json"
     return ParsedBible(
         schema=SCHEMA,
         book_title=book_title,
