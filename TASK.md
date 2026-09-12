@@ -1184,3 +1184,66 @@ TECHNICAL_VALIDATION=PASS - 55 focused UI, responsive, command, Phase 5 and isol
 CANDIDATE_PREVIEW=PASS - live canonical 8772 read-only inspection shows Chapter 1 in Kiểm tra toàn bộ bản sửa with 3 persisted machine positions and one Xác nhận bản sửa action
 OWNER_ACCEPTANCE=REQUIRED - the owner should continue from the open canonical screen; no canonical PREPARE, START_RENDER, provider or Human QA decision was issued by this implementation turn
 ```
+
+## PR #8 release qualification — CADS evidence continuity
+
+Authority (2026-09-13): the Owner explicitly set the starting truth for this
+release task to `PRODUCT_ACCEPTED / RELEASE_NOT_YET_QUALIFIED` and authorized
+qualification, merge/promotion, activation, and active-runtime verification.
+This is acceptance of the unified chapter-audio repair journey delivered by
+commit `8268854cfe2d47b14c81485d218836d7241fe23d`; it does not retroactively
+declare every older Story Audio UAT or every historical production output
+accepted.
+
+The release work follows CADS commit
+`3dab33a621c2b25db14a09219a836c628c0a0a83`. Product Acceptance, Release
+Qualification, and Runtime Activation are three separate claims.
+
+```text
+ACCEPTED_CANDIDATE=8268854cfe2d47b14c81485d218836d7241fe23d
+ACCEPTED_BEHAVIOR=one continuous chapter repair journey: submit -> combined review -> confirm once -> PREPARE -> explicit START_RENDER -> replacement Human QA
+PRODUCT_ACCEPTANCE=PRODUCT_ACCEPTED_BY_OWNER
+RELEASE_QUALIFICATION=RELEASE_NOT_YET_QUALIFIED
+RUNTIME_ACTIVATION=NOT_ACTIVATED_BY_THIS_RELEASE_TASK
+QUALIFICATION_SUBJECT=the exact PR #8 headRefOid reported by the successful Story Audio Product CI run and repeated in the PR qualification attestation
+DELIVERY_FORM=direct Git source; no installer or separately built application bundle
+SUPPORTED_PLATFORM=Windows
+SUPPORTED_RUNTIME=Python >=3.11; qualification CI uses Python 3.12 and Node 22 for browser acceptance
+DEPENDENCIES=pyproject.toml plus system FFmpeg and Chrome or Edge Chromium
+PROVIDER_BOUNDARY=offline tests and fakes only; no Gemini, VieNeu/TTS, PREPARE, START_RENDER, Human QA, or canonical-data mutation during qualification
+CONFIG_BOUNDARY=isolated temporary STORY_AUDIO_DATA_DIR for checks; canonical activation uses run_app.ps1 and the protected data/app.db only after qualification and promotion
+```
+
+### Acceptance continuity after the accepted candidate
+
+| Accepted criterion | Post-candidate assessment | Required evidence on the qualification subject |
+| --- | --- | --- |
+| Submit opens the same chapter's combined repair review | Application implementation unchanged | Re-run focused repair browser acceptance and the full golden journey |
+| One confirmation persists plan, draft, and review | Application implementation unchanged; Human QA fixture was isolated from the real provider | Re-run Human QA API, repair command, and browser acceptance checks with fakes |
+| Failure stops visibly and retry resumes persisted evidence | Application implementation unchanged | Re-run negative/retry tests; no oracle weakening permitted |
+| PREPARE and START_RENDER remain separate explicit actions | Application implementation unchanged | Re-run command boundary and golden-journey checks; verify zero provider/canonical effects |
+| Desktop/narrow layout and navigation remain continuous | Browser harness timing/navigation changed | Treat prior browser evidence as not portable; re-run rendered browser evidence and corroborate Back behavior with the independent contextual-return browser test |
+
+Post-candidate delta classification:
+
+- `QUALIFICATION_ONLY`: CI runner/environment setup, dependency declarations,
+  interpreter binding, portable temporary roots, and portable process/path test
+  setup. These do not establish Product Acceptance.
+- `ACCEPTANCE_PRESERVING`: bounded waits and browser-profile cleanup retries
+  where assertions, visible behavior, and failure conditions are unchanged.
+- `ORACLE_CHANGING`: golden-journey navigation mechanics, provider-isolation
+  fixtures, and integrity-fixture provenance updates. Their old results are not
+  carried forward; affected criteria must be rerun on the final subject and
+  corroborated where an edited harness would otherwise self-prove its change.
+- `ACCEPTANCE_IMPACTING`: the unrelated cross-platform Character Bible source
+  behavior introduced after `8268854` is removed from this PR so the accepted
+  application surface stays frozen.
+- `UNKNOWN`: none after the complete `8268854..qualification-subject` diff is
+  reviewed. Any later unknown or application-source delta reopens the affected
+  criterion and returns the release to `RELEASE_NOT_YET_QUALIFIED`.
+
+Qualification is achieved only when the exact subject is clean and pushed,
+focused affected checks pass, the rendered repair/golden evidence passes, the
+complete isolated regression suite passes on that same SHA in the declared
+Windows environment, and the PR attestation binds those results to the same
+headRefOid. Merge and runtime activation happen only after that point.

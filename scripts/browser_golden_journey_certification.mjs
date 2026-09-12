@@ -125,23 +125,13 @@ try {
   await waitFor(`window.storyAudioAppState?.productionRange?.fromChapter===${fixture.chapter_number}`);
   await evaluate(`location.hash="#/jobs"`);
   await waitFor(`window.storyAudioAppState.currentRoute==="jobs"`);
-  const journeyHistory = await send("Page.getNavigationHistory");
-  let productionIndex = -1;
-  for (let index = journeyHistory.currentIndex - 1; index >= 0; index -= 1) {
-    const entry = journeyHistory.entries[index];
-    if (entry.url.includes("#/production?") && entry.url.includes(`book=${fixture.book_id}`) && entry.url.includes(`from=${fixture.chapter_number}`)) {
-      productionIndex = index;
-      break;
-    }
-  }
-  const jobsEntry = journeyHistory.entries[journeyHistory.currentIndex];
-  if (productionIndex < 0 || !jobsEntry) throw new Error("Browser history did not retain Production and Jobs entries.");
-  const productionHistoryDelta = productionIndex - journeyHistory.currentIndex;
-  await evaluate(`history.go(${productionHistoryDelta}); true`);
-  await waitFor(`window.storyAudioAppState.currentRoute==="production"`, 30000);
-  await evaluate(`history.go(${-productionHistoryDelta}); true`);
-  await waitFor(`window.storyAudioAppState.currentRoute==="jobs"`, 30000);
-  await evaluate(`location.hash=${JSON.stringify(`#/production?book=${fixture.book_id}&from=${fixture.chapter_number}&to=${fixture.chapter_number}`)}`);
+  await waitFor(`!document.querySelector("#productionContextReturn")?.hidden`);
+  await waitFor(`document.querySelector("#productionContextReturnLink")?.getAttribute("href")?.includes("book=${fixture.book_id}")`);
+  await click("#productionContextReturnLink");
+  await waitFor(`window.storyAudioAppState.currentRoute==="production"&&window.storyAudioAppState.productionRange?.fromChapter===${fixture.chapter_number}`, 30000);
+  await evaluate(`history.back(); true`);
+  await waitFor(`window.storyAudioAppState.currentRoute==="jobs"&&!document.querySelector("#productionContextReturn")?.hidden`, 30000);
+  await click("#productionContextReturnLink");
   await waitFor(`window.storyAudioAppState.productionProjection?.canonical_task&&window.storyAudioAppState.productionRange?.fromChapter===${fixture.chapter_number}`);
   evidence.stages.push("scope_selection");
 
