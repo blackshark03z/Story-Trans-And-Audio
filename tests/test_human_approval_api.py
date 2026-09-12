@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
@@ -30,10 +30,15 @@ class HumanApprovalApiTests(IsolatedTestCase):
         self._original_db = api_module.db
         self._original_store = api_module.store
         self._original_settings = api_module.settings
+        self._original_tts = api_module.tts_service
         self._original_custom_voice_repo = api_module.custom_voice_repo
         api_module.db = self.db
         api_module.store = self.store
         api_module.settings = self.config
+        api_module.tts_service = MagicMock()
+        api_module.tts_service.voices.return_value = [
+            {"id": "ngoc_lan", "label": "Ngọc Lan"},
+        ]
         api_module.custom_voice_repo = CustomVoiceRepository(self.db, self.store)
         from story_audio.api import app
 
@@ -45,6 +50,7 @@ class HumanApprovalApiTests(IsolatedTestCase):
         api_module.db = self._original_db
         api_module.store = self._original_store
         api_module.settings = self._original_settings
+        api_module.tts_service = self._original_tts
         api_module.custom_voice_repo = self._original_custom_voice_repo
         self._multipart_patcher.stop()
         super().tearDown()
