@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { boundedBrowserTimeout } from "./browser_acceptance_runtime.mjs";
 
 const baseUrl = process.argv[2];
 const bookA = Number(process.argv[3]);
@@ -29,7 +30,7 @@ if (!browserExe) throw new Error("No supported Chromium browser was found.");
 const profile = await mkdtemp(join(process.env.TEMP || process.cwd(), "story-audio-book-voice-browser-"));
 const child = spawn(browserExe, ["--headless=new", "--disable-gpu", "--no-first-run", "--no-default-browser-check", "--remote-debugging-port=0", `--user-data-dir=${profile}`, `${baseUrl}/#/voices`], { stdio: "ignore" });
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function poll(fn, timeout = 20000) { const end = Date.now() + timeout; let last; while (Date.now() < end) { try { const value = await fn(); if (value) return value; } catch (error) { last = error; } await delay(75); } throw last || new Error("Timed out waiting for browser state."); }
+async function poll(fn, timeout = 20000) { const end = Date.now() + boundedBrowserTimeout(timeout); let last; while (Date.now() < end) { try { const value = await fn(); if (value) return value; } catch (error) { last = error; } await delay(75); } throw last || new Error("Timed out waiting for browser state."); }
 let socket;
 try {
   const port = await poll(async () => Number((await readFile(join(profile, "DevToolsActivePort"), "utf8")).split(/\r?\n/)[0]) || null);

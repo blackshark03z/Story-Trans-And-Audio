@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { boundedBrowserTimeout } from "./browser_acceptance_runtime.mjs";
 
 const baseUrl = process.argv[2];
 if (!baseUrl) throw new Error("Usage: node scripts/browser_speaker_review_invariant_smoke.mjs <base-url> [--read-only] [--from=N] [--to=N]");
@@ -32,7 +33,7 @@ const child = spawn(browserExe, [
 ], { stdio: "ignore" });
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function poll(fn, timeoutMs = 15000) {
-  const end = Date.now() + timeoutMs;
+  const end = Date.now() + boundedBrowserTimeout(timeoutMs);
   let last;
   while (Date.now() < end) {
     try { const value = await fn(); if (value) return value; } catch (error) { last = error; }
@@ -68,7 +69,7 @@ try {
   await send("Page.enable");
   await send("Emulation.setDeviceMetricsOverride", { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false });
   await waitFor(`window.storyAudioAppState?.bookVoiceRegistry?.status === 'ready' && document.querySelector('[data-speaker-manual-review]')`);
-  await evaluate(`(()=>{window.__speakerInvariantCommands=[];const original=postProductionCommand;postProductionCommand=async(request,token=null)=>{const response=await original(request,token);window.__speakerInvariantCommands.push(request.command_type);return response};return true})()`);
+  await evaluate(`(()=>{window.__speakerInvariantCommands=[];const original=postProductionCommand;postProductionCommand=async(request,token=null)=>{window.__speakerInvariantCommands.push(request.command_type);return original(request,token)};return true})()`);
 
   const before = await evaluate(`(()=>{
     const workspace=document.querySelector('[data-speaker-review-workspace]');

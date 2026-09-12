@@ -1247,3 +1247,22 @@ focused affected checks pass, the rendered repair/golden evidence passes, the
 complete isolated regression suite passes on that same SHA in the declared
 Windows environment, and the PR attestation binds those results to the same
 headRefOid. Merge and runtime activation happen only after that point.
+
+### Qualification convergence record
+
+The first qualification subject, commit
+`134aff6482ae0e55a7dd2158e6e7d936e5893d6f`, passed all 46 local Project CI
+groups but failed GitHub run `34720059221` while waiting 30 seconds for a
+speaker-review command observation. The exact failing check passed five
+consecutive local reruns in 3.2–3.8 seconds. The failure is therefore handled
+as one shared Windows browser-harness timing boundary, not as another product
+feature change or a series of per-test exceptions.
+
+```text
+STATE_EVENT_EXPECTED_OBSERVED=isolated speaker review + map command -> command is observed and refreshed manual-review count converges -> GitHub Windows runner exceeded the harness's independent 30-second observation budget
+SHARED_CORRECTION=all standalone Chromium acceptance harnesses use one bounded timeout floor; GitHub Windows declares 45000 ms while local defaults remain unchanged
+ORACLE_PROTECTION=command submission is observed before its asynchronous refresh, and the existing independent assertion still requires the rendered manual-review count to change from 3 to 2
+APPLICATION_DELTA=NONE relative to accepted candidate 8268854cfe2d47b14c81485d218836d7241fe23d
+FOCUSED_EVIDENCE=17 affected browser tests pass; the exact former failing test passes five consecutive reruns
+RELEASE_QUALIFICATION=RELEASE_NOT_YET_QUALIFIED until the final committed subject passes full local Project CI and GitHub Story Audio Product CI
+```

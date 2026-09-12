@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { boundedBrowserTimeout } from "./browser_acceptance_runtime.mjs";
 
 const base = process.argv[2];
 if (!base) throw new Error("Usage: node scripts/browser_repeat_use_lifecycle_smoke.mjs <base-url>");
@@ -27,7 +28,7 @@ const child = spawn(executable, [
 
 const sleep = milliseconds => new Promise(resolve => setTimeout(resolve, milliseconds));
 async function poll(fn, timeoutMs = 30000) {
-  const deadline = Date.now() + timeoutMs;
+  const deadline = Date.now() + boundedBrowserTimeout(timeoutMs);
   let lastError;
   while (Date.now() < deadline) {
     try {

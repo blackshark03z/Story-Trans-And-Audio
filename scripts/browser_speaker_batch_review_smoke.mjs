@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { boundedBrowserTimeout } from "./browser_acceptance_runtime.mjs";
 
 const baseUrl = process.argv[2];
 if (!baseUrl) throw new Error("Usage: node scripts/browser_speaker_batch_review_smoke.mjs <base-url>");
@@ -11,7 +12,7 @@ if (!browserExe) throw new Error("No Chromium browser found");
 const profile = await mkdtemp(join(tmpdir(), "story-audio-speaker-batch-"));
 const child = spawn(browserExe,["--headless=new","--disable-gpu","--no-first-run","--remote-debugging-port=0",`--user-data-dir=${profile}`,`${baseUrl}/#/assignment?book=1&from=2&to=5&skip_completed=0`],{stdio:"ignore"});
 const delay=ms=>new Promise(r=>setTimeout(r,ms));
-async function poll(fn,timeout=15000){const end=Date.now()+timeout;let last;while(Date.now()<end){try{const v=await fn();if(v)return v}catch(e){last=e}await delay(50)}throw last||new Error("Timed out")}
+async function poll(fn,timeout=15000){const end=Date.now()+boundedBrowserTimeout(timeout);let last;while(Date.now()<end){try{const v=await fn();if(v)return v}catch(e){last=e}await delay(50)}throw last||new Error("Timed out")}
 let socket;
 try{
   const port=await poll(async()=>Number((await readFile(join(profile,"DevToolsActivePort"),"utf8")).split(/\r?\n/)[0])||null);

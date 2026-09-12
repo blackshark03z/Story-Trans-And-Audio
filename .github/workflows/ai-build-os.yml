@@ -9,6 +9,8 @@ on:
 jobs:
   verify:
     runs-on: windows-latest
+    env:
+      STORY_AUDIO_BROWSER_TIMEOUT_MS: '45000'
     steps:
       - uses: actions/checkout@v4
         with:

@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { readFile, mkdtemp, rm } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { join, resolve } from "node:path";
+import { boundedBrowserTimeout } from "../scripts/browser_acceptance_runtime.mjs";
 
 const root = resolve(import.meta.dirname, "..");
 const ui = join(root, "ui");
@@ -26,7 +27,7 @@ const baseUrl = `http://127.0.0.1:${server.address().port}`;
 const profile = await mkdtemp("C:\\StoryAudio_CastingJourney-");
 const child = spawn(browserExe, ["--headless=new", "--disable-gpu", "--no-first-run", "--remote-debugging-port=0", `--user-data-dir=${profile}`, `${baseUrl}/#/character-review`], { stdio: "ignore" });
 const delay = ms => new Promise(resolveDelay => setTimeout(resolveDelay, ms));
-async function poll(fn, timeout = 15000) { const until = Date.now() + timeout; let last; while (Date.now() < until) { try { const value = await fn(); if (value) return value; } catch (error) { last = error; } await delay(50); } throw last || new Error("Timed out"); }
+async function poll(fn, timeout = 15000) { const until = Date.now() + boundedBrowserTimeout(timeout); let last; while (Date.now() < until) { try { const value = await fn(); if (value) return value; } catch (error) { last = error; } await delay(50); } throw last || new Error("Timed out"); }
 let socket;
 try {
   const port = await poll(async () => Number((await readFile(join(profile, "DevToolsActivePort"), "utf8")).split(/\r?\n/)[0]) || null);

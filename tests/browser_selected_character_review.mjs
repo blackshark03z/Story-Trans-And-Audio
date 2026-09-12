@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { boundedBrowserTimeout } from "../scripts/browser_acceptance_runtime.mjs";
 
 const baseUrl = process.argv[2];
 const browserExe = [process.env.STORY_AUDIO_BROWSER_EXE, "C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe", "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"].filter(Boolean).find(existsSync);
@@ -9,7 +10,7 @@ if (!baseUrl || !browserExe) throw new Error("Browser and base URL are required.
 const profile = await mkdtemp("C:\\StoryAudio_CharacterReview-");
 const child = spawn(browserExe, ["--headless=new", "--disable-gpu", "--no-first-run", "--remote-debugging-port=0", `--user-data-dir=${profile}`, `${baseUrl}/#/character-review?book=1&from=2&to=2`], { stdio: "ignore" });
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
-async function poll(fn, timeout = 15000) { const until = Date.now() + timeout; let last; while (Date.now() < until) { try { const value = await fn(); if (value) return value; } catch (error) { last = error; } await delay(50); } throw last || new Error("Timed out"); }
+async function poll(fn, timeout = 15000) { const until = Date.now() + boundedBrowserTimeout(timeout); let last; while (Date.now() < until) { try { const value = await fn(); if (value) return value; } catch (error) { last = error; } await delay(50); } throw last || new Error("Timed out"); }
 let socket;
 try {
   const port = await poll(async () => Number((await readFile(join(profile, "DevToolsActivePort"), "utf8")).split(/\r?\n/)[0]) || null);
