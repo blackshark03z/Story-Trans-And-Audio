@@ -1266,3 +1266,14 @@ APPLICATION_DELTA=NONE relative to accepted candidate 8268854cfe2d47b14c81485d21
 FOCUSED_EVIDENCE=17 affected browser tests pass; the exact former failing test passes five consecutive reruns
 RELEASE_QUALIFICATION=RELEASE_NOT_YET_QUALIFIED until the final committed subject passes full local Project CI and GitHub Story Audio Product CI
 ```
+
+GitHub run `34721305622` on subject
+`bfbebe08cc1f42f0d4323abfc81a654cc95a5ca7` then passed the affected browser
+and golden-journey groups, but failed the listening-checklist symlink rejection
+on a runner where native symlink creation is available. This reopens the
+artifact-integrity criterion: the absolute-path helper resolved the link before
+the shared local-file validator could inspect it. The bounded correction keeps
+lexical path identity until validation, while data-root identity is still
+resolved explicitly for canonical-root protection. The existing real-symlink
+oracle is unchanged and must pass on the final GitHub subject; the
+platform-independent mocked symlink check must also remain green.
