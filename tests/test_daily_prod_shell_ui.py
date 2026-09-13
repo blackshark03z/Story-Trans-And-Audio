@@ -148,6 +148,21 @@ console.log(JSON.stringify({
         self.assertIn("storedProductionScope()", self.js)
         self.assertIn("replaceScopeRoute", self.js)
 
+    def test_late_production_restore_cannot_overwrite_a_newer_route(self) -> None:
+        self.assertIn("appRouteEpoch:0", self.js)
+        self.assertIn("state.appRouteEpoch+=1", self.js)
+        self.assertIn("restoreProductionScopeFromRoute(routeEpoch)", self.js)
+        restore_range = self.js[
+            self.js.index("async function restoreProductionRangeScope"):
+            self.js.index("function currentProductionQaCommandTarget")
+        ]
+        self.assertIn("if(!routeRestoreIsCurrent())return", restore_range)
+        self.assertIn("routeEpoch===state.appRouteEpoch", restore_range)
+        self.assertLess(
+            restore_range.index("if(!routeRestoreIsCurrent())return;state.productionRange.readiness=result"),
+            restore_range.index("history.replaceState"),
+        )
+
     def test_production_route_restore_uses_only_read_only_requests(self) -> None:
         restore_section = self.js[
             self.js.index("async function restoreProductionScopeFromRoute"):

@@ -1299,3 +1299,34 @@ for the same existing visible-action and no-horizontal-overflow conditions to
 converge before recording them; it does not change either assertion, the UI,
 or product behavior. The exact check must pass five consecutive focused runs
 and the complete Project CI suite on the final qualification subject.
+
+GitHub run `34739318551` on subject
+`7b1496f3b730bc83e0b986a816fb0b51811031a9` reproduced a shared route race in
+the full golden journey: after Production started an asynchronous scope restore,
+the user-visible transition to Jobs could complete before that older request.
+The late response then replaced the URL with the Production hash while the
+rendered route remained Jobs, so the visible return link pointed at the current
+URL and could not trigger a route change. The correction binds each Production
+route restore to an application-route epoch and discards its post-await writes
+after any newer route transition. This is an acceptance-preserving concurrency
+fix at the shared navigation boundary, not a new feature or a relaxed oracle.
+The visible link, Back navigation, exact scope restoration, and full golden
+journey assertions remain required on the final subject.
+
+The golden browser oracle now reproduces that timing boundary deterministically:
+it holds one range-readiness response, moves through the real application router
+to Jobs, releases the older response, and requires both the rendered route and
+URL to remain on Jobs before exercising the visible return link and browser Back.
+This adds discriminating evidence for the root cause without replacing or
+weakening the owner-visible navigation assertions.
+
+The deterministic probe also exposed why the first guard attempt had no effect:
+`ui/app.js` contained an older function declaration plus a later active
+`restoreProductionRangeScope` reassignment. The later path was the writer that
+changed the hash. The correction removes the dead duplicate and places the
+epoch guard on the single active restore boundary.
+
+Focused evidence after the consolidated boundary: the static route contract
+passes 17/17 checks, and the strengthened Chrome golden journey passes five
+consecutive runs with the deterministic late-response race, visible return
+link, browser Back, and exact chapter scope all enabled.

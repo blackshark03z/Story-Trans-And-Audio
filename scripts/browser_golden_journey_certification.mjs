@@ -124,12 +124,48 @@ try {
   await send("Page.reload", { ignoreCache: true });
   await waitFor(`document.readyState==="complete" && window.__goldenJourneyReloadMarker !== "scope"`);
   await waitFor(`window.storyAudioAppState?.productionRange?.fromChapter===${fixture.chapter_number}`);
-  await evaluate(`location.hash="#/jobs"`);
-  await waitFor(`window.storyAudioAppState.currentRoute==="jobs"`);
+  const routeRace = await evaluate(`(async () => {
+    const savedApi = api;
+    let releaseRestore;
+    let markRestoreStarted;
+    const restoreStarted = new Promise(resolve => { markRestoreStarted = resolve; });
+    api = async (url, options = {}) => {
+      if (String(url).startsWith("/api/production/range-readiness")) {
+        markRestoreStarted();
+        await new Promise(resolve => { releaseRestore = resolve; });
+      }
+      return savedApi(url, options);
+    };
+    try {
+      const pendingRestore = restoreProductionScopeFromRoute();
+      await restoreStarted;
+      setAppRoute("jobs");
+      const jobsHash = location.hash;
+      releaseRestore();
+      await pendingRestore;
+      await new Promise(resolve => setTimeout(resolve, 50));
+      return { route: state.currentRoute, hash: location.hash, jobsHash };
+    } finally {
+      api = savedApi;
+      releaseRestore?.();
+    }
+  })()`);
+  if (routeRace.route !== "jobs" || routeRace.hash !== routeRace.jobsHash || !routeRace.hash.startsWith("#/jobs?")) {
+    throw new Error(`Late Production restore overwrote the newer Jobs route: ${JSON.stringify(routeRace)}`);
+  }
   await waitFor(`!document.querySelector("#productionContextReturn")?.hidden`);
   await waitFor(`document.querySelector("#productionContextReturnLink")?.getAttribute("href")?.includes("book=${fixture.book_id}")`);
   await click("#productionContextReturnLink");
-  await waitFor(`window.storyAudioAppState.currentRoute==="production"&&window.storyAudioAppState.productionRange?.fromChapter===${fixture.chapter_number}`, 30000);
+  await poll(async () => {
+    const observed = await evaluate(`({
+      hash: location.hash,
+      route: window.storyAudioAppState.currentRoute,
+      range: window.storyAudioAppState.productionRange?.fromChapter || null,
+      href: document.querySelector("#productionContextReturnLink")?.getAttribute("href") || null,
+    })`);
+    if (observed.route === "production" && observed.range === fixture.chapter_number) return observed;
+    throw new Error(`Visible return link did not restore Production: ${JSON.stringify(observed)}`);
+  }, 30000);
   await evaluate(`history.back(); true`);
   await waitFor(`window.storyAudioAppState.currentRoute==="jobs"&&!document.querySelector("#productionContextReturn")?.hidden`, 30000);
   await click("#productionContextReturnLink");
