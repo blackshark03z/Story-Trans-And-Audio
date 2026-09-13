@@ -1344,3 +1344,12 @@ oracle delay `/api/runtime` so registry-before-runtime order is deterministic.
 The oracle still requires the real enabled button, command submission, and the
 manual-review count transition from 3 to 2; no timeout or product criterion is
 relaxed.
+
+GitHub run `34741443528` on subject
+`f17caea4ab58e05ca677855ced6f6ee834b02b84` passed the corrected Assignment
+race and continued to the late sidebar browser group, where an inline Node
+probe still used an independent hard-coded 12-second startup budget instead of
+the declared CI browser budget. The shared correction moves timeout policy to
+one CommonJS-compatible helper, re-exports it for the existing ESM harnesses,
+and routes every inline real-browser probe through it. UI assertions, viewport
+sizes, and operator-visible acceptance conditions remain unchanged.

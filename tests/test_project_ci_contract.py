@@ -62,6 +62,18 @@ class ProjectCiContractTests(unittest.TestCase):
             [project_ci.sys.executable, "-m", "unittest"],
         )
 
+    def test_inline_browser_probes_use_shared_timeout_boundary(self) -> None:
+        browser_tests = (
+            ROOT / "tests" / "test_assignment_completed_review_browser.py",
+            ROOT / "tests" / "test_daily_use_v2a_browser.py",
+            ROOT / "tests" / "test_sidebar_navigation_browser.py",
+        )
+        for path in browser_tests:
+            source = path.read_text(encoding="utf-8")
+            self.assertNotRegex(source, r"Date\.now\(\)\s*\+\s*\d+")
+            self.assertIn("browser_acceptance_runtime.cjs", source)
+            self.assertIn("boundedBrowserTimeout(", source)
+
 
 if __name__ == "__main__":
     unittest.main()
