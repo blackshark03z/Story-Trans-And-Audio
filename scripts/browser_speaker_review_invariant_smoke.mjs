@@ -68,7 +68,7 @@ try {
   await send("Runtime.enable");
   await send("Page.enable");
   await send("Emulation.setDeviceMetricsOverride", { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false });
-  await waitFor(`window.storyAudioAppState?.bookVoiceRegistry?.status === 'ready' && document.querySelector('[data-speaker-manual-review]')`);
+  await waitFor(`window.storyAudioAppState?.bookVoiceRegistry?.status === 'ready' && document.querySelector('[data-speaker-manual-review]') && document.querySelector('[data-registry-map]')?.disabled === false`);
   await evaluate(`(()=>{window.__speakerInvariantCommands=[];const original=postProductionCommand;postProductionCommand=async(request,token=null)=>{window.__speakerInvariantCommands.push(request.command_type);return original(request,token)};return true})()`);
 
   const before = await evaluate(`(()=>{

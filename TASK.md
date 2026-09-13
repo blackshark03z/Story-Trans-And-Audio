@@ -1330,3 +1330,17 @@ Focused evidence after the consolidated boundary: the static route contract
 passes 17/17 checks, and the strengthened Chrome golden journey passes five
 consecutive runs with the deterministic late-response race, visible return
 link, browser Back, and exact chapter scope all enabled.
+
+GitHub run `34740734744` on subject
+`ce28f7b29b54f2e8bb55212133526870a3bf4a03` passed through the golden journey
+but exposed a second readiness-order race in the character-assignment browser:
+the registry could render while runtime identity was still unresolved, leaving
+its dynamically generated mapping button disabled after runtime identity later
+became valid. The runtime transition only synchronized static mutation controls
+and did not refresh the active Assignment route. The correction makes runtime
+identity resolution and failure refresh that one runtime-bound dynamic route,
+removes the dead duplicate `loadRuntimeIdentity` writer, and makes the browser
+oracle delay `/api/runtime` so registry-before-runtime order is deterministic.
+The oracle still requires the real enabled button, command submission, and the
+manual-review count transition from 3 to 2; no timeout or product criterion is
+relaxed.

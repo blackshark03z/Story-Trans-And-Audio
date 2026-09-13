@@ -63,6 +63,7 @@ class CharacterAssignmentFixtureHandler(ScopeFixtureHandler):
     commands: list[dict] = []
     suggestions: dict | None = None
     gemini_configured = True
+    runtime_delay_seconds = 0.0
     next_character_id = 31
 
     @classmethod
@@ -84,6 +85,7 @@ class CharacterAssignmentFixtureHandler(ScopeFixtureHandler):
         cls.commands = []
         cls.suggestions = None
         cls.gemini_configured = True
+        cls.runtime_delay_seconds = 0.0
         cls.next_character_id = 31
 
     @classmethod
@@ -369,6 +371,8 @@ class CharacterAssignmentFixtureHandler(ScopeFixtureHandler):
     def do_GET(self) -> None:
         parsed = urlparse(self.path)
         query = parse_qs(parsed.query)
+        if parsed.path == "/api/runtime" and self.runtime_delay_seconds:
+            time.sleep(self.runtime_delay_seconds)
         if parsed.path == "/api/config":
             return self._json(
                 {
@@ -704,6 +708,7 @@ class CharacterAssignmentBrowserTests(unittest.TestCase):
     def test_missing_gemini_keeps_manual_review_visible_and_counts_consistent(self) -> None:
         CharacterAssignmentFixtureHandler.reset()
         CharacterAssignmentFixtureHandler.gemini_configured = False
+        CharacterAssignmentFixtureHandler.runtime_delay_seconds = 1.0
         server = ThreadingHTTPServer(("127.0.0.1", 0), CharacterAssignmentFixtureHandler)
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
