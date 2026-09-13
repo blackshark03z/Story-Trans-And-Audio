@@ -1353,3 +1353,15 @@ the declared CI browser budget. The shared correction moves timeout policy to
 one CommonJS-compatible helper, re-exports it for the existing ESM harnesses,
 and routes every inline real-browser probe through it. UI assertions, viewport
 sizes, and operator-visible acceptance conditions remain unchanged.
+
+GitHub run `34742320470` on subject
+`493ae010634db9c4dca1efc87d6c75821df7148b` stopped in the isolated batch
+concurrency suite because both callers observed the durable request state as
+`APPLIED`. That state is intentionally returned for a successful historical
+replay and therefore cannot count transaction writers; the previous assertion
+was scheduler-dependent and contradicted the replay contract. The oracle is
+made more discriminating, not weaker: it still requires one request, one job,
+one link, and two exact chapter rows, and now additionally requires exactly one
+ownership acquisition, one future-transaction call, and one replay. Both
+`APPLYING`-before-commit and `APPLIED`-after-commit observer timings remain
+valid without allowing a second writer.
