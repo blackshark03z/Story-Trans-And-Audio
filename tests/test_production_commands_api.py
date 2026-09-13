@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from fastapi import HTTPException
@@ -298,6 +299,64 @@ class ProductionCommandApiTests(IsolatedTestCase):
         self.assertEqual(result["failed_count"], 1)
         self.assertEqual(result["failed_items"][0]["character_id"], 12)
         self.assertIn("unavailable", result["failed_items"][0]["reason"])
+
+    def test_atomic_voice_configuration_batch_uses_one_scoped_domain_mutation(self) -> None:
+        command = {
+            "command_type": "SAVE_VOICE_CONFIGURATION_BATCH",
+            "idempotency_key": "atomic-voice-config-batch-0001",
+            "scope": {
+                "range": {
+                    "book_id": 2,
+                    "from_chapter": 1,
+                    "to_chapter": 2,
+                    "skip_completed": True,
+                }
+            },
+            "payload": {
+                "book_id": 2,
+                "items": [
+                    {"speaker_key": "narrator", "scope": "range", "voice_id": "male"},
+                    {"speaker_key": "character:11", "character_id": 11, "scope": "range", "voice_id": "new"},
+                ],
+            },
+        }
+        registry = {
+            "rows": [
+                {"speaker_key": "narrator", "display_name": "Người kể chuyện", "actions": {"can_create_range_or_chapter_override": True, "can_save_book_default": True}},
+                {"speaker_key": "character:11", "display_name": "Thiếu niên", "character_id": 11, "gender": "male", "actions": {"can_create_range_or_chapter_override": True, "can_save_book_default": True}},
+            ]
+        }
+        captured = {}
+
+        def apply_batch(*_args, **kwargs):
+            captured.update(kwargs)
+            return {
+                "applied": [
+                    {"chapter_number": 1, "casting_plan_id": 101},
+                    {"chapter_number": 2, "casting_plan_id": 102},
+                ],
+                "reused_count": 0,
+            }
+
+        with (
+            patch("story_audio.api._project_production_command", self.projection),
+            patch("story_audio.api._load_voice_catalog", return_value=SimpleNamespace(selectable_ids={"male", "new"})),
+            patch("story_audio.api._build_custom_voice_context", return_value=None),
+            patch("story_audio.api.get_book_voice_registry", return_value=registry),
+            patch("story_audio.api.apply_chapter_voice_override_batch", side_effect=apply_batch) as batch,
+        ):
+            response = self.client.post("/api/production/commands", json=command)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        payload = response.json()
+        self.assertEqual(payload["outcome"], "APPLIED")
+        self.assertEqual(payload["submitted_count"], 2)
+        self.assertEqual(payload["failed_count"], 0)
+        self.assertTrue(payload["result_metadata"]["atomic"])
+        self.assertEqual(payload["result_metadata"]["casting_plan_chapter_count"], 2)
+        self.assertEqual(batch.call_count, 1)
+        self.assertEqual(len(captured["changes"]), 2)
+        self.assertIsNotNone(captured["connection"])
 
     def test_book_voice_default_creates_missing_first_use_profile(self) -> None:
         command = {

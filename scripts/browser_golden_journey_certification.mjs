@@ -178,20 +178,24 @@ try {
   const fixtureSpeakerKey = `character:${fixture.character_id}`;
   const fixtureVoiceSelector = `[data-registry-voice-key="${fixtureSpeakerKey}"]`;
   const fixtureScopeSelector = `[data-registry-scope-key="${fixtureSpeakerKey}"]`;
-  const fixtureApplySelector = `[data-registry-apply="${fixtureSpeakerKey}"]`;
+  const fixtureBatchSelector = `[data-save-voice-batch]`;
   await waitFor(`document.querySelector(${JSON.stringify(fixtureVoiceSelector)})`);
   const assignmentBefore = await evaluate(`document.querySelector("#assignmentRows")?.innerText || ""`);
   await evaluate(`(() => {
     const scope=document.querySelector(${JSON.stringify(fixtureScopeSelector)});
-    const select=document.querySelector(${JSON.stringify(fixtureVoiceSelector)});
     scope.value="book";
     scope.dispatchEvent(new Event("change",{bubbles:true}));
+    return true;
+  })()`);
+  await waitFor(`document.querySelector(${JSON.stringify(fixtureVoiceSelector)})`);
+  await evaluate(`(() => {
+    const select=document.querySelector(${JSON.stringify(fixtureVoiceSelector)});
     select.value="fixture_character";
     select.dispatchEvent(new Event("change",{bubbles:true}));
     return true;
   })()`);
-  await click(fixtureApplySelector);
-  await click(fixtureApplySelector);
+  await waitFor(`document.querySelector(${JSON.stringify(fixtureBatchSelector)}) && !document.querySelector(${JSON.stringify(fixtureBatchSelector)}).disabled`);
+  await click(fixtureBatchSelector);
   await waitFor(`!window.storyAudioAppState.productionCommand.active`, 20000);
   await waitFor(`window.storyAudioAppState.bookVoiceRegistry?.loading===false&&document.querySelector(${JSON.stringify(fixtureVoiceSelector)})`, 20000);
   await waitFor(`!document.querySelector("#assignmentRows")?.innerText.includes("fixture_missing")`, 20000);

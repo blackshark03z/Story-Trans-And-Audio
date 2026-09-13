@@ -211,13 +211,33 @@ try {
     };
   })()`);
 
+  for (let remaining = reviewQueue.count; remaining > 0; remaining -= 1) {
+    const key = await evaluate(`document.querySelector('[data-speaker-suggestion-card]')?.dataset?.speakerSuggestionCard || ''`);
+    if (!key) throw new Error('Speaker review card disappeared before user approval');
+    await click(`[data-speaker-suggestion-submit="${key}"]`);
+    await waitFor(`!window.storyAudioAppState.productionCommand?.active`, 20000);
+    try {
+      await waitFor(`document.querySelectorAll('[data-speaker-suggestion-card]').length === ${remaining - 1}`, 20000);
+    } catch (error) {
+      const diagnostic = await evaluate(`({
+        command: window.storyAudioAppState?.productionCommand,
+        cardCount: document.querySelectorAll('[data-speaker-suggestion-card]').length,
+        suggestionResult: window.storyAudioAppState?.bookVoiceRegistry?.speakerSuggestions?.result || null,
+        registryRows: (window.storyAudioAppState?.bookVoiceRegistry?.result?.rows || []).map(row => ({key:row.speaker_key,role:row.role})),
+        commands: window.__characterAssignmentCommands || [],
+      })`);
+      throw new Error(`${error.message} ${JSON.stringify(diagnostic)}`);
+    }
+  }
+  await waitFor(`document.querySelector('[data-assignment-section="voices"]')?.open && document.querySelector(${JSON.stringify(attr("data-registry-voice-key", "character:25"))})`, 20000);
+
   await evaluate(`document.querySelector('[data-assignment-section="voices"]').open = true`);
-  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:25"))})
-    && !document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:25"))}).disabled`);
+  await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-voice-key", "character:25"))})`);
   await setSelect(attr("data-registry-scope-key", "character:25"), "range");
   await setSelect(attr("data-registry-voice-key", "character:25"), "commander");
-  await click(attr("data-registry-apply", "character:25"));
-  await waitFor(`(window.__characterAssignmentCommands || []).some(command => command.type === "SET_RANGE_VOICE_OVERRIDE")`);
+  await waitFor(`document.querySelector('[data-save-voice-batch]') && !document.querySelector('[data-save-voice-batch]').disabled`);
+  await click('[data-save-voice-batch]');
+  await waitFor(`(window.__characterAssignmentCommands || []).some(command => command.type === "SAVE_VOICE_CONFIGURATION_BATCH")`);
   await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "character:25"))})?.closest("tr")?.textContent.includes("Commander Voice")`);
   const voiceAssigned = await evaluate(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "character:25"))})?.closest("tr")?.textContent.includes("Commander Voice")`);
 
@@ -228,15 +248,15 @@ try {
     mobile: false,
   });
   await waitFor(`(async () => {
-    const action = document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:25"))});
+    const action = document.querySelector('[data-registry-batch-save]');
     if (!action) return false;
     action.scrollIntoView({ block: "center" });
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    const rect = document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:25"))})?.getBoundingClientRect();
+    const rect = document.querySelector('[data-registry-batch-save]')?.getBoundingClientRect();
     return !!rect && rect.top >= 0 && rect.bottom <= innerHeight;
   })()`, 5000);
   const layout1920 = await evaluate(`(() => {
-    const action = document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:25"))})?.getBoundingClientRect();
+    const action = document.querySelector('[data-registry-batch-save]')?.getBoundingClientRect();
     return {
       primaryVisible: !!action && action.top >= 0 && action.bottom <= innerHeight,
       horizontal: document.documentElement.scrollWidth > innerWidth + 1,

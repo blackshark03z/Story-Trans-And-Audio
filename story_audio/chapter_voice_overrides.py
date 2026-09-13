@@ -427,6 +427,372 @@ def _prepare_plan(
     )
 
 
+def _normalize_voice_batch_changes(
+    changes: Iterable[Mapping[str, Any]],
+) -> list[dict[str, Any]]:
+    normalized: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for raw in changes:
+        speaker_key = str(raw.get("speaker_key") or "").strip()
+        if speaker_key not in {"narrator", "unknown"} and not speaker_key.startswith("character:"):
+            raise ChapterVoiceOverrideError("Unsupported speaker key")
+        if speaker_key in seen:
+            raise ChapterVoiceOverrideError("Voice batch contains the same role more than once")
+        operation = str(raw.get("operation") or "set").strip().lower()
+        if operation not in {"set", "clear"}:
+            raise ChapterVoiceOverrideError("Unsupported voice override operation")
+        voice_id = str(raw.get("voice_id") or "").strip() or None
+        if operation == "set" and not voice_id:
+            raise ChapterVoiceOverrideError("voice_id is required when setting an override")
+        seen.add(speaker_key)
+        normalized.append(
+            {
+                "speaker_key": speaker_key,
+                "operation": operation,
+                "voice_id": voice_id,
+            }
+        )
+    if not normalized:
+        raise ChapterVoiceOverrideError("Voice batch is empty")
+    return normalized
+
+
+def _prepare_plan_batch(
+    db: Database,
+    store: ContentStore,
+    *,
+    chapter: Mapping[str, Any],
+    changes: list[dict[str, Any]],
+    allowed_voice_ids: set[str],
+    source_metadata: Mapping[str, Any],
+    custom_voice_context: CustomVoiceContext | None,
+    skip_missing: bool,
+) -> tuple[_PreparedPlan | None, set[str]]:
+    plan_row = _latest_plan_row(db, int(chapter["id"]))
+    source_draft_id: int | None = None
+    if plan_row is None:
+        assignments, source_draft_id, source_kind = _current_speaker_assignments(
+            db,
+            store,
+            chapter,
+        )
+        profile = get_book_voice_profile(db, int(chapter["book_id"]))
+        narrator_voice_id = str(profile.get("narrator_voice_id") if profile else "").strip()
+        if not narrator_voice_id:
+            raise ChapterVoiceOverrideError("Book narrator voice is missing")
+        build_allowed_voice_ids = (
+            set(allowed_voice_ids)
+            | _book_configured_voice_ids(db, int(chapter["book_id"]))
+            | {str(item["voice_id"]) for item in changes if item.get("voice_id")}
+        )
+        default_build = build_casting_plan_payload(
+            db,
+            store,
+            chapter_id=int(chapter["id"]),
+            text_revision_id=int(chapter["active_text_revision_id"]),
+            narrator_voice_id=narrator_voice_id,
+            assignments=assignments,
+            allowed_voice_ids=build_allowed_voice_ids,
+            source_metadata={
+                **dict(source_metadata),
+                "source": source_kind,
+                **(
+                    {"speaker_draft_id": source_draft_id}
+                    if source_draft_id is not None
+                    else {"speaker_state": NO_REVIEW_REQUIRED}
+                ),
+            },
+            custom_voice_context=custom_voice_context,
+        )
+        current_payload = default_build.payload
+        text_revision_id = int(chapter["active_text_revision_id"])
+        previous_plan_id = None
+        previous_plan_sha = None
+        plan_revision = 0
+        overrides: dict[str, str] = {}
+    else:
+        if int(plan_row["text_revision_id"]) != int(chapter["active_text_revision_id"] or 0):
+            raise ChapterVoiceOverrideError(
+                f"Final Voice Map is stale for Chapter {int(chapter['chapter_number'])}"
+            )
+        current = get_plan(db, store, int(plan_row["id"]))
+        current_payload = current["plan"]
+        assignments = _assignments_from_plan(current_payload)
+        build_allowed_voice_ids = (
+            set(allowed_voice_ids)
+            | _all_plan_voice_ids(current_payload)
+            | _book_configured_voice_ids(db, int(chapter["book_id"]))
+            | {str(item["voice_id"]) for item in changes if item.get("voice_id")}
+        )
+        default_build = build_casting_plan_payload(
+            db,
+            store,
+            chapter_id=int(chapter["id"]),
+            text_revision_id=int(plan_row["text_revision_id"]),
+            narrator_voice_id=str(current_payload.get("narrator_voice_id") or ""),
+            assignments=assignments,
+            allowed_voice_ids=build_allowed_voice_ids,
+            base_utterances=current_payload.get("utterances") or [],
+            custom_voice_context=custom_voice_context,
+        )
+        overrides = _existing_plan_overrides(current_payload, default_build.payload)
+        text_revision_id = int(plan_row["text_revision_id"])
+        previous_plan_id = int(plan_row["id"])
+        previous_plan_sha = str(plan_row["plan_sha256"])
+        plan_revision = int(plan_row["plan_revision"])
+
+    current_speakers = _speaker_voices(current_payload)
+    default_speakers = _speaker_voices(default_build.payload)
+    applied_speakers: set[str] = set()
+    for change in changes:
+        speaker_key = str(change["speaker_key"])
+        if speaker_key not in current_speakers:
+            if skip_missing:
+                continue
+            raise ChapterVoiceOverrideError(
+                f"Speaker {speaker_key} does not appear in Chapter {int(chapter['chapter_number'])}"
+            )
+        operation = str(change["operation"])
+        voice_id = change.get("voice_id")
+        if operation == "set":
+            if voice_id not in allowed_voice_ids and not (
+                custom_voice_context and custom_voice_context.is_available(str(voice_id))
+            ):
+                raise ChapterVoiceOverrideError("Selected voice is not available")
+            inherited = default_speakers.get(speaker_key) or set()
+            if len(inherited) == 1 and inherited == {str(voice_id)}:
+                overrides.pop(speaker_key, None)
+            else:
+                overrides[speaker_key] = str(voice_id)
+        else:
+            overrides.pop(speaker_key, None)
+        applied_speakers.add(speaker_key)
+
+    if not applied_speakers:
+        return None, set()
+
+    built = build_casting_plan_payload(
+        db,
+        store,
+        chapter_id=int(chapter["id"]),
+        text_revision_id=text_revision_id,
+        narrator_voice_id=str(current_payload.get("narrator_voice_id") or default_build.narrator_voice_id),
+        assignments=assignments,
+        allowed_voice_ids=build_allowed_voice_ids,
+        source_metadata={
+            **dict(source_metadata),
+            "explicit_voice_overrides": dict(sorted(overrides.items())),
+        },
+        base_utterances=current_payload.get("utterances") or [],
+        custom_voice_context=custom_voice_context,
+        speaker_voice_overrides=overrides,
+    )
+    if any(
+        not str(item.get("resolved_voice_id") or "").strip()
+        for item in built.payload.get("utterances") or []
+    ):
+        raise ChapterVoiceOverrideError("Generated Casting Plan contains unresolved voices")
+    plan_sha = _canonical_plan_sha(built.payload)
+    reused = bool(previous_plan_sha and plan_sha == previous_plan_sha)
+    if reused and plan_row is not None:
+        content_path = str(plan_row["content_path"])
+    else:
+        content_path, stored_sha = store.put_json(built.payload, namespace="casting")
+        if stored_sha != plan_sha:
+            raise ChapterVoiceOverrideError("Generated Casting Plan hash mismatch")
+    return (
+        _PreparedPlan(
+            chapter_id=int(chapter["id"]),
+            chapter_number=int(chapter["chapter_number"]),
+            previous_plan_id=previous_plan_id,
+            previous_plan_sha256=previous_plan_sha,
+            source_draft_id=source_draft_id,
+            text_revision_id=text_revision_id,
+            plan_revision=plan_revision,
+            content_path=content_path,
+            plan_sha256=plan_sha,
+            narrator_voice_id=built.narrator_voice_id,
+            character_ids=tuple(sorted(built.used_characters)),
+            reused=reused,
+        ),
+        applied_speakers,
+    )
+
+
+def apply_chapter_voice_override_batch(
+    db: Database,
+    store: ContentStore,
+    *,
+    book_id: int,
+    from_chapter: int,
+    to_chapter: int,
+    changes: Iterable[Mapping[str, Any]],
+    voice_catalog: EffectiveVoiceCatalog,
+    idempotency_key: str,
+    custom_voice_context: CustomVoiceContext | None = None,
+    connection: Any | None = None,
+    skip_missing: bool = False,
+) -> dict[str, Any]:
+    """Apply multiple scoped voice choices with at most one new plan per chapter."""
+    normalized = _normalize_voice_batch_changes(changes)
+    chapters = _chapters_for_range(
+        db,
+        book_id=book_id,
+        from_chapter=from_chapter,
+        to_chapter=to_chapter,
+    )
+    source_metadata = {
+        "source": "voice_configuration_batch",
+        "changes": normalized,
+        "scope": {
+            "book_id": book_id,
+            "from_chapter": from_chapter,
+            "to_chapter": to_chapter,
+            "chapter_count": len(chapters),
+        },
+        "idempotency_key": idempotency_key,
+    }
+    allowed_voice_ids = set(voice_catalog.selectable_ids)
+    prepared: list[_PreparedPlan] = []
+    covered: set[str] = set()
+    for chapter in chapters:
+        item, applied_speakers = _prepare_plan_batch(
+            db,
+            store,
+            chapter=chapter,
+            changes=normalized,
+            allowed_voice_ids=allowed_voice_ids,
+            source_metadata=source_metadata,
+            custom_voice_context=custom_voice_context,
+            skip_missing=skip_missing,
+        )
+        covered.update(applied_speakers)
+        if item is not None:
+            prepared.append(item)
+    missing = [item["speaker_key"] for item in normalized if item["speaker_key"] not in covered]
+    if missing:
+        raise ChapterVoiceOverrideError(
+            "Voice batch contains roles outside the effective production scope: "
+            + ", ".join(missing)
+        )
+
+    applied: list[dict[str, Any]] = []
+    now = utcnow()
+
+    def commit_with(transaction):
+        for item in prepared:
+            latest = transaction.execute(
+                """
+                SELECT id,status,plan_revision,plan_sha256
+                FROM casting_plans
+                WHERE chapter_id=?
+                ORDER BY plan_revision DESC,id DESC
+                LIMIT 1
+                """,
+                (item.chapter_id,),
+            ).fetchone()
+            if item.previous_plan_id is None:
+                if latest:
+                    raise ChapterVoiceOverrideError(
+                        f"Chapter {item.chapter_number} voice map changed while saving"
+                    )
+                if item.source_draft_id is not None:
+                    draft = transaction.execute(
+                        """
+                        SELECT id,status,text_revision_id
+                        FROM speaker_assignment_drafts
+                        WHERE id=? AND chapter_id=?
+                        """,
+                        (item.source_draft_id, item.chapter_id),
+                    ).fetchone()
+                    if (
+                        not draft
+                        or str(draft["status"]) != "approved"
+                        or int(draft["text_revision_id"]) != item.text_revision_id
+                    ):
+                        raise ChapterVoiceOverrideError(
+                            f"Chapter {item.chapter_number} speaker review changed while saving"
+                        )
+                else:
+                    chapter_state = transaction.execute(
+                        "SELECT active_text_revision_id FROM chapters WHERE id=?",
+                        (item.chapter_id,),
+                    ).fetchone()
+                    if (
+                        not chapter_state
+                        or int(chapter_state["active_text_revision_id"] or 0)
+                        != item.text_revision_id
+                    ):
+                        raise ChapterVoiceOverrideError(
+                            f"Chapter {item.chapter_number} speaker state changed while saving"
+                        )
+            elif (
+                not latest
+                or int(latest["id"]) != item.previous_plan_id
+                or str(latest["status"]) not in {"draft", "approved"}
+                or str(latest["plan_sha256"]) != item.previous_plan_sha256
+            ):
+                raise ChapterVoiceOverrideError(
+                    f"Chapter {item.chapter_number} voice map changed while saving"
+                )
+            if item.reused:
+                applied.append(
+                    {
+                        "chapter_id": item.chapter_id,
+                        "chapter_number": item.chapter_number,
+                        "casting_plan_id": item.previous_plan_id,
+                        "plan_revision": item.plan_revision,
+                        "reused": True,
+                    }
+                )
+                continue
+            next_revision = int(latest["plan_revision"]) + 1 if latest else 1
+            plan_id = int(
+                transaction.execute(
+                    """INSERT INTO casting_plans(
+                        chapter_id,text_revision_id,plan_revision,status,content_path,
+                        plan_sha256,narrator_voice_id,created_at
+                    ) VALUES(?,?,?,'draft',?,?,?,?)""",
+                    (
+                        item.chapter_id,
+                        item.text_revision_id,
+                        next_revision,
+                        item.content_path,
+                        item.plan_sha256,
+                        item.narrator_voice_id,
+                        now,
+                    ),
+                ).lastrowid
+            )
+            for character_id in item.character_ids:
+                transaction.execute(
+                    "INSERT INTO casting_plan_characters(casting_plan_id,character_id) VALUES(?,?)",
+                    (plan_id, character_id),
+                )
+            applied.append(
+                {
+                    "chapter_id": item.chapter_id,
+                    "chapter_number": item.chapter_number,
+                    "casting_plan_id": plan_id,
+                    "plan_revision": next_revision,
+                    "status": "draft",
+                    "reused": False,
+                }
+            )
+
+    if connection is None:
+        with db.transaction() as transaction:
+            commit_with(transaction)
+    else:
+        commit_with(connection)
+    return {
+        "changes": normalized,
+        "applied": applied,
+        "chapter_count": len(chapters),
+        "reused_count": sum(1 for item in applied if item.get("reused")),
+    }
+
+
 def apply_chapter_voice_override(
     db: Database,
     store: ContentStore,
@@ -606,4 +972,5 @@ def apply_chapter_voice_override(
 __all__ = [
     "ChapterVoiceOverrideError",
     "apply_chapter_voice_override",
+    "apply_chapter_voice_override_batch",
 ]

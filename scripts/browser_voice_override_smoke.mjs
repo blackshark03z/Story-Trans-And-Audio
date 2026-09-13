@@ -133,14 +133,15 @@ try {
   })()`);
   const rowHasVoice = async (speaker, text) => (await rowText(speaker)).includes(text);
   const waitAssignmentReady = async speaker => {
-    await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-apply", speaker))}) && !document.querySelector(${JSON.stringify(attr("data-registry-apply", speaker))}).disabled`);
+    await waitFor(`document.querySelector(${JSON.stringify(attr("data-registry-voice-key", speaker))}) && document.querySelector(${JSON.stringify(attr("data-registry-scope-key", speaker))}) && !window.storyAudioAppState?.bookVoiceRegistry?.loading && !window.storyAudioAppState?.bookVoiceRegistry?.batchSaving`);
   };
   const applyVoice = async (speaker, voice, scope = null) => {
     if (scope) await setSelect(attr("data-registry-scope-key", speaker), scope);
     await setSelect(attr("data-registry-voice-key", speaker), voice);
-    await click(attr("data-registry-apply", speaker));
-    const busySeen = await waitFor(`!!document.querySelector(".assignment-saving")`, 5000);
-    await waitFor(`!document.querySelector(".assignment-saving")`, 20000);
+    await waitFor(`document.querySelector('[data-save-voice-batch]') && !document.querySelector('[data-save-voice-batch]').disabled`);
+    await click('[data-save-voice-batch]');
+    const busySeen = await waitFor(`window.storyAudioAppState?.bookVoiceRegistry?.batchSaving === true`, 5000);
+    await waitFor(`window.storyAudioAppState?.bookVoiceRegistry?.batchSaving === false`, 20000);
     return !!busySeen;
   };
   const installCommandRecorder = async (existing = []) => evaluate(`(() => {
@@ -158,18 +159,14 @@ try {
           key: request.idempotency_key,
           applied: payload.applied_count || 0,
           range: request.scope?.range || null,
+          items: request.payload?.items?.length || 0,
         });
       }
       return response;
     };
     return true;
   })()`);
-  const clearVoice = async (speaker, scope = null) => {
-    if (scope) await setSelect(attr("data-registry-scope-key", speaker), scope);
-    await click(attr("data-registry-clear", speaker));
-    await waitFor(`!!document.querySelector(".assignment-saving")`, 5000);
-    await waitFor(`!document.querySelector(".assignment-saving")`, 20000);
-  };
+  const clearVoice = async (speaker, scope = null) => applyVoice(speaker, "male", scope);
 
   await send("Runtime.enable");
   await send("Page.enable");
@@ -181,7 +178,7 @@ try {
     if (section) section.open = true;
     return !!section;
   })()`);
-  await waitFor(`!!document.querySelector('[data-registry-apply="narrator"]')`);
+  await waitFor(`!!document.querySelector('[data-registry-voice-key="narrator"]') && !!document.querySelector('[data-registry-batch-save]')`);
   const workspaceScrollBefore = await evaluate(`(() => {
     const rows = document.querySelector('#assignmentRows');
     rows.style.height = '220px';
@@ -206,8 +203,9 @@ try {
       && !!document.querySelector('[data-registry-scope-key="narrator"]')
       && !!document.querySelector('[data-registry-voice-key="narrator"]')
       && document.querySelector('[data-registry-scope-key="narrator"]')?.value === "book"
-      && document.querySelector('[data-registry-apply="narrator"]')?.textContent.includes("Lưu làm giọng mặc định cho sách")
-      && !!document.querySelector('[data-registry-clear="narrator"]')
+      && !!document.querySelector('[data-registry-batch-save]')
+      && !document.querySelector('[data-registry-apply="narrator"]')
+      && !document.querySelector('[data-registry-clear="narrator"]')
       && !document.querySelector('[data-voice-library-row="unknown"]')
       && !body.includes("Narrator/unknown");
   })()`);
@@ -222,7 +220,7 @@ try {
   })()`);
   const chapterOneHash = "#/assignment?book=1&from=1&to=1&focus=1001&source_task=REPAIR_REQUIRED&return_task=REPAIR_PREFLIGHT&assignment_focus=voices";
   await route(chapterOneHash);
-  await waitFor(`!!document.querySelector('[data-registry-apply="narrator"]')`);
+  await waitFor(`!!document.querySelector('[data-registry-voice-key="narrator"]') && !!document.querySelector('[data-registry-batch-save]')`);
   await setSelect(attr("data-registry-scope-key", "narrator"), "chapter");
   await waitFor(`!!document.querySelector('[data-voice-save-guard="narrator"]')`);
   await setSelect(attr("data-registry-voice-key", "narrator"), "male");
@@ -233,7 +231,8 @@ try {
       reviewFirst: !!document.querySelector('[data-registry-review-first="narrator"]'),
       guardCopy: !!editor?.textContent.includes("Chưa thể lưu giọng riêng vì bản xác định người nói chưa được duyệt."),
       temporaryCopy: !!editor?.querySelector('.assignment-unsaved-choice:not(.hidden)')
-        && !!editor?.textContent.includes("Lựa chọn tạm thời — chưa được lưu"),
+        && !!editor?.textContent.includes("Chưa lưu — sẽ được gom vào lần lưu cuối"),
+      batchBlocked: !!document.querySelector('[data-save-voice-batch]')?.disabled,
       commandCount: window.__voiceOverrideCommands.length,
       text: editor?.textContent || "",
     };
@@ -242,10 +241,11 @@ try {
     && localGuardEvidence.reviewFirst
     && localGuardEvidence.guardCopy
     && localGuardEvidence.temporaryCopy
+    && localGuardEvidence.batchBlocked
     && localGuardEvidence.commandCount === 0;
   if (!localUnsavedGuard) throw new Error(`Chapter 1 local-only voice guard is not honest or complete: ${JSON.stringify(localGuardEvidence)}`);
   await setSelect(attr("data-registry-scope-key", "narrator"), "book");
-  const bookDefaultRemainsIndependent = await evaluate(`document.querySelector('[data-registry-apply="narrator"]')?.textContent.includes("Lưu làm giọng mặc định cho sách")
+  const bookDefaultRemainsIndependent = await evaluate(`!!document.querySelector('[data-save-voice-batch]') && !document.querySelector('[data-save-voice-batch]').disabled
     && !document.querySelector('[data-registry-review-first="narrator"]')
     && window.__voiceOverrideCommands.length === 0`);
   if (!bookDefaultRemainsIndependent) throw new Error("Book default was incorrectly coupled to the Chapter 1 scoped-override guard.");
@@ -257,7 +257,7 @@ try {
   browserErrors.length = 0;
   await waitFor(`Number(window.storyAudioAppState?.bookVoiceRegistry?.result?.range?.from_chapter) === 1
     && Number(window.storyAudioAppState?.bookVoiceRegistry?.result?.range?.to_chapter) === 1
-    && !!document.querySelector('[data-registry-apply="narrator"]')`);
+    && !!document.querySelector('[data-registry-voice-key="narrator"]')`);
   const exactScopeAfterReload = await evaluate(`(() => {
     const context = currentProductionWorkingContext();
     return context?.bookId === 1 && context?.fromChapter === 1 && context?.toChapter === 1 && context?.focusedChapterId === 1001;
@@ -268,7 +268,7 @@ try {
   await installCommandRecorder([]);
   await applyVoice("narrator", "male", "chapter");
   await waitFor(`document.querySelector('[data-registry-editor="narrator"]')?.closest("tr")?.textContent.includes("Male Default")`);
-  const chapterOneCommand = await evaluate(`window.__voiceOverrideCommands.find(item => item.type === "SET_CHAPTER_VOICE_OVERRIDE") || null`);
+  const chapterOneCommand = await evaluate(`window.__voiceOverrideCommands.find(item => item.type === "SAVE_VOICE_CONFIGURATION_BATCH") || null`);
   const exactCommandScope = chapterOneCommand?.range?.book_id === 1
     && chapterOneCommand?.range?.from_chapter === 1
     && chapterOneCommand?.range?.to_chapter === 1;
@@ -333,8 +333,7 @@ try {
       && voice === 'male'
       && text.includes('Female Range')
       && text.includes('Mặc định sách: Male Default')
-      && text.includes('mặc định cho sách')
-      && text.includes('vẫn dùng Female Range');
+      && document.querySelector('[data-registry-batch-save]')?.textContent.includes('Đã lưu nguyên khối cấu hình cho 1 vai');
   })()`);
 
   await route("#/assignment?book=1&from=2&to=4&skip_completed=1");
@@ -362,7 +361,7 @@ try {
   const mixedResolved = await rowHasVoice("character:25", "Character Alt");
 
   await applyVoice("narrator", "female", "range");
-  await waitFor(`document.querySelector('[data-range-override-recovery]')?.textContent.includes('2 vai đang bị ghi đè cũ')`);
+  await waitFor(`document.querySelector('[data-range-override-recovery]')?.textContent.includes('Bản đồ giọng đang dùng cấu hình cũ cho 2 vai')`);
   const bulkRecoveryPreview = await evaluate(`(() => {
     const panel = document.querySelector('[data-range-override-recovery]');
     return !!panel
@@ -374,11 +373,12 @@ try {
   await evaluate(`(() => { window.confirm = () => true; return true; })()`);
   const bulkCommandStart = await evaluate(`window.__voiceOverrideCommands.length`);
   await click('[data-clear-all-range-overrides]');
-  await waitFor(`!document.querySelector('[data-range-override-recovery]') && document.querySelector('[data-range-override-result]')?.textContent.includes('Đã bỏ ghi đè cho 2 vai')`, 30000);
+  await waitFor(`!document.querySelector('[data-range-override-recovery]') && document.querySelector('[data-range-override-result]')?.textContent.includes('Đã cập nhật 2 vai theo mặc định sách hiện tại')`, 30000);
   const bulkRecoveryCommands = await evaluate(`window.__voiceOverrideCommands.slice(${bulkCommandStart})`);
   const bulkRecoveryApplied = bulkRecoveryPreview
-    && bulkRecoveryCommands.length === 2
-    && bulkRecoveryCommands.every(item => item.type === 'CLEAR_RANGE_VOICE_OVERRIDE')
+    && bulkRecoveryCommands.length === 1
+    && bulkRecoveryCommands[0].type === 'SAVE_VOICE_CONFIGURATION_BATCH'
+    && bulkRecoveryCommands[0].items === 2
     && await rowHasVoice("narrator", "Male Default")
     && await rowHasVoice("character:25", "Male Default");
 
@@ -393,28 +393,27 @@ try {
     select.dispatchEvent(new Event("change", { bubbles: true }));
     return true;
   })()`);
-  await click(attr("data-registry-apply", "narrator"));
-  await waitFor(`!!document.querySelector('[data-registry-editor="narrator"] .assignment-row-error')`);
+  await waitFor(`!!document.querySelector('[data-save-voice-batch]')?.disabled`);
   const unavailableBlocked = await evaluate(`(() => {
     const select = document.querySelector('[data-registry-voice-key="narrator"]');
-    const error = document.querySelector('[data-registry-editor="narrator"] .assignment-row-error');
-    return select?.value === "legacy" && !!error && window.__voiceOverrideCommands.length === ${beforeUnavailableCommands};
+    const save = document.querySelector('[data-save-voice-batch]');
+    return select?.value === "legacy" && !!save?.disabled && window.__voiceOverrideCommands.length === ${beforeUnavailableCommands};
   })()`);
 
   await send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
   await waitFor(`(async () => {
-    const action = document.querySelector('[data-registry-apply="narrator"]');
+    const action = document.querySelector('[data-registry-batch-save]');
     if (!action) return false;
     action.scrollIntoView({ block: "center" });
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-    const rect = document.querySelector('[data-registry-apply="narrator"]')?.getBoundingClientRect();
+    const rect = document.querySelector('[data-registry-batch-save]')?.getBoundingClientRect();
     return !!rect
       && rect.top >= 0
       && rect.bottom <= innerHeight
       && document.documentElement.scrollWidth <= innerWidth + 1;
   })()`, 5000);
   const layout1920 = await evaluate(`(() => {
-    const action = document.querySelector('[data-registry-apply="narrator"]')?.getBoundingClientRect();
+    const action = document.querySelector('[data-registry-batch-save]')?.getBoundingClientRect();
     return {
       primaryVisible: !!action && action.top >= 0 && action.bottom <= innerHeight,
       horizontal: document.documentElement.scrollWidth > innerWidth + 1,

@@ -284,7 +284,37 @@ class VoiceOverrideFixtureHandler(ScopeFixtureHandler):
 
         time.sleep(0.15)
         applied = []
-        if command_type == "SET_BOOK_VOICE_DEFAULT":
+        if command_type == "SAVE_VOICE_CONFIGURATION_BATCH":
+            items = payload.get("items") or []
+            if not items:
+                return self._json({"detail": "Voice configuration batch requires items"}, 422)
+            if any(str(item.get("voice_id") or "") == "legacy" for item in items):
+                return self._json({"detail": "Selected voice is not available"}, 422)
+            staged_defaults = dict(self.book_defaults)
+            staged_overrides = dict(self.overrides)
+            for item in items:
+                item_speaker = str(item.get("speaker_key") or "")
+                item_voice = str(item.get("voice_id") or "")
+                item_scope = str(item.get("scope") or "range")
+                if item_scope == "book":
+                    staged_defaults[item_speaker] = item_voice
+                elif item_scope in {"chapter", "range"}:
+                    inherited_voice = str(
+                        staged_defaults.get(item_speaker)
+                        or ("narrator" if item_speaker in {"narrator", "unknown"} else "male")
+                    )
+                    for chapter in range(start, end + 1):
+                        if item_voice == inherited_voice:
+                            staged_overrides.pop((chapter, item_speaker), None)
+                        else:
+                            staged_overrides[(chapter, item_speaker)] = item_voice
+                else:
+                    return self._json({"detail": f"Unsupported batch scope {item_scope}"}, 422)
+                applied.append({"speaker_key": item_speaker, "voice_id": item_voice, "scope": item_scope})
+            type(self).book_defaults = staged_defaults
+            type(self).overrides = staged_overrides
+            type(self).mutation_count += len(applied)
+        elif command_type == "SET_BOOK_VOICE_DEFAULT":
             self.book_defaults[speaker_key] = str(voice_id)
             type(self).mutation_count += 1
             applied.append({"speaker_key": speaker_key, "voice_id": voice_id, "scope": "book"})
@@ -373,7 +403,12 @@ class VoiceOverrideBrowserTests(unittest.TestCase):
         self.assertTrue(evidence["mixedVisible"])
         self.assertTrue(evidence["bulkRecoveryPreview"])
         self.assertTrue(evidence["bulkRecoveryApplied"])
-        self.assertEqual(len(evidence["bulkRecoveryCommands"]), 2)
+        self.assertEqual(len(evidence["bulkRecoveryCommands"]), 1)
+        self.assertEqual(
+            evidence["bulkRecoveryCommands"][0]["type"],
+            "SAVE_VOICE_CONFIGURATION_BATCH",
+        )
+        self.assertEqual(evidence["bulkRecoveryCommands"][0]["items"], 2)
         self.assertTrue(evidence["saveKeepsScroll"])
         self.assertTrue(evidence["unidentifiedSpeakerHidden"])
         self.assertTrue(evidence["unavailableBlocked"])

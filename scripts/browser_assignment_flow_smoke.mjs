@@ -267,16 +267,20 @@ try {
   })()`, 5000);
 
   const pollingStability = await evaluate(`(async () => {
-    const voice = document.querySelector('[data-registry-voice-key="character:25"]');
-    const scope = document.querySelector('[data-registry-scope-key="character:25"]');
-    if (!voice || !scope) throw new Error('Character voice controls missing after review completion');
-    scope.value = 'range';
-    scope.dispatchEvent(new Event('change', { bubbles: true }));
-    voice.value = 'commander';
-    voice.dispatchEvent(new Event('change', { bubbles: true }));
-    voice.focus({ preventScroll: true });
-    const node = voice;
-    const scopeNode = scope;
+    const initialScope = document.querySelector('[data-registry-scope-key="character:25"]');
+    if (!initialScope) throw new Error('Character scope control missing after review completion');
+    initialScope.value = 'range';
+    initialScope.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const voiceBeforeChange = document.querySelector('[data-registry-voice-key="character:25"]');
+    if (!voiceBeforeChange) throw new Error('Character voice control missing after scope change');
+    voiceBeforeChange.value = 'commander';
+    voiceBeforeChange.dispatchEvent(new Event('change', { bubbles: true }));
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const node = document.querySelector('[data-registry-voice-key="character:25"]');
+    const scopeNode = document.querySelector('[data-registry-scope-key="character:25"]');
+    if (!node || !scopeNode) throw new Error('Character controls missing after voice change');
+    node.focus({ preventScroll: true });
     const scrollBefore = window.scrollY;
     for (let index = 0; index < 3; index += 1) await loadJobs();
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -292,9 +296,26 @@ try {
     };
   })()`);
 
-  await click('[data-registry-apply="character:25"]');
+  try {
+    await waitFor(`document.querySelector('[data-save-voice-batch]') && !document.querySelector('[data-save-voice-batch]').disabled`);
+  } catch (error) {
+    const diagnostic = await evaluate(`(() => {
+      const context = currentProductionWorkingContext();
+      const row = window.storyAudioAppState?.bookVoiceRegistry?.result?.rows?.find(item => item.speaker_key === 'character:25');
+      return {
+        drafts: window.storyAudioAppState?.bookVoiceRegistry?.drafts || {},
+        batchText: document.querySelector('[data-registry-batch-save]')?.innerText || '',
+        batchDisabled: document.querySelector('[data-save-voice-batch]')?.disabled,
+        rowActions: row?.actions || null,
+        pending: context ? registryPendingVoiceChanges(context).map(item => ({speaker:item.row.speaker_key,scope:item.scope,voice:item.voice,fromVoice:item.fromVoice})) : [],
+      };
+    })()`);
+    throw new Error(`${error.message} ${JSON.stringify(diagnostic)}`);
+  }
+  await click('[data-save-voice-batch]');
   await waitFor(`!window.storyAudioAppState.productionCommand?.active
-    && !window.storyAudioAppState.bookVoiceRegistry?.loading`, 20000);
+    && !window.storyAudioAppState.bookVoiceRegistry?.loading
+    && !window.storyAudioAppState.bookVoiceRegistry?.batchSaving`, 20000);
   const voiceSaveState = await evaluate(`({
     command: window.storyAudioAppState.productionCommand,
     rowError: window.storyAudioAppState.bookVoiceRegistry?.rowErrors?.['character:25'] || null,

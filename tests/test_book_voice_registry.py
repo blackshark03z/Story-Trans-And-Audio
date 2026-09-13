@@ -4,6 +4,7 @@ from story_audio.book_voice_registry import get_book_voice_registry
 from story_audio.chapter_voice_overrides import (
     ChapterVoiceOverrideError,
     apply_chapter_voice_override,
+    apply_chapter_voice_override_batch,
 )
 from story_audio.casting import approve_plan, create_casting_draft, create_character, get_plan, split_utterances
 from story_audio.db import Database, utcnow
@@ -641,6 +642,106 @@ class BookVoiceRegistryTests(IsolatedTestCase):
         registry = self._registry(3, 3)
         unknown = next(row for row in registry["rows"] if row["speaker_key"] == "unknown")
         self.assertEqual(unknown["effective_voice"]["display_name"], "Narrator Voice")
+
+    def test_voice_batch_creates_at_most_one_plan_revision_per_chapter(self) -> None:
+        speaker_key = f"character:{int(self.characters['recurring']['id'])}"
+        before = int(self.db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans")["n"])
+
+        result = apply_chapter_voice_override_batch(
+            self.db,
+            self.store,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            changes=[
+                {"speaker_key": "narrator", "operation": "set", "voice_id": "male"},
+                {"speaker_key": speaker_key, "operation": "set", "voice_id": "new"},
+            ],
+            voice_catalog=_catalog("narrator", "male", "female", "recurring", "new"),
+            idempotency_key="atomic-two-role-batch",
+            skip_missing=True,
+        )
+
+        self.assertEqual([item["chapter_number"] for item in result["applied"]], [1, 2])
+        after = int(self.db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans")["n"])
+        self.assertEqual(after, before + 2)
+        for chapter_number in (1, 2):
+            chapter = self._chapter(chapter_number)
+            latest = self.db.fetch_one(
+                "SELECT id,plan_revision,status FROM casting_plans WHERE chapter_id=? ORDER BY plan_revision DESC,id DESC LIMIT 1",
+                (int(chapter["id"]),),
+            )
+            plan = get_plan(self.db, self.store, int(latest["id"]))["plan"]
+            narrator_voices = {
+                item["resolved_voice_id"]
+                for item in plan["utterances"]
+                if item["role"] == "narrator"
+            }
+            character_voices = {
+                item["resolved_voice_id"]
+                for item in plan["utterances"]
+                if item.get("character_id") == int(self.characters["recurring"]["id"])
+            }
+            self.assertEqual(narrator_voices, {"male"})
+            self.assertEqual(character_voices, {"new"})
+            self.assertEqual(latest["status"], "draft")
+
+    def test_voice_batch_rejects_invalid_item_without_any_plan_write(self) -> None:
+        speaker_key = f"character:{int(self.characters['recurring']['id'])}"
+        before = int(self.db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans")["n"])
+        with self.assertRaises(ChapterVoiceOverrideError):
+            apply_chapter_voice_override_batch(
+                self.db,
+                self.store,
+                book_id=self.book_id,
+                from_chapter=1,
+                to_chapter=2,
+                changes=[
+                    {"speaker_key": "narrator", "operation": "set", "voice_id": "male"},
+                    {"speaker_key": speaker_key, "operation": "set", "voice_id": "legacy"},
+                ],
+                voice_catalog=_catalog("narrator", "male", "female", "recurring", "new"),
+                idempotency_key="atomic-invalid-batch",
+                skip_missing=True,
+            )
+        after = int(self.db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans")["n"])
+        self.assertEqual(after, before)
+
+    def test_voice_batch_selecting_book_default_normalizes_to_inheritance(self) -> None:
+        apply_chapter_voice_override(
+            self.db,
+            self.store,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            speaker_key="narrator",
+            operation="set",
+            voice_id="male",
+            voice_catalog=_catalog("narrator", "male", "female"),
+            idempotency_key="stale-snapshot-before-default-sync",
+        )
+        stale = self._registry(1, 2)
+        narrator = next(row for row in stale["rows"] if row["speaker_key"] == "narrator")
+        self.assertEqual(narrator["effective_voice"]["id"], "male")
+        self.assertEqual(narrator["current_book_default_voice"]["id"], "narrator")
+
+        apply_chapter_voice_override_batch(
+            self.db,
+            self.store,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            changes=[
+                {"speaker_key": "narrator", "operation": "set", "voice_id": "narrator"},
+            ],
+            voice_catalog=_catalog("narrator", "male", "female"),
+            idempotency_key="sync-stale-snapshot-to-default",
+        )
+        refreshed = self._registry(1, 2)
+        narrator = next(row for row in refreshed["rows"] if row["speaker_key"] == "narrator")
+        self.assertEqual(narrator["effective_voice"]["id"], "narrator")
+        self.assertIsNone(narrator["range_override_voice"])
+        self.assertNotEqual(narrator["assignment_source"], "range override")
 
     def test_unavailable_voice_is_rejected_without_partial_range_write(self) -> None:
         before = self._approved_plan_count()

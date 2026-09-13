@@ -126,21 +126,20 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         ]
         self.assertIn("data-registry-scope-key", section)
         self.assertIn("data-registry-voice-key", section)
-        self.assertIn("data-registry-apply", section)
-        self.assertIn("data-registry-clear", section)
+        self.assertIn("data-save-voice-batch", section)
+        self.assertIn("data-cancel-voice-batch", section)
+        self.assertNotIn("data-registry-apply", section)
+        self.assertNotIn("data-registry-clear", section)
         self.assertIn("Mặc định cho sách", section)
         self.assertIn("Phạm vi chương", section)
         self.assertIn("Đang xử lý", section)
         self.assertIn("trong phạm vi đã chọn", section)
-        self.assertIn("SET_CHAPTER_VOICE_OVERRIDE", section)
-        self.assertIn("SET_RANGE_VOICE_OVERRIDE", section)
-        self.assertIn("CLEAR_CHAPTER_VOICE_OVERRIDE", section)
-        self.assertIn("CLEAR_RANGE_VOICE_OVERRIDE", section)
+        self.assertIn("SAVE_VOICE_CONFIGURATION_BATCH", section)
         self.assertIn("runProductionCommand", section)
-        self.assertIn("persisted=scopeChoice", self.js)
-        self.assertIn("Lưu chưa có hiệu lực", self.js)
+        self.assertIn("refreshed?.effective_voice?.id", self.js)
+        self.assertNotIn("Lưu chưa có hiệu lực", self.js)
         self.assertIn("captureRegistryUiSnapshot", self.js)
-        self.assertIn("restoreRegistryUiSnapshot(uiSnapshot)", self.js)
+        self.assertIn("restoreRegistryUiSnapshot(snapshot)", self.js)
         self.assertNotIn("Narrator/unknown", section)
         self.assertNotIn("disabled title=\"Override", section)
 
@@ -154,13 +153,14 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             section,
         )
         self.assertNotIn("Bản đồ giọng hiện tại đã được duyệt", section)
-        self.assertIn("Lựa chọn tạm thời — chưa được lưu", section)
+        self.assertIn("Chưa lưu — sẽ được gom vào lần lưu cuối", section)
         self.assertIn("Duyệt người nói trước", section)
         self.assertNotIn("Duyệt bản đồ giọng trước", section)
-        self.assertIn("Hủy lựa chọn chưa lưu", section)
-        self.assertIn("Lưu làm giọng mặc định cho sách", section)
-        self.assertNotIn("Lưu cấu hình giọng và hoàn tất bản đồ giọng", section)
-        self.assertIn("scopeChoice==='book'?bookReady:scopedReady", section)
+        self.assertIn("Hoàn tác lựa chọn", section)
+        self.assertIn("Không lưu riêng từng vai", section)
+        self.assertIn("Lưu cấu hình cho ${pending.length} vai", self.js)
+        self.assertIn("scopeChoice==='range'&&(row.conflict_voices||[]).length>1", self.js)
+        self.assertNotIn("data-registry-apply", section)
 
     def test_range_command_scope_prefers_exact_working_context(self) -> None:
         section = self.js[
@@ -171,10 +171,11 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIn("normalizeProductionWorkingContext(context)", section)
         self.assertIn("from_chapter:exact.fromChapter", section)
         save_section = self.js[
-            self.js.index("async function saveRegistryScopedVoice"):
-            self.js.index("async function clearRegistryScopedVoice")
+            self.js.index("async function saveRegistryVoiceBatch"):
+            self.js.index("async function clearAllRegistryRangeOverrides")
         ]
         self.assertIn("rangeProductionCommandScope(context)", save_section)
+        self.assertIn("SAVE_VOICE_CONFIGURATION_BATCH", save_section)
 
     def test_assignment_workflow_separates_review_from_character_voice_library(self) -> None:
         section = self.js[
@@ -246,11 +247,9 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             self.js.index("async function saveRegistrySpeakerMapping")
         ]
         for label in (
-            "Lưu làm giọng mặc định cho sách",
-            "Lưu giọng cho chương",
-            "Lưu giọng cho phạm vi",
-            "Bỏ ghi đè và dùng giọng kế thừa",
-            "Hủy lựa chọn chưa lưu",
+            "Chưa lưu — sẽ được gom vào lần lưu cuối",
+            "Hoàn tác lựa chọn",
+            "Lưu cấu hình cho ${pending.length} vai",
             "Nghe thử giọng",
             "Mặc định của sách",
             "Ghi đè chương",
@@ -268,12 +267,12 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             self.js.index("function registryRangeOverrideRows"):
             self.js.index("async function saveBookRegistryVoice")
         ]
-        self.assertIn("2 vai đang bị ghi đè cũ che giọng mặc định", section.replace("${rows.length}", "2"))
-        self.assertIn("Bỏ ghi đè cho cả phạm vi", section)
+        self.assertIn("Bản đồ giọng đang dùng cấu hình cũ cho 2 vai", section.replace("${rows.length}", "2"))
+        self.assertIn("Cập nhật toàn bộ theo mặc định mới", section)
         self.assertIn("window.confirm", section)
-        self.assertIn("CLEAR_RANGE_VOICE_OVERRIDE", section)
-        self.assertIn("Audio đã có và các giọng custom không thay đổi", section)
-        self.assertIn("Đã xử lý ${completed}/${rows.length} vai", section)
+        self.assertIn("SAVE_VOICE_CONFIGURATION_BATCH", section)
+        self.assertIn("Tất cả cùng thành công hoặc cùng không thay đổi", section)
+        self.assertIn("Đã cập nhật ${items.length} vai theo mặc định sách hiện tại bằng một giao dịch nguyên khối", section)
         self.assertNotIn("commandType:'PREPARE'", section)
         self.assertNotIn("commandType:'START_RENDER'", section)
 
@@ -328,7 +327,7 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIn("openDetails:{}", self.js)
         self.assertIn("savedScopes:{}", self.js)
         self.assertIn("Mặc định sách:", self.js)
-        self.assertIn("Phạm vi đang xem vẫn dùng", self.js)
+        self.assertIn("Có ${pending.length} thay đổi chưa lưu", self.js)
         self.assertIn("mergeBookVoiceRegistryState", self.js)
         self.assertIn("captureRegistryUiSnapshot", self.js)
         self.assertIn("restoreRegistryUiSnapshot", self.js)

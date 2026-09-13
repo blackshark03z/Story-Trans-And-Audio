@@ -167,7 +167,48 @@ CANDIDATE_PREVIEW=PASS: live read-only candidate shows 5/5 under Chờ duyệt a
 OWNER_ACCEPTANCE=REQUIRED: owner should confirm the two-action handoff wording and queue grouping
 ```
 
-### Save scoped voice before Final Voice Map approval
+### Atomic voice configuration commit before Final Voice Map approval
+
+Owner decision (2026-09-13): voice choices for the current production scope are edited as local drafts and committed once at the end of Step 2. Per-role commit buttons are removed. The commit is one fail-closed batch: either every requested role/scope change is durable or none is. Selecting the current Book default for a chapter/range is normalized to inheritance instead of persisting a redundant override. A successful save is verified by the resulting effective voice, not by the presence of an override row.
+
+Acceptance:
+
+1. Each role keeps its voice selector, scope selector, preview/custom-voice entry point, per-role cancel, and explicit `Chưa lưu` state; it has no independent save mutation.
+2. The end of Step 2 shows one review summary of all pending changes and one primary `Lưu cấu hình cho N vai` action.
+3. One production command validates every submitted role against the current registry and available voice catalog, then writes all requested Book defaults and chapter/range Casting Plan changes in one database transaction. Any stale/invalid item rejects the whole batch; `PARTIAL` is forbidden.
+4. For chapter/range changes, one batch creates at most one new immutable Casting Plan revision per affected chapter even when several roles change together. Existing approved plans, Jobs and audio remain unchanged; the new revision is draft only.
+5. If a requested chapter/range voice equals the current Book default, the resulting Casting Plan inherits that default and does not retain a redundant override. Reload verification uses `effective_voice == requested_voice`.
+6. A plan snapshot that differs from the current Book default is described neutrally as `Bản đồ giọng đang dùng cấu hình cũ`, not as proof that the Owner intentionally created an override. The recovery action is `Cập nhật toàn bộ theo mặc định mới`, shows the exact role changes, and uses the same atomic batch command.
+7. Saving this batch never calls Gemini, PREPARE, START_RENDER/TTS, or Human QA and never rewrites accepted audio.
+8. Automated verification runs only on disposable/test databases. Canonical runtime data at `127.0.0.1:8772` is read-only until Owner acceptance.
+
+Qualification evidence (2026-09-13):
+
+```text
+STATUS=RELEASE_CANDIDATE_QUALIFIED_PENDING_OWNER_LIVE_ACCEPTANCE
+TARGETED_VOICE_BATCH=65/65 PASS + 4 subtests
+TTS_SNAPSHOT_GATE=28/28 PASS + 2 subtests
+FULL_REPO_REGRESSION=2148 PASS, 1 SKIPPED, 463 SUBTESTS PASS
+FULL_REPO_DURATION=425.88s
+BROWSER_ASSIGNMENT_WORKFLOW=PASS
+BROWSER_CHARACTER_ASSIGNMENT=PASS
+BROWSER_GOLDEN_JOURNEY=PASS
+BROWSER_PRODUCTION_WORKFLOW=PASS
+VOICE_RECOVERY=one SAVE_VOICE_CONFIGURATION_BATCH request for all affected roles
+ATOMICITY=invalid item rejects whole batch; no Casting Plan row committed
+PLAN_REVISION=at most one new immutable draft Casting Plan revision per affected chapter for a multi-role scoped batch
+OPTION_VALUE_NEWLINE_REGRESSION=PASS after exact byte-level correction
+CLONE_RESTART_QUALIFICATION=5/5 PASS after fixing test-worker repo import path
+PROVIDER_CALLS=0
+PREPARE_COMMANDS=0
+START_RENDER_COMMANDS=0
+CANONICAL_RUNTIME_OR_DB_MUTATION=0
+OWNER_ACCEPTANCE=PENDING
+```
+
+### Superseded historical contract — per-role scoped save before Final Voice Map approval
+
+`STATUS=SUPERSEDED_BY_ATOMIC_VOICE_CONFIGURATION_COMMIT_2026_09_13`
 
 ```text
 UX_CONTRACT
@@ -1427,10 +1468,12 @@ CANONICAL_RUNTIME_OR_DB_MUTATION=0
 OWNER_ACCEPTANCE=PENDING
 ```
 
-## 2026-09-13 — SOT amendment: bỏ ghi đè cũ cho cả phạm vi
+## 2026-09-13 — Superseded historical SOT: bỏ ghi đè cũ cho cả phạm vi
+
+`STATUS=SUPERSEDED_BY_ATOMIC_VOICE_CONFIGURATION_COMMIT_2026_09_13`
 
 ```text
-STATUS=CANDIDATE_READY
+STATUS=HISTORICAL_CANDIDATE_ONLY
 OWNER_OUTCOME=Sau khi đổi giọng mặc định của sách, người dùng thấy rõ các ghi đè cũ đang che cấu hình mới và có một hành động để đưa toàn bộ vai trong phạm vi về dùng giọng kế thừa.
 DELIVERY_DELTA=USER_VISIBLE_BEHAVIOR
 BASE_HEAD=064c71d8a404b975b7dca1d11f7582ab7b89fe64

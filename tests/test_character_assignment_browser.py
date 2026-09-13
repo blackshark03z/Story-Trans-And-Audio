@@ -492,7 +492,36 @@ class CharacterAssignmentFixtureHandler(ScopeFixtureHandler):
 
         time.sleep(0.1)
         applied = []
-        if command_type == "CREATE_CHARACTER":
+        if command_type == "ACCEPT_SPEAKER_SUGGESTION":
+            speaker_key = str(payload.get("unresolved_key") or "")
+            target = self.unresolved_targets.get(speaker_key)
+            if not target:
+                return self._json({"detail": "Speaker review target missing"}, 409)
+            self.mapped[speaker_key] = 25
+            if self.suggestions is not None:
+                remaining = [
+                    item
+                    for item in self.suggestions.get("suggestions") or []
+                    if str(item.get("unresolved_key") or "") != speaker_key
+                ]
+                summary = dict(self.suggestions.get("summary") or {})
+                summary["total"] = len(remaining)
+                summary["pending_review"] = len(remaining)
+                summary["approved"] = int(summary.get("approved") or 0) + 1
+                type(self).suggestions = {
+                    **self.suggestions,
+                    "suggestions": remaining,
+                    "summary": summary,
+                }
+            applied.append(
+                {
+                    "type": "speaker_review_decision",
+                    "unresolved_key": speaker_key,
+                    "decision": "ACCEPTED",
+                    "character_id": 25,
+                }
+            )
+        elif command_type == "CREATE_CHARACTER":
             name = str(payload.get("display_name") or "").strip()
             existing = next(
                 (item for item in self.characters.values() if item["display_name"].lower() == name.lower()),
@@ -550,6 +579,25 @@ class CharacterAssignmentFixtureHandler(ScopeFixtureHandler):
                     "operation": "map",
                 }
             )
+        elif command_type == "SAVE_VOICE_CONFIGURATION_BATCH":
+            items = payload.get("items") or []
+            if not items:
+                return self._json({"detail": "Voice configuration batch requires items"}, 422)
+            for item in items:
+                speaker_key = str(item.get("speaker_key") or "")
+                voice_id = str(item.get("voice_id") or "")
+                item_scope = str(item.get("scope") or "range")
+                if item_scope not in {"chapter", "range"}:
+                    return self._json({"detail": f"Unsupported fixture batch scope {item_scope}"}, 422)
+                for chapter in range(start, end + 1):
+                    inherited = "narrator" if speaker_key in {"narrator", "unknown"} else "male"
+                    if voice_id == inherited:
+                        self.overrides.pop((chapter, speaker_key), None)
+                    else:
+                        self.overrides[(chapter, speaker_key)] = voice_id
+                applied.append({"speaker_key": speaker_key, "voice_id": voice_id, "scope": item_scope})
+            if hasattr(type(self), "plan_ready"):
+                type(self).plan_ready = True
         elif command_type in {"SET_CHAPTER_VOICE_OVERRIDE", "SET_RANGE_VOICE_OVERRIDE"}:
             speaker_key = str(payload.get("speaker_key") or "")
             voice_id = str(payload.get("voice_id") or "")
@@ -691,7 +739,7 @@ class CharacterAssignmentBrowserTests(unittest.TestCase):
         self.assertFalse(evidence["initial"]["voicesOpen"])
         self.assertTrue(evidence["initial"]["unresolvedNotice"])
         self.assertEqual(evidence["initial"]["unresolvedVoiceRows"], 0)
-        self.assertEqual(evidence["initial"]["characterRows"], 1)
+        self.assertEqual(evidence["initial"]["characterRows"], 0)
         self.assertEqual(evidence["reviewQueue"]["count"], 3)
         self.assertTrue(evidence["reviewQueue"]["existingCharacterVisible"])
         self.assertTrue(evidence["reviewQueue"]["sourceLineVisible"])
@@ -700,7 +748,8 @@ class CharacterAssignmentBrowserTests(unittest.TestCase):
         self.assertEqual(evidence["renderCommands"], [])
         command_types = [item["type"] for item in evidence["commands"]]
         self.assertIn("GENERATE_SPEAKER_SUGGESTIONS", command_types)
-        self.assertIn("SET_RANGE_VOICE_OVERRIDE", command_types)
+        self.assertEqual(command_types.count("ACCEPT_SPEAKER_SUGGESTION"), 3)
+        self.assertIn("SAVE_VOICE_CONFIGURATION_BATCH", command_types)
         self.assertNotIn("CREATE_CHARACTER", command_types)
         self.assertNotIn("MAP_SPEAKER_TO_CHARACTER", command_types)
 

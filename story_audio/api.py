@@ -11,7 +11,7 @@ import uuid
 from contextlib import asynccontextmanager
 from functools import wraps
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, Mapping
 
 from fastapi import Body, FastAPI, File, Form, HTTPException, Query, Request, Response, UploadFile
 from fastapi.responses import FileResponse, JSONResponse
@@ -48,6 +48,7 @@ from .character_bible import (
 from .chapter_voice_overrides import (
     ChapterVoiceOverrideError,
     apply_chapter_voice_override,
+    apply_chapter_voice_override_batch,
 )
 from .character_assignment import (
     CharacterAssignmentError,
@@ -2954,6 +2955,270 @@ def _production_command_executor(
                     "Đã bỏ mapping nhân vật cho người nói này. Dòng thoại quay về trạng thái "
                     "chưa xác định cho lần PREPARE/render sau."
                 ),
+            )
+        if command_type == "SAVE_VOICE_CONFIGURATION_BATCH":
+            command_range = _production_command_range(scope)
+            book_id = int(payload.get("book_id") or command_range["book_id"])
+            raw_items = payload.get("items")
+            if not isinstance(raw_items, list) or not raw_items:
+                raise ProductionCommandError("Voice configuration batch requires items")
+            if len(raw_items) > 100:
+                raise ProductionCommandError("Voice configuration batch is too large")
+            voice_catalog = _load_voice_catalog(book_id)
+            custom_context = _build_custom_voice_context(book_id)
+            registry = get_book_voice_registry(
+                db,
+                store,
+                settings,
+                book_id=book_id,
+                from_chapter=int(command_range["from_chapter"]),
+                to_chapter=int(command_range["to_chapter"]),
+                skip_completed=bool(command_range.get("skip_completed", True)),
+                voice_catalog=voice_catalog,
+                custom_voice_context=custom_context,
+            )
+            rows_by_key = {
+                str(row.get("speaker_key") or ""): row
+                for row in registry.get("rows") or []
+            }
+
+            def current_registry_fingerprint(row: Mapping[str, Any]) -> str:
+                details = [
+                    {
+                        "chapter": item.get("chapter_number"),
+                        "effective": ((item.get("effective_voice") or {}).get("id") or ""),
+                        "override": ((item.get("chapter_override_voice") or {}).get("id") or ""),
+                    }
+                    for item in row.get("chapter_voice_details") or []
+                ]
+                conflicts = sorted(
+                    ((item.get("voice") or {}).get("id") or "")
+                    for item in row.get("conflict_voices") or []
+                )
+                targets = [
+                    {
+                        "chapter": item.get("chapter_number"),
+                        "utterance": item.get("utterance_id"),
+                        "role": item.get("role"),
+                        "character": item.get("character_id"),
+                    }
+                    for item in row.get("target_utterances") or []
+                ]
+                return json.dumps(
+                    {
+                        "speaker_key": row.get("speaker_key"),
+                        "effective": ((row.get("effective_voice") or {}).get("id") or ""),
+                        "source": row.get("assignment_source") or "",
+                        "conflicts": conflicts,
+                        "details": details,
+                        "targets": targets,
+                    },
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+
+            parsed_items: list[dict[str, Any]] = []
+            seen_speakers: set[str] = set()
+            selectable_ids = set(voice_catalog.selectable_ids)
+            for raw in raw_items:
+                if not isinstance(raw, dict):
+                    raise ProductionCommandError("Voice configuration batch item is invalid")
+                speaker_key = str(raw.get("speaker_key") or "").strip()
+                if not speaker_key or speaker_key in seen_speakers:
+                    raise ProductionCommandError("Voice configuration batch contains duplicate or missing roles")
+                row = rows_by_key.get(speaker_key)
+                if not row:
+                    raise ProductionCommandError("Voice configuration role is stale or outside the current scope")
+                expected = raw.get("expected_registry_fingerprint")
+                if expected and str(expected) != current_registry_fingerprint(row):
+                    raise ProductionCommandError(
+                        f"Voice configuration changed while editing {row.get('display_name') or speaker_key}"
+                    )
+                scope_choice = str(raw.get("scope") or "range").strip().lower()
+                if scope_choice not in {"book", "chapter", "range"}:
+                    raise ProductionCommandError("Unsupported voice configuration scope")
+                if scope_choice == "chapter" and int(command_range["from_chapter"]) != int(command_range["to_chapter"]):
+                    raise ProductionCommandError("Chapter voice scope requires exactly one selected chapter")
+                actions = row.get("actions") or {}
+                if scope_choice == "book":
+                    if not actions.get("can_save_book_default"):
+                        raise ProductionCommandError("Book voice default is not editable for this role")
+                elif not actions.get("can_create_range_or_chapter_override"):
+                    raise ProductionCommandError("Speaker review must be completed before saving scoped voices")
+                voice_id = str(raw.get("voice_id") or "").strip()
+                if not voice_id:
+                    raise ProductionCommandError("A selectable voice is required")
+                if voice_id not in selectable_ids and not (
+                    custom_context and custom_context.is_available(voice_id)
+                ):
+                    raise ProductionCommandError("Selected voice is not available")
+                parsed_items.append(
+                    {
+                        "speaker_key": speaker_key,
+                        "display_name": str(row.get("display_name") or speaker_key),
+                        "character_id": row.get("character_id"),
+                        "gender": row.get("gender"),
+                        "scope": scope_choice,
+                        "voice_id": voice_id,
+                    }
+                )
+                seen_speakers.add(speaker_key)
+
+            scoped_items = [item for item in parsed_items if item["scope"] != "book"]
+            book_items = [item for item in parsed_items if item["scope"] == "book"]
+            scoped_result: dict[str, Any] = {"applied": [], "reused_count": 0}
+            applied_items: list[dict[str, Any]] = []
+            with db.transaction() as connection:
+                if scoped_items:
+                    scoped_result = apply_chapter_voice_override_batch(
+                        db,
+                        store,
+                        book_id=book_id,
+                        from_chapter=int(command_range["from_chapter"]),
+                        to_chapter=int(command_range["to_chapter"]),
+                        changes=[
+                            {
+                                "speaker_key": item["speaker_key"],
+                                "operation": "set",
+                                "voice_id": item["voice_id"],
+                            }
+                            for item in scoped_items
+                        ],
+                        voice_catalog=voice_catalog,
+                        idempotency_key=request.idempotency_key,
+                        custom_voice_context=custom_context,
+                        connection=connection,
+                        skip_missing=True,
+                    )
+                    applied_items.extend(
+                        {
+                            "type": "scoped_voice",
+                            "speaker_key": item["speaker_key"],
+                            "scope": item["scope"],
+                            "voice_id": item["voice_id"],
+                        }
+                        for item in scoped_items
+                    )
+
+                profile_items = [
+                    item for item in book_items if item["speaker_key"] in {"narrator", "unknown"}
+                ]
+                if profile_items:
+                    profile_row = connection.execute(
+                        "SELECT * FROM book_voice_profiles WHERE book_id=?",
+                        (book_id,),
+                    ).fetchone()
+                    seed_voice = next(
+                        (
+                            item["voice_id"]
+                            for item in profile_items
+                            if item["speaker_key"] == "narrator"
+                        ),
+                        profile_items[0]["voice_id"],
+                    )
+                    profile_state = (
+                        dict(profile_row)
+                        if profile_row
+                        else {
+                            "narrator_voice_id": seed_voice,
+                            "male_dialogue_voice_id": seed_voice,
+                            "female_dialogue_voice_id": seed_voice,
+                            "unknown_fallback": "narrator",
+                            "unknown_voice_id": None,
+                        }
+                    )
+                    for item in profile_items:
+                        if item["speaker_key"] == "narrator":
+                            profile_state["narrator_voice_id"] = item["voice_id"]
+                        else:
+                            profile_state["unknown_fallback"] = "explicit_voice"
+                            profile_state["unknown_voice_id"] = item["voice_id"]
+                    now = utcnow()
+                    if profile_row:
+                        connection.execute(
+                            """UPDATE book_voice_profiles SET narrator_voice_id=?,male_dialogue_voice_id=?,
+                               female_dialogue_voice_id=?,unknown_fallback=?,unknown_voice_id=?,
+                               config_version=config_version+1,updated_at=? WHERE book_id=?""",
+                            (
+                                profile_state["narrator_voice_id"],
+                                profile_state["male_dialogue_voice_id"],
+                                profile_state["female_dialogue_voice_id"],
+                                profile_state["unknown_fallback"],
+                                profile_state.get("unknown_voice_id"),
+                                now,
+                                book_id,
+                            ),
+                        )
+                    else:
+                        connection.execute(
+                            """INSERT INTO book_voice_profiles(
+                               book_id,narrator_voice_id,male_dialogue_voice_id,female_dialogue_voice_id,
+                               unknown_fallback,unknown_voice_id,created_at,updated_at
+                               ) VALUES(?,?,?,?,?,?,?,?)""",
+                            (
+                                book_id,
+                                profile_state["narrator_voice_id"],
+                                profile_state["male_dialogue_voice_id"],
+                                profile_state["female_dialogue_voice_id"],
+                                profile_state["unknown_fallback"],
+                                profile_state.get("unknown_voice_id"),
+                                now,
+                                now,
+                            ),
+                        )
+                    applied_items.extend(
+                        {
+                            "type": "book_voice_profile",
+                            "speaker_key": item["speaker_key"],
+                            "scope": "book",
+                            "voice_id": item["voice_id"],
+                        }
+                        for item in profile_items
+                    )
+
+                for item in book_items:
+                    speaker_key = item["speaker_key"]
+                    if not speaker_key.startswith("character:"):
+                        continue
+                    character_id = int(item.get("character_id") or speaker_key.split(":", 1)[1])
+                    character = connection.execute(
+                        "SELECT id,book_id,active FROM characters WHERE id=?",
+                        (character_id,),
+                    ).fetchone()
+                    if (
+                        not character
+                        or int(character["book_id"]) != book_id
+                        or int(character["active"] or 0) != 1
+                    ):
+                        raise ProductionCommandError("Character changed while saving voice configuration")
+                    connection.execute(
+                        "UPDATE characters SET voice_override_id=?,updated_at=? WHERE id=?",
+                        (item["voice_id"], utcnow(), character_id),
+                    )
+                    applied_items.append(
+                        {
+                            "type": "character_voice",
+                            "speaker_key": speaker_key,
+                            "character_id": character_id,
+                            "scope": "book",
+                            "voice_id": item["voice_id"],
+                        }
+                    )
+
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=len(parsed_items),
+                applied_items=tuple(applied_items),
+                operator_message=(
+                    f"Đã lưu nguyên khối cấu hình giọng cho {len(parsed_items)} vai. "
+                    "Audio và Job đã có không thay đổi; không tự PREPARE hoặc render."
+                ),
+                result_metadata={
+                    "requested_count": len(parsed_items),
+                    "casting_plan_chapter_count": len(scoped_result.get("applied") or []),
+                    "casting_plan_reused_count": int(scoped_result.get("reused_count") or 0),
+                    "atomic": True,
+                },
             )
         if command_type == "SET_BOOK_VOICE_DEFAULT":
             command_range = _production_command_range(scope)
