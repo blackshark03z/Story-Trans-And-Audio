@@ -116,6 +116,7 @@ try {
   await waitFor(`window.storyAudioAppState && document.querySelector("#productionWorkbench")`);
   await waitFor(`window.storyAudioAppState.config
     && window.storyAudioAppState.runtimeIdentityResolved
+    && window.storyAudioAppState.initializationComplete
     && !document.querySelector("#homeAttention")?.textContent.includes("Đang tải")`);
 
   await evaluate(`(() => {
