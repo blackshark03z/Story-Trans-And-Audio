@@ -361,6 +361,27 @@ try {
   const saveKeepsScroll = scrollBeforeSave > 500 && Math.abs(scrollAfterSave - scrollBeforeSave) <= 20;
   const mixedResolved = await rowHasVoice("character:25", "Character Alt");
 
+  await applyVoice("narrator", "female", "range");
+  await waitFor(`document.querySelector('[data-range-override-recovery]')?.textContent.includes('2 vai đang bị ghi đè cũ')`);
+  const bulkRecoveryPreview = await evaluate(`(() => {
+    const panel = document.querySelector('[data-range-override-recovery]');
+    return !!panel
+      && panel.textContent.includes('Narrator: Female Range → Male Default')
+      && panel.textContent.includes('Gate Commander: Character Alt → Male Default')
+      && panel.textContent.includes('Chương 2-4')
+      && !!panel.querySelector('[data-clear-all-range-overrides]');
+  })()`);
+  await evaluate(`(() => { window.confirm = () => true; return true; })()`);
+  const bulkCommandStart = await evaluate(`window.__voiceOverrideCommands.length`);
+  await click('[data-clear-all-range-overrides]');
+  await waitFor(`!document.querySelector('[data-range-override-recovery]') && document.querySelector('[data-range-override-result]')?.textContent.includes('Đã bỏ ghi đè cho 2 vai')`, 30000);
+  const bulkRecoveryCommands = await evaluate(`window.__voiceOverrideCommands.slice(${bulkCommandStart})`);
+  const bulkRecoveryApplied = bulkRecoveryPreview
+    && bulkRecoveryCommands.length === 2
+    && bulkRecoveryCommands.every(item => item.type === 'CLEAR_RANGE_VOICE_OVERRIDE')
+    && await rowHasVoice("narrator", "Male Default")
+    && await rowHasVoice("character:25", "Male Default");
+
   await route("#/assignment?book=1&from=1&to=1&skip_completed=1");
   const unidentifiedSpeakerHidden = await evaluate(`!document.querySelector('[data-voice-library-row="unknown"]')`);
 
@@ -426,6 +447,9 @@ try {
     clearRestoresDefault,
     mixedVisible,
     mixedResolved,
+    bulkRecoveryPreview,
+    bulkRecoveryApplied,
+    bulkRecoveryCommands,
     saveKeepsScroll,
     scrollBeforeSave,
     scrollAfterSave,

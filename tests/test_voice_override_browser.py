@@ -146,6 +146,11 @@ class VoiceOverrideFixtureHandler(ScopeFixtureHandler):
                 "book_profile_config_version": 1,
             },
             "voice_catalog": {"selectable_count": 5, "narrator_voice_id": "narrator"},
+            "speaker_state": {
+                "status": "APPROVED_CURRENT",
+                "unresolved_count": 0,
+                "remaining_review_count": 0,
+            },
             "rows": rows,
             "summary": {
                 "total_rows": len(rows),
@@ -366,6 +371,9 @@ class VoiceOverrideBrowserTests(unittest.TestCase):
         self.assertTrue(evidence["characterRange"])
         self.assertTrue(evidence["clearRestoresDefault"])
         self.assertTrue(evidence["mixedVisible"])
+        self.assertTrue(evidence["bulkRecoveryPreview"])
+        self.assertTrue(evidence["bulkRecoveryApplied"])
+        self.assertEqual(len(evidence["bulkRecoveryCommands"]), 2)
         self.assertTrue(evidence["saveKeepsScroll"])
         self.assertTrue(evidence["unidentifiedSpeakerHidden"])
         self.assertTrue(evidence["unavailableBlocked"])

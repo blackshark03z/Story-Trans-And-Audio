@@ -1427,6 +1427,62 @@ CANONICAL_RUNTIME_OR_DB_MUTATION=0
 OWNER_ACCEPTANCE=PENDING
 ```
 
+## 2026-09-13 — SOT amendment: bỏ ghi đè cũ cho cả phạm vi
+
+```text
+STATUS=CANDIDATE_READY
+OWNER_OUTCOME=Sau khi đổi giọng mặc định của sách, người dùng thấy rõ các ghi đè cũ đang che cấu hình mới và có một hành động để đưa toàn bộ vai trong phạm vi về dùng giọng kế thừa.
+DELIVERY_DELTA=USER_VISIBLE_BEHAVIOR
+BASE_HEAD=064c71d8a404b975b7dca1d11f7582ab7b89fe64
+WRITER_WORKTREE=D:\Youtube\_worktrees\story-audio-speaker-voice-flow
+SIDE_EFFECT=Source and isolated test fixtures only
+PROHIBITED=canonical DB; port 8772 data mutation; PREPARE; START_RENDER; provider calls; protected runtime data; force push
+```
+
+### UX contract
+
+```text
+PRIMARY_USER=Người cấu hình giọng cho phạm vi trước khi tạo audio
+PRIMARY_JOURNEY=Thấy override cũ -> xem vai/phạm vi bị ảnh hưởng -> xác nhận một lần -> tất cả vai dùng mặc định sách
+PRIMARY_SURFACE=Bước 2 Cấu hình giọng, phía trên bảng từng vai
+INFORMATION_HIERARCHY=Cảnh báo và hành động sửa phạm vi là chính; chỉnh từng vai là hỗ trợ
+SCOPE_MODEL=Chỉ các vai có range override trong phạm vi hiệu lực hiện tại; không đổi mặc định sách hoặc audio cũ
+PRIMARY_CONTROLS=Bỏ ghi đè cho toàn phạm vi
+ADVANCED_CONTROLS=Giữ các bộ chọn scope và nút gỡ từng vai hiện có
+STATES=Không hiện khi không có override; xác nhận trước khi ghi; báo đầy đủ hoặc một phần và cách thử lại
+BULK_DESTRUCTIVE=Nêu số vai, chương và giọng sẽ kế thừa; yêu cầu xác nhận; không xóa voice asset
+DISCOVERABILITY=Hiện ngay khi giọng hiệu lực khác mặc định sách vì range override
+ACCESSIBILITY=Nút có nhãn đầy đủ; trạng thái kết quả đọc được; focus trở lại vùng cảnh báo/kết quả
+OWNER_PREFERENCE=NONE
+```
+
+### Acceptance
+
+1. Khi có ít nhất một range override che mặc định sách, Bước 2 hiển thị một cảnh báo nêu số vai và phạm vi bị ảnh hưởng.
+2. Một xác nhận duy nhất gỡ override cho tất cả vai phù hợp; không đổi book default, custom voice asset, audio đã có, PREPARE hoặc render.
+3. Sau thành công, registry được tải lại và giọng hiệu lực bằng giọng mặc định sách; khi lỗi giữa chừng, giao diện báo số vai đã xử lý và cho phép thử lại phần còn lại.
+4. Hành động gỡ từng vai vẫn tồn tại cho trường hợp người dùng muốn kiểm soát riêng.
+5. Kiểm tra fixture trình duyệt ở desktop và narrow viewport; owner acceptance vẫn pending.
+
+### Candidate evidence
+
+```text
+STATUS=CANDIDATE_READY
+FOCUSED_TESTS=66/66 PASS
+JAVASCRIPT_SYNTAX=PASS (ui/app.js and browser_voice_override_smoke.mjs)
+DESKTOP_VISUAL_REVIEW=PASS on isolated fixture at http://127.0.0.1:18775
+DISCOVERABILITY=PASS; recovery action appears before per-role controls
+UNDERSTANDABILITY=PASS; exact range, role transitions, and unaffected assets are visible
+PARTIAL_FAILURE_HANDLING=PASS by focused contract/API tests
+HEADLESS_BROWSER_ORACLE=UNAVAILABLE; browser startup timed out before document ready, so the same failed harness was not retried further
+NARROW_VIEWPORT=UNVERIFIED
+PROVIDER_CALLS=0
+PREPARE_COMMANDS=0
+START_RENDER_COMMANDS=0
+CANONICAL_RUNTIME_OR_DB_MUTATION=0
+OWNER_ACCEPTANCE=PENDING
+```
+
 ## 2026-09-13 — SOT amendment: đường quay lại cấu hình giọng từ bước kiểm tra
 
 ```text

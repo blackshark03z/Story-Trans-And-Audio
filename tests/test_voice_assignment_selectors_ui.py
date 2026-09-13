@@ -263,6 +263,20 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIn("registryCanClearForScope", section)
         self.assertIn("Chỉ ảnh hưởng các lần PREPARE/render tiếp theo", section)
 
+    def test_range_override_recovery_is_one_visible_confirmed_action(self) -> None:
+        section = self.js[
+            self.js.index("function registryRangeOverrideRows"):
+            self.js.index("async function saveBookRegistryVoice")
+        ]
+        self.assertIn("2 vai đang bị ghi đè cũ che giọng mặc định", section.replace("${rows.length}", "2"))
+        self.assertIn("Bỏ ghi đè cho cả phạm vi", section)
+        self.assertIn("window.confirm", section)
+        self.assertIn("CLEAR_RANGE_VOICE_OVERRIDE", section)
+        self.assertIn("Audio đã có và các giọng custom không thay đổi", section)
+        self.assertIn("Đã xử lý ${completed}/${rows.length} vai", section)
+        self.assertNotIn("commandType:'PREPARE'", section)
+        self.assertNotIn("commandType:'START_RENDER'", section)
+
     def test_assignment_next_action_preserves_context_without_prepare_or_render(self) -> None:
         section = self.js[
             self.js.index("function openAssignmentPreflight"):
