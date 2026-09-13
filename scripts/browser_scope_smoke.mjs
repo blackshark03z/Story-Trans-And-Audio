@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { boundedBrowserTimeout } from "./browser_acceptance_runtime.mjs";
 
 const baseUrl = process.argv[2];
 if (!baseUrl) throw new Error("Usage: node scripts/browser_scope_smoke.mjs <base-url>");
@@ -32,7 +33,7 @@ const child = spawn(
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function poll(callback, timeoutMs = 12000) {
-  const deadline = Date.now() + timeoutMs;
+  const deadline = Date.now() + boundedBrowserTimeout(timeoutMs);
   let lastError;
   while (Date.now() < deadline) {
     try {
@@ -116,7 +117,7 @@ try {
   await send("Page.enable");
   await send("Emulation.setDeviceMetricsOverride", { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false });
   await waitFor(`document.readyState==="complete"`);
-  await waitFor(`document.querySelector("#productionPrimaryAction")?.textContent==="Chọn chương"`);
+  await waitFor(`document.querySelector("#productionPrimaryAction")?.textContent==="Chọn sách & chương"`);
   await waitFor(`!document.querySelector("#globalRuntimeState")?.textContent.includes("kiểm tra")`);
   const primaryLabelsAreHuman = await evaluate(`!document.body.innerText.includes("NO_SCOPE")&&!document.body.innerText.includes("AUTH_CONFIGURED")`);
   if (!primaryLabelsAreHuman) throw new Error("Raw runtime enums leaked into the primary UI.");
@@ -124,7 +125,7 @@ try {
   await click("#productionPrimaryAction");
   await waitFor(`document.querySelector("#productionScopeDialog")?.open===true`);
   const bookCount = await evaluate(`document.querySelectorAll("#scopeBookList .scope-book-card").length`);
-  if (bookCount !== 2) throw new Error(`Expected 2 books, received ${bookCount}.`);
+  if (bookCount !== 3) throw new Error(`Expected 3 books, received ${bookCount}.`);
 
   await input("#scopeBookSearch", "");
   await click('[data-scope-book-id="1"]');
@@ -157,10 +158,10 @@ try {
 
   await click("#scopeChapterBrowser summary");
   const browserOpenLayout = await evaluate(`(() => {
-    const cta=document.querySelector("#reviewProductionScope").getBoundingClientRect();
-    return {ctaVisible:cta.top>=0&&cta.bottom<=innerHeight,horizontal:document.documentElement.scrollWidth>innerWidth+1};
+    const dialog=document.querySelector("#productionScopeDialog"),cta=document.querySelector("#reviewProductionScope").getBoundingClientRect(),header=document.querySelector("#productionScopeDialog .dialog-head").getBoundingClientRect(),dialogRect=dialog.getBoundingClientRect();
+    return {ctaVisible:cta.top>=0&&cta.bottom<=innerHeight,headerVisible:header.top>=0&&header.bottom<=innerHeight,dialogFits:dialogRect.top>=0&&dialogRect.bottom<=innerHeight,dialogOwnsOverflow:dialog.scrollHeight>dialog.clientHeight+1,horizontal:document.documentElement.scrollWidth>innerWidth+1};
   })()`);
-  if (!browserOpenLayout.ctaVisible || browserOpenLayout.horizontal) {
+  if (!browserOpenLayout.ctaVisible || !browserOpenLayout.headerVisible || !browserOpenLayout.dialogFits || browserOpenLayout.horizontal) {
     throw new Error(`Open chapter browser hid the primary action: ${JSON.stringify(browserOpenLayout)}`);
   }
   await input("#scopeChapterSearch", "Chapter 372");
@@ -220,20 +221,85 @@ try {
 
   await click("#productionChangeScope");
   await waitFor(`document.querySelector("#productionScopeDialog")?.open===true`);
+  await input("#scopeBookSearch", "Action Test Book");
+  await click('[data-scope-book-id="91"]');
+  await waitFor(`document.querySelector("#scopeChapterList .scope-chapter-card strong")?.textContent.includes("Blocked Fixture Chapter")===true`);
+  await input("#scopeFromChapter", "401");
+  await click("#reviewProductionScope");
+  await waitFor(`document.querySelector("#productionScopeDialog")?.open===false`);
+  await waitFor(`document.querySelector("#productionCurrentStepHeading")?.textContent==="Xác nhận người nói"`);
+  const authoritativeNextAction = await evaluate(`({
+    scope:document.querySelector("#productionScopeSummary")?.textContent,
+    heading:document.querySelector("#productionCurrentStepHeading")?.textContent,
+    action:document.querySelector("#productionPrimaryAction")?.textContent,
+    chapterOpen:!!document.querySelector("#textDialog")?.open
+  })`);
+  if (!authoritativeNextAction.scope.includes("401") || authoritativeNextAction.heading !== "Xác nhận người nói" || authoritativeNextAction.action !== "Mở Chương 401 để tiếp tục" || authoritativeNextAction.chapterOpen) {
+    throw new Error(`Scope check did not present the canonical next action: ${JSON.stringify(authoritativeNextAction)}`);
+  }
+
+  await click("#productionChangeScope");
+  await waitFor(`document.querySelector("#productionScopeDialog")?.open===true`);
+  await input("#scopeBookSearch", "Fixture Book");
+  await click('[data-scope-book-id="1"]');
+  await waitFor(`document.querySelector("#scopeChapterPageInfo")?.textContent==="1-6 / 45"`);
   const layout1366 = await evaluate(`(() => {
-    const cta=document.querySelector("#reviewProductionScope").getBoundingClientRect();
-    const scrolling=[...document.querySelectorAll("#productionScopeDialog *")].filter(el=>{const s=getComputedStyle(el);return /(auto|scroll)/.test(s.overflowY)&&el.scrollHeight>el.clientHeight+2}).map(el=>el.id||el.className);
-    return {ctaVisible:cta.top>=0&&cta.bottom<=innerHeight,horizontal:document.documentElement.scrollWidth>innerWidth+1,nestedScrolling:scrolling};
+    const dialog=document.querySelector("#productionScopeDialog"),cta=document.querySelector("#reviewProductionScope").getBoundingClientRect(),header=document.querySelector("#productionScopeDialog .dialog-head").getBoundingClientRect(),dialogRect=dialog.getBoundingClientRect();
+    return {ctaVisible:cta.top>=0&&cta.bottom<=innerHeight,headerVisible:header.top>=0&&header.bottom<=innerHeight,dialogFits:dialogRect.top>=0&&dialogRect.bottom<=innerHeight,dialogOwnsOverflow:dialog.scrollHeight>dialog.clientHeight+1,horizontal:document.documentElement.scrollWidth>innerWidth+1};
   })()`);
-  if (!layout1366.ctaVisible || layout1366.horizontal || layout1366.nestedScrolling.length) {
+  if (!layout1366.ctaVisible || !layout1366.headerVisible || !layout1366.dialogFits || layout1366.horizontal) {
     throw new Error(`1366 layout failed: ${JSON.stringify(layout1366)}`);
   }
   await send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
-  const layout1920 = await evaluate(`(() => { const cta=document.querySelector("#reviewProductionScope").getBoundingClientRect(); return {ctaVisible:cta.top>=0&&cta.bottom<=innerHeight,horizontal:document.documentElement.scrollWidth>innerWidth+1}; })()`);
-  if (!layout1920.ctaVisible || layout1920.horizontal) throw new Error(`1920 layout failed: ${JSON.stringify(layout1920)}`);
+  const layout1920 = await evaluate(`(() => { const dialog=document.querySelector("#productionScopeDialog"),cta=document.querySelector("#reviewProductionScope").getBoundingClientRect(),header=document.querySelector("#productionScopeDialog .dialog-head").getBoundingClientRect(),dialogRect=dialog.getBoundingClientRect(); return {ctaVisible:cta.top>=0&&cta.bottom<=innerHeight,headerVisible:header.top>=0&&header.bottom<=innerHeight,dialogFits:dialogRect.top>=0&&dialogRect.bottom<=innerHeight,horizontal:document.documentElement.scrollWidth>innerWidth+1}; })()`);
+  if (!layout1920.ctaVisible || !layout1920.headerVisible || !layout1920.dialogFits || layout1920.horizontal) throw new Error(`1920 layout failed: ${JSON.stringify(layout1920)}`);
+
+  const environmentWarnings = await evaluate(`(() => {
+    const canonicalMessage="Không xác nhận được cơ sở dữ liệu production chuẩn.",schemaMessage="Schema hiện tại chưa sẵn sàng cho PREPARE.",prepareMessage="PREPARE đang được khóa trong cấu hình vận hành.",vm={task_type:"PREPARE_RANGE",task_key:"environment-warning-fixture",user_stage:4,title:"Kiểm tra trước khi sản xuất",task_title:"Kiểm tra trước khi sản xuất",summary:"Fixture",task_summary:"Fixture",primary_action:{key:"PREPARE_RANGE",label:"Chuẩn bị audio",target:"prepare"},blocker:null,phases:[],queue:[],secondary_links:[],technical_details:[]},previous=state.productionPrepare.readiness;
+    state.productionPrepare.readiness={prepare_allowed:false,canonical_backed:false,schema_version:15,required_schema_version:15,blockers:[{code:"CANONICAL_DB_INVALID",message:canonicalMessage}]};
+    renderProductionShell(vm);
+    const sameCount=(document.body.innerText.match(new RegExp(canonicalMessage,"g"))||[]).length;
+    state.productionPrepare.readiness={prepare_allowed:false,canonical_backed:false,schema_version:15,required_schema_version:15,blockers:[{code:"CANONICAL_DB_INVALID",message:canonicalMessage},{code:"SCHEMA_NOT_READY",message:schemaMessage},{code:"PREPARE_DISABLED",message:prepareMessage}]};
+    renderProductionShell(vm);
+    const bodyText=document.body.innerText;
+    const result={sameCount,canonicalCount:(bodyText.match(new RegExp(canonicalMessage,"g"))||[]).length,schemaCount:(bodyText.match(new RegExp(schemaMessage,"g"))||[]).length,prepareCount:(bodyText.match(new RegExp(prepareMessage,"g"))||[]).length};
+    state.productionPrepare.readiness=previous;
+    return result;
+  })()`);
+  if (environmentWarnings.sameCount !== 1 || environmentWarnings.canonicalCount !== 1 || environmentWarnings.schemaCount !== 1 || environmentWarnings.prepareCount !== 1) {
+    throw new Error(`Environment blocker presentation failed: ${JSON.stringify(environmentWarnings)}`);
+  }
 
   await click("#clearProductionScope");
   await waitFor(`document.querySelector("#productionStateCard")?.dataset.productionState==="NO_SCOPE"`);
+
+  await evaluate(`(() => {
+    const working=JSON.stringify({bookId:999,fromChapter:3,toChapter:8,skipCompleted:false});
+    localStorage.setItem("storyAudio.productionWorkingContext.v1",working);
+    sessionStorage.setItem("storyAudio.productionWorkingContext.v1",working);
+    localStorage.setItem("storyAudio.productionScope.v2",JSON.stringify({bookId:999,fromChapter:3,toChapter:8,skipCompleted:false}));
+    localStorage.setItem("storyAudio.productionScope.v1",JSON.stringify({bookId:999,chapterId:9993}));
+    localStorage.setItem("storyAudio.assignmentContext.v1",JSON.stringify({bookId:999,fromChapter:3,toChapter:8}));
+    sessionStorage.setItem("storyAudio.repairPlanOpen.v1","9993");
+    location.hash="#/production?book=999&from=3&to=8";
+    return true;
+  })()`);
+  await send("Page.reload", { ignoreCache: true });
+  await waitFor(`document.readyState==="complete"`);
+  await waitFor(`localStorage.getItem("storyAudio.productionWorkingContext.v1")===null&&sessionStorage.getItem("storyAudio.productionWorkingContext.v1")===null&&localStorage.getItem("storyAudio.productionScope.v2")===null&&localStorage.getItem("storyAudio.productionScope.v1")===null&&localStorage.getItem("storyAudio.assignmentContext.v1")===null&&sessionStorage.getItem("storyAudio.repairPlanOpen.v1")===null`);
+  const orphanedContextPurged = await evaluate(`({
+    workingLocal:localStorage.getItem("storyAudio.productionWorkingContext.v1"),
+    workingSession:sessionStorage.getItem("storyAudio.productionWorkingContext.v1"),
+    range:localStorage.getItem("storyAudio.productionScope.v2"),
+    legacy:localStorage.getItem("storyAudio.productionScope.v1"),
+    assignment:localStorage.getItem("storyAudio.assignmentContext.v1"),
+    repair:sessionStorage.getItem("storyAudio.repairPlanOpen.v1"),
+    route:location.hash,
+    state:document.querySelector("#productionStateCard")?.dataset.productionState
+  })`);
+  if (orphanedContextPurged.route.includes("book=999") || orphanedContextPurged.state !== "NO_SCOPE") {
+    throw new Error(`Orphaned browser context survived reload: ${JSON.stringify(orphanedContextPurged)}`);
+  }
   if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
 
   const evidence = await evaluate(`({
@@ -256,9 +322,12 @@ try {
     recoveredErrorHidden,
     skipCompletedRestored,
     primaryLabelsAreHuman,
+    authoritativeNextAction,
     layout1366,
     layout1920,
     browserOpenLayout,
+    environmentWarnings,
+    orphanedContextPurged,
     interactionCounts: { oneChapter: 3, range: 3 },
     restoredRange: "372-373",
     final: evidence,

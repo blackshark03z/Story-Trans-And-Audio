@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdir, mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { boundedBrowserTimeout } from "./browser_acceptance_runtime.mjs";
 
 const baseUrl = process.argv[2];
 if (!baseUrl) throw new Error("Usage: node scripts/browser_character_assignment_smoke.mjs <base-url>");
@@ -28,7 +29,7 @@ const child = spawn(browserExe, [
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function poll(callback, timeoutMs = 15000) {
-  const deadline = Date.now() + timeoutMs;
+  const deadline = Date.now() + boundedBrowserTimeout(timeoutMs);
   let lastError;
   while (Date.now() < deadline) {
     try {
@@ -163,7 +164,18 @@ try {
   } else {
     await evaluate(`generateSpeakerSuggestions(false)`);
   }
-  await waitFor(`document.querySelectorAll('[data-speaker-suggestion-card]').length === 3`);
+  try {
+    await waitFor(`document.querySelectorAll('[data-speaker-suggestion-card]').length === 3`, 30000);
+  } catch (error) {
+    const diagnostic = await evaluate(`({
+      cards: document.querySelectorAll('[data-speaker-suggestion-card]').length,
+      command: window.storyAudioAppState?.productionCommand,
+      reviewStatus: window.storyAudioAppState?.bookVoiceRegistry?.speakerSuggestions?.status,
+      reviewLoading: window.storyAudioAppState?.bookVoiceRegistry?.speakerSuggestions?.loading,
+      reviewError: window.storyAudioAppState?.bookVoiceRegistry?.speakerSuggestions?.error,
+    })`);
+    throw new Error(`${error.message} ${JSON.stringify(diagnostic)}`);
+  }
   const reviewQueue = await evaluate(`(() => {
     const cards = [...document.querySelectorAll('[data-speaker-suggestion-card]')];
     return {
@@ -190,7 +202,14 @@ try {
     deviceScaleFactor: 1,
     mobile: false,
   });
-  await evaluate(`document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:25"))})?.scrollIntoView({ block: "center" })`);
+  await waitFor(`(async () => {
+    const action = document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:25"))});
+    if (!action) return false;
+    action.scrollIntoView({ block: "center" });
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const rect = document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:25"))})?.getBoundingClientRect();
+    return !!rect && rect.top >= 0 && rect.bottom <= innerHeight;
+  })()`, 5000);
   const layout1920 = await evaluate(`(() => {
     const action = document.querySelector(${JSON.stringify(attr("data-registry-apply", "character:25"))})?.getBoundingClientRect();
     return {

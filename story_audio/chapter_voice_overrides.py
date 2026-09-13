@@ -86,13 +86,7 @@ def _latest_plan_row(db: Database, chapter_id: int) -> dict[str, Any] | None:
     )
     if not row:
         return None
-    result = dict(row)
-    status = str(result.get("status") or "").lower()
-    if status != "approved":
-        raise ChapterVoiceOverrideError(
-            "Final Voice Map must be approved before applying a chapter voice override"
-        )
-    return result
+    return dict(row)
 
 
 def _approved_speaker_draft(
@@ -544,7 +538,7 @@ def apply_chapter_voice_override(
             elif (
                 not latest
                 or int(latest["id"]) != item.previous_plan_id
-                or str(latest["status"]) != "approved"
+                or str(latest["status"]) not in {"draft", "approved"}
                 or str(latest["plan_sha256"]) != item.previous_plan_sha256
             ):
                 raise ChapterVoiceOverrideError(
@@ -562,17 +556,12 @@ def apply_chapter_voice_override(
                 )
                 continue
             next_revision = int(latest["plan_revision"]) + 1 if latest else 1
-            if item.previous_plan_id is not None:
-                transaction.execute(
-                    "UPDATE casting_plans SET status='archived',archived_at=? WHERE id=? AND status='approved'",
-                    (now, item.previous_plan_id),
-                )
             plan_id = int(
                 transaction.execute(
                     """INSERT INTO casting_plans(
                         chapter_id,text_revision_id,plan_revision,status,content_path,
-                        plan_sha256,narrator_voice_id,created_at,approved_at
-                    ) VALUES(?,?,?,'approved',?,?,?,?,?)""",
+                        plan_sha256,narrator_voice_id,created_at
+                    ) VALUES(?,?,?,'draft',?,?,?,?)""",
                     (
                         item.chapter_id,
                         item.text_revision_id,
@@ -580,7 +569,6 @@ def apply_chapter_voice_override(
                         item.content_path,
                         item.plan_sha256,
                         item.narrator_voice_id,
-                        now,
                         now,
                     ),
                 ).lastrowid
@@ -596,6 +584,7 @@ def apply_chapter_voice_override(
                     "chapter_number": item.chapter_number,
                     "casting_plan_id": plan_id,
                     "plan_revision": next_revision,
+                    "status": "draft",
                     "reused": False,
                 }
             )

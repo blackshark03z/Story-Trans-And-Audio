@@ -4,9 +4,11 @@ import argparse
 import json
 import math
 import os
+import shutil
 import socket
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import wave
@@ -16,7 +18,7 @@ from typing import Any
 
 
 ROOT = Path(__file__).resolve().parents[1]
-TEST_ROOT = Path(r"C:\StoryAudio_GoldenJourney_Test")
+TEST_ROOT = Path(tempfile.gettempdir()) / "StoryAudio_GoldenJourney_Test"
 MARKER_TEXT = "muc tieu cua lao la tran phap truyen tong o ben trong."
 
 
@@ -57,6 +59,9 @@ class FakeTtsService:
             {"id": "fixture_unknown", "label": "Fixture Unknown"},
             {"id": "fixture_female", "label": "Fixture Female"},
         ]
+
+    def provider_available(self) -> bool:
+        return False
 
     def synthesize(self, *, synth_input=None, output_path: Path, **_kwargs):
         text = str(getattr(synth_input, "text", "") or "")
@@ -162,7 +167,7 @@ class FakeBatchPrepareService:
             skip_completed=False,
             casting_plan_id=int(plan["id"]),
             store=self.api.store,
-            voice_catalog=self.api._load_voice_catalog(),
+            voice_catalog=self.api._load_voice_catalog(book_id),
         )
         payload = {
             "status": "APPLIED",
@@ -178,6 +183,8 @@ def _runtime_ready(_descriptor) -> dict[str, Any]:
         "status": "ISOLATED_GOLDEN_JOURNEY_READY",
         "runtime_mode": "PRODUCTION",
         "canonical_backed": False,
+        # PREPARE's promoted execution contract remains schema 15 even when the
+        # general application database has advanced through migration 16.
         "schema_version": 15,
         "required_schema_version": 15,
         "feature_available": True,
@@ -220,6 +227,7 @@ def configure_isolated_api(run_root: Path):
     from story_audio.config import Settings
     from story_audio.custom_voice import CustomVoiceRepository
     from story_audio.db import Database
+    from story_audio.migrations import MigrationRunner, RUNTIME_MIGRATIONS
     from story_audio.pipeline import PipelineWorker
     from story_audio.storage import ContentStore
     from story_audio.voice_preview import VoicePreviewService
@@ -238,7 +246,10 @@ def configure_isolated_api(run_root: Path):
         successful_segment_retention_hours=24 * 365,
     )
     api.settings.ensure_dirs()
-    api.db = Database(api.settings.db_path)
+    api.db = Database(
+        api.settings.db_path,
+        migration_runner=MigrationRunner(RUNTIME_MIGRATIONS),
+    )
     api.db.initialize()
     api.store = ContentStore(api.settings)
     api.custom_voice_repo = CustomVoiceRepository(api.db, api.store)
@@ -456,39 +467,42 @@ def seed_fixture(api) -> dict[str, Any]:
     }
 
 
-def canonical_read_only() -> dict[str, Any]:
+def read_only_target_fingerprint(path: Path) -> dict[str, Any]:
     import sqlite3
     import hashlib
 
-    path = ROOT / "data" / "app.db"
+    path = path.resolve()
+    if not path.is_file():
+        return {"path": str(path), "exists": False}
     digest = hashlib.sha256(path.read_bytes()).hexdigest()
+    result: dict[str, Any] = {
+        "path": str(path),
+        "exists": True,
+        "size_bytes": path.stat().st_size,
+        "sha256": digest,
+    }
     connection = sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)
     connection.row_factory = sqlite3.Row
     try:
-        quick = connection.execute("PRAGMA quick_check").fetchone()[0]
-        fk = connection.execute("PRAGMA foreign_key_check").fetchall()
-        schema = connection.execute("SELECT MAX(version) FROM schema_migrations").fetchone()[0]
-        chapters = {
-            row["chapter_number"]: dict(row)
+        result["quick_check"] = connection.execute("PRAGMA quick_check").fetchone()[0]
+        result["foreign_key_violations"] = len(
+            connection.execute("PRAGMA foreign_key_check").fetchall()
+        )
+        tables = {
+            row["name"]
             for row in connection.execute(
-                "SELECT id,chapter_number,audio_status,active_audio_artifact_id,human_approval_json FROM chapters WHERE chapter_number IN (369,372,373)"
+                "SELECT name FROM sqlite_master WHERE type='table'"
             )
         }
-        counts = {
-            table: int(connection.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0])
-            for table in ("jobs", "artifacts")
-        }
+        result["table_count"] = len(tables)
+        if "schema_migrations" in tables:
+            schema = connection.execute(
+                "SELECT MAX(version) FROM schema_migrations"
+            ).fetchone()[0]
+            result["schema"] = int(schema or 0)
     finally:
         connection.close()
-    return {
-        "path": str(path),
-        "sha256": digest,
-        "quick_check": quick,
-        "foreign_key_violations": len(fk),
-        "schema": int(schema),
-        "chapters": chapters,
-        "counts": counts,
-    }
+    return result
 
 
 def inspect_isolated(api, fixture: dict[str, Any], run_root: Path) -> dict[str, Any]:
@@ -522,6 +536,7 @@ def inspect_isolated(api, fixture: dict[str, Any], run_root: Path) -> dict[str, 
         if "truyen tong" in text:
             marker_segments.append({**dict(row), "text": text})
     return {
+        "schema": api.db.schema_version(),
         "jobs": [dict(row) for row in api.db.fetch_all("SELECT id,status,from_chapter,to_chapter,total_chapters FROM jobs ORDER BY id")],
         "artifacts": [dict(row) for row in rows],
         "segments": [dict(row) for row in segments],
@@ -530,19 +545,15 @@ def inspect_isolated(api, fixture: dict[str, Any], run_root: Path) -> dict[str, 
         "qa_audit": [dict(row) for row in approvals],
         "chapter": chapter,
         "active_artifact": active,
-        "provider_calls": list(api.tts_service.calls),
+        "fake_tts_calls": list(api.tts_service.calls),
         "worker_wake_count": int(api.worker.wake_count),
         "run_root": str(run_root),
     }
 
 
 def run(args: argparse.Namespace) -> dict[str, Any]:
+    protected_before = read_only_target_fingerprint(args.canonical_db)
     TEST_ROOT.mkdir(parents=True, exist_ok=True)
-    for stale in sorted(TEST_ROOT.glob("cert_*")):
-        if stale.is_dir() and TEST_ROOT.resolve() in stale.resolve().parents:
-            import shutil
-
-            shutil.rmtree(stale)
     timestamp = time.strftime("%Y%m%d_%H%M%S")
     run_root = TEST_ROOT / f"cert_{timestamp}_{os.getpid()}"
     run_root.mkdir(parents=True, exist_ok=True)
@@ -597,14 +608,18 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             raise RuntimeError(f"browser certification failed\nSTDOUT:\n{browser.stdout}\nSTDERR:\n{browser.stderr}")
         browser_evidence = json.loads(browser.stdout)
         isolated = inspect_isolated(api, fixture, run_root)
-        canonical = canonical_read_only()
+        protected_after = read_only_target_fingerprint(args.canonical_db)
         return {
             "ok": True,
             "base_url": base_url,
             "fixture": fixture,
             "browser": browser_evidence,
             "isolated": isolated,
-            "canonical": canonical,
+            "protected_target": {
+                "before": protected_before,
+                "after": protected_after,
+                "unchanged": protected_before == protected_after,
+            },
         }
     finally:
         server.should_exit = True
@@ -613,11 +628,19 @@ def run(args: argparse.Namespace) -> dict[str, Any]:
             api.worker.stop()
         except Exception:
             pass
+        if run_root.resolve().parent == TEST_ROOT.resolve():
+            shutil.rmtree(run_root, ignore_errors=True)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--timeout", type=int, default=180)
+    parser.add_argument(
+        "--canonical-db",
+        type=Path,
+        required=True,
+        help="Read-only database target fingerprinted before and after certification.",
+    )
     args = parser.parse_args()
     try:
         result = run(args)

@@ -60,8 +60,11 @@ class BatchPreparePhase10ConcurrencyTests(Phase10FixtureMixin):
         self.assertEqual(self.counts()["job_chapters"], 2)
         self.assertEqual(self.counts()["batch_prepare_job_links"], 1)
         self.assertEqual(self.counts()["batch_prepare_requests"], 1)
-        self.assertEqual(sum(result["request_state"] == "APPLIED" for result in results), 1)
-        self.assertTrue(any(result["request_state"] in {"APPLYING", "APPLIED"} for result in results))
+        self.assertEqual(sum(result["ownership_acquired"] for result in results), 1)
+        self.assertEqual(sum(result["future_transaction_called"] for result in results), 1)
+        self.assertEqual(sum(result["replay"] for result in results), 1)
+        self.assertTrue(all(result["request_state"] in {"APPLYING", "APPLIED"} for result in results))
+        self.assertTrue(any(result["request_state"] == "APPLIED" for result in results))
 
     def test_overlapping_requests_are_serialized_to_one_job(self) -> None:
         plan_a = self.plan(from_chapter=10, to_chapter=11)

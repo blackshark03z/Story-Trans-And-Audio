@@ -8,14 +8,20 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from .config import Settings
 from .casting import CHUNKER_VERSION, validate_approved_plan
 from .custom_voice import CustomVoiceRepository
 from .db import Database, utcnow
+from .audio_retention import purge_audio_history
+from .chapter_repair_execution import (
+    ChapterRepairInstructionError,
+    materialize_offline_repair_segments,
+)
 from .files import atomic_write_json, safe_slug, sha256_file, sha256_text
 from .gemini import GeminiRepairError, repair_punctuation
+from .gemini_routing import call_gemini_with_fallback
 from .gemini_cache import GeminiRepairCache
 from .storage import ContentStore
 from .synthesis_snapshot import (
@@ -283,6 +289,7 @@ def create_job(
         "target_chars": config.tts_target_chars,
         "silence_seconds": config.tts_silence_seconds,
         "gemini_model": config.gemini_model,
+        "gemini_models": config.gemini_models(),
         "gemini_prompt_version": config.gemini_prompt_version,
         "engine_version": f"vieneu:{config.tts_mode}",
         "chunker_version": CHUNKER_VERSION if casting_plan_id else "tts-segment-v1",
@@ -520,6 +527,28 @@ def start_prepared_job(
                     }
         if str(job["status"]) != JOB_PREPARED_STATUS:
             raise JobStartConflict(f"Job #{job_id} is not in '{JOB_PREPARED_STATUS}' status")
+        try:
+            settings_snapshot = json.loads(str(job["settings_json"] or "{}"))
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise JobStartConflict(f"Prepared job #{job_id} has invalid settings") from exc
+        repair_instruction = settings_snapshot.get("repair_instruction")
+        if isinstance(repair_instruction, dict) and not (
+            repair_instruction.get("schema") == "story-audio-repair-instruction/v2"
+            and repair_instruction.get("execution_mode") in {
+                "offline_segment_batch",
+                "hybrid_segment_batch",
+            }
+            and repair_instruction.get("execution_ready") is True
+        ):
+            reasons = ", ".join(
+                str(value)
+                for value in repair_instruction.get("execution_blockers") or [
+                    "legacy_or_uncompiled_repair_instruction"
+                ]
+            )
+            raise JobStartConflict(
+                f"Prepared replacement job #{job_id} cannot start safely: {reasons}"
+            )
         chapters = connection.execute(
             "SELECT chapter_id FROM job_chapters WHERE job_id=? ORDER BY sequence",
             (job_id,),
@@ -594,7 +623,15 @@ def _tts_attempt_limit(settings_snapshot: dict[str, Any]) -> int:
 
 
 class PipelineWorker:
-    def __init__(self, db: Database, store: ContentStore, tts: TtsService, config: Settings):
+    def __init__(
+        self,
+        db: Database,
+        store: ContentStore,
+        tts: TtsService,
+        config: Settings,
+        *,
+        maintenance_authorized: Callable[[], bool] | None = None,
+    ):
         self.db = db
         self.store = store
         self.tts = tts
@@ -604,10 +641,13 @@ class PipelineWorker:
         self._wake = threading.Event()
         self._thread: threading.Thread | None = None
         self._last_cleanup = 0.0
+        self._maintenance_ready = threading.Event()
+        self._maintenance_authorized = maintenance_authorized or (lambda: False)
 
-    def start(self) -> None:
+    def start(self, *, maintenance_only: bool = False) -> None:
         if self._thread and self._thread.is_alive():
             return
+        self._maintenance_only = maintenance_only
         self._thread = threading.Thread(target=self._loop, name="pipeline-worker", daemon=True)
         self._thread.start()
 
@@ -617,6 +657,29 @@ class PipelineWorker:
 
     def wake(self) -> None:
         self._wake.set()
+
+    def mark_application_ready(self) -> None:
+        """Allow maintenance only after the application startup contract completes."""
+
+        self._maintenance_ready.set()
+        self.wake()
+
+    def _maintenance_permitted(self) -> bool:
+        if not self._maintenance_ready.is_set():
+            return False
+        try:
+            return bool(self._maintenance_authorized())
+        except Exception:
+            return False
+
+    def _run_due_maintenance(self) -> bool:
+        if time.monotonic() - self._last_cleanup <= 300:
+            return False
+        if not self._maintenance_permitted():
+            return False
+        self.cleanup_expired_segments()
+        self._last_cleanup = time.monotonic()
+        return True
 
     def _custom_voice_context_for_book(self, book_id: int) -> CustomVoiceContext:
         """Return a per-book context without allowing cross-book cache reuse."""
@@ -631,19 +694,20 @@ class PipelineWorker:
     def _loop(self) -> None:
         while not self._stop.is_set():
             try:
-                if time.monotonic() - self._last_cleanup > 300:
-                    self.cleanup_expired_segments()
-                    self._last_cleanup = time.monotonic()
-                job = self._next_job()
-                if job:
-                    self._run_job(dict(job))
-                    continue
+                self._run_due_maintenance()
+                if not getattr(self, "_maintenance_only", False):
+                    job = self._next_job()
+                    if job:
+                        self._run_job(dict(job))
+                        continue
             except Exception as exc:
                 self.db.audit("worker_loop_error", details={"error": str(exc)})
             self._wake.wait(self.config.worker_poll_seconds)
             self._wake.clear()
 
     def cleanup_expired_segments(self) -> dict[str, int]:
+        if not self._maintenance_permitted():
+            return {"files": 0, "bytes_freed": 0}
         cutoff = datetime.now(timezone.utc) - timedelta(
             hours=self.config.successful_segment_retention_hours
         )
@@ -805,6 +869,21 @@ class PipelineWorker:
         self._set_job(job_id, "synthesizing", "tts", current_chapter_number=chapter["chapter_number"])
         chapter_work = self.config.work_dir / f"job_{job_id}" / f"chapter_{int(chapter['chapter_number']):04d}"
         segment_dir = chapter_work / "segments"
+        repair_instruction = settings_snapshot.get("repair_instruction")
+        if repair_instruction:
+            try:
+                segments = materialize_offline_repair_segments(
+                    self.db,
+                    self.config,
+                    chapter_id=chapter_id,
+                    instruction=dict(repair_instruction),
+                    target_segments=segments,
+                    target_dir=segment_dir,
+                    store=self.store,
+                    tts=self.tts,
+                )
+            except ChapterRepairInstructionError as exc:
+                raise ChapterNeedsReview(f"Repair instruction blocked: {exc}") from exc
         for position, segment in enumerate(segments):
             self._control(job_id)
             segment_path = segment_dir / f"{int(segment['segment_index']):06d}.wav"
@@ -920,14 +999,36 @@ class PipelineWorker:
                 return int(source_revision["id"]), source_text
         job_settings = json.loads(job["settings_json"])
         repair_model = str(job_settings.get("gemini_model") or self.config.gemini_model)
+        snapshot_models = job_settings.get("gemini_models")
+        if isinstance(snapshot_models, list):
+            repair_models = []
+            for value in [repair_model, *snapshot_models]:
+                model = str(value or "").strip()
+                if model and model not in repair_models:
+                    repair_models.append(model)
+        else:
+            # Old Jobs intentionally remain pinned to the single snapshotted
+            # model; only newly prepared Jobs opt into the fallback chain.
+            repair_models = [repair_model]
         repair_prompt_version = str(
             job_settings.get("gemini_prompt_version") or self.config.gemini_prompt_version
         )
+        repair_route_id = (
+            repair_model
+            if len(repair_models) == 1
+            else "fallback:" + "->".join(repair_models)
+        )
         contract_fingerprint = self.repair_cache.contract_fingerprint(
+            model=repair_route_id, prompt_version=repair_prompt_version
+        )
+        primary_contract_fingerprint = self.repair_cache.contract_fingerprint(
             model=repair_model, prompt_version=repair_prompt_version
         )
         processor_version = f"gemini-repair:{contract_fingerprint}"
         checkpoint_prompt_version = f"{repair_prompt_version}:{contract_fingerprint}"
+        primary_checkpoint_prompt_version = (
+            f"{repair_prompt_version}:{primary_contract_fingerprint}"
+        )
         legacy_processor_version = f"{repair_model}:{repair_prompt_version}"
         legacy_compatible = self.repair_cache.legacy_checkpoint_is_compatible()
         reusable = self.db.fetch_all(
@@ -1004,10 +1105,18 @@ class PipelineWorker:
                     checkpoint_text = self.store.read_text(row["repaired_path"])
                     if (
                         source_sha == row["source_sha256"]
-                        and row["model_id"] == repair_model
+                        and str(row["model_id"] or "") in set(repair_models)
                         and (
                             row["prompt_version"] == checkpoint_prompt_version
-                            or (legacy_compatible and row["prompt_version"] == repair_prompt_version)
+                            or (
+                                str(row["model_id"] or "") == repair_model
+                                and row["prompt_version"] == primary_checkpoint_prompt_version
+                            )
+                            or (
+                                legacy_compatible
+                                and str(row["model_id"] or "") == repair_model
+                                and row["prompt_version"] == repair_prompt_version
+                            )
                         )
                     ):
                         accepted = self._validate_repaired_block(
@@ -1030,21 +1139,29 @@ class PipelineWorker:
                 except (OSError, UnicodeError, ValueError, ChapterNeedsReview):
                     pass
 
-            lookup = self.repair_cache.lookup(
-                source=source,
-                model=repair_model,
-                prompt_version=repair_prompt_version,
-            )
-            self.db.audit(
-                f"gemini_cache_{lookup.status}", job_id=job_id, chapter_id=chapter_id,
-                details={
-                    "block_index": block_index,
-                    "cache_key": lookup.cache_key,
-                    "reason": lookup.reason if lookup.status == "invalid" else None,
-                    "lookup_ms": round(lookup.lookup_ms, 3),
-                    "validation_ms": round(lookup.validation_ms, 3),
-                },
-            )
+            lookup = None
+            lookup_model = repair_model
+            for candidate_model in repair_models:
+                candidate_lookup = self.repair_cache.lookup(
+                    source=source,
+                    model=candidate_model,
+                    prompt_version=repair_prompt_version,
+                )
+                self.db.audit(
+                    f"gemini_cache_{candidate_lookup.status}", job_id=job_id, chapter_id=chapter_id,
+                    details={
+                        "block_index": block_index,
+                        "model": candidate_model,
+                        "cache_key": candidate_lookup.cache_key,
+                        "reason": candidate_lookup.reason if candidate_lookup.status == "invalid" else None,
+                        "lookup_ms": round(candidate_lookup.lookup_ms, 3),
+                        "validation_ms": round(candidate_lookup.validation_ms, 3),
+                    },
+                )
+                lookup = candidate_lookup
+                lookup_model = candidate_model
+                if candidate_lookup.status == "hit":
+                    break
             if lookup.status == "hit" and lookup.repaired_text and lookup.repaired_blob_path:
                 try:
                     accepted = self._validate_repaired_block(
@@ -1072,7 +1189,7 @@ class PipelineWorker:
                             source_sha,
                             lexical_sha256(source),
                             repaired_path,
-                            repair_model,
+                            lookup_model,
                             checkpoint_prompt_version,
                             utcnow(),
                             row["id"],
@@ -1081,9 +1198,6 @@ class PipelineWorker:
                 repaired_blocks[block_index] = accepted
                 continue
             try:
-                api_key = self.config.gemini_key()
-                if not api_key:
-                    raise ChapterNeedsReview("Chưa cấu hình GEMINI_API_KEY hoặc file key.")
                 with self.db.connect() as connection:
                     connection.execute(
                         "UPDATE repair_blocks SET status='running',attempt_count=attempt_count+1,error_message=NULL WHERE id=?",
@@ -1091,14 +1205,30 @@ class PipelineWorker:
                     )
                 self.db.audit(
                     "gemini_api_call", job_id=job_id, chapter_id=chapter_id,
-                    details={"block_index": block_index, "cache_key": lookup.cache_key},
+                    details={
+                        "block_index": block_index,
+                        "cache_key": lookup.cache_key,
+                        "model_chain": repair_models,
+                    },
                 )
-                result = repair_punctuation(
-                    api_key=api_key,
-                    model=repair_model,
-                    block_id=f"jc{job_chapter_id}-b{block_index}",
-                    text=source,
+                def repair_provider(*, api_key: str, model: str, request_data: dict[str, Any]):
+                    return repair_punctuation(
+                        api_key=api_key,
+                        model=model,
+                        block_id=str(request_data["block_id"]),
+                        text=str(request_data["text"]),
+                    )
+                routed = call_gemini_with_fallback(
+                    self.config,
+                    repair_provider,
+                    request_data={
+                        "block_id": f"jc{job_chapter_id}-b{block_index}",
+                        "text": source,
+                    },
+                    models=repair_models,
                 )
+                selected_model = routed.model
+                result = routed.value
                 accepted = self._validate_repaired_block(
                     block_index=block_index,
                     source=source,
@@ -1109,7 +1239,7 @@ class PipelineWorker:
                     manifest = self.repair_cache.store_result(
                         source=source,
                         repaired=accepted,
-                        model=repair_model,
+                        model=selected_model,
                         prompt_version=repair_prompt_version,
                     )
                     repaired_path = str(manifest["repaired_blob_path"])
@@ -1131,14 +1261,14 @@ class PipelineWorker:
                             source_sha,
                             lexical_sha256(source),
                             repaired_path,
-                            repair_model,
+                            selected_model,
                             checkpoint_prompt_version,
                             utcnow(),
                             row["id"],
                         ),
                     )
                 repaired_blocks[block_index] = accepted
-            except (GeminiRepairError, ChapterNeedsReview) as exc:
+            except (GeminiRepairError, ChapterNeedsReview, RuntimeError) as exc:
                 with self.db.connect() as connection:
                     connection.execute(
                         "UPDATE repair_blocks SET status='failed',error_message=? WHERE id=?",
@@ -1593,10 +1723,6 @@ class PipelineWorker:
         )
         now = utcnow()
         with self.db.transaction() as connection:
-            connection.execute(
-                "UPDATE artifacts SET status='stale' WHERE chapter_id=? AND artifact_type=? AND status='active' AND id<>?",
-                (chapter_id, f"chapter_{output_format}", final_artifact),
-            )
             connection.execute("UPDATE artifacts SET status='active' WHERE id=?", (final_artifact,))
             connection.execute(
                 "INSERT OR IGNORE INTO artifact_dependencies(parent_artifact_id,child_artifact_id) VALUES(?,?)",
@@ -1607,9 +1733,19 @@ class PipelineWorker:
                 (timeline_artifact, final_artifact),
             )
             connection.execute(
-                "UPDATE chapters SET active_audio_artifact_id=?,audio_status='completed',updated_at=? WHERE id=?",
+                "UPDATE chapters SET active_audio_artifact_id=?,audio_status='completed',human_approval_json=NULL,updated_at=? WHERE id=?",
                 (final_artifact, now, chapter_id),
             )
+            connection.execute(
+                "DELETE FROM audit_events WHERE chapter_id=? AND event_code='human_qa_recorded'",
+                (chapter_id,),
+            )
+        purge_audio_history(
+            self.db,
+            output_root=self.config.output_dir,
+            work_root=self.config.work_dir,
+            chapter_ids=[chapter_id],
+        )
         return final_artifact
 
     def _insert_artifact(

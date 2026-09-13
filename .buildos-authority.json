@@ -1,0 +1,20 @@
+{
+  "canonical_admin_executor": "C:\\Users\\ADMIN\\AppData\\Local\\Temp\\story_audio_rc6_23d25f2d\\scripts\\ai_os.py",
+  "canonical_executor": "C:\\Users\\ADMIN\\AppData\\Local\\Temp\\story_audio_rc6_23d25f2d\\scripts\\ai.py",
+  "canonical_executor_sha256": "0ef2714f5b2d56398f9c0b3311bb723f7b66159ae154c64700bf6f139e43a10d",
+  "continuity_skill_version": "1.1.0",
+  "invariant": "SINGLE_ACTIVE_EXECUTION_AUTHORITY",
+  "kernel_commit": "b34eb368061d063646c58f0115542b8f8d011166",
+  "kernel_version": "1.25",
+  "legacy_archive_is_provenance_only": true,
+  "legacy_transition": {
+    "path": ".buildos-legacy/archives/story-audio-v125-rc6-20260826/receipt.json",
+    "receipt_sha256": "2a2a0a62fe7d6be4a61f05b5b73d06755e59699ede2d303a3ccbf67408d2b52d",
+    "schema": "buildos.legacy-authority-transition.v1",
+    "transition_id": "story-audio-v125-rc6-20260826"
+  },
+  "package_root": "C:\\Users\\ADMIN\\AppData\\Local\\Temp\\story_audio_rc6_23d25f2d",
+  "project_lifecycle_kit_version": "1.4.1",
+  "resolution_rule": "python <package_root>/scripts/ai.py --root <project-root> <lifecycle-command>; never fall back to project-local or PATH executors",
+  "schema": "buildos.execution-authority.v1"
+}

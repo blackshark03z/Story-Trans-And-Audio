@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import html
 import json
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -95,7 +96,10 @@ def _ensure_absolute_path(label: str, value: str | Path) -> Path:
     path = Path(value)
     if not path.is_absolute():
         raise ChecklistArgumentError(f"{label} must be an absolute path")
-    return path.resolve()
+    # Normalize lexical components without following symlinks. File validation
+    # must see the submitted path so _reject_symlink_component cannot be bypassed
+    # by resolving the link before the integrity check.
+    return Path(os.path.abspath(path))
 
 
 def _path_within_root(path: Path, root: Path) -> bool:
@@ -282,8 +286,8 @@ def _validate_manifest_report_identity(
 ) -> tuple[Path, Path]:
     manifest_identity = manifest.get("identity") or {}
     report_identity = report.get("identity") or {}
-    data_root = _ensure_absolute_path("manifest identity.data_root", str(manifest_identity.get("data_root")))
-    qa_data_root = _ensure_absolute_path("qa identity.data_root", str(report_identity.get("data_root")))
+    data_root = _ensure_absolute_path("manifest identity.data_root", str(manifest_identity.get("data_root"))).resolve()
+    qa_data_root = _ensure_absolute_path("qa identity.data_root", str(report_identity.get("data_root"))).resolve()
     if data_root != qa_data_root:
         raise ChecklistInputMismatchError(
             "Manifest and QA report data roots do not match",
@@ -655,7 +659,7 @@ def _render_segment_card(segment: dict[str, Any], *, audio_url: str) -> str:
           </p>
         </div>
         <div class="selection-tags" aria-label="Selection reasons">
-          {"".join(f'<span class=\"tag\">{_html_escape(item)}</span>' for item in selection_categories)}
+          {''.join(f'<span class="tag">{_html_escape(item)}</span>' for item in selection_categories)}
         </div>
       </header>
       <details open>
@@ -692,9 +696,9 @@ def _render_segment_card(segment: dict[str, Any], *, audio_url: str) -> str:
       </details>
       <details>
         <summary>Risk flags and limitations</summary>
-        <p><strong>Risk flags:</strong> {_html_escape(", ".join(risk_flags) if risk_flags else "--")}</p>
+        <p><strong>Risk flags:</strong> {_html_escape(', '.join(risk_flags) if risk_flags else '--')}</p>
         <p><strong>Artifact issue:</strong> {_html_escape(segment.get("artifact_issue"))}</p>
-        <p><strong>Limitations:</strong> {_html_escape(", ".join(segment.get("source_limitations") or []) if segment.get("source_limitations") else "--")}</p>
+        <p><strong>Limitations:</strong> {_html_escape(', '.join(segment.get("source_limitations") or []) if segment.get("source_limitations") else '--')}</p>
       </details>
       {_review_controls(segment)}
     </article>

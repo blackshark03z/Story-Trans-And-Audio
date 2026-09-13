@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { boundedBrowserTimeout } from "./browser_acceptance_runtime.mjs";
 
 const baseUrl = process.argv[2];
 if (!baseUrl) throw new Error("Usage: node scripts/browser_voice_override_smoke.mjs <base-url>");
@@ -27,7 +28,7 @@ const child = spawn(browserExe, [
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function poll(callback, timeoutMs = 12000) {
-  const deadline = Date.now() + timeoutMs;
+  const deadline = Date.now() + boundedBrowserTimeout(timeoutMs);
   let lastError;
   while (Date.now() < deadline) {
     try {
@@ -180,7 +181,21 @@ try {
     if (section) section.open = true;
     return !!section;
   })()`);
-  await waitFor(`!!document.querySelector('[data-voice-save-guard="narrator"]')`);
+  await waitFor(`!!document.querySelector('[data-registry-apply="narrator"]')`);
+  const workspaceScrollBefore = await evaluate(`(() => {
+    const rows = document.querySelector('#assignmentRows');
+    rows.style.height = '220px';
+    rows.style.maxHeight = '220px';
+    rows.scrollTop = Math.min(180, rows.scrollHeight - rows.clientHeight);
+    return rows.scrollTop;
+  })()`);
+  await evaluate(`loadBookVoiceRegistry({force:true}).then(() => true)`);
+  const workspaceScrollAfter = await evaluate(`document.querySelector('#assignmentRows')?.scrollTop || 0`);
+  const workspaceScrollStable = workspaceScrollBefore > 0
+    && Math.abs(workspaceScrollAfter - workspaceScrollBefore) <= 2;
+  if (!workspaceScrollStable) {
+    throw new Error(`Assignment workspace scroll moved during refresh: ${workspaceScrollBefore} -> ${workspaceScrollAfter}`);
+  }
   await installCommandRecorder([]);
 
   const exactUrlNotReadOnly = await evaluate(`(() => {
@@ -190,7 +205,8 @@ try {
       && location.hash.includes("to=10")
       && !!document.querySelector('[data-registry-scope-key="narrator"]')
       && !!document.querySelector('[data-registry-voice-key="narrator"]')
-      && !!document.querySelector('[data-registry-review-first="narrator"]')
+      && document.querySelector('[data-registry-scope-key="narrator"]')?.value === "book"
+      && document.querySelector('[data-registry-apply="narrator"]')?.textContent.includes("Lưu làm giọng mặc định cho sách")
       && !!document.querySelector('[data-registry-clear="narrator"]')
       && !document.querySelector('[data-voice-library-row="unknown"]')
       && !body.includes("Narrator/unknown");
@@ -206,6 +222,8 @@ try {
   })()`);
   const chapterOneHash = "#/assignment?book=1&from=1&to=1&focus=1001&source_task=REPAIR_REQUIRED&return_task=REPAIR_PREFLIGHT&assignment_focus=voices";
   await route(chapterOneHash);
+  await waitFor(`!!document.querySelector('[data-registry-apply="narrator"]')`);
+  await setSelect(attr("data-registry-scope-key", "narrator"), "chapter");
   await waitFor(`!!document.querySelector('[data-voice-save-guard="narrator"]')`);
   await setSelect(attr("data-registry-voice-key", "narrator"), "male");
   const localGuardEvidence = await evaluate(`(() => {
@@ -213,10 +231,9 @@ try {
     return {
       noApply: !document.querySelector('[data-registry-apply="narrator"]'),
       reviewFirst: !!document.querySelector('[data-registry-review-first="narrator"]'),
-      guardCopy: !!editor?.textContent.includes("Chưa thể lưu giọng riêng cho Chương 1 vì bản xác định người nói chưa được duyệt."),
+      guardCopy: !!editor?.textContent.includes("Chưa thể lưu giọng riêng vì bản xác định người nói chưa được duyệt."),
       temporaryCopy: !!editor?.querySelector('.assignment-unsaved-choice:not(.hidden)')
         && !!editor?.textContent.includes("Lựa chọn tạm thời — chưa được lưu"),
-      dependencyCopy: !!editor?.textContent.includes("Duyệt bản xác định người nói hiện tại."),
       commandCount: window.__voiceOverrideCommands.length,
       text: editor?.textContent || "",
     };
@@ -225,14 +242,13 @@ try {
     && localGuardEvidence.reviewFirst
     && localGuardEvidence.guardCopy
     && localGuardEvidence.temporaryCopy
-    && localGuardEvidence.dependencyCopy
     && localGuardEvidence.commandCount === 0;
   if (!localUnsavedGuard) throw new Error(`Chapter 1 local-only voice guard is not honest or complete: ${JSON.stringify(localGuardEvidence)}`);
   await setSelect(attr("data-registry-scope-key", "narrator"), "book");
-  const bookScopeCannotBypassGuard = await evaluate(`!document.querySelector('[data-registry-apply="narrator"]')
-    && !!document.querySelector('[data-registry-review-first="narrator"]')
+  const bookDefaultRemainsIndependent = await evaluate(`document.querySelector('[data-registry-apply="narrator"]')?.textContent.includes("Lưu làm giọng mặc định cho sách")
+    && !document.querySelector('[data-registry-review-first="narrator"]')
     && window.__voiceOverrideCommands.length === 0`);
-  if (!bookScopeCannotBypassGuard) throw new Error("Book scope bypassed the Chapter 1 dependency guard.");
+  if (!bookDefaultRemainsIndependent) throw new Error("Book default was incorrectly coupled to the Chapter 1 scoped-override guard.");
   await click(attr("data-registry-cancel", "narrator"));
   const localChoiceCancelled = await evaluate(`document.querySelector('.assignment-unsaved-choice')?.classList.contains('hidden') && window.__voiceOverrideCommands.length === 0`);
   await evaluate(`window.__voiceOverrideReloadMarker = "chapter-one-guard"`);
@@ -241,7 +257,7 @@ try {
   browserErrors.length = 0;
   await waitFor(`Number(window.storyAudioAppState?.bookVoiceRegistry?.result?.range?.from_chapter) === 1
     && Number(window.storyAudioAppState?.bookVoiceRegistry?.result?.range?.to_chapter) === 1
-    && !!document.querySelector('[data-voice-save-guard="narrator"]')`);
+    && !!document.querySelector('[data-registry-apply="narrator"]')`);
   const exactScopeAfterReload = await evaluate(`(() => {
     const context = currentProductionWorkingContext();
     return context?.bookId === 1 && context?.fromChapter === 1 && context?.toChapter === 1 && context?.focusedChapterId === 1001;
@@ -304,6 +320,23 @@ try {
   await waitAssignmentReady("narrator");
   const chapter9Unchanged = await rowHasVoice("narrator", "Narrator Default");
 
+  await route("#/assignment?book=1&from=6&to=8&skip_completed=1");
+  await waitAssignmentReady("narrator");
+  await applyVoice("narrator", "male", "book");
+  const bookDefaultUnderRangeOverride = await waitFor(`(() => {
+    const editor = document.querySelector('[data-registry-editor="narrator"]');
+    const row = editor?.closest('tr');
+    const scope = document.querySelector('[data-registry-scope-key="narrator"]')?.value;
+    const voice = document.querySelector('[data-registry-voice-key="narrator"]')?.value;
+    const text = row?.textContent || '';
+    return scope === 'book'
+      && voice === 'male'
+      && text.includes('Female Range')
+      && text.includes('Mặc định sách: Male Default')
+      && text.includes('mặc định cho sách')
+      && text.includes('vẫn dùng Female Range');
+  })()`);
+
   await route("#/assignment?book=1&from=2&to=4&skip_completed=1");
   await waitAssignmentReady("character:25");
   await applyVoice("character:25", "character-alt", "range");
@@ -320,7 +353,12 @@ try {
   await waitAssignmentReady("character:25");
   const mixedVisible = await rowHasVoice("character:25", "Xung đột giọng")
     || await evaluate(`document.querySelector(${JSON.stringify(attr("data-registry-editor", "character:25"))})?.textContent.includes("nhiều giọng")`);
+  await evaluate(`(() => { document.body.style.minHeight = "3200px"; window.scrollTo(0, 1200); return window.scrollY; })()`);
+  const scrollBeforeSave = await evaluate(`window.scrollY`);
   await applyVoice("character:25", "character-alt", "range");
+  await delay(100);
+  const scrollAfterSave = await evaluate(`window.scrollY`);
+  const saveKeepsScroll = scrollBeforeSave > 500 && Math.abs(scrollAfterSave - scrollBeforeSave) <= 20;
   const mixedResolved = await rowHasVoice("character:25", "Character Alt");
 
   await route("#/assignment?book=1&from=1&to=1&skip_completed=1");
@@ -343,7 +381,17 @@ try {
   })()`);
 
   await send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
-  await evaluate(`document.querySelector('[data-registry-apply="narrator"]')?.scrollIntoView({ block: "center" })`);
+  await waitFor(`(async () => {
+    const action = document.querySelector('[data-registry-apply="narrator"]');
+    if (!action) return false;
+    action.scrollIntoView({ block: "center" });
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const rect = document.querySelector('[data-registry-apply="narrator"]')?.getBoundingClientRect();
+    return !!rect
+      && rect.top >= 0
+      && rect.bottom <= innerHeight
+      && document.documentElement.scrollWidth <= innerWidth + 1;
+  })()`, 5000);
   const layout1920 = await evaluate(`(() => {
     const action = document.querySelector('[data-registry-apply="narrator"]')?.getBoundingClientRect();
     return {
@@ -360,8 +408,11 @@ try {
   process.stdout.write(JSON.stringify({
     ok: true,
     exactUrlNotReadOnly,
+    workspaceScrollStable,
+    workspaceScrollBefore,
+    workspaceScrollAfter,
     localUnsavedGuard,
-    bookScopeCannotBypassGuard,
+    bookDefaultRemainsIndependent,
     localChoiceCancelled,
     exactScopeAfterReload,
     exactCommandScope,
@@ -370,10 +421,14 @@ try {
     oneBusy,
     oneChapterNarratorText,
     rangeNarrator: rangeNarrator && chapter4Unchanged && chapter6UnchangedBeforeRange && chapter9Unchanged,
+    bookDefaultUnderRangeOverride: !!bookDefaultUnderRangeOverride,
     characterRange,
     clearRestoresDefault,
     mixedVisible,
     mixedResolved,
+    saveKeepsScroll,
+    scrollBeforeSave,
+    scrollAfterSave,
     unidentifiedSpeakerHidden,
     unavailableBlocked,
     commands,

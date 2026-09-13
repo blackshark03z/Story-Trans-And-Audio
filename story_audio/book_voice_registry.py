@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from dataclasses import dataclass, field
 from typing import Any, Iterable, Mapping
@@ -17,7 +18,9 @@ from .db import Database
 from .speaker_assignment import SpeakerAssignmentError
 from .speaker_review import SpeakerReviewError, get_speaker_review_draft
 from .speaker_state import (
+    ANALYSIS_REQUIRED,
     APPROVED_CURRENT,
+    CURRENT_REVIEW_REQUIRED,
     NO_REVIEW_REQUIRED,
     resolve_chapter_speaker_state,
 )
@@ -89,6 +92,14 @@ class _RegistryRow:
                 self.plan_voice_ids.add(normalized)
                 self.plan_voice_chapters[normalized].add(chapter_number)
 
+    def add_sample(self, payload: Mapping[str, Any]) -> None:
+        if len(self.sample_lines) >= 5:
+            return
+        utterance_id = str(payload.get("utterance_id") or "")
+        if utterance_id and any(str(item.get("utterance_id") or "") == utterance_id for item in self.sample_lines):
+            return
+        self.sample_lines.append(dict(payload))
+
     def touch_reference(
         self,
         chapter: Mapping[str, Any],
@@ -100,8 +111,7 @@ class _RegistryRow:
         self.touch(chapter, voice_id=voice_id)
         payload = reference.public_payload()
         self.target_utterances.append(payload)
-        if len(self.sample_lines) < 5:
-            self.sample_lines.append(payload)
+        self.add_sample(payload)
         if plan:
             self.plan_touch(plan)
             self.provenance.append(
@@ -134,6 +144,47 @@ class _RegistryRow:
             self.last_plan_revision = revision
             self.last_plan_status = str(plan.get("status") or "")
             self.last_reviewed_at = plan.get("approved_at") or plan.get("created_at")
+
+
+def _utterance_excerpt(text: str, utterance: Mapping[str, Any]) -> str:
+    start = max(0, int(utterance.get("start_offset") or 0))
+    end = max(start, int(utterance.get("end_offset") or start))
+    return text[start:end].strip()
+
+
+def _sample_context_item(text: str, utterance: Mapping[str, Any]) -> dict[str, Any]:
+    return {
+        "utterance_id": str(utterance.get("utterance_id") or ""),
+        "sequence": int(utterance.get("sequence") or 0),
+        "text": _utterance_excerpt(text, utterance),
+        "role": str(utterance.get("role") or "narrator"),
+        "character_id": int(utterance["character_id"]) if utterance.get("character_id") is not None else None,
+    }
+
+
+def _utterance_sample_payload(
+    chapter: Mapping[str, Any],
+    text: str,
+    utterances: list[Mapping[str, Any]],
+    index: int,
+) -> dict[str, Any]:
+    utterance = utterances[index]
+    payload = _sample_context_item(text, utterance)
+    payload.update(
+        {
+            "chapter_id": int(chapter["id"]),
+            "chapter_number": int(chapter["chapter_number"]),
+            "context_before": [
+                _sample_context_item(text, item)
+                for item in utterances[max(0, index - 1):index]
+            ],
+            "context_after": [
+                _sample_context_item(text, item)
+                for item in utterances[index + 1:index + 2]
+            ],
+        }
+    )
+    return payload
 
 
 def _voice_index(catalog: EffectiveVoiceCatalog) -> dict[str, dict[str, Any]]:
@@ -353,7 +404,7 @@ def _collect_from_plan(
         utterances,
         source_layout_text=source_layout_text,
     )
-    for utterance in utterances:
+    for utterance_index, utterance in enumerate(utterances):
         role = str(utterance.get("role") or "narrator")
         voice_id = str(utterance.get("resolved_voice_id") or "").strip() or None
         segment = text[int(utterance["start_offset"]) : int(utterance["end_offset"])].strip()
@@ -368,6 +419,7 @@ def _collect_from_plan(
                 character_id=None,
             )
             row = _ensure_unresolved_dialogue(rows, reference)
+            row.add_sample(_utterance_sample_payload(chapter, text, utterances, utterance_index))
             row.touch_reference(chapter, reference, plan=plan)
             continue
         if role == "character" and utterance.get("character_id") is not None:
@@ -377,6 +429,7 @@ def _collect_from_plan(
         else:
             row = _ensure_narrator(rows)
         row.touch(chapter, voice_id=voice_id)
+        row.add_sample(_utterance_sample_payload(chapter, text, utterances, utterance_index))
         row.plan_touch(plan)
 
 
@@ -454,6 +507,19 @@ def _collect_from_speaker_draft(
         else:
             row = _ensure_narrator(rows)
         row.touch(chapter)
+        row.add_sample(
+            {
+                "chapter_id": int(chapter["id"]),
+                "chapter_number": int(chapter["chapter_number"]),
+                "utterance_id": str(review_row.get("utterance_id") or ""),
+                "sequence": int(review_row.get("sequence") or 0),
+                "text": review_text,
+                "role": speaker_type or "narrator",
+                "character_id": int(decision["character_id"]) if decision.get("character_id") is not None else None,
+                "context_before": [],
+                "context_after": [],
+            }
+        )
     return detail
 
 
@@ -670,13 +736,13 @@ def _row_to_payload(
         for chapter_number in chapter_numbers
     }
     durable_chapters = planned_chapters | approved_draft_chapters
-    durable_override_ready = bool(
+    scoped_voice_ready = bool(
         row.chapter_numbers
         and row.chapter_numbers <= durable_chapters
-        and row.plan_statuses <= {"approved"}
+        and row.plan_statuses <= {"draft", "approved"}
     )
     requires_casting_plan_creation = bool(
-        durable_override_ready and row.chapter_numbers - planned_chapters
+        scoped_voice_ready and row.chapter_numbers - planned_chapters
     )
     return {
         "speaker_key": row.speaker_key,
@@ -718,13 +784,13 @@ def _row_to_payload(
         "actions": {
             "can_save_book_default": row.role in {"narrator", "unknown"} or row.character_id is not None,
             "can_create_range_or_chapter_override": bool(
-                durable_override_ready
+                scoped_voice_ready
                 and (row.role in {"narrator", "unknown"} or row.character_id is not None)
             ),
             "chapter_override_blocker": (
                 None
-                if durable_override_ready
-                else "APPROVED_CASTING_PLAN_REQUIRED"
+                if scoped_voice_ready
+                else "APPROVED_SPEAKER_REVIEW_REQUIRED"
             ),
             "requires_casting_plan_creation": requires_casting_plan_creation,
             "can_remove_override": bool(plan_override_voice),
@@ -754,6 +820,18 @@ def _chapter_range_label(chapters: Iterable[int]) -> str:
     return "Chương " + ", ".join(ranges)
 
 
+def _row_scope_evidence(row: Mapping[str, Any]) -> dict[str, Any]:
+    chapter_numbers = [int(value) for value in row.get("chapter_numbers") or []]
+    return {
+        "chapter_numbers": chapter_numbers,
+        "chapter_range_label": str(
+            row.get("chapter_range_label") or _chapter_range_label(chapter_numbers)
+        ),
+        "chapter_count": len(chapter_numbers),
+        "line_count": int(row.get("line_count") or 0),
+    }
+
+
 def _sort_rows(item: dict[str, Any]) -> tuple[int, int, int, str]:
     if item["speaker_key"] == "narrator":
         return (0, 0, 0, "")
@@ -772,6 +850,51 @@ def _sort_rows(item: dict[str, Any]) -> tuple[int, int, int, str]:
     return (group, priority, first, str(item.get("display_name") or "").casefold())
 
 
+def _aggregate_speaker_states(states: list[dict[str, Any]]) -> dict[str, Any] | None:
+    if not states:
+        return None
+    if len(states) == 1:
+        return dict(states[0])
+    statuses = [str(item.get("status") or "") for item in states]
+    if ANALYSIS_REQUIRED in statuses:
+        status = ANALYSIS_REQUIRED
+    elif CURRENT_REVIEW_REQUIRED in statuses:
+        status = CURRENT_REVIEW_REQUIRED
+    elif all(item == NO_REVIEW_REQUIRED for item in statuses):
+        status = NO_REVIEW_REQUIRED
+    else:
+        status = APPROVED_CURRENT
+    unresolved_targets: list[dict[str, Any]] = []
+    for item in states:
+        for target in item.get("unresolved_targets") or []:
+            unresolved_targets.append(
+                {
+                    **dict(target),
+                    "chapter_id": int(item.get("chapter_id") or 0),
+                    "chapter_number": int(item.get("chapter_number") or 0),
+                }
+            )
+    return {
+        "status": status,
+        "scope": "range",
+        "unresolved_count": sum(int(item.get("unresolved_count") or 0) for item in states),
+        "unresolved_targets": unresolved_targets,
+        "remaining_review_count": sum(int(item.get("remaining_review_count") or 0) for item in states),
+        "narrator_only": all(bool(item.get("narrator_only")) for item in states),
+        "blocks_progress": any(bool(item.get("blocks_progress")) for item in states),
+        "chapter_states": [
+            {
+                "chapter_id": int(item.get("chapter_id") or 0),
+                "chapter_number": int(item.get("chapter_number") or 0),
+                "status": str(item.get("status") or ""),
+                "unresolved_count": int(item.get("unresolved_count") or 0),
+                "remaining_review_count": int(item.get("remaining_review_count") or 0),
+            }
+            for item in states
+        ],
+    }
+
+
 def get_book_voice_registry(
     db: Database,
     store: ContentStore,
@@ -785,6 +908,13 @@ def get_book_voice_registry(
     custom_voice_context: CustomVoiceContext | None = None,
 ) -> dict[str, Any]:
     book = _book_row(db, book_id)
+    requested_chapters = _range_chapters(
+        db,
+        book_id=book_id,
+        from_chapter=from_chapter,
+        to_chapter=to_chapter,
+        skip_completed=False,
+    )
     chapters = _range_chapters(
         db,
         book_id=book_id,
@@ -852,7 +982,11 @@ def get_book_voice_registry(
                 plan_collected = False
         if plan_collected:
             continue
-        draft = _latest_approved_speaker_draft_row(db, int(chapter["id"]))
+        draft = (
+            _latest_approved_speaker_draft_row(db, int(chapter["id"]))
+            if speaker_state["status"] in {APPROVED_CURRENT, NO_REVIEW_REQUIRED}
+            else None
+        )
         if not draft:
             if text:
                 _collect_from_text(rows, chapter=chapter, text=text)
@@ -892,6 +1026,29 @@ def get_book_voice_registry(
         for row in rows.values()
         if row.speaker_key == "narrator" or row.line_count > 0
     ]
+    requested_rows_by_key: dict[str, Mapping[str, Any]] = {}
+    if skip_completed and len(requested_chapters) != len(chapters):
+        requested_registry = get_book_voice_registry(
+            db,
+            store,
+            config,
+            book_id=book_id,
+            from_chapter=from_chapter,
+            to_chapter=to_chapter,
+            skip_completed=False,
+            voice_catalog=voice_catalog,
+            custom_voice_context=custom_voice_context,
+        )
+        requested_rows_by_key = {
+            str(item["speaker_key"]): item
+            for item in requested_registry.get("rows") or []
+        }
+    for payload_row in payload_rows:
+        payload_row["effective_scope"] = _row_scope_evidence(payload_row)
+        requested_row = requested_rows_by_key.get(str(payload_row["speaker_key"]))
+        payload_row["requested_scope"] = _row_scope_evidence(
+            requested_row or payload_row
+        )
     payload_rows.sort(key=_sort_rows)
     status_counts: dict[str, int] = {status: 0 for status in sorted(REGISTRY_STATUSES)}
     for row in payload_rows:
@@ -901,6 +1058,30 @@ def get_book_voice_registry(
         for row in payload_rows
         if row["status"] in UNRESOLVED_STATUSES
     ]
+    included_chapter_ids = {int(chapter["id"]) for chapter in chapters}
+    voice_suggestion_reviews: dict[tuple[str, str], dict[str, Any]] = {}
+    for event in db.fetch_all(
+        "SELECT id,details_json,created_at FROM audit_events WHERE event_code=? ORDER BY id",
+        ("voice_suggestion_batch_applied",),
+    ):
+        try:
+            details = json.loads(event["details_json"] or "{}")
+        except (TypeError, ValueError):
+            continue
+        if int(details.get("book_id") or 0) != int(book_id):
+            continue
+        for item in details.get("items") or []:
+            key = (
+                str(item.get("analysis_run_id") or ""),
+                str(item.get("unresolved_key") or ""),
+            )
+            if all(key):
+                voice_suggestion_reviews[key] = {
+                    **dict(item),
+                    "decision": str(details.get("decision") or "APPLIED"),
+                    "audit_event_id": int(event["id"]),
+                    "recorded_at": event["created_at"],
+                }
     return {
         "schema": REGISTRY_SCHEMA,
         "book": {
@@ -914,6 +1095,23 @@ def get_book_voice_registry(
             "chapter_count": len(chapters),
             "chapter_ids": [int(item["id"]) for item in chapters],
             "focused_chapter_id": None,
+            "requested_from_chapter": int(requested_chapters[0]["chapter_number"]),
+            "requested_to_chapter": int(requested_chapters[-1]["chapter_number"]),
+            "requested_chapter_count": len(requested_chapters),
+            "skip_completed": bool(skip_completed),
+            "included_chapters": [
+                {"id": int(item["id"]), "chapter_number": int(item["chapter_number"])}
+                for item in chapters
+            ],
+            "excluded_chapters": [
+                {
+                    "id": int(item["id"]),
+                    "chapter_number": int(item["chapter_number"]),
+                    "reason": "completed",
+                }
+                for item in requested_chapters
+                if int(item["id"]) not in included_chapter_ids
+            ],
         },
         "persistence": {
             "migration_required": False,
@@ -955,6 +1153,7 @@ def get_book_voice_registry(
             "dialogue_detection": "dash-led dialogue utterances marked unresolved when still assigned narrator",
             "unresolved_dialogue_count": status_counts.get(UNRESOLVED_DIALOGUE_STATUS, 0),
         },
-        "speaker_state": speaker_states[0] if len(speaker_states) == 1 else None,
+        "speaker_state": _aggregate_speaker_states(speaker_states),
         "speaker_states": speaker_states,
+        "voice_suggestion_reviews": list(voice_suggestion_reviews.values()),
     }

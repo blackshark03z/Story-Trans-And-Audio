@@ -6,6 +6,7 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 import time
 import unittest
 import urllib.error
@@ -17,7 +18,7 @@ from story_audio.db import Database
 from tests.base import IsolatedTestCase
 
 
-PYTHON = Path(r"D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe")
+PYTHON = Path(sys.executable)
 
 
 def _free_port() -> int:

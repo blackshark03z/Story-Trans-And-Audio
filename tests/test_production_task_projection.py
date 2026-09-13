@@ -160,7 +160,7 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertEqual(projection["canonical_task"]["render"]["job_id"], 44)
         self.assert_typed_section(projection, "render")
 
-    def test_human_qa_keeps_current_target_when_comparison_is_available(self) -> None:
+    def test_human_qa_keeps_only_current_target_and_repair_goals(self) -> None:
         qa = _row(
             1,
             "RENDERED_NOT_QA",
@@ -169,7 +169,6 @@ class ProductionTaskProjectionTests(unittest.TestCase):
             artifact_duration_ms=334080,
             artifact_size_bytes=5407866,
             qa_replacement=True,
-            qa_previous_artifact={"artifact_id": 114, "duration_ms": 324800},
             qa_repair_goals={"repeated_words": True, "global_speed_target": 1.25},
         )
 
@@ -178,7 +177,7 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         details = projection["canonical_task"]["qa"]
         self.assertEqual(details["artifact_id"], 117)
         self.assertTrue(details["replacement"])
-        self.assertEqual(details["previous_artifact"]["artifact_id"], 114)
+        self.assertNotIn("previous_artifact", details)
         self.assertTrue(details["repair_goals"]["repeated_words"])
 
     def test_ready_range_is_the_only_prepare_gate(self) -> None:
@@ -318,6 +317,48 @@ class ProductionTaskProjectionTests(unittest.TestCase):
                 self.assertEqual(projection["task_type"], expected)
                 self.assert_typed_section(projection, section)
 
+    def test_mixed_range_regenerates_analysis_before_reviewing_existing_exceptions(self) -> None:
+        rows = (
+            _row(1, "SPEAKER_EXCEPTIONS", blockers=["analysis required"]),
+            _row(2, "SPEAKER_EXCEPTIONS", blockers=["review required"]),
+        )
+        range_inputs = {
+            "summary": {
+                "total_chapters": 2,
+                "proposal_required_chapters": 1,
+                "speaker_exception_count": 1,
+            },
+            "proposal_chapters": [{
+                "chapter_id": rows[0]["chapter_id"],
+                "chapter_number": 1,
+                "chapter_title": "Chapter 1",
+                "reason": "analysis_required",
+                "draft_id": 11,
+            }],
+            "speaker_exception_queue": [{
+                "chapter_id": rows[1]["chapter_id"],
+                "chapter_number": 2,
+                "chapter_title": "Chapter 2",
+                "draft_id": 22,
+                "utterance_id": "u0002-mixed",
+                "sequence": 2,
+            }],
+            "ready_speaker_drafts": [],
+            "voice_exception_queue": [],
+            "casting_generation_ready": [],
+            "casting_approvals": [],
+            "blocked": [],
+            "skipped": [],
+        }
+        projection = project_production_task({
+            "readiness": _readiness(*rows),
+            "range_inputs": range_inputs,
+        })
+        self.assertEqual(projection["task_type"], "PREPARE_RANGE_INPUTS")
+        speaker = projection["canonical_task"]["speaker"]
+        self.assertEqual(speaker["proposal_chapters"][0]["chapter_number"], 1)
+        self.assertEqual(len(speaker["exception_queue"]), 1)
+
     def test_repair_required_precedes_stale_range_input_preparation(self) -> None:
         repair = _row(
             1,
@@ -351,11 +392,13 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertEqual(projection["chapter_queue"][0]["status"], "current")
         self.assert_typed_section(projection, "repair")
 
-        complete = _row(1, "COMPLETE")
+        complete = _row(1, "COMPLETE", active_artifact_id=93)
         projection = project_production_task({"readiness": _readiness(complete)})
         self.assertEqual(projection["task_type"], "COMPLETE")
         self.assertIsNone(projection["primary_action"])
         self.assertEqual(projection["task_scope"], "range")
+        self.assertEqual(projection["range_readiness"]["chapters"][0]["state"], "COMPLETE")
+        self.assertEqual(projection["range_readiness"]["chapters"][0]["active_artifact_id"], 93)
 
     def test_text_blocker_precedes_range_input_orchestration(self) -> None:
         blocked = _row(
@@ -396,6 +439,132 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertEqual(projection["primary_action"]["key"], "START_RENDER_RANGE")
         self.assertIn("job:44", projection["task_key"])
 
+    def test_prepared_job_can_skip_complete_chapter_and_remain_exact_range(self) -> None:
+        projection = project_production_task(
+            {
+                "readiness": _readiness(
+                    _row(6, "PREPARED"),
+                    _row(7, "COMPLETE"),
+                    _row(8, "PREPARED"),
+                ),
+                "range_jobs": [
+                    {
+                        "id": 39,
+                        "status": "prepared",
+                        "chapter_count": 2,
+                        "all_chapters_match": True,
+                    }
+                ],
+            }
+        )
+        self.assertEqual(projection["task_type"], "START_RENDER_RANGE")
+        self.assertEqual(projection["canonical_task"]["render"]["job_id"], 39)
+        queue = {item["chapter_number"]: item for item in projection["chapter_queue"]}
+        self.assertEqual(queue[7]["status"], "complete")
+
+    def test_prepared_job_cannot_hide_noncomplete_chapter_outside_job(self) -> None:
+        projection = project_production_task(
+            {
+                "readiness": _readiness(
+                    _row(6, "PREPARED"),
+                    _row(7, "COMPLETE"),
+                    _row(
+                        8,
+                        "TEXT_BLOCKED",
+                        latest_speaker_draft_id=None,
+                        blockers=["bad text"],
+                    ),
+                ),
+                "range_jobs": [
+                    {
+                        "id": 39,
+                        "status": "prepared",
+                        "chapter_count": 1,
+                        "all_chapters_match": True,
+                    }
+                ],
+            }
+        )
+        self.assertEqual(projection["task_type"], "REVIEW_TEXT")
+        self.assertNotEqual(projection["task_type"], "START_RENDER_RANGE")
+
+    def test_projection_builder_matches_job_against_noncomplete_chapters(self) -> None:
+        readiness = _readiness(
+            _row(
+                6,
+                "PREPARED",
+                latest_speaker_draft_id=None,
+                speaker_state={"status": "APPROVED_CURRENT"},
+            ),
+            _row(
+                7,
+                "COMPLETE",
+                latest_speaker_draft_id=None,
+                speaker_state={"status": "APPROVED_CURRENT"},
+            ),
+            _row(
+                8,
+                "PREPARED",
+                latest_speaker_draft_id=None,
+                speaker_state={"status": "APPROVED_CURRENT"},
+            ),
+        )
+        db = object()
+        exact_job = {
+            "id": 39,
+            "status": "prepared",
+            "chapter_count": 2,
+            "all_chapters_match": True,
+        }
+        with patch(
+            "story_audio.production_task_projection.get_range_readiness",
+            return_value=readiness,
+        ), patch(
+            "story_audio.production_task_projection._exact_range_jobs",
+            return_value=[exact_job],
+        ) as exact_jobs:
+            projection = get_production_task_projection(
+                db,
+                book_id=1,
+                from_chapter=6,
+                to_chapter=8,
+            )
+        exact_jobs.assert_called_once_with(
+            db,
+            book_id=1,
+            from_chapter=6,
+            to_chapter=8,
+            chapter_ids=[1006, 1008],
+        )
+        self.assertEqual(projection["task_type"], "START_RENDER_RANGE")
+
+    def test_subset_of_prepared_job_routes_to_owner_scope_without_starting(self) -> None:
+        owner = {
+            "live_job_id": 35,
+            "live_job_status": "prepared",
+            "live_job_book_id": 1,
+            "live_job_from_chapter": 2,
+            "live_job_to_chapter": 8,
+        }
+        projection = project_production_task(
+            {
+                "readiness": _readiness(
+                    _row(2, "PREPARED", **owner),
+                    _row(3, "PREPARED", **owner),
+                    _row(4, "PREPARED", **owner),
+                ),
+                "range_jobs": [],
+            }
+        )
+        self.assertEqual(projection["task_type"], "OPEN_JOB_RANGE")
+        self.assertEqual(projection["primary_action"]["key"], "OPEN_JOB_RANGE")
+        self.assertEqual(projection["primary_action"]["label"], "M\u1edf Ch\u01b0\u01a1ng 2-8")
+        self.assertEqual(projection["canonical_task"]["render"]["job_id"], 35)
+        self.assertEqual(projection["canonical_task"]["render"]["from_chapter"], 2)
+        self.assertEqual(projection["canonical_task"]["render"]["to_chapter"], 8)
+        self.assertNotEqual(projection["task_type"], "START_RENDER_RANGE")
+        self.assert_typed_section(projection, "render")
+
     def test_prepared_replacement_exposes_human_repair_summary(self) -> None:
         projection = project_production_task(
             {
@@ -421,6 +590,30 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertTrue(render["replacement"])
         self.assertEqual(render["repair_summary"]["global_speed_target"], 1.25)
         self.assertTrue(render["repair_summary"]["repeated_words"])
+
+    def test_prepared_replacement_with_unsupported_instruction_hides_start(self) -> None:
+        projection = project_production_task(
+            {
+                "readiness": _readiness(_row(1, "REPAIR_REQUIRED", replacement_for_artifact_id=39)),
+                "range_jobs": [
+                    {
+                        "id": 44,
+                        "status": "prepared",
+                        "chapter_count": 1,
+                        "all_chapters_match": True,
+                        "replacement_for_artifact_id": 39,
+                        "repair_summary": {
+                            "execution_ready": False,
+                            "execution_blockers": ["unsupported_markers_present"],
+                            "machine_action_count": 0,
+                        },
+                    }
+                ],
+            }
+        )
+        self.assertEqual(projection["task_type"], "RECOVER_RENDER")
+        self.assertIsNone(projection["primary_action"])
+        self.assertIn("không thực sự được sửa", projection["task_summary"])
 
     def test_current_qa_output_precedes_historical_recovery_job(self) -> None:
         current = _row(1, "RENDERED_NOT_QA", active_artifact_id=114)
@@ -539,7 +732,7 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         self.assertEqual(projection["user_stage"], 5)
         self.assertEqual(projection["current_stage_key"], "repair")
         self.assertEqual(projection["title"], "Cần sửa và tạo bản thay thế")
-        self.assertEqual(len(projection["phases"]), 5)
+        self.assertEqual(len(projection["phases"]), 4)
         self.assertEqual(projection["phases"][0]["label"], "Xác nhận nội dung và người nói")
         self.assertIsNone(projection["primary_action"])
         self.assertEqual(projection["chapter_queue"][0]["status"], "current")
@@ -659,7 +852,7 @@ class ProductionTaskProjectionAuditTests(IsolatedTestCase):
                 ),
             )
 
-    def test_pending_replacement_uses_pinned_predecessor_and_repair_goals(self) -> None:
+    def test_pending_replacement_uses_current_job_repair_goals_without_old_audio(self) -> None:
         instruction = {
             "schema": "story-audio-repair-instruction/v1",
             "replacement_for_artifact_id": self.artifact_id,
@@ -699,9 +892,8 @@ class ProductionTaskProjectionAuditTests(IsolatedTestCase):
             artifact_id=self.new_artifact_id,
         )
 
-        self.assertEqual(result["previous_artifact"]["artifact_id"], self.artifact_id)
-        self.assertEqual(result["previous_artifact"]["human_qa_status"], "needs_fixes")
-        self.assertTrue(result["repair_goals"]["repeated_words"])
+        self.assertNotIn("previous_artifact", result)
+        self.assertFalse(result["repair_goals"]["repeated_words"])
         self.assertEqual(result["repair_goals"]["global_speed_target"], 1.25)
         self.assertTrue(result["repair_goals"]["local_pacing_adjustment_required"])
 

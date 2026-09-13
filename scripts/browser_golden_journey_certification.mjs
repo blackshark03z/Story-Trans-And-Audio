@@ -3,6 +3,7 @@ import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { boundedBrowserTimeout } from "./browser_acceptance_runtime.mjs";
 
 const baseUrl = process.argv[2];
 const runRoot = process.argv[3];
@@ -36,7 +37,7 @@ const child = spawn(browserExe, [
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function poll(callback, timeoutMs = 20000) {
-  const deadline = Date.now() + timeoutMs;
+  const deadline = Date.now() + boundedBrowserTimeout(timeoutMs);
   let lastError;
   while (Date.now() < deadline) {
     try {
@@ -108,6 +109,7 @@ try {
   };
 
   // Stage A: visible scope selection, durable URL/context, refresh/navigation stability.
+  await waitFor(`document.querySelector("#productionPrimaryAction")?.textContent==="Chọn sách & chương"`);
   await click("#productionPrimaryAction");
   await waitFor(`document.querySelector("#productionScopeDialog")?.open===true`);
   await click(`[data-scope-book-id="${fixture.book_id}"]`);
@@ -122,17 +124,51 @@ try {
   await send("Page.reload", { ignoreCache: true });
   await waitFor(`document.readyState==="complete" && window.__goldenJourneyReloadMarker !== "scope"`);
   await waitFor(`window.storyAudioAppState?.productionRange?.fromChapter===${fixture.chapter_number}`);
-  await evaluate(`location.hash="#/jobs"`);
-  await waitFor(`window.storyAudioAppState.currentRoute==="jobs"`);
-  const journeyHistory = await send("Page.getNavigationHistory");
-  const productionEntry = journeyHistory.entries.slice(0,journeyHistory.currentIndex).reverse().find(entry => entry.url.includes("#/production?") && entry.url.includes(`book=${fixture.book_id}`) && entry.url.includes(`from=${fixture.chapter_number}`));
-  const jobsEntry = journeyHistory.entries[journeyHistory.currentIndex];
-  if (!productionEntry || !jobsEntry) throw new Error("Browser history did not retain Production and Jobs entries.");
-  await send("Page.navigateToHistoryEntry", { entryId: productionEntry.id });
-  await waitFor(`window.storyAudioAppState.currentRoute==="production"`, 30000);
-  await send("Page.navigateToHistoryEntry", { entryId: jobsEntry.id });
-  await waitFor(`window.storyAudioAppState.currentRoute==="jobs"`, 30000);
-  await evaluate(`location.hash=${JSON.stringify(`#/production?book=${fixture.book_id}&from=${fixture.chapter_number}&to=${fixture.chapter_number}`)}`);
+  const routeRace = await evaluate(`(async () => {
+    const savedApi = api;
+    let releaseRestore;
+    let markRestoreStarted;
+    const restoreStarted = new Promise(resolve => { markRestoreStarted = resolve; });
+    api = async (url, options = {}) => {
+      if (String(url).startsWith("/api/production/range-readiness")) {
+        markRestoreStarted();
+        await new Promise(resolve => { releaseRestore = resolve; });
+      }
+      return savedApi(url, options);
+    };
+    try {
+      const pendingRestore = restoreProductionScopeFromRoute();
+      await restoreStarted;
+      setAppRoute("jobs");
+      const jobsHash = location.hash;
+      releaseRestore();
+      await pendingRestore;
+      await new Promise(resolve => setTimeout(resolve, 50));
+      return { route: state.currentRoute, hash: location.hash, jobsHash };
+    } finally {
+      api = savedApi;
+      releaseRestore?.();
+    }
+  })()`);
+  if (routeRace.route !== "jobs" || routeRace.hash !== routeRace.jobsHash || !routeRace.hash.startsWith("#/jobs?")) {
+    throw new Error(`Late Production restore overwrote the newer Jobs route: ${JSON.stringify(routeRace)}`);
+  }
+  await waitFor(`!document.querySelector("#productionContextReturn")?.hidden`);
+  await waitFor(`document.querySelector("#productionContextReturnLink")?.getAttribute("href")?.includes("book=${fixture.book_id}")`);
+  await click("#productionContextReturnLink");
+  await poll(async () => {
+    const observed = await evaluate(`({
+      hash: location.hash,
+      route: window.storyAudioAppState.currentRoute,
+      range: window.storyAudioAppState.productionRange?.fromChapter || null,
+      href: document.querySelector("#productionContextReturnLink")?.getAttribute("href") || null,
+    })`);
+    if (observed.route === "production" && observed.range === fixture.chapter_number) return observed;
+    throw new Error(`Visible return link did not restore Production: ${JSON.stringify(observed)}`);
+  }, 30000);
+  await evaluate(`history.back(); true`);
+  await waitFor(`window.storyAudioAppState.currentRoute==="jobs"&&!document.querySelector("#productionContextReturn")?.hidden`, 30000);
+  await click("#productionContextReturnLink");
   await waitFor(`window.storyAudioAppState.productionProjection?.canonical_task&&window.storyAudioAppState.productionRange?.fromChapter===${fixture.chapter_number}`);
   evidence.stages.push("scope_selection");
 
@@ -232,10 +268,8 @@ try {
   // Stage D: PREPARE through visible UI.
   await click("#productionPrimaryAction");
   await waitFor(`document.querySelector("#productionPrepareAuthDialog")?.open===true`);
-  await click("#productionPrepareDialogConfirmation");
-  await evaluate(`updateProductionPrepareDialog(); true`);
   try {
-    await waitFor(`(()=>{updateProductionPrepareDialog();return document.querySelector("#productionPrepareDialogSubmit")?.disabled===false})()`, 5000);
+    await waitFor(`(()=>{const dialog=document.querySelector("#productionPrepareAuthDialog"),confirmation=document.querySelector("#productionPrepareDialogConfirmation"),submit=document.querySelector("#productionPrepareDialogSubmit");if(!dialog||!confirmation||!submit)return false;if(!confirmation.checked)confirmation.click();updateProductionPrepareDialog();return confirmation.checked&&submit.disabled===false&&dialog.dataset.reviewFingerprint===preRenderReviewFingerprint()})()`, 5000);
   } catch (error) {
     const diagnostic = await evaluate(`({
       task: window.storyAudioAppState.productionProjection?.canonical_task?.task_type,
@@ -287,60 +321,67 @@ try {
     })`);
     throw new Error(`START_RENDER did not reach HUMAN_QA: ${JSON.stringify(diagnostic)}`);
   }
-  await waitFor(`document.querySelector("#productionQaAudio")`);
   const firstArtifact = await evaluate(`window.storyAudioAppState.dialog?.audio_artifact?.id || window.storyAudioAppState.productionProjection?.canonical_task?.qa?.artifact_id`);
   if (!firstArtifact) throw new Error("First render did not create a QA artifact.");
+  const firstHandoff = await evaluate(`({label:document.querySelector("#productionPrimaryAction")?.textContent?.trim()||"",productionPlayer:!!document.querySelector("#productionQaAudio"),productionQaVisible:!!document.querySelector("#productionQaActions")&&!document.querySelector("#productionQaActions")?.classList.contains("hidden")})`);
+  if (firstHandoff.label !== "Mở Duyệt audio" || firstHandoff.productionPlayer || firstHandoff.productionQaVisible) throw new Error(`Production did not hand off QA cleanly: ${JSON.stringify(firstHandoff)}`);
+  await click("#productionPrimaryAction");
+  await waitFor(`window.storyAudioAppState.currentRoute==="audio"`);
+  await waitFor(`window.storyAudioAppState.audioLibrary.loaded===true`);
+  await waitFor(`Number(window.storyAudioAppState.audioLibrary.selectedArtifactId)===Number(${firstArtifact})`);
+  await waitFor(`document.querySelector("#audioLibraryAudio")?.getAttribute("src")?.includes("/api/artifacts/${firstArtifact}/file")`);
   evidence.firstArtifact = firstArtifact;
+  evidence.firstHandoff = firstHandoff;
   evidence.stages.push("first_render");
+  evidence.stages.push("first_review_handoff");
 
-  // Stage F: needs_fixes with one click, then authoritative REPAIR_REQUIRED.
-  await evaluate(`document.querySelector("#productionQaAudio").currentTime = 0.2`);
-  await input("#productionQaNote", "Fixture defect at marker; needs same-data rerender.");
-  await click("#productionQaNeedsFixes");
+  // Stage F: Human QA lives only in Audio; Needs fixes then hands the repair back to Production.
+  await evaluate(`document.querySelector("#audioLibraryAudio").currentTime = 0.2`);
+  await click("#audioQaOpenRepair");
+  await waitFor(`document.querySelector("#audioQaRepairDetails")?.open===true`);
+  await click("#audioQaRepeatedWords");
+  await click("#audioQaMarkPosition");
+  await input("#audioQaNote", "Fixture defect at marker; needs same-data rerender.");
+  await click("#audioQaNeedsFixes");
   await waitFor(`!window.storyAudioAppState.productionCommand.active`, 20000);
+  try {
+    await waitFor(`window.storyAudioAppState.currentRoute==="production"`, 20000);
+  } catch (error) {
+    const diagnostic = await evaluate(`({route:window.storyAudioAppState.currentRoute,command:window.storyAudioAppState.productionCommand,status:window.storyAudioAppState.audioLibrary.items.map(item=>({id:item.artifact_id,qa:item.human_qa_status})),selected:window.storyAudioAppState.audioLibrary.selectedArtifactId,result:document.querySelector('#audioQaResult')?.innerText||'',errors:${JSON.stringify(browserErrors)}})`);
+    throw new Error(`Needs-fixes did not open unified repair: ${JSON.stringify(diagnostic)}`);
+  }
   await waitFor(`window.storyAudioAppState.productionProjection?.canonical_task?.task_type==="REPAIR_REQUIRED"`, 20000);
   const repairState = await evaluate(`({
-    qaActionsHidden: document.querySelector("#productionQaActions")?.classList.contains("hidden"),
-    buttons: !!document.getElementById("repairOpenPlan"),
+    qaActionsHidden: !document.querySelector("#productionQaActions") || document.querySelector("#productionQaActions")?.classList.contains("hidden"),
+    productionPlayer: !!document.querySelector("#productionQaAudio"),
+    confirmUnified: !!document.getElementById("repairConfirmUnified"),
+    markerCount: document.querySelectorAll("[data-repair-marker]").length,
     body: document.querySelector("#productionTaskContent")?.innerText || ""
   })`);
-  if (!repairState.buttons) throw new Error(`Repair-plan entry missing: ${JSON.stringify(repairState)}`);
+  if (!repairState.confirmUnified || repairState.markerCount !== 1 || repairState.productionPlayer) throw new Error(`Unified repair entry missing or Production regained QA controls: ${JSON.stringify(repairState)}`);
   evidence.stages.push("needs_fixes");
+  evidence.stages.push("automatic_repair_handoff");
 
-  // Stage G: confirm the repair plan and stop before any replacement execution.
-  await click("#repairOpenPlan");
-  await waitFor(`document.querySelector("#repairConfirmPlan")`);
-  await click("#repairConfirmPlan");
+  // Stage G: one owner confirmation persists plan, draft and review; it stops before PREPARE.
+  await click("#repairConfirmUnified");
   await waitFor(`!window.storyAudioAppState.productionCommand.active`, 20000);
-  const repairPlan = await waitFor(`(() => {
-    const apply=document.querySelector("#repairApplyPlan");
-    if(!apply || !apply.disabled)return null;
-    return {heading:document.querySelector(".production-repair-plan h3")?.textContent,applyDisabled:apply.disabled,confirmCount:document.querySelectorAll("#repairConfirmPlan").length};
-  })()`);
-  if (repairPlan.heading !== "Đã xác nhận" || repairPlan.confirmCount !== 0) throw new Error(`Repair plan confirmation failed: ${JSON.stringify(repairPlan)}`);
+  let repairPlan;
+  try {
+    repairPlan = await waitFor(`(() => {
+      const prepare=document.querySelector("#repairPrepareReplacement");
+      if(!prepare || prepare.disabled)return null;
+      return {heading:document.querySelector(".production-repair-review h3")?.textContent,prepareEnabled:!prepare.disabled,confirmCount:document.querySelectorAll("#repairConfirmUnified").length};
+    })()`);
+  } catch (error) {
+    const diagnostic = await evaluate(`({command:window.storyAudioAppState.productionCommand,repair:window.storyAudioAppState.productionProjection?.canonical_task?.repair,body:document.querySelector('#productionTaskContent')?.innerText||'',toast:document.querySelector('#toast')?.innerText||'',errors:${JSON.stringify(browserErrors)}})`);
+    throw new Error(`Unified repair confirmation did not reach PREPARE: ${JSON.stringify(diagnostic)}`);
+  }
+  if (repairPlan.heading !== "Đã xác nhận toàn bộ bản sửa" || repairPlan.confirmCount !== 0) throw new Error(`Unified repair confirmation failed: ${JSON.stringify(repairPlan)}`);
   evidence.repairPlan = repairPlan;
-  evidence.stages.push("repair_plan_confirmed");
-
-  // The former replacement-render journey is intentionally retained below for future
-  // certification, but this workflow stops at the explicit apply-repair boundary.
-  if (false) {
-  // Stage G: exercise repair routes, then choose same-data repair.
-  await click("#repairVoice");
-  await waitFor(`window.storyAudioAppState.currentRoute==="assignment"`);
-  await evaluate(`location.hash=${JSON.stringify(`#/production?book=${fixture.book_id}&from=${fixture.chapter_number}&to=${fixture.chapter_number}`)}`);
-  await waitFor(`window.storyAudioAppState.currentRoute==="production"`);
-  await waitFor(`window.storyAudioAppState.productionProjection?.canonical_task?.task_type==="REPAIR_REQUIRED"`, 20000);
-  await waitFor(`document.querySelector("#repairTextSpeaker")`);
-  await click("#repairTextSpeaker");
-  await waitFor(`window.storyAudioAppState.currentRoute==="production"`);
-  await waitFor(`document.querySelector("#repairSameData")`);
-  await click("#repairSameData");
-  await waitFor(`document.querySelector("#repairPrepare")`);
-  await evaluate(`(() => { const el=document.querySelector("#repairOperatorToken"); if(el){ el.value="fixture-token"; el.dispatchEvent(new Event("input",{bubbles:true})); el.dispatchEvent(new Event("change",{bubbles:true})); } return true; })()`);
-  evidence.stages.push("repair_routes");
+  evidence.stages.push("repair_review_confirmed");
 
   // Stage H: replacement PREPARE and replacement START_RENDER.
-  await click("#repairPrepare");
+  await click("#repairPrepareReplacement");
   await waitFor(`!window.storyAudioAppState.productionCommand.active`, 20000);
   try {
     await waitFor(`window.storyAudioAppState.productionProjection?.canonical_task?.task_type==="START_RENDER_RANGE"`, 20000);
@@ -372,28 +413,51 @@ try {
   }
   const replacementArtifact = await evaluate(`window.storyAudioAppState.dialog?.audio_artifact?.id || window.storyAudioAppState.productionProjection?.canonical_task?.qa?.artifact_id`);
   if (!replacementArtifact || Number(replacementArtifact) === Number(firstArtifact)) throw new Error("Replacement artifact did not replace QA target.");
-  evidence.replacementArtifact = replacementArtifact;
-  evidence.stages.push("replacement_render");
-
-  // Stage I: accept replacement with one click and verify COMPLETE.
-  await evaluate(`document.querySelector("#productionQaAudio").currentTime = 0.2`);
-  await click("#productionQaAccept");
-  await waitFor(`!window.storyAudioAppState.productionCommand.active`, 20000);
-  await waitFor(`window.storyAudioAppState.productionProjection?.canonical_task?.task_type==="COMPLETE"`, 20000);
-  const completion = await evaluate(`({
-    task: window.storyAudioAppState.productionProjection?.canonical_task?.task_type,
-    qaActionsHidden: document.querySelector("#productionQaActions")?.classList.contains("hidden"),
-    downloadHref: document.querySelector("#productionCompleteDownload")?.href || "",
-    openAudio: !!document.querySelector("#productionCompleteOpenAudio")
-  })`);
-  if (completion.task !== "COMPLETE" || !completion.openAudio) throw new Error(`Completion screen failed: ${JSON.stringify(completion)}`);
-  evidence.stages.push("accept_replacement");
-
-  // Stage J: open Audio and verify active replacement selection/playback URL.
-  await click("#productionCompleteOpenAudio");
+  const replacementHandoff = await evaluate(`({label:document.querySelector("#productionPrimaryAction")?.textContent?.trim()||"",productionPlayer:!!document.querySelector("#productionQaAudio")})`);
+  if (replacementHandoff.label !== "Mở Duyệt audio" || replacementHandoff.productionPlayer) throw new Error(`Replacement QA was not handed off: ${JSON.stringify(replacementHandoff)}`);
+  await click("#productionPrimaryAction");
   await waitFor(`window.storyAudioAppState.currentRoute==="audio"`);
   await waitFor(`window.storyAudioAppState.audioLibrary.loaded===true`);
   await waitFor(`Number(window.storyAudioAppState.audioLibrary.selectedArtifactId)===Number(${replacementArtifact})`);
+  await waitFor(`document.querySelector("#audioLibraryAudio")?.getAttribute("src")?.includes("/api/artifacts/${replacementArtifact}/file")`);
+  evidence.replacementArtifact = replacementArtifact;
+  evidence.replacementHandoff = replacementHandoff;
+  evidence.stages.push("replacement_render");
+  evidence.stages.push("replacement_review_handoff");
+
+  // Stage I: accept replacement in Audio. Acceptance must not force an unexpected route change.
+  await evaluate(`document.querySelector("#audioLibraryAudio").currentTime = 0.2`);
+  await click("#audioQaAccept");
+  await waitFor(`!window.storyAudioAppState.productionCommand.active`, 20000);
+  await waitFor(`window.storyAudioAppState.audioLibrary.items.some(item=>Number(item.artifact_id)===Number(${replacementArtifact})&&String(item.human_qa_status)==="accepted")`, 20000);
+  await waitFor(`window.storyAudioAppState.productionProjection?.canonical_task?.task_type==="COMPLETE"`, 20000);
+  const acceptanceRoute = await evaluate(`window.storyAudioAppState.currentRoute`);
+  if (acceptanceRoute !== "audio") throw new Error(`Human QA acceptance changed context unexpectedly: ${acceptanceRoute}`);
+  evidence.acceptanceRoute = acceptanceRoute;
+  evidence.stages.push("accept_replacement");
+
+  // Verify canonical COMPLETE separately, then return to Audio for output validation.
+  await evaluate(`location.hash=${JSON.stringify(`#/production?book=${fixture.book_id}&from=${fixture.chapter_number}&to=${fixture.chapter_number}`)}`);
+  await waitFor(`window.storyAudioAppState.currentRoute==="production"`);
+  await waitFor(`window.storyAudioAppState.productionProjection?.canonical_task?.task_type==="COMPLETE"`, 20000);
+  const completion = await evaluate(`({
+    task: window.storyAudioAppState.productionProjection?.canonical_task?.task_type,
+    primaryLabel: document.querySelector("#productionPrimaryAction")?.textContent?.trim() || "",
+    primaryDisabled: !!document.querySelector("#productionPrimaryAction")?.disabled,
+    downloadHref: document.querySelector("#ownerCompleteDownload")?.getAttribute("href") || ""
+  })`);
+  if (completion.task !== "COMPLETE" || completion.primaryLabel !== "Mở audio đã hoàn tất" || completion.primaryDisabled || completion.downloadHref !== `/api/artifacts/${replacementArtifact}/file`) throw new Error(`Completion screen failed: ${JSON.stringify(completion)}`);
+
+  // Stage J: open Audio and verify active replacement selection/playback URL.
+  await click("#productionPrimaryAction");
+  await waitFor(`window.storyAudioAppState.currentRoute==="audio"`);
+  await waitFor(`window.storyAudioAppState.audioLibrary.loaded===true`);
+  try {
+    await waitFor(`Number(window.storyAudioAppState.audioLibrary.selectedArtifactId)===Number(${replacementArtifact})`);
+  } catch (error) {
+    const diagnostic = await evaluate(`({selected:window.storyAudioAppState.audioLibrary.selectedArtifactId,loaded:window.storyAudioAppState.audioLibrary.loaded,route:window.storyAudioAppState.currentRoute,hash:location.hash,context:currentProductionWorkingContext(),range:window.storyAudioAppState.productionRange,items:window.storyAudioAppState.audioLibrary.items.map(item=>({artifact:item.artifact_id,book:item.book_id,chapter:item.chapter_number,qa:item.human_qa_status}))})`);
+    throw new Error(`Audio completion context did not select replacement: ${JSON.stringify(diagnostic)}`);
+  }
   const audioState = await evaluate(`(() => {
     const audio=document.querySelector("#audioLibraryAudio");
     audio.currentTime=0;
@@ -467,19 +531,13 @@ try {
   evidence.newPlan = newPlan;
   evidence.ok = true;
   process.stdout.write(JSON.stringify(evidence));
-  }
 
-  const repairPlanAccessibility = await evaluate(`({
-    buttonsNamed:[...document.querySelectorAll("button")].every(button => button.textContent.trim() || button.getAttribute("aria-label")),
-    applyDisabled:document.querySelector("#repairApplyPlan")?.disabled === true,
-    confirmAbsent:!document.querySelector("#repairConfirmPlan")
-  })`);
-  if (!repairPlanAccessibility.buttonsNamed || !repairPlanAccessibility.applyDisabled || !repairPlanAccessibility.confirmAbsent) throw new Error(`Repair-plan accessibility check failed: ${JSON.stringify(repairPlanAccessibility)}`);
-  if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
-  evidence.accessibility = repairPlanAccessibility;
-  evidence.ok = true;
-  process.stdout.write(JSON.stringify(evidence));
 } finally {
   try { socket?.close(); } catch {}
   child.kill();
+  await Promise.race([
+    new Promise(resolve => child.once("exit", resolve)),
+    delay(5000),
+  ]);
+  await rm(profile, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 }

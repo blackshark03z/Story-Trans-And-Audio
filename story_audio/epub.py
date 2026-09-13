@@ -11,7 +11,7 @@ from .db import Database, utcnow
 from .files import sha256_file
 from .storage import ContentStore
 from .text import lexical_sha256, qa_text, reflow_paragraphs
-from .text_encoding import validate_canonical_text
+from .text_encoding import normalize_imported_text, validate_canonical_text
 
 
 CONTAINER_NS = {"c": "urn:oasis:names:tc:opendocument:xmlns:container"}
@@ -108,6 +108,8 @@ def import_epub(path: Path, db: Database, store: ContentStore) -> dict:
         return {"book_id": existing["id"], "created": False, "chapter_count": existing["chapter_count"]}
 
     title, author, chapters = parse_epub(path)
+    title = normalize_imported_text(title, field="Book title")
+    author = normalize_imported_text(author, field="Book author")
     now = utcnow()
     with db.transaction() as connection:
         cursor = connection.execute(
@@ -116,15 +118,26 @@ def import_epub(path: Path, db: Database, store: ContentStore) -> dict:
         )
         book_id = int(cursor.lastrowid)
         for chapter in chapters:
-            raw_text = "\n".join(chapter.paragraphs)
+            chapter_title = normalize_imported_text(
+                chapter.title,
+                field=f"Chapter {chapter.number} title",
+            )
+            paragraphs = [
+                normalize_imported_text(
+                    paragraph,
+                    field=f"Chapter {chapter.number} paragraph {index}",
+                )
+                for index, paragraph in enumerate(chapter.paragraphs, start=1)
+            ]
+            raw_text = "\n".join(paragraphs)
             validate_canonical_text(raw_text, field=f"Chapter {chapter.number} raw text")
             raw_path, raw_sha = store.put_text(raw_text)
-            reflowed, import_issues = reflow_paragraphs(chapter.paragraphs, chapter.title)
+            reflowed, import_issues = reflow_paragraphs(paragraphs, chapter_title)
             validate_canonical_text(reflowed, field=f"Chapter {chapter.number} reflowed text")
             reflow_path, reflow_sha = store.put_text(reflowed)
             chapter_cursor = connection.execute(
                 "INSERT INTO chapters(book_id,chapter_number,title,source_href,char_count,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
-                (book_id, chapter.number, chapter.title, chapter.href, len(reflowed), now, now),
+                (book_id, chapter.number, chapter_title, chapter.href, len(reflowed), now, now),
             )
             chapter_id = int(chapter_cursor.lastrowid)
             raw_cursor = connection.execute(

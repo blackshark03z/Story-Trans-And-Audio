@@ -468,9 +468,33 @@ Production configuration must not be editable inside an active render.
 - Play chapter audio.
 - Show objective QA and listening markers.
 - Allow Human QA status.
-- Open targeted segment regeneration when required.
-- Accept or reject candidates.
+- Let the operator select or skip machine findings, then collect every selected
+  point into one chapter-scoped repair request.
+- Create one replacement revision for that chapter from the reviewed request;
+  do not make the operator create a separate revision for each finding.
+- Keep exact-segment repair as an implementation detail or recovery path, not a
+  competing primary action repeated on every finding.
 - Complete the selected production scope.
+
+The chapter's current audio remains unchanged while the repair request is being
+assembled. The request must be reviewed before the existing separate PREPARE and
+START_RENDER gates can create a replacement audio version.
+
+For machine findings with a supported deterministic repair, the reviewed marker
+keeps the exact current Artifact, source Segment, Segment WAV SHA, risk kind and
+repair kind. Replacement PREPARE compiles every selected supported marker into
+one immutable `story-audio-repair-instruction/v2`. At the later explicit
+START_RENDER, the existing worker copies unchanged verified source Segments,
+applies all selected leading-silence, trailing-silence and loudness transforms
+offline, verifies every target metric improved, and assembles one replacement
+Artifact bundle. This path does not call TTS.
+
+Repeated-word, global-speed, local-prosody and other unimplemented semantic
+repairs remain explicit blockers. PREPARE records the reviewed intent, but
+START_RENDER is not offered and the worker rejects the instruction rather than
+silently producing an unchanged or partially repaired replacement. Any stale
+Artifact/Segment/SHA binding also fails closed; the current audio remains
+authoritative.
 
 ## State-To-Next-Action Model
 
@@ -510,6 +534,11 @@ COMPLETE
 
 ## Navigation Principles
 
+- Primary daily navigation is **Home**, **Production**, and **Audio**. Setup and monitoring surfaces remain discoverable in one secondary menu rather than competing with the daily flow.
+- With no imported books, Home leads with **Nhập EPUB** and explains the import → scope → required setup journey. It must never send a new operator to an empty Production dead end.
+- With existing work, Home prioritizes the current scope, active work, and recent audio; onboarding is hidden.
+- Books and Characters owns EPUB import and book setup; Voice Library owns reusable voices; Assignment owns range mapping; Jobs owns monitoring/recovery; Storage and Settings own maintenance/diagnostics.
+- A detour from Production carries the book, chapter/range, inspected chapter, and safe task context in the supported route/context machinery. The destination exposes a return to the same Production scope.
 - One primary action per screen.
 - Only the current step is fully interactive.
 - Future steps are locked or hidden.

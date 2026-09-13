@@ -104,6 +104,93 @@ class ProductionCommandApiTests(IsolatedTestCase):
         self.assertEqual(payload["failed_count"], 1)
         self.assertIn("stale", payload["operator_message"])
 
+    def test_prepare_command_derives_batch_client_request_id_from_command_idempotency(self) -> None:
+        captured = {}
+
+        class FakePrepareResult:
+            http_status = 200
+            payload = {"status": "prepared"}
+
+        class FakePrepareService:
+            def prepare(self, payload, *, authorization_header):
+                captured["payload"] = dict(payload)
+                captured["authorization"] = authorization_header
+                return FakePrepareResult()
+
+        command = {
+            "command_type": "PREPARE",
+            "idempotency_key": "prepare-command-authority-0001",
+            "scope": {
+                "range": {
+                    "book_id": 1,
+                    "from_chapter": 2,
+                    "to_chapter": 3,
+                    "skip_completed": False,
+                }
+            },
+            "payload": {
+                "book_id": 1,
+                "from_chapter": 2,
+                "to_chapter": 3,
+                "target_phase": "PREPARE",
+                "plan_fingerprint": "a" * 64,
+                "confirmation": True,
+            },
+        }
+        with (
+            patch("story_audio.api._project_production_command", self.projection),
+            patch("story_audio.api._prepare_service", return_value=FakePrepareService()),
+        ):
+            response = self.client.post("/api/production/commands", json=command)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["outcome"], "APPLIED")
+        self.assertEqual(
+            captured["payload"]["client_request_id"],
+            command["idempotency_key"],
+        )
+
+    def test_prepare_command_rejects_conflicting_batch_client_request_id(self) -> None:
+        called = {"prepare": False}
+
+        class FakePrepareService:
+            def prepare(self, payload, *, authorization_header):
+                del payload, authorization_header
+                called["prepare"] = True
+                raise AssertionError("prepare service must not be called")
+
+        command = {
+            "command_type": "PREPARE",
+            "idempotency_key": "prepare-command-authority-0002",
+            "scope": {
+                "range": {
+                    "book_id": 1,
+                    "from_chapter": 2,
+                    "to_chapter": 3,
+                    "skip_completed": False,
+                }
+            },
+            "payload": {
+                "client_request_id": "different-batch-request-0002",
+                "book_id": 1,
+                "from_chapter": 2,
+                "to_chapter": 3,
+                "target_phase": "PREPARE",
+                "plan_fingerprint": "b" * 64,
+                "confirmation": True,
+            },
+        }
+        with (
+            patch("story_audio.api._project_production_command", self.projection),
+            patch("story_audio.api._prepare_service", return_value=FakePrepareService()),
+        ):
+            response = self.client.post("/api/production/commands", json=command)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        self.assertEqual(response.json()["outcome"], "REJECTED")
+        self.assertFalse(called["prepare"])
+        self.assertIn("idempotency_key", response.json()["operator_message"])
+
     def test_invalid_contract_is_rejected_before_executor(self) -> None:
         for command_type, idempotency_key in (
             ("x", "short"),
@@ -118,6 +205,43 @@ class ProductionCommandApiTests(IsolatedTestCase):
                 },
             )
             self.assertEqual(response.status_code, 400)
+
+    def test_malformed_nested_scope_is_rejected_before_executor_factory(self) -> None:
+        called = {"executor_factory": False, "mutation": False}
+
+        def executor_factory(_command, *, authorization_header):
+            del authorization_header
+            called["executor_factory"] = True
+
+            def mutate():
+                called["mutation"] = True
+                return ProductionCommandMutation(
+                    outcome="ACCEPTED",
+                    submitted_count=1,
+                    applied_items=({"job_id": 25},),
+                    asynchronous_reference={"type": "job", "id": 25},
+                )
+
+            return mutate
+
+        with patch("story_audio.api._production_command_executor", executor_factory):
+            response = self.client.post(
+                "/api/production/commands",
+                json={
+                    "command_type": "START_RENDER",
+                    "idempotency_key": "start-render-malformed-scope-0025",
+                    "scope": {"job": {"job_id": 25}},
+                    "payload": {"job_id": 25},
+                },
+            )
+
+        self.assertEqual(response.status_code, 400, response.text)
+        self.assertEqual(
+            response.json()["detail"]["code"],
+            "PRODUCTION_COMMAND_CONTRACT_INVALID",
+        )
+        self.assertFalse(called["executor_factory"])
+        self.assertFalse(called["mutation"])
 
     def test_voice_assignment_batch_reports_partial_result_in_common_envelope(self) -> None:
         command = {
@@ -175,6 +299,53 @@ class ProductionCommandApiTests(IsolatedTestCase):
         self.assertEqual(result["failed_items"][0]["character_id"], 12)
         self.assertIn("unavailable", result["failed_items"][0]["reason"])
 
+    def test_book_voice_default_creates_missing_first_use_profile(self) -> None:
+        command = {
+            "command_type": "SET_BOOK_VOICE_DEFAULT",
+            "idempotency_key": "first-use-narrator-default-0001",
+            "scope": {
+                "range": {"book_id": 1, "from_chapter": 1, "to_chapter": 1}
+            },
+            "payload": {
+                "book_id": 1,
+                "speaker_key": "narrator",
+                "voice_id": "Bình An",
+            },
+        }
+
+        saved = {}
+
+        def save_profile(book_id, request):
+            saved["book_id"] = book_id
+            saved["profile"] = request.model_dump()
+            return {"config_version": 1, **saved["profile"]}
+
+        with (
+            patch("story_audio.api._project_production_command", self.projection),
+            patch("story_audio.api.get_book_voice_profile", return_value=None),
+            patch(
+                "story_audio.api.write_book_voice_profile",
+                side_effect=save_profile,
+            ),
+        ):
+            response = self.client.post("/api/production/commands", json=command)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result["outcome"], "APPLIED")
+        self.assertEqual(result["applied_count"], 1)
+        self.assertEqual(saved["book_id"], 1)
+        self.assertEqual(
+            saved["profile"],
+            {
+                "narrator_voice_id": "Bình An",
+                "male_dialogue_voice_id": "Bình An",
+                "female_dialogue_voice_id": "Bình An",
+                "unknown_fallback": "narrator",
+                "unknown_voice_id": None,
+            },
+        )
+
     def test_range_voice_override_uses_common_command_envelope(self) -> None:
         command = {
             "command_type": "SET_RANGE_VOICE_OVERRIDE",
@@ -214,6 +385,7 @@ class ProductionCommandApiTests(IsolatedTestCase):
         self.assertEqual(result["applied_items"][0]["speaker_key"], "narrator")
         save.assert_called_once()
         self.assertEqual(save.call_args.kwargs["idempotency_key"], "range-voice-override-0001")
+        self.assertTrue(save.call_args.kwargs["skip_missing"])
 
     def test_chapter_voice_override_rejects_range_with_vietnamese_guidance(self) -> None:
         with patch("story_audio.api._project_production_command", self.projection):
@@ -727,6 +899,70 @@ class ProductionCommandApiTests(IsolatedTestCase):
             approve.call_args.kwargs["idempotency_key"],
             "speaker-review-batch-items-0001",
         )
+
+    def test_explicit_selected_speaker_batch_routes_to_human_review_adapter(self) -> None:
+        items = [
+            {
+                "analysis_run_id": "gsr-selected-a",
+                "unresolved_key": "unresolved-dialogue:1:u0002-a",
+                "reviewer_payload": {
+                    "proposed_resolution": "NEW_CHARACTER",
+                    "proposed_character_name": "Selected Character",
+                    "voice_mode": "inherit",
+                },
+            }
+        ]
+        command = {
+            "command_type": "APPROVE_SPEAKER_REVIEW_BATCH",
+            "idempotency_key": "speaker-review-selected-items-0001",
+            "scope": {
+                "range": {
+                    "book_id": 1,
+                    "from_chapter": 2,
+                    "to_chapter": 10,
+                    "skip_completed": True,
+                }
+            },
+            "payload": {
+                "book_id": 1,
+                "from_chapter": 2,
+                "to_chapter": 10,
+                "skip_completed": True,
+                "items": items,
+            },
+        }
+        context = (
+            {
+                "book_id": 1,
+                "from_chapter": 2,
+                "to_chapter": 10,
+                "skip_completed": True,
+            },
+            object(),
+            None,
+            {"rows": []},
+        )
+        with (
+            patch("story_audio.api._project_production_command", self.projection),
+            patch(
+                "story_audio.api._speaker_review_command_context",
+                return_value=context,
+            ),
+            patch(
+                "story_audio.api.accept_speaker_review_selected_batch_items",
+                return_value={"submitted_count": 1, "items": items},
+            ) as accept_batch,
+            patch("story_audio.api.approve_speaker_review_batch_items") as safe_batch,
+        ):
+            response = self.client.post("/api/production/commands", json=command)
+
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result["outcome"], "APPLIED")
+        self.assertIn("người dùng đã chọn", result["operator_message"])
+        accept_batch.assert_called_once()
+        safe_batch.assert_not_called()
+        self.assertEqual(accept_batch.call_args.kwargs["items"], items)
 
     def test_speaker_suggestion_stale_scope_returns_rejected_envelope(self) -> None:
         command = {

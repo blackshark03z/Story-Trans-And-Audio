@@ -59,6 +59,77 @@ def _contains_legacy_decoded_utf8(text: str) -> bool:
     return False
 
 
+def repair_probable_utf8_mojibake(text: str, *, max_passes: int = 3) -> str:
+    """Repair legacy-code-page text only where spans reconstruct valid UTF-8."""
+    current = text
+    for _ in range(max_passes):
+        output: list[str] = []
+        changed = False
+        index = 0
+        while index < len(current):
+            lead = _legacy_byte(current[index])
+            if lead is None:
+                output.append(current[index])
+                index += 1
+                continue
+            if 0xC2 <= lead <= 0xDF:
+                width = 2
+            elif 0xE0 <= lead <= 0xEF:
+                width = 3
+            elif 0xF0 <= lead <= 0xF4:
+                width = 4
+            else:
+                output.append(current[index])
+                index += 1
+                continue
+            if index + width > len(current):
+                output.append(current[index])
+                index += 1
+                continue
+            values = [_legacy_byte(item) for item in current[index : index + width]]
+            if any(value is None for value in values):
+                output.append(current[index])
+                index += 1
+                continue
+            raw = bytes(value for value in values if value is not None)
+            if not all(0x80 <= value <= 0xBF for value in raw[1:]):
+                output.append(current[index])
+                index += 1
+                continue
+            try:
+                decoded = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                output.append(current[index])
+                index += 1
+                continue
+            output.append(decoded)
+            index += width
+            changed = True
+        candidate = "".join(output)
+        if not changed or candidate == current:
+            break
+        current = candidate
+    return current
+
+
+def normalize_imported_text(text: str, *, field: str = "text") -> str:
+    """Keep valid imported text unchanged; repair only encoding failures that revalidate cleanly."""
+    try:
+        validate_canonical_text(text, field=field)
+        return text
+    except CanonicalTextValidationError as original_error:
+        if original_error.code != TEXT_ENCODING_INVALID:
+            raise
+        candidate = repair_probable_utf8_mojibake(text)
+        if candidate == text:
+            raise
+        try:
+            validate_canonical_text(candidate, field=field)
+        except CanonicalTextValidationError:
+            raise original_error
+        return candidate
+
+
 def validate_canonical_text(text: str, *, field: str = "text") -> None:
     """Require valid UTF-8 text without controls or strong mojibake evidence."""
     if not isinstance(text, str):

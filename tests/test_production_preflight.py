@@ -140,6 +140,12 @@ def _snapshot(
         },
         "skip_completed": True,
         "effective_voice_map": voice_map or [],
+        "effective_synthesis_settings": {
+            "temperature": 0.8,
+            "top_k": 25,
+            "max_chars": 256,
+            "silence_seconds": 0.15,
+        },
         "voice_warnings": voice_warnings or [],
         "voice_technical": [{"technical_voice_id": "custom:26"}],
         "estimated_segment_count": 18,
@@ -187,6 +193,18 @@ class ProductionPreflightDecisionTests(unittest.TestCase):
 
 
 class ProductionPreflightProjectionTests(unittest.TestCase):
+    def test_projection_exposes_effective_synthesis_settings_read_only(self) -> None:
+        projection = project_production_preflight(_snapshot([_row(1)]))
+        self.assertEqual(
+            projection["effective_synthesis_settings"],
+            {
+                "temperature": 0.8,
+                "top_k": 25,
+                "max_chars": 256,
+                "silence_seconds": 0.15,
+            },
+        )
+
     def test_ready_projection_separates_data_and_authorization(self) -> None:
         projection = project_production_preflight(
             _snapshot([_row(1), _row(2)], authorized=False)
@@ -200,6 +218,26 @@ class ProductionPreflightProjectionTests(unittest.TestCase):
             "AUTHENTICATE_EXECUTION",
         )
         self.assertFalse(projection["execution_preview"]["tts_called"])
+
+    def test_schema_16_uses_runtime_compatibility_contract(self) -> None:
+        snapshot = _snapshot([_row(1)])
+        snapshot["runtime_readiness"].update(
+            {
+                "schema_version": 16,
+                "required_schema_version": 15,
+                "supported_schema_versions": [15, 16],
+                "schema_compatible": True,
+                "prepare_allowed": True,
+                "status": "PRODUCTION_AUTHENTICATED_READY",
+            }
+        )
+        projection = project_production_preflight(snapshot)
+        self.assertTrue(projection["execution_readiness"]["schema_ready"])
+        self.assertTrue(projection["execution_readiness"]["prepare_allowed"])
+        self.assertEqual(
+            projection["execution_preview"]["next_action"]["key"],
+            "PREPARE_RANGE",
+        )
 
     def test_blockers_are_ordered_and_checklists_name_exact_chapters(self) -> None:
         rows = [

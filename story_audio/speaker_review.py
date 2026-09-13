@@ -219,6 +219,18 @@ def get_speaker_review_draft(
         utterance_id for link in links for utterance_id in link["reviewed_utterance_ids"]
     })
     reviewed_set = set(reviewed_ids)
+    # A zero-target draft never depended on the Character candidate set. Once
+    # every non-empty target set has an explicit human decision, the operator
+    # decisions likewise become the authority. In both cases, additive
+    # Character Bible drift must not invalidate the draft. Text or base-plan
+    # drift remains blocking.
+    if not target_ids or set(target_ids).issubset(reviewed_set):
+        stale_reasons = [
+            reason
+            for reason in stale_reasons
+            if reason
+            != "Character Bible changed after this draft was generated. Generate a new draft before approval."
+        ]
     for row in rows:
         row["reviewed"] = row["utterance_id"] in reviewed_set
         row["human_review"] = row_reviews.get(row["utterance_id"])
@@ -246,6 +258,7 @@ def _validate_single_row_decision(
     speaker_type: str,
     character_id: int | None,
     decision_source: str,
+    connection: Any | None = None,
 ) -> dict[str, Any]:
     if decision_source not in ROW_REVIEW_DECISION_SOURCES:
         raise SpeakerReviewError("Decision source is invalid for row review")
@@ -262,14 +275,24 @@ def _validate_single_row_decision(
             raise SpeakerReviewError("MAP_TO_EXISTING_CHARACTER must use speaker_type character")
         if isinstance(character_id, bool) or not isinstance(character_id, int):
             raise SpeakerReviewError("Decision character is invalid")
-        character = db.fetch_one("SELECT id,book_id,active FROM characters WHERE id=?", (character_id,))
+        character = (
+            connection.execute(
+                "SELECT id,book_id,active FROM characters WHERE id=?",
+                (character_id,),
+            ).fetchone()
+            if connection is not None
+            else db.fetch_one(
+                "SELECT id,book_id,active FROM characters WHERE id=?",
+                (character_id,),
+            )
+        )
         if not character:
             raise SpeakerReviewNotFound("Character not found")
         if int(character["book_id"]) != int(detail["book_id"]) or not int(character["active"]):
             raise SpeakerReviewError("Decision character does not belong to this book")
-        active_ids = {int(item["id"]) for item in detail["characters"] if item.get("active", 1)}
-        if character_id not in active_ids:
-            raise SpeakerReviewError("Decision character does not belong to this draft")
+        # A manual operator decision may intentionally select a Character that
+        # was created after the Gemini draft. Book ownership + active state are
+        # the authority; membership in the old candidate snapshot is not.
     return {
         "utterance_id": row["utterance_id"],
         "speaker_type": speaker_type,
@@ -291,6 +314,8 @@ def review_speaker_assignment_row(
     decision_source: str,
     operator_note: str | None = None,
     reviewed_by: str = "local_user",
+    connection: Any | None = None,
+    allow_character_bible_drift: bool = False,
 ) -> dict[str, Any]:
     if operator_note is not None and len(operator_note.strip()) > 4000:
         raise SpeakerReviewError("operator_note is too long")
@@ -299,8 +324,16 @@ def review_speaker_assignment_row(
     )
     if detail["status"] not in {"generated", "partially_invalid"}:
         raise SpeakerReviewConflict("Speaker draft is not in a reviewable state")
-    if detail["stale"]:
-        raise SpeakerReviewConflict(" ".join(detail["stale_reasons"]))
+    blocking_stale_reasons = list(detail["stale_reasons"])
+    if allow_character_bible_drift:
+        blocking_stale_reasons = [
+            reason
+            for reason in blocking_stale_reasons
+            if reason
+            != "Character Bible changed after this draft was generated. Generate a new draft before approval."
+        ]
+    if blocking_stale_reasons:
+        raise SpeakerReviewConflict(" ".join(blocking_stale_reasons))
     rows = {item["utterance_id"]: item for item in detail["review_rows"]}
     row = rows.get(target_id)
     if not row:
@@ -312,11 +345,13 @@ def review_speaker_assignment_row(
         speaker_type=speaker_type,
         character_id=character_id,
         decision_source=decision_source,
+        connection=connection,
     )
     note = operator_note.strip() if operator_note and operator_note.strip() else None
     now = utcnow()
-    with db.transaction() as connection:
-        existing = connection.execute(
+
+    def write_review(transaction: Any) -> dict[str, Any]:
+        existing = transaction.execute(
             "SELECT * FROM speaker_assignment_reviews WHERE draft_id=? AND utterance_id=?",
             (draft_id, target_id),
         ).fetchone()
@@ -330,42 +365,55 @@ def review_speaker_assignment_row(
             )
             if not same:
                 raise SpeakerReviewConflict("Review row already has a different decision")
-            item = dict(existing)
-            item["idempotent_reused"] = True
-        else:
-            review_id = int(connection.execute(
-                """INSERT INTO speaker_assignment_reviews(
-                   draft_id,utterance_id,speaker_type,character_id,decision_source,
-                   operator_note,reviewed_by,reviewed_at,updated_at
-                   ) VALUES(?,?,?,?,?,?,?,?,?)""",
-                (
-                    draft_id,
-                    target_id,
-                    normalized["speaker_type"],
-                    normalized["character_id"],
-                    normalized["decision_source"],
-                    note,
-                    reviewed_by,
-                    now,
-                    now,
-                ),
-            ).lastrowid)
-            item = dict(connection.execute(
-                "SELECT * FROM speaker_assignment_reviews WHERE id=?", (review_id,)
-            ).fetchone())
-            item["idempotent_reused"] = False
-    refreshed = get_speaker_review_draft(
-        db, store, config, chapter_id=chapter_id, draft_id=draft_id
-    )
+            result = dict(existing)
+            result["idempotent_reused"] = True
+            return result
+        review_id = int(transaction.execute(
+            """INSERT INTO speaker_assignment_reviews(
+               draft_id,utterance_id,speaker_type,character_id,decision_source,
+               operator_note,reviewed_by,reviewed_at,updated_at
+               ) VALUES(?,?,?,?,?,?,?,?,?)""",
+            (
+                draft_id,
+                target_id,
+                normalized["speaker_type"],
+                normalized["character_id"],
+                normalized["decision_source"],
+                note,
+                reviewed_by,
+                now,
+                now,
+            ),
+        ).lastrowid)
+        result = dict(transaction.execute(
+            "SELECT * FROM speaker_assignment_reviews WHERE id=?", (review_id,)
+        ).fetchone())
+        result["idempotent_reused"] = False
+        return result
+
+    if connection is None:
+        with db.transaction() as transaction:
+            item = write_review(transaction)
+        refreshed = get_speaker_review_draft(
+            db, store, config, chapter_id=chapter_id, draft_id=draft_id
+        )
+        reviewed_ids = refreshed["reviewed_utterance_ids"]
+        remaining = refreshed["remaining_unreviewed_count"]
+        stale = refreshed["stale"]
+    else:
+        item = write_review(connection)
+        reviewed_ids = sorted(set(detail["reviewed_utterance_ids"]) | {target_id})
+        remaining = max(0, len(rows) - len(reviewed_ids))
+        stale = bool(blocking_stale_reasons)
     return {
         "chapter_id": chapter_id,
         "draft_id": draft_id,
         "target_id": target_id,
         "review": item,
-        "remaining_unreviewed_count": refreshed["remaining_unreviewed_count"],
-        "reviewed_utterance_ids": refreshed["reviewed_utterance_ids"],
-        "draft_status": refreshed["status"],
-        "stale": refreshed["stale"],
+        "remaining_unreviewed_count": remaining,
+        "reviewed_utterance_ids": reviewed_ids,
+        "draft_status": detail["status"],
+        "stale": stale,
     }
 
 

@@ -19,12 +19,13 @@ class P0FrontendUsabilityTests(unittest.TestCase):
     def test_primary_navigation_is_one_consistent_vietnamese_set(self) -> None:
         nav = re.search(r'<nav id="appNav".*?</nav>', self.html, re.DOTALL)
         self.assertIsNotNone(nav)
-        labels = re.findall(r'<a [^>]*>([^<]+)</a>', nav.group(0))
-        self.assertEqual(
-            labels,
-            ["Trang chủ", "Sản xuất", "Gán giọng", "Công việc", "Audio", "Dung lượng"],
-        )
-        self.assertNotIn("More", nav.group(0))
+        direct = nav.group(0).split('<div id="appNavMore"', 1)[0]
+        labels = re.findall(r'<a [^>]*>([^<]+)</a>', direct)
+        self.assertEqual(labels, ["Sản xuất", "Gán giọng", "Công việc", "Duyệt audio"])
+        for secondary in ("Trang chủ", "Sách", "Giọng", "Dung lượng", "Cài đặt"):
+            self.assertIn(secondary, nav.group(0))
+        self.assertIn('class="app-nav-group-label">Tài nguyên</span>', nav.group(0))
+        self.assertNotIn(">More<", nav.group(0))
 
     def test_health_summary_hides_diagnostics_until_requested(self) -> None:
         self.assertIn('<details id="systemDiagnostics"', self.html)
@@ -90,6 +91,18 @@ class P0FrontendUsabilityTests(unittest.TestCase):
         self.assertNotIn("bootstrap", (self.html + self.js).lower())
         self.assertNotIn("tailwind", (self.html + self.js).lower())
         self.assertIn('"Segoe UI Variable"', self.css)
+
+    def test_calm_production_desk_bounds_daily_long_lists(self) -> None:
+        for value in (
+            "CALM_PRODUCTION_DESK_V1",
+            ".production-task-queue{position:sticky",
+            ".production-chapter-queue{max-height:calc(100vh - 165px);overflow-y:auto",
+            ".assignment-page #assignmentRows{max-height:min(780px,70vh);overflow-y:auto",
+            ".jobs-page-list{max-height:68vh;overflow-y:auto",
+            ".audio-library-list{max-height:55vh;overflow-y:auto",
+            "@media(prefers-reduced-motion:reduce)",
+        ):
+            self.assertIn(value, self.css)
 
 
 if __name__ == "__main__":

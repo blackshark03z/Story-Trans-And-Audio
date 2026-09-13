@@ -74,6 +74,48 @@ def normalize_scope(scope: Mapping[str, Any]) -> dict[str, Any]:
     normalized = {key: scope.get(key) for key in _SCOPE_KEYS}
     if not any(value is not None for value in normalized.values()):
         raise ProductionCommandError("At least one Production scope is required")
+
+    for key in ("chapter", "job", "artifact"):
+        value = normalized[key]
+        if value is None:
+            continue
+        if isinstance(value, Mapping):
+            if set(value) != {"id"}:
+                raise ProductionCommandError(f"{key} scope must contain exactly id")
+            value = value.get("id")
+        try:
+            identifier = int(value)
+        except (TypeError, ValueError) as exc:
+            raise ProductionCommandError(f"{key} scope id must be a positive integer") from exc
+        if identifier <= 0:
+            raise ProductionCommandError(f"{key} scope id must be a positive integer")
+        normalized[key] = {"id": identifier}
+
+    range_scope = normalized["range"]
+    if range_scope is not None:
+        if not isinstance(range_scope, Mapping):
+            raise ProductionCommandError("range scope must be an object")
+        allowed = {"book_id", "from_chapter", "to_chapter", "skip_completed"}
+        unknown_range = sorted(set(range_scope) - allowed)
+        required = {"book_id", "from_chapter", "to_chapter"}
+        if unknown_range or not required.issubset(range_scope):
+            raise ProductionCommandError(
+                "range scope requires book_id, from_chapter, to_chapter and optional skip_completed"
+            )
+        try:
+            book_id = int(range_scope["book_id"])
+            from_chapter = int(range_scope["from_chapter"])
+            to_chapter = int(range_scope["to_chapter"])
+        except (TypeError, ValueError) as exc:
+            raise ProductionCommandError("range scope identifiers must be integers") from exc
+        if book_id <= 0 or from_chapter < 0 or to_chapter < from_chapter:
+            raise ProductionCommandError("range scope bounds are invalid")
+        normalized["range"] = {
+            "book_id": book_id,
+            "from_chapter": from_chapter,
+            "to_chapter": to_chapter,
+            "skip_completed": bool(range_scope.get("skip_completed", True)),
+        }
     return normalized
 
 

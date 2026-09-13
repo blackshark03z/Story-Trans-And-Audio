@@ -2,10 +2,11 @@ from __future__ import annotations
 
 import json
 import unittest
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from fastapi.testclient import TestClient
 
+from story_audio.custom_voice import CustomVoiceRepository
 from story_audio.db import utcnow
 from story_audio.storage import ContentStore
 from tests.base import IsolatedTestCase
@@ -29,9 +30,16 @@ class HumanApprovalApiTests(IsolatedTestCase):
         self._original_db = api_module.db
         self._original_store = api_module.store
         self._original_settings = api_module.settings
+        self._original_tts = api_module.tts_service
+        self._original_custom_voice_repo = api_module.custom_voice_repo
         api_module.db = self.db
         api_module.store = self.store
         api_module.settings = self.config
+        api_module.tts_service = MagicMock()
+        api_module.tts_service.voices.return_value = [
+            {"id": "ngoc_lan", "label": "Ngọc Lan"},
+        ]
+        api_module.custom_voice_repo = CustomVoiceRepository(self.db, self.store)
         from story_audio.api import app
 
         self.client = TestClient(app)
@@ -42,6 +50,8 @@ class HumanApprovalApiTests(IsolatedTestCase):
         api_module.db = self._original_db
         api_module.store = self._original_store
         api_module.settings = self._original_settings
+        api_module.tts_service = self._original_tts
+        api_module.custom_voice_repo = self._original_custom_voice_repo
         self._multipart_patcher.stop()
         super().tearDown()
 
@@ -85,10 +95,11 @@ class HumanApprovalApiTests(IsolatedTestCase):
         payload = response.json()
         self.assertEqual(payload["outcome"], "APPLIED")
         self.assertEqual(payload["applied_items"][0]["artifact_id"], self.old_artifact_id)
-        history = self.client.get(
-            f"/api/chapters/{self.chapter_id}/human-approval-history"
-        ).json()
-        self.assertEqual(len(history["items"]), 1)
+        qa_events = self.db.fetch_one(
+            "SELECT COUNT(*) AS count FROM audit_events WHERE chapter_id=? AND event_code='human_qa_recorded'",
+            (self.chapter_id,),
+        )
+        self.assertEqual(int(qa_events["count"]), 1)
 
     def test_production_command_rejects_non_object_body(self) -> None:
         response = self.client.post("/api/production/commands", json=["not", "object"])
@@ -253,7 +264,17 @@ class HumanApprovalApiTests(IsolatedTestCase):
         self.assertEqual(self.db.fetch_one("SELECT COUNT(*) AS count FROM artifacts")["count"], artifacts_before)
 
     def test_repair_draft_review_is_idempotent_and_does_not_create_media(self) -> None:
-        feedback = {"repeated_words": True, "global_speed_target": 1.25, "local_pacing_adjustment_required": True, "operator_note": "Review repair locations.", "issue_types": ["repeated_words", "overall_pacing", "local_pacing"], "position_markers": []}
+        machine_marker = {
+            "timestamp": 12.3,
+            "segment_id": 77,
+            "segment_audio_sha256": "a" * 64,
+            "issue_type": "silence",
+            "risk_kind": "silence",
+            "repair_kind": "trim_leading_silence",
+            "machine_finding_key": "77:silence:trim_leading_silence:12300",
+            "note": "Khoảng lặng đầu dài.",
+        }
+        feedback = {"repeated_words": True, "global_speed_target": 1.25, "local_pacing_adjustment_required": True, "operator_note": "Review repair locations.", "issue_types": ["repeated_words", "overall_pacing", "local_pacing"], "position_markers": [machine_marker]}
         self.assertEqual(self.client.put(f"/api/chapters/{self.chapter_id}/human-approval", json={"status": "needs_fixes", "notes": feedback["operator_note"], "qa_feedback": feedback}).status_code, 200)
         qa_id = int(self.db.fetch_one("SELECT id FROM audit_events WHERE chapter_id=? AND event_code='human_qa_recorded' ORDER BY id DESC LIMIT 1", (self.chapter_id,))["id"])
         scope = {"chapter": {"id": self.chapter_id}}
@@ -263,7 +284,19 @@ class HumanApprovalApiTests(IsolatedTestCase):
             plan_id = int(plan["applied_items"][0]["repair_plan_evidence_id"])
             draft = self.client.post("/api/production/commands", json={"command_type": "APPLY_REPAIR_PLAN", "idempotency_key": "repair-plan-apply-review", "scope": scope, "payload": {"chapter_id": self.chapter_id, "artifact_id": self.old_artifact_id, "qa_evidence_id": qa_id, "repair_plan_evidence_id": plan_id}}).json()
             draft_id = int(draft["applied_items"][0]["repair_draft_evidence_id"])
-            review = {"command_type": "CONFIRM_REPAIR_DRAFT", "idempotency_key": "repair-draft-review-0001", "scope": scope, "payload": {"chapter_id": self.chapter_id, "artifact_id": self.old_artifact_id, "qa_evidence_id": qa_id, "repair_plan_evidence_id": plan_id, "repair_draft_evidence_id": draft_id, "markers": []}}
+            review_marker = {
+                "timestamp_seconds": machine_marker["timestamp"],
+                "segment_id": machine_marker["segment_id"],
+                "segment_audio_sha256": machine_marker["segment_audio_sha256"],
+                "nearest_utterance": "Câu gần nhất",
+                "issue": "needs_pause",
+                "risk_kind": machine_marker["risk_kind"],
+                "repair_kind": machine_marker["repair_kind"],
+                "machine_finding_key": machine_marker["machine_finding_key"],
+                "note": machine_marker["note"],
+                "local_pace": None,
+            }
+            review = {"command_type": "CONFIRM_REPAIR_DRAFT", "idempotency_key": "repair-draft-review-0001", "scope": scope, "payload": {"chapter_id": self.chapter_id, "artifact_id": self.old_artifact_id, "qa_evidence_id": qa_id, "repair_plan_evidence_id": plan_id, "repair_draft_evidence_id": draft_id, "markers": [review_marker]}}
             jobs_before = self.db.fetch_one("SELECT COUNT(*) AS count FROM jobs")["count"]
             artifacts_before = self.db.fetch_one("SELECT COUNT(*) AS count FROM artifacts")["count"]
             first = self.client.post("/api/production/commands", json=review)
@@ -278,7 +311,18 @@ class HumanApprovalApiTests(IsolatedTestCase):
         details = json.loads(row["details_json"])
         self.assertEqual(details["repair_draft_evidence_id"], draft_id)
         self.assertEqual(details["global_speed_target"], 1.25)
-        self.assertEqual(details["marker_count"], 0)
+        self.assertEqual(details["marker_count"], 1)
+        self.assertEqual(details["markers"][0]["segment_id"], 77)
+        self.assertEqual(details["markers"][0]["segment_audio_sha256"], "a" * 64)
+        self.assertEqual(details["markers"][0]["repair_kind"], "trim_leading_silence")
+        plan_details = json.loads(
+            self.db.fetch_one("SELECT details_json FROM audit_events WHERE id=?", (plan_id,))["details_json"]
+        )
+        draft_details = json.loads(
+            self.db.fetch_one("SELECT details_json FROM audit_events WHERE id=?", (draft_id,))["details_json"]
+        )
+        self.assertEqual(plan_details["position_markers"], [machine_marker])
+        self.assertEqual(draft_details["position_markers"], [machine_marker])
         self.assertEqual(self.db.fetch_one("SELECT COUNT(*) AS count FROM audit_events WHERE chapter_id=? AND event_code='repair_draft_reviewed'", (self.chapter_id,))["count"], 1)
         self.assertEqual(self.db.fetch_one("SELECT COUNT(*) AS count FROM jobs")["count"], jobs_before)
         self.assertEqual(self.db.fetch_one("SELECT COUNT(*) AS count FROM artifacts")["count"], artifacts_before)
@@ -364,7 +408,7 @@ class HumanApprovalApiTests(IsolatedTestCase):
             0,
         )
 
-    def test_history_is_timestamped_and_bound_to_each_active_artifact(self) -> None:
+    def test_human_qa_keeps_only_the_current_decision(self) -> None:
         first = self.client.put(
             f"/api/chapters/{self.chapter_id}/human-approval",
             json={"status": "needs_fixes", "notes": "Pronunciation issue."},
@@ -376,23 +420,18 @@ class HumanApprovalApiTests(IsolatedTestCase):
         )
         self.assertEqual(second.status_code, 200)
 
-        history = self.client.get(
-            f"/api/chapters/{self.chapter_id}/human-approval-history"
+        rows = self.db.fetch_all(
+            "SELECT details_json,created_at FROM audit_events WHERE chapter_id=? AND event_code='human_qa_recorded'",
+            (self.chapter_id,),
         )
-        self.assertEqual(history.status_code, 200)
-        payload = history.json()
-        self.assertEqual(payload["total"], 2)
-        self.assertEqual(
-            [item["status"] for item in payload["items"]],
-            ["approved", "needs_fixes"],
-        )
-        self.assertTrue(all(item["recorded_at"] for item in payload["items"]))
-        self.assertTrue(
-            all(item["artifact_id"] == self.old_artifact_id for item in payload["items"])
-        )
-        self.assertNotIn("output_path", str(payload))
+        self.assertEqual(len(rows), 1)
+        current = json.loads(rows[0]["details_json"])
+        self.assertEqual(current["status"], "approved")
+        self.assertEqual(current["artifact_id"], self.old_artifact_id)
+        self.assertTrue(rows[0]["created_at"])
+        self.assertNotIn("output_path", str(current))
 
-    def test_detail_warns_when_approved_artifact_no_longer_matches_active_output(self) -> None:
+    def test_detail_does_not_inherit_approval_when_active_output_changes(self) -> None:
         response = self.client.put(
             f"/api/chapters/{self.chapter_id}/human-approval",
             json={"status": "approved", "notes": "Approved against old artifact."},
@@ -406,12 +445,9 @@ class HumanApprovalApiTests(IsolatedTestCase):
         refreshed = self.client.get(f"/api/chapters/{self.chapter_id}")
         self.assertEqual(refreshed.status_code, 200)
         data = refreshed.json()
-        self.assertEqual(data["chapter"]["human_qa_status"], "approved_stale")
-        self.assertEqual(
-            data["chapter"]["human_approval_warning"],
-            "Bản audio hiện tại khác với bản đã chốt trước đó. Cần kiểm tra lại.",
-        )
-        self.assertFalse(data["human_approval"]["matches_active_artifact"])
+        self.assertEqual(data["chapter"]["human_qa_status"], "pending")
+        self.assertIsNone(data["chapter"]["human_approval_warning"])
+        self.assertIsNone(data["human_approval"])
 
 
 if __name__ == "__main__":

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import re
 import unittest
@@ -17,7 +17,7 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
 
     def test_central_voice_catalog_state_and_loader_exist(self) -> None:
         self.assertIn("voiceCatalog:{items:[]}", self.js)
-        self.assertIn("async function loadVoiceCatalog()", self.js)
+        self.assertIn("async function loadVoiceCatalog(bookIdOverride=null)", self.js)
         self.assertIn("/api/voice-catalog", self.js)
         self.assertIn("function voiceCatalogItems()", self.js)
         self.assertIn("function voiceCatalogItem(key)", self.js)
@@ -64,10 +64,10 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
 
     def test_character_override_has_no_override_option_and_custom_catalog_selector(self) -> None:
         row_section = self.js[self.js.index("function renderCharacterRow"): self.js.index("function bibleSummary")]
-        self.assertIn("Không dùng giọng riêng", row_section)
+        self.assertIn("Dùng giọng kế thừa", row_section)
         self.assertIn("castingVoiceOptions(c.voice_override_id||'')", row_section)
         self.assertIn("character-voice-provenance", row_section)
-        self.assertIn("Đang kế thừa giọng hiệu lực từ Book Voice Profile", row_section)
+        self.assertIn("Đang kế thừa giọng hiệu lực từ cấu hình giọng của sách", row_section)
 
     def test_character_save_sends_override_without_touching_plan_job_or_render(self) -> None:
         save_section = self.js[self.js.index("async function saveCharacter"): self.js.index("async function deleteCharacter")]
@@ -95,7 +95,8 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIsNotNone(books_view)
         self.assertNotIn("custom-voice-library-panel", books_view.group(0))
         self.assertNotIn('id="profileNarratorVoice"', books_view.group(0))
-        self.assertIn('href="#/production"', books_view.group(0))
+        self.assertIn('id="openSelectedBookCharacters"', books_view.group(0))
+        self.assertIn('id="openSelectedBookVoices"', books_view.group(0))
 
     def test_accessibility_and_styles_for_provenance(self) -> None:
         self.assertIn(".voice-provenance", self.css)
@@ -129,29 +130,37 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIn("data-registry-clear", section)
         self.assertIn("Mặc định cho sách", section)
         self.assertIn("Phạm vi chương", section)
+        self.assertIn("Đang xử lý", section)
+        self.assertIn("trong phạm vi đã chọn", section)
         self.assertIn("SET_CHAPTER_VOICE_OVERRIDE", section)
         self.assertIn("SET_RANGE_VOICE_OVERRIDE", section)
         self.assertIn("CLEAR_CHAPTER_VOICE_OVERRIDE", section)
         self.assertIn("CLEAR_RANGE_VOICE_OVERRIDE", section)
         self.assertIn("runProductionCommand", section)
+        self.assertIn("persisted=scopeChoice", self.js)
+        self.assertIn("Lưu chưa có hiệu lực", self.js)
+        self.assertIn("captureRegistryUiSnapshot", self.js)
+        self.assertIn("restoreRegistryUiSnapshot(uiSnapshot)", self.js)
         self.assertNotIn("Narrator/unknown", section)
         self.assertNotIn("disabled title=\"Override", section)
 
-    def test_chapter_voice_save_is_guarded_until_casting_plan_is_ready(self) -> None:
+    def test_voice_save_distinguishes_speaker_review_book_default_and_scoped_override(self) -> None:
         section = self.js[
             self.js.index("function renderRegistryActionCell"):
             self.js.index("function renderRegistryTableRow")
         ]
         self.assertIn(
-            "Chưa thể lưu giọng riêng cho Chương ${chapterNumber} vì bản xác định người nói chưa được duyệt.",
+            "Chưa thể lưu giọng riêng vì bản xác định người nói chưa được duyệt.",
             section,
         )
+        self.assertNotIn("Bản đồ giọng hiện tại đã được duyệt", section)
         self.assertIn("Lựa chọn tạm thời — chưa được lưu", section)
         self.assertIn("Duyệt người nói trước", section)
+        self.assertNotIn("Duyệt bản đồ giọng trước", section)
         self.assertIn("Hủy lựa chọn chưa lưu", section)
-        self.assertIn("Lưu cấu hình giọng và hoàn tất bản đồ giọng", section)
-        self.assertIn("Duyệt bản xác định người nói hiện tại.", section)
-        self.assertIn("Tạo và duyệt bản đồ giọng cuối cùng.", section)
+        self.assertIn("Lưu làm giọng mặc định cho sách", section)
+        self.assertNotIn("Lưu cấu hình giọng và hoàn tất bản đồ giọng", section)
+        self.assertIn("scopeChoice==='book'?bookReady:scopedReady", section)
 
     def test_range_command_scope_prefers_exact_working_context(self) -> None:
         section = self.js[
@@ -173,15 +182,21 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             self.js.index("function speakerSuggestionScopeKey")
         ]
         self.assertIn("1. Duyệt người nói", section)
-        self.assertIn("2. Thư viện nhân vật và cấu hình giọng", section)
+        self.assertIn("2. Vai có lời trong phạm vi và cấu hình giọng", section)
+        self.assertIn("nhân vật trong sách", section)
         self.assertIn("3. Kiểm tra sẵn sàng", section)
         self.assertIn("row.role==='unresolved_dialogue'||row.role==='unknown'", section)
         self.assertIn("row.role==='narrator'||row.character_id", section)
         self.assertIn("Còn ${reviewCount} câu chưa xác định người nói.", section)
         self.assertIn("data-jump-to-speaker-review", section)
-        self.assertNotIn("data-registry-map", section)
-        self.assertNotIn("data-registry-new-character", section)
-        self.assertNotIn("data-registry-character-key", section)
+        self.assertIn("speakerReviewInvariantModel", self.js)
+        self.assertIn("renderManualSpeakerReviewRows", self.js)
+        self.assertIn("data-registry-map", self.js)
+        self.assertIn("data-registry-new-character", self.js)
+        self.assertIn("data-registry-character-key", self.js)
+        self.assertIn("Gemini chưa cấu hình", self.js)
+        self.assertIn("0 cần duyệt", self.js)
+        self.assertIn("0 cần quyết định", self.js)
         self.assertNotIn("data-voice-library-row=\"unresolved", section)
 
     def test_current_revision_speaker_state_controls_step_and_history(self) -> None:
@@ -201,7 +216,10 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             "ng\u01b0\u1eddi n\u00f3i trong b\u1ea3n hi\u1ec7n t\u1ea1i.",
             section,
         )
-        self.assertIn("Ph\u00e2n t\u00edch ng\u01b0\u1eddi n\u00f3i cho Ch\u01b0\u01a1ng", section)
+        self.assertIn("Chu\u1ea9n b\u1ecb ph\u00e2n t\u00edch ng\u01b0\u1eddi n\u00f3i", section)
+        self.assertIn("data-prepare-speaker-analysis", section)
+        self.assertIn("speakerStatus==='ANALYSIS_REQUIRED'?prepareRangeInputs()", section)
+        self.assertNotIn("speakerStatus==='ANALYSIS_REQUIRED'&&state.config?.gemini_configured?generateSpeakerSuggestions", section)
         self.assertIn("Xem l\u1ecbch s\u1eed x\u00e1c \u0111\u1ecbnh ng\u01b0\u1eddi n\u00f3i", section)
         self.assertIn("\u0110\u00e3 c\u0169 so v\u1edbi Revision", section)
         self.assertIn("data-speaker-state-history", section)
@@ -209,7 +227,8 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             "workflowSections={...current,history:event.currentTarget.open}",
             section,
         )
-        self.assertIn("speakerStateResolved(result.speaker_state)", section)
+        self.assertIn("loadSpeakerReviewSuggestions({force:true})", section)
+        self.assertIn("renderGeminiVoiceBatch(context,registry)", section)
 
     def test_assignment_voice_actions_explain_scope_provenance_and_future_impact(self) -> None:
         section = self.js[
@@ -217,7 +236,9 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             self.js.index("async function saveRegistrySpeakerMapping")
         ]
         for label in (
-            "Lưu thay đổi giọng",
+            "Lưu làm giọng mặc định cho sách",
+            "Lưu giọng cho chương",
+            "Lưu giọng cho phạm vi",
             "Bỏ ghi đè và dùng giọng kế thừa",
             "Hủy lựa chọn chưa lưu",
             "Nghe thử giọng",
@@ -243,16 +264,17 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertNotIn("commandType:'PREPARE'", section)
         self.assertNotIn("commandType:'START_RENDER'", section)
 
-    def test_assignment_has_one_preflight_primary_and_secondary_step_link(self) -> None:
+    def test_assignment_routes_ready_voice_step_directly_to_preflight(self) -> None:
         section = self.js[
             self.js.index("function renderBookVoiceRegistryPage("):
             self.js.index("function speakerSuggestionScopeKey")
         ]
-        self.assertEqual(section.count("data-open-production-preflight ${preflightReady"), 1)
-        self.assertIn("data-jump-to-assignment-preflight", section)
+        self.assertEqual(section.count('class="primary" data-open-production-preflight'), 1)
+        self.assertEqual(section.count('class="secondary" data-open-production-preflight ${preflightReady'), 1)
+        self.assertNotIn("data-jump-to-assignment-preflight", section)
         self.assertIn("repairContextBlockers.length===0", section)
         self.assertIn("data-assignment-repair-focus", section)
-        self.assertIn("Xem điều kiện để tiếp tục", section)
+        self.assertIn("Tiếp tục: kiểm tra & chuẩn bị audio", section)
         self.assertIn("Quay lại chuẩn bị bản thay thế", section)
 
     def test_repair_working_context_preserves_exact_assignment_focus_and_return(self) -> None:
@@ -280,6 +302,9 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIn("emptyBookVoiceRegistryState", self.js)
         self.assertIn("speakerSuggestions:emptySpeakerSuggestionState()", self.js)
         self.assertIn("openDetails:{}", self.js)
+        self.assertIn("savedScopes:{}", self.js)
+        self.assertIn("Mặc định sách:", self.js)
+        self.assertIn("Phạm vi đang xem vẫn dùng", self.js)
         self.assertIn("mergeBookVoiceRegistryState", self.js)
         self.assertIn("captureRegistryUiSnapshot", self.js)
         self.assertIn("restoreRegistryUiSnapshot", self.js)
@@ -294,6 +319,33 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             "state.bookVoiceRegistry={status:'ready',loading:false,error:null,result,scopeKey,requestId}",
             self.js,
         )
+
+    def test_assignment_voice_review_exposes_dialogue_context_for_identity_check(self) -> None:
+        self.assertIn("\\u0110o\\u1ea1n tho\\u1ea1i \\u0111\\u1ec3 x\\u00e1c nh\\u1eadn", self.js)
+        self.assertIn("assignment-dialogue-sample", self.js)
+        self.assertIn("context_before", self.js)
+        self.assertIn("context_after", self.js)
+        self.assertIn("assignment-registry-review-pane", self.js)
+        self.assertIn("assignment-registry-control-pane", self.js)
+        self.assertIn("assignment-speaker-overview", self.js)
+        self.assertNotIn("assignment-registry-context-full-row", self.js)
+        self.assertIn("assignment-dialogue-samples-grid", self.js)
+        self.assertNotIn("assignment-registry-context-row", self.js)
+        self.assertIn("data-registry-sample-detail", self.js)
+        self.assertIn("isNarrator=row.role==='narrator'", self.js)
+        self.assertIn("hasExplicitOpen=Object.prototype.hasOwnProperty.call(openState,key)", self.js)
+        self.assertIn("visibleLimit=isNarrator?1:3", self.js)
+        self.assertIn("assignment-dialogue-more", self.js)
+        self.assertIn("assignment-chapter-voice-summary", self.js)
+        self.assertIn("\\u0110o\\u1ea1n m\\u1eabu c\\u1ee7a", self.js)
+        self.assertIn("openSampleDetails:{}", self.js)
+        self.assertIn("rememberRegistrySampleDetailState", self.js)
+        self.assertNotIn(".assignment-range-details div{", self.css)
+        self.assertNotIn(".assignment-range-details small{", self.css)
+        self.assertIn("align-items:start!important", self.css)
+        self.assertIn(".assignment-dialogue-context span{min-width:0;line-height:1.55}", self.css)
+        self.assertIn("ASSIGNMENT_REVIEW_PROGRESSIVE_DISCLOSURE_V5", self.css)
+        self.assertIn(".assignment-registry-review-pane>.assignment-range-details", self.css)
 
     def test_gemini_speaker_review_workspace_is_draft_only(self) -> None:
         section = self.js[

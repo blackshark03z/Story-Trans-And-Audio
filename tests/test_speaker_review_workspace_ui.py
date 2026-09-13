@@ -82,6 +82,8 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
         ):
             self.assertIn(marker, self.js)
         self.assertIn("Đang giữ nguyên đề xuất Gemini", self.js)
+        self.assertIn("approved_final_voice_map_available", self.js)
+        self.assertIn("Gán giọng ở bước Gán giọng sau khi chốt người nói", self.js)
         self.assertIn("Đã chỉnh sửa ${meta.changes.length} trường", self.js)
         self.assertIn("root.querySelectorAll('[data-speaker-suggestion-submit]')", self.js)
         self.assertIn("meta.edited?'EDIT_AND_ACCEPT_SPEAKER_SUGGESTION':'ACCEPT_SPEAKER_SUGGESTION'", self.js)
@@ -157,6 +159,36 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
         for label in ("Yêu cầu:", "Đã duyệt:", "Bị loại:", "Thất bại:"):
             self.assertIn(label, self.js)
 
+    def test_batch_completion_bar_exposes_selected_and_safe_paths_with_clear_outcomes(self) -> None:
+        for token in (
+            "speaker-review-batch-bar",
+            "Chấp nhận mục đã chọn",
+            "Chấp nhận tất cả đủ điều kiện",
+            "Chọn các mục đang hiển thị",
+            "checkbox trên từng đề xuất",
+            "Nếu chấp nhận tất cả đủ điều kiện",
+            "Nếu chấp nhận mục đã chọn",
+            "Sau khi batch hoàn tất",
+            "Giọng không bị đổi ở đây: Production chuyển sang bước 2",
+            "batchApproveSelectedSpeakerSuggestions",
+            "reviewer_payload:payload",
+        ):
+            self.assertIn(token, self.js)
+        self.assertIn(".speaker-review-batch-bar{position:static", self.css)
+        self.assertNotIn(".speaker-review-batch-bar{position:sticky", self.css)
+        self.assertIn("speaker-review-batch-preview-grid", self.css)
+        self.assertIn("speaker-review-batch-ruleline", self.css)
+
+    def test_completed_review_keeps_bulk_review_discoverable_without_repeat_action(self) -> None:
+        self.assertIn("renderCompletedSpeakerBatchState", self.js)
+        self.assertIn("Duyệt người nói hàng loạt", self.js)
+        self.assertIn("data-speaker-review-batch-complete", self.js)
+        self.assertIn("không còn danh tính người nói chờ duyệt", self.js)
+        self.assertIn("Duyệt giọng Gemini hàng loạt", self.js)
+        self.assertIn("APPLY_GEMINI_VOICE_SUGGESTION_BATCH", self.js)
+        self.assertIn("DISMISS_GEMINI_VOICE_SUGGESTION_BATCH", self.js)
+        self.assertIn("Giữ giọng hiện tại", self.js)
+
     def test_approved_history_and_corrections_preserve_future_render_boundary(self) -> None:
         self.assertIn("review_history", self.js)
         self.assertIn("audit_event_id", self.js)
@@ -165,7 +197,8 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
         self.assertIn("CREATE_SPEAKER_REPLACEMENT_DECISION", self.js)
         self.assertIn("ADD_SPEAKER_REVIEW_NOTE", self.js)
         self.assertIn("RESTORE_SPEAKER_SUGGESTION_PENDING", self.js)
-        self.assertIn("Audio đã chấp nhận hiện tại không bị thay đổi", self.js)
+        self.assertIn("Final Voice Map và cấu hình giọng chưa thay đổi", self.js)
+        self.assertIn("audio đã chấp nhận hiện tại không bị thay đổi", self.js)
         self.assertIn("downstream_stale", self.js)
 
     def test_polling_keeps_local_state_separate_from_authoritative_rows(self) -> None:

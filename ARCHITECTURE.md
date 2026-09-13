@@ -22,22 +22,19 @@ TTS, PREPARE, START_RENDER, or the worker. The UI exposes durable export state,
 inline playback, and download only after manifest, hash, codec, stream, and
 duration validation succeeds.
 
-## Current PREPARE Rollout State - 2026-07-23
+## Product safety boundaries
 
-Phase 13 is complete at `CLONE_ONLY / DISABLED_RUNTIME_ONLY / AUTH_BOUNDARY_CLONE_ONLY`.
-`story_audio.batch_prepare_runtime_integration`
-selects an explicitly configured external schema-15 clone, opens it through an
-immutable read-only facade, skips DB initialization and worker startup, and
-publishes bounded GET-only readiness. `story_audio.batch_prepare_operator_auth`
-validates one configured operator through a SHA-256 Bearer-token boundary using
-constant-time comparison, but authentication never authorizes mutation.
-Canonical production remains schema 12; dormant schemas 13-15 are not active.
-No batch PREPARE mutation route or UI control exists. Phase 14 is limited to an
-authenticated, kill-switched, default-off mutation API inside an external-clone
-test process. Production runtime/PREPARE/credentials, worker wake, provider/TTS,
-and START_RENDER remain unauthorized.
+The canonical runtime is the local Story Audio application at
+`http://127.0.0.1:8772`; its production database and protected data are never
+test fixtures. Tests use isolated roots. Immutable Text Revisions, Casting
+Plans, Jobs, Job snapshots, and verified Artifacts are retained for audit and
+recovery.
 
-> **Trạng thái tài liệu:** File này bắt đầu như bản thiết kế trước implementation và còn giữ các edge case lịch sử. Nguồn sự thật hiện tại là `PROJECT_STATUS.md`, `docs/DECISIONS.md`, `docs/DATA_MODEL.md` và migrations checksum-locked. Khi nội dung bên dưới dùng từ “đề xuất”, không được hiểu là feature/schema đã tồn tại.
+Read-only scope inspection never creates jobs, previews, artifacts, audio, or
+provider cost. PREPARE pins an eligible scope without rendering; START_RENDER
+is a separate explicit operation. Human Audio QA is explicit human authority.
+Gemini, VieNeu inference, and paid services are outside the offline test path.
+Chapter 369 and historical jobs/artifacts remain protected production evidence.
 
 Ranh giới Personal Edition hiện tại:
 
@@ -45,8 +42,6 @@ Ranh giới Personal Edition hiện tại:
 Story Audio: EPUB → approved text → resolved casting → audio → speech timing → Handoff V1
 YouTube Auto: Handoff V1 → visual timeline/bible → image → subtitle render → video → metadata/thumbnail
 ```
-
-Current roadmap state: Story Audio is production-ready and operates under the Daily Production UX roadmap. `DAILY-PROD-1` through `DAILY-PROD-4`, `DAILY-PROD-5A`, and `DAILY-PROD-5B Phases 1-13` are complete. `DAILY-PROD-5` remains active. Dormant schemas 13-15 provide isolated PREPARE evidence, while canonical/default schema remains 12. `NEXT_TASK.md` authorizes only clone-only authenticated PREPARE API and kill-switch acceptance; canonical activation, production PREPARE/credentials, UI, provider/TTS, worker wake, and START_RENDER remain unauthorized. Chapter 369 remains paused production/editorial work, not a roadmap driver.
 
 ADR-013 được triển khai ở schema v3: Book Voice Profile ba nhóm (narrator/male/female), unknown fallback, optional character override và UI Manual Casting hiển thị effective resolution.
 
@@ -531,7 +526,7 @@ Ghi chú lịch sử/planned: bản thiết kế sớm từng đề xuất Gemin
 - UI phân biệt `Remove from queue`, `Archive artifact` và `Delete files`.
 - Xóa file yêu cầu preview số file/dung lượng và typed confirmation khi phạm vi lớn.
 - Soft-delete mặc định 7 ngày.
-- Cleanup chỉ xóa artifact có reference count bằng 0, không active, không lease và đã hết retention.
+- Cleanup segment workspace WAV chỉ chạy sau khi ứng dụng đã hoàn tất khởi tạo và `SEGMENT_CLEANUP_ENABLED=true`; cờ này độc lập với PREPARE, START_RENDER và `PREPARE_KILL_SWITCH_ACTIVE`. Eligibility giữ nguyên: chỉ segment của job chapter completed đã hết retention và có assembled artifact `active`/`verified`.
 - Manifest/hash vẫn được giữ sau cleanup segment để biết artifact cuối được tạo từ đâu.
 - Có lệnh dry-run liệt kê file sẽ xóa trước khi thực thi.
 

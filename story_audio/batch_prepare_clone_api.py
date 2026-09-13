@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Callable, Mapping
 
-from .batch_plan import build_batch_plan
+from .batch_plan import EXCLUDED_COMPLETE, build_batch_plan
 from .batch_prepare_execution_attempt_store import BatchPrepareExecutionAttemptStore
 from .batch_prepare_isolated_adapter import (
     BatchPrepareCommittedEvidenceReader,
@@ -22,6 +22,7 @@ from .batch_prepare_runtime_integration import (
     RuntimeIntegrationConfig,
     RuntimeIntegrationDescriptor,
 )
+from .batch_prepare_runtime_rollout_contract import MAX_PREPARE_CHAPTERS
 from .batch_prepare_store import BatchPrepareRequestStore
 from .config import Settings
 from .db import Database
@@ -174,10 +175,10 @@ class BatchPrepareApiService:
                 str(payload.get("client_request_id") or "")
             )
             chapter_count = int(payload["to_chapter"]) - int(payload["from_chapter"]) + 1
-            if chapter_count < 1 or chapter_count > 3:
+            if chapter_count < 1 or chapter_count > MAX_PREPARE_CHAPTERS:
                 raise ClonePrepareApiError(
                     "CANARY_SCOPE_REJECTED",
-                    "Production PREPARE is limited to one through three chapters.",
+                    f"Production PREPARE is limited to one through {MAX_PREPARE_CHAPTERS} chapters.",
                     http_status=400,
                 )
             if existing is None or existing.state != "APPLIED":
@@ -195,10 +196,27 @@ class BatchPrepareApiService:
                         http_status=503,
                     ) from exc
                 included = current_plan.get("included")
-                if not isinstance(included, list) or len(included) != chapter_count:
+                excluded = current_plan.get("excluded")
+                covered = (
+                    isinstance(included, list)
+                    and isinstance(excluded, list)
+                    and len(included) > 0
+                    and len(included) + len(excluded) == chapter_count
+                )
+                unsafe_excluded = (
+                    [
+                        row
+                        for row in excluded
+                        if not isinstance(row, Mapping)
+                        or str(row.get("eligibility") or "") != EXCLUDED_COMPLETE
+                    ]
+                    if isinstance(excluded, list)
+                    else [None]
+                )
+                if not covered or unsafe_excluded:
                     raise ClonePrepareApiError(
                         "CANARY_SCOPE_NOT_FULLY_ELIGIBLE",
-                        "Every chapter in the production PREPARE canary must be eligible.",
+                        "Production PREPARE may exclude only chapters that are already complete.",
                         http_status=409,
                     )
         payload["explicit_confirmation"] = payload.pop("confirmation", None)

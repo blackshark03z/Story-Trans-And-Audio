@@ -260,6 +260,18 @@ class BookVoiceRegistryTests(IsolatedTestCase):
         )
         self.assertEqual(by_name["Đổi giọng"]["status"], "OVERRIDDEN")
 
+    def test_resolved_character_rows_include_dialogue_samples_with_neighbor_context(self) -> None:
+        registry = self._registry(1, 2)
+        recurring_id = int(self.characters["recurring"]["id"])
+        recurring = next(row for row in registry["rows"] if int(row.get("character_id") or 0) == recurring_id)
+        self.assertGreater(len(recurring["sample_lines"]), 0)
+        sample = recurring["sample_lines"][0]
+        self.assertEqual(sample["chapter_number"], 1)
+        self.assertTrue(sample["text"])
+        self.assertTrue(sample["context_before"])
+        self.assertTrue(sample["context_after"])
+        self.assertLessEqual(len(recurring["sample_lines"]), 5)
+
     def test_conflicting_range_voice_snapshots_are_reported(self) -> None:
         conflict = int(self.characters["conflict"]["id"])
         self._plan(2, {2: ("character", conflict)})
@@ -321,9 +333,20 @@ class BookVoiceRegistryTests(IsolatedTestCase):
             self.db.fetch_one("SELECT COUNT(*) AS count FROM casting_plans")["count"]
         )
 
-    def test_narrator_range_override_persists_as_exact_approved_plan_revisions(self) -> None:
+    def test_narrator_range_override_persists_as_reviewable_draft_revisions(self) -> None:
         before_plans = self._plan_count()
+        before_approved = self._approved_plan_count()
         chapter_one = self._chapter(1)
+        previous_approved = self.db.fetch_one(
+            """
+            SELECT id,status,plan_sha256,content_path
+            FROM casting_plans
+            WHERE chapter_id=? AND status='approved'
+            ORDER BY plan_revision DESC,id DESC
+            LIMIT 1
+            """,
+            (int(chapter_one["id"]),),
+        )
         before_revision = int(
             self.db.fetch_one(
                 "SELECT MAX(plan_revision) AS revision FROM casting_plans WHERE chapter_id=?",
@@ -355,11 +378,29 @@ class BookVoiceRegistryTests(IsolatedTestCase):
             (int(chapter_one["id"]),),
         )
         self.assertEqual(int(latest["plan_revision"]), before_revision + 1)
-        self.assertEqual(latest["status"], "approved")
+        self.assertEqual(latest["status"], "draft")
+        self.assertEqual(self._approved_plan_count(), before_approved)
+        preserved = self.db.fetch_one(
+            "SELECT status,plan_sha256,content_path FROM casting_plans WHERE id=?",
+            (int(previous_approved["id"]),),
+        )
+        self.assertEqual(preserved["status"], "approved")
+        self.assertEqual(preserved["plan_sha256"], previous_approved["plan_sha256"])
+        self.assertEqual(preserved["content_path"], previous_approved["content_path"])
         latest_plan = get_plan(self.db, self.store, int(latest["id"]))["plan"]
         narrator_items = [item for item in latest_plan["utterances"] if item["role"] == "narrator"]
         self.assertTrue(narrator_items)
         self.assertTrue(all(item["resolved_voice_id"] == "male" for item in narrator_items))
+        approved = approve_plan(self.db, self.store, int(latest["id"]))
+        self.assertEqual(approved["status"], "approved")
+        self.assertEqual(self._approved_plan_count(), before_approved)
+        self.assertEqual(
+            self.db.fetch_one(
+                "SELECT status FROM casting_plans WHERE id=?",
+                (int(previous_approved["id"]),),
+            )["status"],
+            "archived",
+        )
         self.assertIsNone(
             self.db.fetch_one(
                 "SELECT name FROM sqlite_master WHERE type='table' AND name='pending_chapter_voice_overrides'"
@@ -505,6 +546,71 @@ class BookVoiceRegistryTests(IsolatedTestCase):
         self.assertEqual(by_chapter[2], "Recurring Voice")
         self.assertNotIn(3, by_chapter)
 
+    def test_sparse_character_range_override_skips_chapters_where_character_is_absent(self) -> None:
+        speaker_key = f"character:{int(self.characters['recurring']['id'])}"
+        result = apply_chapter_voice_override(
+            self.db,
+            self.store,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=3,
+            speaker_key=speaker_key,
+            operation="set",
+            voice_id="new",
+            voice_catalog=_catalog("narrator", "male", "female", "recurring", "new"),
+            idempotency_key="sparse-character-range",
+            skip_missing=True,
+        )
+        self.assertEqual([item["chapter_number"] for item in result["applied"]], [1, 2])
+        registry = self._registry(1, 3)
+        recurring = next(row for row in registry["rows"] if row["speaker_key"] == speaker_key)
+        self.assertEqual(
+            [item["chapter_number"] for item in recurring["chapter_voice_details"]],
+            [1, 2],
+        )
+        self.assertEqual(recurring["effective_voice"]["display_name"], "New Character Voice")
+
+    def test_sparse_character_range_override_replaces_existing_override(self) -> None:
+        speaker_key = f"character:{int(self.characters['recurring']['id'])}"
+        first = apply_chapter_voice_override(
+            self.db,
+            self.store,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=3,
+            speaker_key=speaker_key,
+            operation="set",
+            voice_id="female",
+            voice_catalog=_catalog("narrator", "male", "female", "recurring", "new"),
+            idempotency_key="sparse-character-range-first",
+            skip_missing=True,
+        )
+        self.assertEqual([item["chapter_number"] for item in first["applied"]], [1, 2])
+
+        second = apply_chapter_voice_override(
+            self.db,
+            self.store,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=3,
+            speaker_key=speaker_key,
+            operation="set",
+            voice_id="new",
+            voice_catalog=_catalog("narrator", "male", "female", "recurring", "new"),
+            idempotency_key="sparse-character-range-second",
+            skip_missing=True,
+        )
+        self.assertEqual([item["chapter_number"] for item in second["applied"]], [1, 2])
+        registry = self._registry(1, 3)
+        recurring = next(row for row in registry["rows"] if row["speaker_key"] == speaker_key)
+        self.assertEqual(recurring["effective_voice"]["display_name"], "New Character Voice")
+        self.assertTrue(
+            all(
+                item["effective_voice"]["display_name"] == "New Character Voice"
+                for item in recurring["chapter_voice_details"]
+            )
+        )
+
     def test_unknown_speaker_override_uses_stable_unknown_key_and_clears_to_fallback(self) -> None:
         self._plan(3, {2: ("unknown", None)})
         self._apply_override(3, 3, "unknown", "female")
@@ -517,14 +623,15 @@ class BookVoiceRegistryTests(IsolatedTestCase):
         chapter = self._chapter(3)
         plan_row = self.db.fetch_one(
             """
-            SELECT id
+            SELECT id,status
             FROM casting_plans
-            WHERE chapter_id=? AND status='approved'
+            WHERE chapter_id=?
             ORDER BY plan_revision DESC,id DESC
             LIMIT 1
             """,
             (int(chapter["id"]),),
         )
+        self.assertEqual(plan_row["status"], "draft")
         plan = get_plan(self.db, self.store, int(plan_row["id"]))["plan"]
         unknown_item = next(item for item in plan["utterances"] if item["role"] == "unknown")
         self.assertEqual(unknown_item["resolved_voice_id"], "female")

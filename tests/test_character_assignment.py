@@ -226,12 +226,77 @@ class CharacterAssignmentServiceTests(IsolatedTestCase):
         self.assertEqual(len(unresolved), 2)
         self.assertEqual(registry["summary"]["unresolved_dialogue"], 2)
         self.assertEqual(registry["summary"]["blocking_rows"], 2)
+        self.assertEqual(registry["speaker_state"]["status"], "ANALYSIS_REQUIRED")
+        self.assertEqual(registry["speaker_state"]["unresolved_count"], 2)
+        self.assertEqual(len(registry["speaker_state"]["chapter_states"]), 2)
         self.assertTrue(unresolved[0]["sample_lines"][0]["text"].startswith("- Hold"))
         self.assertTrue(unresolved[0]["actions"]["can_create_character"])
         self.assertTrue(unresolved[0]["actions"]["can_map_to_character"])
         narrator = next(row for row in registry["rows"] if row["speaker_key"] == "narrator")
         self.assertEqual(narrator["line_count"], 4)
         self.assertEqual(len(registry["content_evidence"]["checked_revisions"]), 2)
+
+    def test_approved_zero_target_draft_cannot_suppress_unresolved_registry_rows(self) -> None:
+        chapter = self._seed_chapter(1, approved_plan=False)
+        revision = self.db.fetch_one(
+            "SELECT * FROM text_revisions WHERE id=?",
+            (int(chapter["active_text_revision_id"]),),
+        )
+        payload = {
+            "schema": "story-audio-speaker-assignment-draft/v1",
+            "status": "generated",
+            "input_fingerprint": "legacy-zero-target",
+            "book_id": self.book_id,
+            "chapter_id": int(chapter["id"]),
+            "text_revision_id": int(revision["id"]),
+            "text_revision_sha256": str(revision["content_sha256"]),
+            "character_bible_fingerprint": "legacy-bible",
+            "confirmed_assignment_context_sha256": "legacy-confirmed",
+            "model_id": "gemini-2.5-flash",
+            "prompt_version": "speaker-assignment-v2",
+            "mode": "unassigned_only",
+            "assignments": [],
+            "invalid_items": [],
+            "summary": {"target_count": 0, "valid_count": 0, "invalid_count": 0},
+        }
+        content_path, content_sha = self.store.put_json(payload, namespace="speaker_assignment")
+        now = utcnow()
+        with self.db.transaction() as connection:
+            connection.execute(
+                """INSERT INTO speaker_assignment_drafts(
+                   book_id,chapter_id,text_revision_id,input_fingerprint,character_bible_fingerprint,
+                   model_id,prompt_version,response_schema,mode,status,content_path,content_sha256,
+                   target_count,valid_count,invalid_count,cache_hit_count,cache_miss_count,created_at,approved_at
+                   ) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    self.book_id,
+                    int(chapter["id"]),
+                    int(revision["id"]),
+                    "legacy-zero-target",
+                    "legacy-bible",
+                    "gemini-2.5-flash",
+                    "speaker-assignment-v2",
+                    "story-audio-speaker-assignment-draft/v1",
+                    "unassigned_only",
+                    "approved",
+                    content_path,
+                    content_sha,
+                    0,
+                    0,
+                    0,
+                    0,
+                    0,
+                    now,
+                    now,
+                ),
+            )
+        registry = self._registry(1, 1)
+        unresolved = [
+            row for row in registry["rows"] if row["status"] == "UNRESOLVED_DIALOGUE"
+        ]
+        self.assertEqual(len(unresolved), 1)
+        self.assertEqual(registry["summary"]["unresolved_dialogue"], 1)
+        self.assertEqual(registry["speaker_states"][0]["status"], "ANALYSIS_REQUIRED")
 
     def test_dash_dialogue_uses_raw_line_layout_for_continuation_utterances(self) -> None:
         active = "Intro. - Stop? Give me the bag. He turned away."
@@ -301,8 +366,8 @@ class CharacterAssignmentServiceTests(IsolatedTestCase):
         self.assertEqual(unresolved[0]["sample_lines"][0]["text"], "Give me the bag.")
 
     def test_skip_completed_filters_only_completed_chapters_and_keeps_remaining_dialogue(self) -> None:
-        self._seed_chapter(1, audio_status="completed")
-        self._seed_chapter(2)
+        completed_chapter = self._seed_chapter(1, audio_status="completed")
+        included_chapter = self._seed_chapter(2)
 
         registry = self._registry(1, 2, skip_completed=True)
         unresolved = [
@@ -311,6 +376,26 @@ class CharacterAssignmentServiceTests(IsolatedTestCase):
 
         self.assertEqual(registry["range"]["from_chapter"], 2)
         self.assertEqual(registry["range"]["to_chapter"], 2)
+        self.assertEqual(registry["range"]["requested_from_chapter"], 1)
+        self.assertEqual(registry["range"]["requested_to_chapter"], 2)
+        self.assertEqual(registry["range"]["requested_chapter_count"], 2)
+        self.assertEqual(registry["range"]["chapter_count"], 1)
+        self.assertTrue(registry["range"]["skip_completed"])
+        self.assertEqual(
+            registry["range"]["included_chapters"],
+            [{"id": included_chapter["id"], "chapter_number": 2}],
+        )
+        self.assertEqual(
+            registry["range"]["excluded_chapters"],
+            [{"id": completed_chapter["id"], "chapter_number": 1, "reason": "completed"}],
+        )
+        narrator = next(row for row in registry["rows"] if row["speaker_key"] == "narrator")
+        self.assertEqual(narrator["requested_scope"]["chapter_numbers"], [1, 2])
+        self.assertEqual(narrator["effective_scope"]["chapter_numbers"], [2])
+        self.assertGreater(
+            narrator["requested_scope"]["line_count"],
+            narrator["effective_scope"]["line_count"],
+        )
         self.assertEqual(len(unresolved), 1)
         self.assertEqual(unresolved[0]["chapter_numbers"], [2])
 
@@ -685,7 +770,7 @@ class CharacterAssignmentServiceTests(IsolatedTestCase):
         self.assertEqual(row["effective_voice"]["id"], "narrator")
         self.assertTrue(row["actions"]["can_create_range_or_chapter_override"])
 
-    def test_chapter_voice_action_is_blocked_without_approved_casting_plan(self) -> None:
+    def test_chapter_voice_action_is_blocked_without_approved_speaker_state(self) -> None:
         self._seed_chapter(1, approved_plan=False)
 
         registry = self._registry(1, 1)
@@ -697,7 +782,7 @@ class CharacterAssignmentServiceTests(IsolatedTestCase):
         )
         self.assertEqual(
             narrator["actions"]["chapter_override_blocker"],
-            "APPROVED_CASTING_PLAN_REQUIRED",
+            "APPROVED_SPEAKER_REVIEW_REQUIRED",
         )
 
     def test_unresolved_speaker_key_round_trip_uses_exact_chapter_and_utterance(self) -> None:

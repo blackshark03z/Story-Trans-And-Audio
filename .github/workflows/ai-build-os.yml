@@ -1,4 +1,4 @@
-name: AI Build OS + Product CI
+name: Story Audio Product CI
 
 on:
   pull_request:
@@ -8,7 +8,9 @@ on:
 
 jobs:
   verify:
-    runs-on: ubuntu-latest
+    runs-on: windows-latest
+    env:
+      STORY_AUDIO_BROWSER_TIMEOUT_MS: '45000'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -30,64 +32,22 @@ jobs:
       - name: Install Poetry when needed
         if: ${{ hashFiles('poetry.lock') != '' }}
         run: python -m pip install poetry
+      - name: Install media runtime
+        shell: powershell
+        run: |
+          choco install ffmpeg --yes --no-progress
+          ffmpeg -version
       - name: Install project dependencies from canonical/autodetected command
         run: python scripts/project_ci.py --install --ci
-      - name: Configure external Guardian verifier when repository variable is set
-        if: ${{ vars.AI_BUILD_OS_GUARDIAN_PUBLIC_KEY_PEM != '' }}
-        shell: bash
-        env:
-          GUARDIAN_PUBLIC_KEY_PEM: ${{ vars.AI_BUILD_OS_GUARDIAN_PUBLIC_KEY_PEM }}
+      - name: Locate Chromium for browser acceptance
+        shell: powershell
         run: |
-          printf '%s\n' "$GUARDIAN_PUBLIC_KEY_PEM" > "$RUNNER_TEMP/ai-build-os-guardian-public.pem"
-          echo "AI_BUILD_OS_GUARDIAN_PUBLIC_KEY=$RUNNER_TEMP/ai-build-os-guardian-public.pem" >> "$GITHUB_ENV"
-      - name: Report achieved assurance
-        env:
-          AI_BUILD_OS_GUARDIAN_EXTERNAL_ATTESTED: ${{ vars.AI_BUILD_OS_GUARDIAN_EXTERNAL_ATTESTED }}
-          AI_BUILD_OS_PROTECTED_MERGE_ATTESTED: ${{ vars.AI_BUILD_OS_PROTECTED_MERGE_ATTESTED }}
-          AI_BUILD_OS_ISOLATED_WORKER_ATTESTED: ${{ vars.AI_BUILD_OS_ISOLATED_WORKER_ATTESTED }}
-        run: python scripts/ai_os.py assurance
-      - name: Validate AI Build OS commit provenance
-        run: python scripts/validate_ai_os.py --ci
-      - name: Codebase health hard gates
-        run: python scripts/ai_os.py health check --ci
-      - name: Detect AI Build OS core changes
-        id: ai_os_core
-        shell: bash
-        env:
-          BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
-        run: |
-          if [[ -z "$BASE_SHA" || "$BASE_SHA" =~ ^0+$ ]]; then BASE_SHA="$(git rev-parse HEAD^)"; fi
-          if git diff --quiet "$BASE_SHA" HEAD -- scripts/*.py templates/*.yml templates/*.md config/*.json; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
-      - name: Run default fast/current regression pyramid
-        if: ${{ steps.ai_os_core.outputs.changed == 'true' }}
-        run: python scripts/self_test.py
-      - name: Run v1.14 compatibility regressions
-        if: ${{ steps.ai_os_core.outputs.changed == 'true' }}
-        run: python scripts/self_test_v114.py
-      - name: Run v1.13 compatibility regressions
-        if: ${{ steps.ai_os_core.outputs.changed == 'true' }}
-        run: python scripts/self_test_v113.py
-      - name: Run v1.12 trust/delegation regressions
-        if: ${{ steps.ai_os_core.outputs.changed == 'true' }}
-        run: python scripts/self_test_v112.py
-      - name: Run external-trust regressions
-        if: ${{ steps.ai_os_core.outputs.changed == 'true' }}
-        run: python scripts/self_test_v112_trust.py
+          $browserPath = @(
+            'C:\Program Files\Google\Chrome\Application\chrome.exe',
+            'C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe',
+            'C:\Program Files\Microsoft\Edge\Application\msedge.exe'
+          ) | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+          if (-not $browserPath) { throw 'No Chromium browser found on the CI runner.' }
+          "STORY_AUDIO_BROWSER_EXE=$browserPath" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
       - name: Run canonical product checks (fail closed)
         run: python scripts/project_ci.py --ci
-
-  full_build_os_regression:
-    if: ${{ github.event_name == 'workflow_dispatch' }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Historical full Build OS regression
-        run: python scripts/self_test_full.py

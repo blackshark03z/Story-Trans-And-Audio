@@ -20,12 +20,19 @@ from .db import ClosingConnection, Database
 DISABLED = "DISABLED"
 CLONE_DISABLED = "CLONE_DISABLED"
 PRODUCTION = "PRODUCTION"
+# Schema 15 is the earliest layout that contains the durable PREPARE records.
+# Schema 16 adds nullable, book-scoped custom-voice ownership and was designed
+# to preserve legacy voice references. PREPARE accepts only these verified
+# layouts; every other version remains unsupported.
 REQUIRED_SCHEMA_VERSION = 15
+SUPPORTED_SCHEMA_VERSIONS = frozenset({15, 16})
+LATEST_SUPPORTED_SCHEMA_VERSION = max(SUPPORTED_SCHEMA_VERSIONS)
 _RUNTIME_KEYS = frozenset({
     "PREPARE_RUNTIME_MODE",
     "PREPARE_CLONE_MUTATION_TEST_AUTHORIZED",
     "PREPARE_RENDER_ENABLED",
 })
+_MAINTENANCE_KEYS = frozenset({"SEGMENT_CLEANUP_ENABLED"})
 _FLAG_KEYS = frozenset({
     "PREPARE_FEATURE_AVAILABLE", "PREPARE_MUTATION_ENABLED",
     "PREPARE_OPERATOR_WINDOW_OPEN", "PREPARE_CANONICAL_SCHEMA_READY",
@@ -49,6 +56,8 @@ class RuntimeIntegrationConfig:
     auth: OperatorAuthConfig
     clone_mutation_test_authorized: bool = False
     render_enabled: bool = False
+    segment_cleanup_enabled: bool = False
+    segment_cleanup_config_valid: bool = True
     config_valid: bool = True
     errors: tuple[str, ...] = ()
 
@@ -69,6 +78,7 @@ class RuntimeIntegrationDescriptor:
     kill_switch_active: bool
     authentication_state: str
     read_only_planning_available: bool
+    segment_cleanup_enabled: bool = False
     render_enabled: bool = False
     mutation_service_constructed: bool = False
     isolated_adapter_constructed: bool = False
@@ -87,11 +97,15 @@ class RuntimeIntegrationDescriptor:
     reasons: tuple[str, ...] = ()
 
     @property
+    def schema_compatible(self) -> bool:
+        return self.schema_version in SUPPORTED_SCHEMA_VERSIONS
+
+    @property
     def clone_runtime_active(self) -> bool:
         return (
             self.runtime_mode == CLONE_DISABLED
             and self.clone_backed
-            and self.schema_version == REQUIRED_SCHEMA_VERSION
+            and self.schema_compatible
             and self.quick_check == "ok"
             and self.status in {
                 "KILL_SWITCHED", "SCHEMA_FLAG_NOT_READY", "DISABLED_DEFAULT",
@@ -119,7 +133,7 @@ class RuntimeIntegrationDescriptor:
             self.runtime_mode == PRODUCTION
             and self.canonical_backed
             and self.status == "PRODUCTION_AUTHENTICATED_READY"
-            and self.schema_version == REQUIRED_SCHEMA_VERSION
+            and self.schema_compatible
             and self.quick_check == "ok"
             and self.feature_available
             and self.mutation_enabled
@@ -161,6 +175,10 @@ def parse_runtime_integration_config(values: Mapping[str, Any] | None = None) ->
         source.get("PREPARE_RENDER_ENABLED"),
         "INVALID_PREPARE_RENDER_ENABLED",
     )
+    segment_cleanup_enabled, segment_cleanup_error = _parse_strict_boolean(
+        source.get("SEGMENT_CLEANUP_ENABLED"),
+        "INVALID_SEGMENT_CLEANUP_ENABLED",
+    )
     errors.extend(flags.errors)
     errors.extend(auth.errors)
     if test_error:
@@ -173,6 +191,8 @@ def parse_runtime_integration_config(values: Mapping[str, Any] | None = None) ->
         auth,
         clone_mutation_test_authorized=test_authorized,
         render_enabled=render_enabled,
+        segment_cleanup_enabled=segment_cleanup_enabled,
+        segment_cleanup_config_valid=segment_cleanup_error is None,
         config_valid=not errors,
         errors=tuple(errors),
     )
@@ -197,7 +217,7 @@ def _parse_test_authorization(value: Any) -> tuple[bool, str | None]:
 
 def read_runtime_integration_config(environment: Mapping[str, Any] | None = None) -> RuntimeIntegrationConfig:
     source = dict(os.environ if environment is None else environment)
-    keys = _RUNTIME_KEYS | _FLAG_KEYS | _AUTH_KEYS
+    keys = _RUNTIME_KEYS | _MAINTENANCE_KEYS | _FLAG_KEYS | _AUTH_KEYS
     return parse_runtime_integration_config({key: source[key] for key in keys if key in source})
 
 
@@ -275,7 +295,7 @@ def build_runtime_integration(
                 elif schema_version < REQUIRED_SCHEMA_VERSION:
                     status = "SCHEMA_NOT_READY"
                     reasons.append("SCHEMA_NOT_READY")
-                elif schema_version > REQUIRED_SCHEMA_VERSION:
+                elif schema_version not in SUPPORTED_SCHEMA_VERSIONS:
                     status = "SCHEMA_UNSUPPORTED"
                     reasons.append("SCHEMA_UNSUPPORTED")
                 elif not parsed.flags.canonical_schema_ready:
@@ -331,6 +351,9 @@ def build_runtime_integration(
         kill_switch_active=True if not parsed.config_valid else parsed.flags.kill_switch_active,
         authentication_state=auth_status,
         read_only_planning_available=True,
+        segment_cleanup_enabled=(
+            parsed.segment_cleanup_enabled and parsed.segment_cleanup_config_valid
+        ),
         render_enabled=parsed.render_enabled,
         reasons=tuple(reasons),
     )
@@ -348,10 +371,13 @@ def public_runtime_readiness(descriptor: RuntimeIntegrationDescriptor) -> dict[s
         "canonical_backed": descriptor.canonical_backed,
         "schema_version": descriptor.schema_version,
         "required_schema_version": descriptor.required_schema_version,
+        "supported_schema_versions": sorted(SUPPORTED_SCHEMA_VERSIONS),
+        "schema_compatible": descriptor.schema_compatible,
         "feature_available": descriptor.feature_available,
         "mutation_enabled": descriptor.prepare_mutation_enabled,
         "operator_window_open": descriptor.operator_window_open,
         "kill_switch_active": descriptor.kill_switch_active,
+        "segment_cleanup_enabled": descriptor.segment_cleanup_enabled,
         "authentication_state": descriptor.authentication_state,
         "mutation_service_constructed": False,
         "mutation_route_registered": False,
@@ -389,7 +415,7 @@ class CloneReadOnlyDatabase(Database):
 
     @property
     def latest_schema_version(self) -> int:
-        return REQUIRED_SCHEMA_VERSION
+        return LATEST_SUPPORTED_SCHEMA_VERSION
 
     def transaction(self):
         raise CloneRuntimeRejected("Clone-disabled runtime cannot open a transaction.")
@@ -400,7 +426,8 @@ class CloneReadOnlyDatabase(Database):
 
 __all__ = [
     "CLONE_DISABLED", "DISABLED", "PRODUCTION", "CloneReadOnlyDatabase", "CloneRuntimeRejected",
-    "REQUIRED_SCHEMA_VERSION", "RuntimeIntegrationConfig", "RuntimeIntegrationDescriptor",
+    "LATEST_SUPPORTED_SCHEMA_VERSION", "REQUIRED_SCHEMA_VERSION", "SUPPORTED_SCHEMA_VERSIONS",
+    "RuntimeIntegrationConfig", "RuntimeIntegrationDescriptor",
     "build_runtime_integration", "parse_runtime_integration_config", "public_runtime_readiness",
     "read_runtime_integration_config", "require_clone_runtime",
 ]

@@ -22,23 +22,27 @@ class AudioLibraryUiTests(unittest.TestCase):
         end = start + 1 + next_match.start() if next_match else len(self.js)
         return self.js[start:end]
 
-    def test_audio_library_view_replaces_placeholder_with_read_only_surface(self) -> None:
+    def test_audio_library_is_the_dedicated_post_render_review_workspace(self) -> None:
         for value in (
+            'data-app-route="audio" aria-label="Duyệt audio">Duyệt audio</a>',
             'id="audioView"',
-            'id="audioHeading">Thư viện audio</h2>',
-            "Nghe và tải các chương đang có bản audio hoạt động.",
-            'id="refreshAudioLibrary"',
-            'id="audioLibraryStatus"',
-            'id="audioLibraryList"',
+            'id="audioHeading">Duyệt audio</h2>',
+            "Đây là nơi duy nhất để nghe, duyệt, yêu cầu sửa và tải thành phẩm.",
+            'id="audioReviewSummary"',
+            'id="audioPendingCount"',
+            'id="audioNeedsFixesCount"',
+            'id="audioAcceptedCount"',
+            'id="audioReviewDetail"',
+            'id="audioLibraryList" class="audio-library-list audio-review-table" role="table"',
             'id="audioLibraryPlayer"',
             'id="audioLibraryAudio"',
             'id="audioLibraryDownload"',
-            'id="audioLibraryEmpty"',
-            'id="audioLibraryError"',
-            'id="retryAudioLibrary"',
+            'id="audioQaAccept"',
+            'id="audioQaOpenRepair"',
+            'id="audioQaNeedsFixes"',
         ):
             self.assertIn(value, self.html)
-        self.assertNotIn("playback/download mới chưa được thêm", self.html)
+        self.assertIn("Sản xuất chỉ tạo audio", self.html)
 
     def test_audio_route_fetches_audio_library_and_pauses_when_leaving(self) -> None:
         route_block = self._function_block("setAppRoute")
@@ -51,21 +55,25 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertNotIn("method:'PATCH'", load_block)
         self.assertNotIn("method:'DELETE'", load_block)
 
-    def test_item_rendering_uses_safe_dom_and_no_inner_html(self) -> None:
+    def test_queue_rows_use_safe_dom_and_expose_review_columns(self) -> None:
         block = self._function_block("renderAudioLibraryItem")
         for value in (
             "document.createElement('article')",
-            "document.createElement('h3')",
+            "row.setAttribute('role','row')",
             "title.textContent=audioLibraryTitle(item)",
-            "book.textContent=item.book_title",
-            "meta.textContent=pieces.join",
+            "created.textContent=audioLibraryCreatedAt(item)",
+            "duration.textContent=formatDurationMs(item.duration_ms)",
             "badge.textContent=qa.label",
-            "card.append(main,actions,configuration)",
+            "open.textContent=audioReviewActionLabel(item)",
+            "row.append(main,created,duration,statusCell,actions)",
         ):
             self.assertIn(value, block)
         self.assertNotIn("innerHTML", block)
+        header = self._function_block("audioReviewTableHeader")
+        for label in ("Chương", "Tạo lúc", "Thời lượng", "Trạng thái", "Hành động"):
+            self.assertIn(label, header)
 
-    def test_artifact_configuration_is_read_only_and_snapshot_scoped(self) -> None:
+    def test_artifact_configuration_is_read_only_and_detail_scoped(self) -> None:
         self.assertIn("function sequenceRanges", self.js)
         self.assertIn("function artifactConfigurationText", self.js)
         self.assertIn("async function loadArtifactConfiguration", self.js)
@@ -76,10 +84,10 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertIn("source.parent_id", text_block)
         self.assertIn("synthesis.attempt_count", text_block)
         self.assertIn("artifact.human_qa_event_id", text_block)
-        block = self._function_block("renderAudioLibraryItem")
-        self.assertIn("Cấu hình đã dùng để tạo audio này", block)
-        self.assertIn("loadArtifactConfiguration(item,configurationBody)", block)
-        self.assertNotIn("method:'POST'", block)
+        detail = self._function_block("renderAudioDetailActions")
+        self.assertIn("audioArtifactConfiguration", detail)
+        self.assertIn("loadArtifactConfiguration(item,configurationBody)", detail)
+        self.assertNotIn("method:'POST'", detail)
         self.assertIn(".audio-artifact-configuration", self.css)
 
     def test_qa_labels_preserve_api_semantics(self) -> None:
@@ -92,6 +100,15 @@ class AudioLibraryUiTests(unittest.TestCase):
         unknown_tail = block[block.index("return{label:'Chưa xác định'") :]
         self.assertNotIn("accepted", unknown_tail)
 
+    def test_pending_filter_and_summary_share_the_same_status_group(self) -> None:
+        group = self._function_block("audioQaFilterGroup")
+        summary = self._function_block("renderAudioReviewSummary")
+        filtered = self._function_block("filteredAudioLibraryItems")
+        self.assertIn("String(status||'pending').toLowerCase()", group)
+        self.assertIn("audioQaFilterGroup(item.human_qa_status)===status", summary)
+        self.assertIn("set('audioPendingCount',count('pending'))", summary)
+        self.assertIn("audioQaFilterGroup(item.human_qa_status)!==qa", filtered)
+
     def test_repair_feedback_separates_playback_and_replacement_speed(self) -> None:
         for value in (
             'id="audioQaPlaybackSpeed"',
@@ -103,29 +120,33 @@ class AudioLibraryUiTests(unittest.TestCase):
             "Gửi yêu cầu sửa",
         ):
             self.assertIn(value, self.html)
-        self.assertIn("Xem kế hoạch sửa", self.js)
+        self.assertIn("Tiếp tục sửa audio", self.js)
         self.assertIn("audio.playbackRate=Number(event.target.value||1)", self.js)
         self.assertIn("global_speed_target:speed", self.js)
         self.assertIn("repeated_words:repeated", self.js)
         self.assertIn("local_pacing_adjustment_required:local", self.js)
         self.assertIn("position_markers:state.audioQa.markers", self.js)
-        self.assertIn("if(changed)state.audioQa.markers=[]", self.js)
+        self.assertIn("if(changed)state.audioQa.markers=savedAudioQaMarkers(item)", self.js)
+        self.assertIn("draft={repeated:Boolean($('#audioQaRepeatedWords')?.checked)", self.js)
+        self.assertIn("$('#audioQaRepeatedWords').checked=draft.repeated", self.js)
         self.assertIn("submit.disabled=true", self.js)
         self.assertIn("Đang lưu phản hồi…", self.js)
         self.assertIn("qa_feedback", self.js)
 
-    def test_repair_plan_confirmation_is_a_separate_single_action(self) -> None:
+    def test_repair_request_opens_one_combined_review_and_keeps_media_gates_separate(self) -> None:
         block = self._function_block("productionRepairPlanContent")
         for value in (
-            "Kế hoạch sửa Chương",
+            "Kiểm tra toàn bộ bản sửa",
             "Khắc phục đoạn bị lặp chữ",
-            "Xác nhận kế hoạch sửa",
+            "Xác nhận bản sửa",
             "Quay lại nghe audio",
-            "Áp dụng sửa chữa",
+            "Vị trí cần xử lý",
             "Chi tiết kỹ thuật",
         ):
             self.assertIn(value, block)
         self.assertIn("CONFIRM_REPAIR_PLAN", self.js)
+        self.assertIn("APPLY_REPAIR_PLAN", self.js)
+        self.assertIn("CONFIRM_REPAIR_DRAFT", self.js)
         self.assertIn("repairPlanRequestedFromHash", self.js)
         self.assertIn("repair_plan=1", self.js)
         self.assertIn("openAudioQaRepairPlan", self.js)
@@ -133,47 +154,43 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertIn("REPAIR_PLAN_OPEN_STORAGE_KEY", self.js)
         self.assertIn("consumeRepairPlanOpen", self.js)
         self.assertNotIn("PREPARE", block)
+        submit = self._function_block("submitAudioQa")
+        self.assertIn("await openAudioQaRepairPlan(previous)", submit)
 
     def test_playback_and_download_use_only_api_safe_relative_url(self) -> None:
         safe_block = self._function_block("safeAudioLibraryUrl")
         self.assertIn(r"^\/api\/artifacts\/\d+\/file$", safe_block)
         item_block = self._function_block("renderAudioLibraryItem")
         select_block = self._function_block("selectAudioLibraryItem")
-        combined = item_block + select_block
+        detail_block = self._function_block("renderAudioDetailActions")
+        combined = item_block + select_block + detail_block
         self.assertIn("safeAudioLibraryUrl(item.file_url||item.download_url)", combined)
-        self.assertIn("download.href=url", combined)
-        self.assertIn("audio.src=url", combined)
-        self.assertNotIn("artifact_id}/file", combined)
-        self.assertNotIn("job_id", combined)
+        self.assertIn("download.href=url||'#'", detail_block)
+        self.assertIn("audio.src=url", select_block)
         self.assertNotIn("output_path", combined)
 
-    def test_unsafe_url_disables_playback_and_download(self) -> None:
+    def test_unsafe_url_disables_queue_action_and_download(self) -> None:
         item_block = self._function_block("renderAudioLibraryItem")
-        self.assertIn("play.disabled=!url", item_block)
-        self.assertIn("download.href='#'", item_block)
-        self.assertIn("download.setAttribute('aria-disabled','true')", item_block)
-        self.assertIn("event.preventDefault()", item_block)
-        self.assertIn("warning.textContent=", item_block)
+        detail_block = self._function_block("renderAudioDetailActions")
+        self.assertIn("open.disabled=!url", item_block)
+        self.assertIn("download.href=url||'#'", detail_block)
+        self.assertIn("aria-disabled", detail_block)
+        self.assertIn("event=>event.preventDefault()", detail_block)
 
-    def test_video_export_controls_are_visible_bounded_and_retry_safe(self) -> None:
+    def test_video_export_controls_live_in_selected_detail_and_are_retry_safe(self) -> None:
         safe_block = self._function_block("safeVideoExportUrl")
-        item_block = self._function_block("renderAudioLibraryItem")
+        detail_block = self._function_block("renderAudioDetailActions")
         export_block = self._function_block("exportAudioLibraryVideo")
         self.assertIn(r"^\/api\/video-exports\/artifact-\d+-[0-9a-f]{12}-[0-9a-f]{12}\/file$", safe_block)
-        self.assertIn("audioLibraryVideoState(item)", item_block)
-        self.assertIn("exportButton.textContent=video.status==='exporting'?'Đang xuất video…':'Xuất video'", item_block)
-        self.assertIn("exportButton.disabled=video.status==='exporting'||!!videoUrl||!videoAllowed", item_block)
-        self.assertIn("videoDownload.textContent='Tải video'", item_block)
-        self.assertIn("videoPreview.controls=true", item_block)
-        self.assertIn("videoPreview.preload='metadata'", item_block)
-        self.assertIn("videoPreview.src=videoUrl", item_block)
-        self.assertIn("videoPreview.setAttribute('aria-label',`Phát video ${audioLibraryTitle(item)}`)", item_block)
-        self.assertNotIn("videoPreview.play()", item_block)
-        self.assertIn("Video chỉ xuất sau khi audio đã được chấp nhận.", item_block)
+        self.assertIn("audioLibraryVideoState(item)", detail_block)
+        self.assertIn("video.status==='exporting'?'Đang xuất video…':'Xuất video'", detail_block)
+        self.assertIn("exportButton.disabled=video.status==='exporting'||!!videoUrl||!videoAllowed", detail_block)
+        self.assertIn("videoDownload.classList.toggle('hidden',!videoUrl)", detail_block)
+        self.assertIn("videoPreview.src=videoUrl", detail_block)
+        self.assertNotIn("videoPreview.play()", detail_block)
         self.assertIn("current?.status==='exporting'", export_block)
         self.assertIn("api(`/api/artifacts/${artifactId}/video-export`,{method:'POST'})", export_block)
         self.assertIn("safeVideoExportUrl(result.download_url)", export_block)
-        self.assertIn("message:result.reused?'Video đã sẵn sàng.':'Video đã xuất xong.'", export_block)
 
     def test_audio_library_does_not_autoplay_on_load(self) -> None:
         self.assertIn('id="audioLibraryAudio" controls preload="metadata"', self.html)
@@ -192,11 +209,20 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertIn("selectedArtifactId:contextItem?Number(contextItem.artifact_id):null", load_block)
         self.assertNotIn("play:true", load_block)
 
+    def test_audio_route_preselects_range_context_and_checks_zip_readiness(self) -> None:
+        self.assertIn("function audioLibraryContextRange(items)", self.js)
+        self.assertIn("function syncAudioRangeFromWorkingContext", self.js)
+        self.assertIn("state.audioArchive.selectedChapterIds=desired", self.js)
+        self.assertIn("await checkAudioRange()", self.js)
+        load_block = self._function_block("loadAudioLibrary")
+        self.assertIn("await syncAudioRangeFromWorkingContext(state.audioLibrary.items)", load_block)
+        self.assertIn("await syncAudioRangeFromWorkingContext(items)", load_block)
+
     def test_empty_loading_error_and_retry_are_explicit(self) -> None:
         render_block = self._function_block("renderAudioLibrary")
         for value in (
-            "Đang tải thư viện audio...",
-            "Không tải được thư viện audio.",
+            "Đang tải hàng đợi audio…",
+            "Không tải được hàng đợi audio.",
             "Chưa có audio hoàn thành.",
             "const items=Array.isArray(lib.items)?lib.items:[]",
             "resetAudioLibraryPlayer()",
@@ -233,6 +259,7 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertNotIn("/human-approval", audio_related)
         self.assertIn("HUMAN_QA_ACCEPT", self.js)
         self.assertIn("HUMAN_QA_NEEDS_FIXES", self.js)
+        self.assertNotIn("RESTORE_ACCEPTED_ARTIFACT", self.js)
         self.assertIn("/api/production/commands", self.js)
         submit = self._function_block("submitAudioQa")
         self.assertIn("runProductionCommand", submit)
@@ -241,16 +268,116 @@ class AudioLibraryUiTests(unittest.TestCase):
         self.assertNotIn("Chapter 369", self.html + self.js + self.css)
         self.assertNotIn("chapter 369", self.html + self.js + self.css)
 
-    def test_audio_library_styles_cover_list_player_and_mobile_layout(self) -> None:
+    def test_audio_review_does_not_expose_history_or_restore(self) -> None:
+        self.assertNotIn('id="audioQaHistory"', self.html)
+        self.assertNotIn("Khôi phục làm bản hiện tại", self.js)
+        self.assertNotIn("restoreAcceptedAudioArtifact", self.js)
+        self.assertNotIn("RESTORE_ACCEPTED_ARTIFACT", self.js)
+
+    def test_production_stage_accessibility_label_matches_four_visible_stages(self) -> None:
+        self.assertIn('aria-label="Bốn giai đoạn sản xuất"', self.html)
+        self.assertNotIn('aria-label="Sáu giai đoạn sản xuất"', self.html)
+        shell = self.html.split('id="productionStageShell"', 1)[1].split("</ol>", 1)[0]
+        self.assertEqual(shell.count("<li"), 4)
+        self.assertIn("grid-template-columns:repeat(4,minmax(0,1fr))", self.css)
+
+    def test_audio_review_styles_cover_master_detail_queue_and_mobile_layout(self) -> None:
         for value in (
-            ".audio-library-card",
-            ".audio-library-player",
-            ".audio-library-qa.pending",
-            ".audio-library-qa.accepted",
-            ".audio-library-empty",
-            "@media(max-width:800px){.audio-library-card,.audio-library-player{grid-template-columns:1fr}",
+            ".audio-review-summary",
+            ".audio-review-workspace",
+            ".audio-review-table-head",
+            ".audio-review-row",
+            ".audio-review-detail",
+            ".audio-qa-primary-actions",
+            ".audio-qa-repair-details",
+            "@media(max-width:760px)",
         ):
             self.assertIn(value, self.css)
+
+    def test_audio_review_row_grid_wins_over_legacy_card_layout(self) -> None:
+        specific = ".audio-review-table-head,.audio-library-card.audio-review-row{grid-template-columns:minmax(145px,1.45fr)"
+        self.assertIn(specific, self.css)
+        self.assertGreater(self.css.index(specific), self.css.rindex(".audio-library-card{"))
+        self.assertIn(
+            "@media(max-width:760px){.audio-library-card.audio-review-row{grid-template-columns:1fr auto",
+            self.css,
+        )
+
+    def test_audio_review_player_stays_in_flow_and_cannot_cover_qa_when_scrolling(self) -> None:
+        legacy_sticky = ".audio-library-player{position:sticky"
+        review_override = ".audio-review-detail .audio-library-player{position:static;top:auto;z-index:auto}"
+        self.assertIn(legacy_sticky, self.css)
+        self.assertIn(review_override, self.css)
+        self.assertGreater(self.css.index(review_override), self.css.rindex(legacy_sticky))
+        player = self.html.split('id="audioLibraryPlayer"', 1)[1].split("</div>\n            <section", 1)[0]
+        self.assertIn('id="audioArtifactConfiguration"', player)
+        self.assertIn('id="audioLibraryQaPanel"', self.html)
+
+    def test_machine_triage_sits_between_player_and_human_qa_and_discards_stale_response(self) -> None:
+        player = self.html.index('id="audioLibraryPlayer"')
+        machine = self.html.index('id="automatedAudioQaPanel"')
+        human = self.html.index('id="audioLibraryQaPanel"')
+        self.assertLess(player, machine)
+        self.assertLess(machine, human)
+        for value in (
+            "Điểm máy &amp; đoạn cần nghe",
+            'id="automatedAudioQaSummary"',
+            'id="automatedAudioQaScore"',
+            "Độ đúng lời đọc, độ giống giọng và độ tự nhiên chưa được chấm tự động.",
+            "automatedAudioQaIdentity(selected)!==identity",
+            "requestId!==automatedAudioQaState().requestId",
+            "/api/audio-library/${Number(item.artifact_id)}/automated-qa",
+            "pointTime=formatDurationMs(point.timestamp_ms)||'0:00'",
+            "audio.currentTime=Math.max(0,Number(point.timestamp_ms||0)/1000)",
+            "if(options.force){const current=automatedAudioQaState();state.audioLibrary.automatedQa={state:'not_loaded'",
+            "Có thể mất khoảng 1 phút; Player và Human QA vẫn dùng được.",
+            "assessment.technical_score",
+            "assessment.coverage_percent",
+            "Tiếp theo:",
+            "Máy phát hiện ${Number(resultSummary.risk_count||0)} dấu hiệu kỹ thuật và gom thành ${points.length} điểm cần nghe.",
+            "points.slice(0,5)",
+            "Xem thêm ${remaining} điểm",
+            "Thu gọn danh sách",
+            "if(changed){const detail=$('#audioReviewDetail');if(detail)detail.scrollTop=0}",
+        ):
+            self.assertIn(value, self.html + self.js)
+        self.assertNotIn("localStorage.setItem('automated", self.js)
+        self.assertIn(".automated-audio-qa-summary{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))", self.css)
+        self.assertIn(".automated-audio-qa-shortlist,.automated-audio-qa-more-list{display:grid;gap:7px}", self.css)
+        self.assertIn("grid-template-columns:48px minmax(0,1fr)", self.css)
+        self.assertIn("height:auto!important;min-height:0", self.css)
+        self.assertIn("-webkit-line-clamp:2", self.css)
+        self.assertNotIn(".automated-audio-qa-shortlist{max-height:", self.css)
+
+    def test_audio_review_detail_and_repair_form_own_readable_layout(self) -> None:
+        self.assertIn("@media(min-width:1101px){.audio-review-detail{position:sticky", self.css)
+        self.assertIn("max-height:calc(100vh - var(--ux-topbar-height) - 24px);overflow-y:auto", self.css)
+        self.assertIn(".audio-qa-feedback-options label{display:grid;grid-template-columns:20px minmax(0,1fr)", self.css)
+        self.assertIn('.audio-qa-feedback-options input[type="checkbox"]{width:18px!important', self.css)
+
+    def test_audio_removal_is_a_separate_confirmed_selection_flow(self) -> None:
+        for value in (
+            'id="audioDeleteMode"',
+            'id="audioDeleteSelected"',
+            'id="audioDeleteAllVisible"',
+            'id="audioDeleteDialog"',
+            'id="audioDeleteConfirmation"',
+            "Job, văn bản, cấu hình giọng và custom voice vẫn được giữ",
+        ):
+            self.assertIn(value, self.html)
+        self.assertIn("audioDeleteSelectedIds()", self.js)
+        self.assertIn("deleteSelection", self.js)
+        self.assertIn("'/api/audio-library/removal-preview'", self.js)
+        self.assertIn("'/api/audio-library/remove'", self.js)
+        self.assertIn("fingerprint:preview.fingerprint", self.js)
+        self.assertIn("idempotency_key:preview.idempotency_key", self.js)
+        self.assertIn("window.scrollTo({top:scrollY", self.js)
+        self.assertIn("audio-delete-mode .audio-range-selector{display:none}", self.css)
+
+    def test_filter_change_clears_hidden_delete_selection(self) -> None:
+        block = self._function_block("audioFilterChanged")
+        self.assertIn("state.audioLibrary.deleteSelection=[]", block)
+        self.assertIn("renderAudioLibrary()", block)
 
 
 if __name__ == "__main__":

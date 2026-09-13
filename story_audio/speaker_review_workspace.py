@@ -134,8 +134,6 @@ def batch_exclusion_reasons(
         reasons.append("warning_requires_review")
     if item.get("continuity_conflict"):
         reasons.append("continuity_conflict")
-    if item.get("approved_final_voice_map_available") is False:
-        reasons.append("approved_final_voice_map_missing")
     if item.get("stale") or item.get("source_revision_current") is False:
         reasons.append("stale_source_revision")
     voice = item.get("effective_inherited_voice")

@@ -2,25 +2,17 @@
 
 Roadmap mo ta thu tu uu tien, khong phai cam ket thoi gian. Uu tien theo: bao ve du lieu -> kha nang phuc hoi -> chat luong audio -> tinh nang moi.
 
-## Current Boundary - 2026-07-26
+## Current Boundary - 2026-08-31
 
-`DAILY-PROD-5` is complete and production-proven. Canonical schema `15`,
-authenticated PREPARE, explicit separate START_RENDER, worker execution,
-Audio Library retrieval, and durable restart have completed both a corrected
-one-chapter canary and one contiguous two-chapter pilot.
+The active product work is `STORY_AUDIO_V2C_DAILY_PRODUCTION_GOLDEN_JOURNEY`,
+defined in `TASK.md`. It connects the existing Home, Production, monitoring,
+Audio, and Human QA entry surfaces through deterministic fixtures, with no
+canonical production or provider effect. The work uses the Thin OS operating
+model in `AGENTS.md`; Build OS lifecycle/adoption work is not an active product
+milestone.
 
-The two-chapter pilot completed Book `1`, Chapters `372-373`, on exactly one
-PREPARE request and Job `26`. Artifacts `93/96` passed technical and cached
-offline intelligibility screening but remain Human QA pending.
-
-Daily-Use V1 UI closure is complete. Routine operation now has primary
-Production, Voice Assignment, Jobs, Audio Library, and Storage views; global
-runtime gates; explicit QA/history; chapter and range download; safe storage
-report/dry-run/confirmed cleanup; and supervised restart. This closure created
-no production work and made no QA decision.
-
-The only authorized next task is full human listening and one QA decision for
-each Artifact `93/96`. Do not start a larger batch before those decisions.
+Historical runtime/artifact and Build OS reconciliation notes below remain
+evidence only. They do not authorize a production action or a lifecycle action.
 
 ## Completed
 
@@ -47,6 +39,7 @@ each Artifact `93/96`. Do not start a larger batch before those decisions.
 - Production validation evidence: Chapters 364-368 completed routine production with Human QA PASS and active artifacts 69, 72, 78, 75, and 84.
 - Reusable hardening after production blockers: runtime identity/active-output clarity, separated speaker-review workflow, prepared-job lifecycle, targeted text correction workflow, repair-block workflow, and custom voice preview provenance fail-closed guard.
 - DAILY-PROD-1 - Modular Navigation And Sequential Production Shell: complete.
+- DAILY-USE-V2A - First-Run And Navigation Closure: complete. Home now gives a zero-book operator a direct EPUB import path; Home, Production, and Audio are the daily primary navigation; setup and monitoring live in one discoverable secondary menu; Production detours preserve and visibly return to the original scope.
 - DAILY-PROD-2 - Custom Voice Assignment UI Closure: complete.
 - DAILY-PROD-3 - Audio Library And Output Retrieval: complete. `DAILY-PROD-3A` added read-only `GET /api/audio-library`, active-artifact semantics, runtime QA labels, safe playback/download, loading/error/empty/refresh states, and browser/runtime validation.
 - DAILY-PROD-4 - Range Readiness And Exception Queue: complete. `DAILY-PROD-4A` added read-only `GET /api/production/range-readiness`, active-output and QA semantics, deterministic workflow precedence, summary counts, ordered chapter list, exception queue, safe single-chapter navigation, and runtime/browser validation with no production mutation.
@@ -65,7 +58,7 @@ each Artifact `93/96`. Do not start a larger batch before those decisions.
 - DAILY-PROD-5B Phase 12 - Clone Rehearsal And Disabled Runtime Wiring: complete. Implementation commit `843f688` added read-only-source external clone creation, explicit dormant migration `12 -> 15`, stage failure rollback, exact backup-hash full-file restore, bounded evidence, disabled wiring, and isolation tests. Canonical schema remains `12`; production mutation remains unauthorized.
 - DAILY-PROD-5B Phase 13 - Clone-Only Disabled Runtime And Authentication Boundary: complete. Implementation commit `a60b94c` added fail-closed clone runtime selection, immutable read-only DB access, GET-only readiness, startup/restart acceptance, SHA-256/constant-time single-operator authentication, and redaction. Full offline suite passed `1608` tests with `1` skip; canonical schema remained `12` and Chapter 369 remained unchanged.
 - DAILY-PROD-5 - Batch Approval, Prepare, Render And QA Closeout: complete and production-proven through authenticated canonical PREPARE, explicit START_RENDER, Job `26`, two completed JobChapters, `111/111` verified Segments, and Artifacts `93/96`.
-- DAILY-PROD-6 - Multi-Chapter Production Acceptance: technical pilot complete; Human Audio QA for Artifacts `93/96` remains the only open acceptance gate.
+- DAILY-PROD-6 - Multi-Chapter Production Acceptance: historical technical pilot complete. Its former Artifact `93/96` QA note is superseded by current authority: Artifact `93` is stale, Artifact `99` is the active approved Chapter `372` output, and active Artifact `96` for Chapter `373` remains pending. This roadmap does not authorize that Human QA action.
 
 ## Current Strategic Phase
 
@@ -79,14 +72,13 @@ System development is now authorized only for the ordered `DAILY-PROD` milestone
 
 Chapter production tasks, including Chapter 369 voice selection or Casting Plan review, remain production operations. They do not redefine this strategic roadmap and are not active until the operator resumes them.
 
-## Active System Milestone
+## Active Product Milestone
 
-**DAILY-PROD-6 - Multi-Chapter Production Acceptance**
+**STORY_AUDIO_V2C_DAILY_PRODUCTION_GOLDEN_JOURNEY**
 
-Technical acceptance is complete. The remaining milestone gate is human
-full-chapter listening of Artifacts `93/96`, with one explicit `approved` or
-`needs_fixes` decision per chapter. A larger production batch is not authorized
-until both decisions are recorded.
+Finish and verify the fixture-backed daily production journey, including scope
+preservation through detours and refresh, one truthful next action, separate
+PREPARE/START_RENDER boundaries, job monitoring, Audio, and Human QA entry.
 
 ## Ordered Daily Production UX Roadmap
 
@@ -99,7 +91,9 @@ until both decisions are recorded.
 
 ## Next
 
-`Human-listen to active Artifacts 93 and 96 for Book 1 Chapters 372-373, then record acceptance or one precise remediation target for each chapter.`
+Complete V2C verification and submit the bounded product commit for Tech Lead
+review. No provider, canonical DB, PREPARE, START_RENDER, or Human QA action is
+authorized by this roadmap item.
 
 ## Historical Next (superseded)
 

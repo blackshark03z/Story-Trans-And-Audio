@@ -701,9 +701,20 @@ class ListeningChecklistTests(IsolatedTestCase):
             except OSError:
                 self.skipTest("symlink not permitted")
             report = json.loads(self.fixture.qa_report_path.read_text(encoding="utf-8"))
+            timeline = json.loads(self.fixture.timeline_path.read_text(encoding="utf-8"))
+            manifest = json.loads(self.fixture.manifest_path.read_text(encoding="utf-8"))
+            target_sha256 = sha256_file(target)
             report["segment_results"][0]["segment_file_absolute_path"] = str(symlink)
             report["segment_results"][0]["segment_file_relative_to_data_root"] = symlink.relative_to(self.fixture.data_root).as_posix()
-            report["segment_results"][0]["segment_audio_sha256"] = sha256_file(target)
+            report["segment_results"][0]["segment_audio_sha256"] = target_sha256
+            timeline["items"][0]["segment_sha256"] = target_sha256
+            self.fixture.timeline_path.write_text(json.dumps(timeline, ensure_ascii=False), encoding="utf-8")
+            timeline_sha256 = sha256_file(self.fixture.timeline_path)
+            timeline_artifact = next(item for item in manifest["artifacts"] if item["artifact_type"] == "segment_timeline_json")
+            timeline_artifact["computed_sha256"] = timeline_sha256
+            timeline_artifact["stored_sha256"] = timeline_sha256
+            self.fixture.manifest_path.write_text(json.dumps(manifest, ensure_ascii=False), encoding="utf-8")
+            report["identity"]["source_manifest_sha256"] = sha256_file(self.fixture.manifest_path)
             self.fixture.qa_report_path.write_text(json.dumps(report, ensure_ascii=False), encoding="utf-8")
             with self.assertRaisesRegex(Exception, "symlink"):
                 self._build()

@@ -6,10 +6,12 @@ No real model loading, no real synthesis, no network access.
 """
 
 import json
+import sys
 import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from types import ModuleType
 from unittest.mock import MagicMock, patch
 
 import numpy as np
@@ -48,8 +50,12 @@ class TestTtsSnapshotIntegration(unittest.TestCase):
         self.service = TtsService()
         self.mock_engine = MockVieneu()
 
-        # Patch vieneu.Vieneu to use mock (imported inside ensure_loaded)
-        self.vieneu_patcher = patch('vieneu.Vieneu', return_value=self.mock_engine)
+        # Supply the optional provider boundary as a local module fake. Patching
+        # an attribute on an installed vieneu package made this offline suite
+        # depend on the developer machine's provider environment.
+        vieneu_module = ModuleType("vieneu")
+        vieneu_module.Vieneu = MagicMock(return_value=self.mock_engine)
+        self.vieneu_patcher = patch.dict(sys.modules, {"vieneu": vieneu_module})
         self.vieneu_patcher.start()
 
     def tearDown(self):

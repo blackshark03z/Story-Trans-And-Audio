@@ -540,13 +540,16 @@ class BatchPrepareIsolatedIntegrationTests(unittest.TestCase):
                 with self.assertRaises(AssertionError):
                     _assert_isolated_db_path(variant)
         _assert_isolated_db_path(self.db_path)
-        before_hash = hashlib.sha256(canonical.read_bytes()).hexdigest()
-        before_stat = canonical.stat()
-        after_hash = hashlib.sha256(canonical.read_bytes()).hexdigest()
-        after_stat = canonical.stat()
-        self.assertEqual(before_hash, after_hash)
-        self.assertEqual(before_stat.st_size, after_stat.st_size)
-        self.assertEqual(before_stat.st_mtime, after_stat.st_mtime)
+        if canonical.exists():
+            before_hash = hashlib.sha256(canonical.read_bytes()).hexdigest()
+            before_stat = canonical.stat()
+            after_hash = hashlib.sha256(canonical.read_bytes()).hexdigest()
+            after_stat = canonical.stat()
+            self.assertEqual(before_hash, after_hash)
+            self.assertEqual(before_stat.st_size, after_stat.st_size)
+            self.assertEqual(before_stat.st_mtime, after_stat.st_mtime)
+        else:
+            self.assertFalse(canonical.exists(), "path guard must not create the canonical database")
 
     def test_integration_harness_has_no_execution_route_or_specific_chapter_coupling(self) -> None:
         database_13 = self._upgrade_to_schema_13()

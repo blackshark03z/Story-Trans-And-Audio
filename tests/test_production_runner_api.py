@@ -6,6 +6,7 @@ from unittest.mock import MagicMock, patch
 from fastapi.testclient import TestClient
 
 from story_audio.casting import approve_plan, create_casting_draft
+from story_audio.custom_voice import CustomVoiceRepository
 from story_audio.db import Database
 from story_audio.files import sha256_text
 from story_audio.storage import ContentStore
@@ -75,9 +76,11 @@ class ProductionRunnerApiTests(IsolatedTestCase):
         self._original_store = api_module.store
         self._original_settings = api_module.settings
         self._original_tts = api_module.tts_service
+        self._original_custom_voice_repo = api_module.custom_voice_repo
         api_module.db = self.db
         api_module.store = self.store
         api_module.settings = self.config
+        api_module.custom_voice_repo = CustomVoiceRepository(self.db, self.store)
         mock_tts = MagicMock()
         mock_tts.voices.return_value = [
             {"id": "ngoc_lan", "label": "Ngọc Lan"},
@@ -94,6 +97,7 @@ class ProductionRunnerApiTests(IsolatedTestCase):
         api_module.store = self._original_store
         api_module.settings = self._original_settings
         api_module.tts_service = self._original_tts
+        api_module.custom_voice_repo = self._original_custom_voice_repo
         self._multipart_patcher.stop()
         super().tearDown()
 

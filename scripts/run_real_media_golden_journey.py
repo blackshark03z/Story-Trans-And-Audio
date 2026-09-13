@@ -15,6 +15,12 @@ from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
+# The acceptance runtime must serve this checkout, not an installed/editable Story Audio package.
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+else:
+    sys.path.remove(str(REPO_ROOT))
+    sys.path.insert(0, str(REPO_ROOT))
 SOURCE_DATA = REPO_ROOT / "data"
 RUNTIME_ROOT = Path(r"C:\StoryAudio_RealMediaJourney")
 TEMP_ROOT = Path(r"C:\StoryAudio_Temp")
@@ -79,6 +85,23 @@ def _load_production_runtime_env() -> dict[str, str]:
         raise ValueError("PREPARE_OPERATOR_TOKEN is required in production-runtime.env")
     values["PREPARE_OPERATOR_TOKEN_SHA256"] = _sha256_text(raw_token)
     return values
+
+
+def _load_operator_bootstrap_token() -> str:
+    """Read the launcher-only credential for the one-time in-memory session handoff."""
+    if not PRODUCTION_ENV.is_file():
+        raise FileNotFoundError(f"Missing production runtime env file: {PRODUCTION_ENV}")
+    for line in PRODUCTION_ENV.read_text(encoding="utf-8-sig").splitlines():
+        trimmed = line.strip()
+        if not trimmed or trimmed.startswith("#") or "=" not in trimmed:
+            continue
+        name, value = trimmed.split("=", 1)
+        if name.strip() == "PREPARE_OPERATOR_TOKEN":
+            token = value.strip()
+            if not token:
+                break
+            return token
+    raise ValueError("PREPARE_OPERATOR_TOKEN is required in production-runtime.env")
 
 
 def _is_relative_to(path: Path, parent: Path) -> bool:
@@ -192,8 +215,10 @@ def _validate_existing_clone(run_root: Path) -> Path:
 
 def _configure_environment(run_root: Path, data_root: Path, temp_root: Path) -> None:
     env = _load_production_runtime_env()
+    bootstrap_token = _load_operator_bootstrap_token()
     env.update(
         {
+            "STORY_AUDIO_OPERATOR_TOKEN_BOOTSTRAP": bootstrap_token,
             "STORY_AUDIO_DATA_DIR": str(data_root),
             "STORY_AUDIO_ALLOW_LIVE_DB": "1",
             "STORY_AUDIO_SUPERVISED": "1",

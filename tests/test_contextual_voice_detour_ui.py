@@ -102,7 +102,7 @@ console.log(JSON.stringify({
 
     def test_return_refreshes_catalog_resolver_and_preserves_explicit_save_boundaries(self) -> None:
         for value in (
-            "await refreshCatalog()",
+            "await refreshCatalog(context)",
             "await root.openChapter(context.chapterId, {initialTab:'casting', replaceScopeRoute:true})",
             "await root.openCasting()",
             "applyUnsavedPreselection",
@@ -137,6 +137,70 @@ console.log(JSON.stringify({
         for forbidden in ("previewVoice", "previewPresetVoice", "libraryGenerateTestAudio", "tts", "Gemini"):
             self.assertNotIn(forbidden, self.detour_js)
 
+    def test_create_intent_opens_primary_form_and_locks_the_origin_book(self) -> None:
+        self.assertIn("context.operation === 'create_voice'", self.detour_js)
+        self.assertIn("createSection.open = true", self.detour_js)
+        self.assertIn("bookSelect.disabled = true", self.detour_js)
+        self.assertIn("libraryNewName", self.detour_js)
+        self.assertLess(
+            self.html.index('id="libraryCreateSection"'),
+            self.html.index('id="libraryVoiceList"'),
+        )
+
+    def test_return_uses_only_an_explicit_result_not_a_stale_library_selection(self) -> None:
+        start = self.detour_js.index("function currentVoiceKeyForContext")
+        end = self.detour_js.index("function selectedLibraryVoiceKey", start)
+        current_key_function = self.detour_js[start:end]
+        self.assertIn("resultAssignmentKey", current_key_function)
+        self.assertNotIn("selectedVoiceId", current_key_function)
+        self.assertIn("useSelectedVoice", self.detour_js)
+        self.assertIn("context.resultAssignmentKey", self.detour_js)
+
+    def test_only_successful_create_is_recorded_as_the_new_voice(self) -> None:
+        self.assertIn("return {ok:true,voice}", self.app_js)
+        self.assertIn("return {ok:false,reason:'request'", self.app_js)
+        self.assertIn("result?.ok ? safeNumber(result?.voice?.id) : null", self.detour_js)
+        self.assertIn("afterVoiceMutation(result)", self.detour_js)
+
+    def test_saved_voice_has_an_explicit_use_action_and_catalog_refresh(self) -> None:
+        self.assertIn('id="libraryUseCreatedVoice"', self.html)
+        self.assertIn("await refreshCatalog(context)", self.detour_js)
+        self.assertIn("Dùng giọng này", self.detour_js)
+        self.assertIn("Giọng đã sẵn sàng trong danh sách cấu hình nhân vật", self.app_js)
+
+    def test_current_assignment_registry_can_create_and_return_to_exact_voice_field(self) -> None:
+        for value in (
+            "data-registry-add-custom",
+            "Thêm giọng custom",
+            "registry-voice-narrator",
+            "registry-voice-character-",
+            "openRegistryVoiceDetour",
+            "rememberRegistryDraft(speakerKey)",
+            "originRoute:'assignment'",
+            "returnRoute:'assignment'",
+            "loadBookVoiceRegistry({force:true})",
+        ):
+            self.assertIn(value, self.app_js + self.detour_js)
+        data = node_json(
+            """
+const detour = require('./ui/contextual_voice_detour.js');
+const context = detour.normalizeContext({
+  originRoute: 'assignment', returnRoute: 'assignment', destination: 'voices',
+  originType: 'character_override', operation: 'create_voice',
+  fieldId: 'registry-voice-character-7', speakerKey: 'character:7',
+  bookId: 1, chapterId: 1, characterId: 7,
+  fromChapter: 1, toChapter: 5, skipCompleted: true, createdAt: 1000,
+}, 1000);
+console.log(JSON.stringify({route: detour.routeHash('assignment', context)}));
+"""
+        )
+        self.assertEqual(data["route"], "#/assignment?book=1&from=1&to=5&skip_completed=1")
+
+    def test_assignment_loads_the_voice_catalog_for_its_range_book(self) -> None:
+        self.assertIn("loadVoiceCatalog(bookIdOverride=null)", self.app_js)
+        self.assertIn("loadVoiceCatalog(context.bookId)", self.app_js)
+        self.assertIn("state.voiceCatalog?.book_id", self.app_js)
+
     def test_cancel_and_stale_context_clear_without_mutation(self) -> None:
         for value in (
             "clearContext()",
@@ -152,7 +216,7 @@ console.log(JSON.stringify({
 
     def test_detour_activation_defers_route_change_until_after_click_event(self) -> None:
         self.assertIn("root.setTimeout?.(() => beginDetour(context), 0)", self.detour_js)
-        self.assertIn("root.setTimeout?.(() => {", self.detour_js)
+        self.assertIn("root.setTimeout?.(async () => {", self.detour_js)
         self.assertIn("navigateToDestination(saved)", self.detour_js)
         self.assertIn("onlyBannerMutations", self.detour_js)
         self.assertIn("#voiceDetourBanner", self.detour_js)

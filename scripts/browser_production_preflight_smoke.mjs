@@ -3,6 +3,7 @@ import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { boundedBrowserTimeout } from "./browser_acceptance_runtime.mjs";
 
 const baseUrl = process.argv[2];
 if (!baseUrl) throw new Error("Usage: node scripts/browser_production_preflight_smoke.mjs <base-url>");
@@ -27,7 +28,7 @@ const child = spawn(browserExe, [
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function poll(callback, timeoutMs = 12000) {
-  const deadline = Date.now() + timeoutMs;
+  const deadline = Date.now() + boundedBrowserTimeout(timeoutMs);
   let lastError;
   while (Date.now() < deadline) {
     try {
@@ -109,9 +110,9 @@ try {
       conflict:{label:"Job xung đột",passed:2,total:2,failed_chapters:[]},
     };
     const action=taskType==="START_RENDER_RANGE"?{key:"START_RENDER_RANGE",label:"Bắt đầu render phạm vi",target:"render"}:taskType==="MONITOR_RENDER"?{key:"MONITOR_RENDER",label:"Theo dõi render",target:"render"}:!ready?{key:blocker.next_task,label:blocker.action_label,target:blocker.target}:!authorized?{key:"AUTHENTICATE_EXECUTION",label:"Xác thực để chuẩn bị",target:"authentication"}:{key:"PREPARE_RANGE",label:"Chuẩn bị phạm vi",target:"prepare"};
-    state.productionPreflight={schema:"story-audio-production-preflight/v1",range:{book:{id:8,title:"Sách kiểm thử"},from_chapter:372,to_chapter:373,selected_chapter_count:2,included_chapters:ready?[{chapter_number:372},{chapter_number:373}]:[{chapter_number:372}],excluded_chapters:blocker?[{chapter_number:373,reason:blocker.reason,reason_codes:["BLOCKED"]}]:[],skip_completed:true},data_readiness:{ready,...checks,ordered_blockers:blocker?[blocker]:[]},effective_voice_map:[{speaker_name:"Người kể chuyện",role:"narrator",effective_voice_name:"Chanlee",assignment_source:"book_default",affected_chapters:[372,373],line_count:38,available:true,warning:null},{speaker_name:"Hứa Thanh",role:"character",effective_voice_name:voiceUnavailable?"Giọng không khả dụng":"Hứa Thanh",assignment_source:"override",affected_chapters:[373],line_count:4,available:!voiceUnavailable,warning:voiceUnavailable?"Giọng đã lưu không còn khả dụng.":null}],execution_readiness:{prepare_allowed:ready&&authorized&&taskType==="PREPARE_RANGE",render_allowed:prepared&&authorized,authorization_ready:authorized,schema_ready:true,kill_switch_clear:true,conflict_free:true,prepared_job:prepared?{job_id:81,status:"prepared",chapter_count:2}:null},execution_preview:{chapter_count:ready?2:1,estimated_segment_count:42,voice_count:2,prepare_effect:"Pins inputs",tts_called:false,next_action:action},technical_details:{range_identity:"book:8:372-373",task_key:canonical.task_key,task_type:taskType,plan_fingerprint:"abc123secretfingerprint",included_chapter_ids:[7001,7002],casting_plan_ids:[91,92],voice_ids:["custom:25","custom:26"],authentication_state:authorized?"AUTH_CONFIGURED":"AUTH_NOT_CONFIGURED",runtime_status:"READY",runtime_reasons:[],voice_warnings:voiceUnavailable?["VOICE_UNAVAILABLE"]:[]}};
+    state.productionPreflight={schema:"story-audio-production-preflight/v1",range:{book:{id:8,title:"Sách kiểm thử"},from_chapter:372,to_chapter:373,selected_chapter_count:2,included_chapters:ready?[{chapter_number:372},{chapter_number:373}]:[{chapter_number:372}],excluded_chapters:blocker?[{chapter_number:373,reason:blocker.reason,reason_codes:["BLOCKED"]}]:[],skip_completed:true},data_readiness:{ready,...checks,ordered_blockers:blocker?[blocker]:[]},effective_voice_map:[{speaker_name:"Người kể chuyện",role:"narrator",effective_voice_name:"Chanlee",assignment_source:"book_default",affected_chapters:[372,373],line_count:38,available:true,warning:null},{speaker_name:"Hứa Thanh",role:"character",effective_voice_name:voiceUnavailable?"Giọng không khả dụng":"Hứa Thanh",assignment_source:"override",affected_chapters:[373],line_count:4,available:!voiceUnavailable,warning:voiceUnavailable?"Giọng đã lưu không còn khả dụng.":null}],effective_synthesis_settings:{temperature:0.8,top_k:40,max_chars:500,silence_seconds:0.25},execution_readiness:{prepare_allowed:ready&&authorized&&taskType==="PREPARE_RANGE",render_allowed:prepared&&authorized,authorization_ready:authorized,schema_ready:true,kill_switch_clear:true,conflict_free:true,prepared_job:prepared?{job_id:81,status:"prepared",chapter_count:2}:null},execution_preview:{chapter_count:ready?2:1,estimated_segment_count:42,voice_count:2,prepare_effect:"Pins inputs",tts_called:false,next_action:action},technical_details:{range_identity:"book:8:372-373",task_key:canonical.task_key,task_type:taskType,plan_fingerprint:"abc123secretfingerprint",included_chapter_ids:[7001,7002],casting_plan_ids:[91,92],voice_ids:["custom:25","custom:26"],authentication_state:authorized?"AUTH_CONFIGURED":"AUTH_NOT_CONFIGURED",runtime_status:"READY",runtime_reasons:[],voice_warnings:voiceUnavailable?["VOICE_UNAVAILABLE"]:[]}};
     renderProductionShell();
-    const primary=document.querySelector("#productionPrimaryAction"),review=document.querySelector("[data-production-preflight]"),details=document.querySelector("#productionTechnicalDetails"),voice=document.querySelector(".production-preflight-table"),verdict=document.querySelector(".production-preflight-verdict"),checklist=document.querySelector(".production-preflight-checklist");
+    const primary=document.querySelector("#productionPrimaryAction"),review=document.querySelector(".owner-create-review,[data-production-preflight]"),details=document.querySelector("#productionTechnicalDetails"),voice=document.querySelector(".owner-voice-map,.production-preflight-table"),verdict=document.querySelector(".owner-decision-note,.production-preflight-verdict"),checklist=document.querySelector(".owner-readiness-list,.production-preflight-checklist");
     const rect=element=>{const value=element?.getBoundingClientRect();return value?{top:value.top,bottom:value.bottom,left:value.left,right:value.right,width:value.width,height:value.height}:null};
     const legacy=document.querySelector("#productionLegacyJobPanel");
     return{primary:primary.textContent.trim(),body:review?.innerText||"",detailsOpen:details.open,rawIdsVisible:(review?.innerText||"").includes("custom:")||(review?.innerText||"").includes("abc123"),rawAuthVisible:document.body.innerText.includes("AUTH_CONFIGURED"),legacyVisible:!!legacy&&!legacy.hidden,get legacyInert(){return legacy?.hasAttribute("inert")||false},dialogOpen:document.querySelector("#productionPrepareAuthDialog").open,positions:{primary:rect(primary),verdict:rect(verdict),checklist:rect(checklist),voice:rect(voice)},horizontal:document.documentElement.scrollWidth>innerWidth+1};
@@ -123,6 +124,7 @@ try {
   await evaluate(`document.querySelector("#productionPrimaryAction").click()`);
   const readyDialog = await evaluate(`({open:document.querySelector("#productionPrepareAuthDialog").open,confirm:document.querySelector("#productionPrepareConfirmationCopy").textContent,submitDisabled:document.querySelector("#productionPrepareDialogSubmit").disabled})`);
   const readyDialogEnabled = await evaluate(`(()=>{document.querySelector("#productionPrepareDialogConfirmation").checked=true;updateProductionPrepareDialog();return !document.querySelector("#productionPrepareDialogSubmit").disabled})()`);
+  const readyDialogInvalidated = await evaluate(`(()=>{const checkbox=document.querySelector("#productionPrepareDialogConfirmation"),submit=document.querySelector("#productionPrepareDialogSubmit"),status=document.querySelector("#productionPrepareDialogStatus");state.productionPreflight.technical_details.plan_fingerprint="changed-after-review";updateProductionPrepareDialog();return{checked:checkbox.checked,submitDisabled:submit.disabled,status:status.textContent}})()`);
   await evaluate(`document.querySelector("#productionPrepareAuthDialog").close()`);
   const scenarioC = await show({ authorized: false });
   await evaluate(`document.querySelector("#productionPrimaryAction").click()`);
@@ -131,24 +133,33 @@ try {
   const scenarioD = await show({ voiceUnavailable: true });
   const scenarioE = await show({ taskType: "START_RENDER_RANGE" });
   const scenarioRunning = await show({ taskType: "MONITOR_RENDER" });
+  const runningPolling = await evaluate(`(() => {
+    const task=document.querySelector('#productionTaskContent');
+    for(let i=0;i<20;i+=1)refreshProductionTaskBusiness(currentProductionViewModel());
+    const cards=[...document.querySelectorAll('.production-synthesis-settings .production-preflight-check')];
+    const labelWidths=cards.map(card=>card.querySelector('strong')?.getBoundingClientRect().width||0);
+    return {contexts:task.querySelectorAll('.production-range-progress-context').length,panels:task.querySelectorAll('[data-render-progress-panel]').length,scrollRegion:!!task.querySelector('.production-monitor-scroll'),ttsCards:cards.length,minLabelWidth:labelWidths.length?Math.min(...labelWidths):0};
+  })()`);
   const scenarioF = await evaluate(`({open:document.querySelector("#productionTechnicalDetails").open,technical:document.querySelector("#productionTechnicalBody").textContent})`);
   const scenarioG = await show({});
   const scenarioH = await evaluate(`(async()=>{const details=document.querySelector("#productionTechnicalDetails"),primary=document.querySelector("#productionPrimaryAction");details.open=true;primary.focus();const key=currentProductionViewModel().task_key;for(let i=0;i<4;i+=1){await new Promise(resolve=>setTimeout(resolve,80));renderProductionShell()}return{detailsOpen:details.open,focus:document.activeElement===primary,keyStable:currentProductionViewModel().task_key===key}})()`);
 
-  const visibleAt1366 = ["primary", "verdict", "checklist", "voice"].every(key => {
-    const rect = scenarioG.positions[key];
-    return rect && rect.top < 768 && rect.bottom > 0;
-  });
+  const contextBeforePrimary = ["voice", "checklist", "verdict", "primary"].every(key => scenarioG.positions[key])
+    && scenarioG.positions.voice.top < scenarioG.positions.checklist.top
+    && scenarioG.positions.checklist.top < scenarioG.positions.verdict.top
+    && scenarioG.positions.verdict.bottom <= scenarioG.positions.primary.top;
   if (scenarioA.primary !== "Xử lý điều kiện còn thiếu") throw new Error(`Scenario A failed: ${JSON.stringify(scenarioA)}`);
   if (blockerNavigation.chapterId !== 7002 || blockerNavigation.target !== "speakers") throw new Error(`Blocker navigation failed: ${JSON.stringify(blockerNavigation)}`);
-  if (!scenarioB.body.includes("Sẵn sàng chuẩn bị") || !scenarioB.body.includes("Chanlee") || scenarioB.primary !== "Chuẩn bị audio") throw new Error(`Scenario B failed: ${JSON.stringify(scenarioB)}`);
-  if (!readyDialog.open || !readyDialog.confirm.includes("372–373") || !readyDialog.submitDisabled || !readyDialogEnabled) throw new Error(`Ready confirmation failed: ${JSON.stringify({ readyDialog, readyDialogEnabled })}`);
+  if (!scenarioB.body.includes("Sẵn sàng khóa đầu vào") || !scenarioB.body.includes("Chanlee") || scenarioB.primary !== "Chuẩn bị tạo audio") throw new Error(`Scenario B failed: ${JSON.stringify(scenarioB)}`);
+  if (!readyDialog.open || !readyDialog.confirm.includes("372–373") || !readyDialog.confirm.includes("bản đồ giọng") || !readyDialog.confirm.includes("TTS") || !readyDialog.submitDisabled || !readyDialogEnabled) throw new Error(`Ready confirmation failed: ${JSON.stringify({ readyDialog, readyDialogEnabled })}`);
+  if (readyDialogInvalidated.checked || !readyDialogInvalidated.submitDisabled || !readyDialogInvalidated.status.includes("Đầu vào vừa thay đổi")) throw new Error(`Review fingerprint invalidation failed: ${JSON.stringify(readyDialogInvalidated)}`);
   if (scenarioC.primary !== "Kiểm tra lại môi trường" || authDialog.open) throw new Error(`Scenario C failed: ${JSON.stringify({ scenarioC, authDialog })}`);
   if (scenarioD.primary !== "Xử lý điều kiện còn thiếu") throw new Error(`Scenario D failed: ${JSON.stringify(scenarioD)}`);
   if (scenarioE.primary !== "Bắt đầu tạo audio" || scenarioE.body.includes("Chuẩn bị 2 chương")) throw new Error(`Scenario E failed: ${JSON.stringify(scenarioE)}`);
   if (scenarioRunning.primary !== "Đang tạo audio…" || !scenarioRunning.body.includes("đoạn hoàn tất")) throw new Error(`Running state failed: ${JSON.stringify(scenarioRunning)}`);
+  if (runningPolling.contexts !== 1 || runningPolling.panels !== 1 || !runningPolling.scrollRegion || runningPolling.ttsCards !== 4 || runningPolling.minLabelWidth < 80) throw new Error(`Running polling/layout failed: ${JSON.stringify(runningPolling)}`);
   if (scenarioF.open || !scenarioF.technical.includes("plan_fingerprint")) throw new Error(`Scenario F failed: ${JSON.stringify(scenarioF)}`);
-  if (!visibleAt1366 || scenarioG.horizontal || scenarioG.rawIdsVisible || scenarioG.rawAuthVisible || scenarioG.legacyVisible || !scenarioG.legacyInert) throw new Error(`Scenario G failed: ${JSON.stringify(scenarioG)}`);
+  if (!contextBeforePrimary || scenarioG.horizontal || scenarioG.rawIdsVisible || scenarioG.rawAuthVisible || scenarioG.legacyVisible || !scenarioG.legacyInert) throw new Error(`Scenario G failed: ${JSON.stringify(scenarioG)}`);
   if (!scenarioH.detailsOpen || !scenarioH.focus || !scenarioH.keyStable) throw new Error(`Scenario H failed: ${JSON.stringify(scenarioH)}`);
 
   await send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
@@ -156,7 +167,7 @@ try {
   if (desktop.horizontal || !desktop.primaryVisible) throw new Error(`1920 layout failed: ${JSON.stringify(desktop)}`);
   if (browserErrors.length) throw new Error(`Browser errors: ${browserErrors.join(" | ")}`);
 
-  process.stdout.write(JSON.stringify({ ok: true, scenarioA, blockerNavigation, scenarioB, readyDialog, readyDialogEnabled, scenarioC, authDialog, scenarioD, scenarioE, scenarioRunning, scenarioF, scenarioG: { visibleAt1366, horizontal: scenarioG.horizontal, rawIdsVisible: scenarioG.rawIdsVisible }, scenarioH, desktop }));
+  process.stdout.write(JSON.stringify({ ok: true, scenarioA, blockerNavigation, scenarioB, readyDialog, readyDialogEnabled, readyDialogInvalidated, scenarioC, authDialog, scenarioD, scenarioE, scenarioRunning, scenarioF, scenarioG: { contextBeforePrimary, horizontal: scenarioG.horizontal, rawIdsVisible: scenarioG.rawIdsVisible }, scenarioH, desktop }));
 } finally {
   try { socket?.close(); } catch {}
   const browserExited = new Promise(resolve => {

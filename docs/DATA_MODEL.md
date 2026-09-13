@@ -24,8 +24,9 @@ pinned file/hash/media check still passes. A changed active Artifact or export
 configuration creates a different export identity. Invalid partial output is
 removed and is never published as a reusable export.
 
-No migration is required. Historical/rejected Artifacts remain immutable, and
-their existence does not make them eligible as an export source.
+No migration is required. Only the active audio bundle is an export source.
+When a verified replacement becomes active, the superseded audio bundle and
+its media files are deleted; old audio is not a restore source.
 
 ## Entity graph
 
@@ -135,9 +136,10 @@ deliberate chapter CastingPlan override
 - `character_id=null, gender=male` → male dialogue voice.
 - Character đã biết, gender unknown, không override → unknown fallback.
 - Không biết character và gender → unknown fallback + `needs_review=true`.
-- Chapter/range voice overrides are represented by approved Casting Plan
-  revisions as documented below; do not assume a separate utterance-level
-  override table exists.
+- Chapter/range voice choices are first represented by reviewable draft Casting
+  Plan revisions and become durable render authority only after explicit Final
+  Voice Map approval; do not assume a separate utterance-level override table
+  exists.
 
 Resolver tạo resolved voice trước khi tạo casting/job và ghi vào immutable snapshot. Profile/override thay đổi không invalidates hoặc resolve lại plan/job cũ.
 
@@ -145,10 +147,11 @@ Resolver tạo resolved voice trước khi tạo casting/job và ghi vào immuta
 
 The Assignment page supports future voice changes for narrator, named
 characters, and stable unknown speakers at one-chapter or exact selected-range
-scope without a new schema table. The durable representation is an immutable
-approved `CastingPlanRevision` per selected chapter; the previous approved plan
-is archived and remains available for existing Job, Artifact, accepted audio,
-Text Revision, and rendered snapshot history.
+scope without a new schema table. Saving a scoped choice creates an immutable
+draft `CastingPlanRevision` per selected chapter. The current approved plan is
+left untouched until the new draft is explicitly approved; approval then
+archives the previous approved plan while preserving it for existing Job,
+current Artifact/audio, Text Revision, and rendered Job snapshot references.
 
 Effective voice precedence for newly prepared/rendered work is:
 
@@ -159,11 +162,13 @@ deliberate chapter CastingPlan override
 -> unresolved blocker
 ```
 
-A range operation writes only the selected chapters in one transaction. It does
-not create a hidden range-wide rule and cannot affect later chapters outside the
-selected scope. Clearing an override creates another approved plan revision that
-removes only that speaker override and restores book/character inheritance while
-preserving unrelated speaker overrides in the same chapter.
+A range operation writes draft revisions only for the selected chapters in one
+transaction. It does not create a hidden range-wide rule and cannot affect later
+chapters outside the selected scope. Clearing an override creates another draft
+plan revision that removes only that speaker override and restores
+book/character inheritance while preserving unrelated speaker overrides in the
+same chapter. Neither operation becomes render authority before Final Voice Map
+approval.
 
 ### Book-level Character Bible — schema v4
 
@@ -204,11 +209,10 @@ pending → running → verified
 
 `verified` chỉ hợp lệ khi file/checksum hoặc repaired blob tương ứng tồn tại.
 
-### Artifact
+### Artifact — single-current-audio policy
 
 ```text
-staging → verified → active
-                   ↘ stale → soft_deleted → cleaned
+staging → verified → active → deleted when replaced or explicitly removed
 ```
 
 Hiện implementation tạo record sau verify nên `staging` chưa được persist đầy đủ; đây là điểm cần hoàn thiện trong M1.
@@ -258,8 +262,11 @@ data/output/<book-id>-<slug>/chapter_<number>/job_<id>/render_<generation>/
   segment_timeline.json
 ```
 
-Mỗi lần assemble/retry tạo `render_<generation>` mới. Artifact verified cũ không bị ghi đè;
-active pointer chỉ chuyển sang export generation mới sau khi verify.
+Mỗi lần assemble/retry tạo `render_<generation>` mới trong lúc xử lý. Active
+pointer chỉ chuyển sau khi bản mới được verify. Ngay sau khi chuyển thành công,
+mọi audio bundle cũ của chương (master, timeline, final và segment WAV) bị xóa.
+Mỗi chương có tối đa một audio bundle hiện tại; không có lịch sử audio/QA để
+khôi phục. Job, Text Revision, Casting Plan và custom voice vẫn được giữ.
 
 ## Speaker Assignment Draft — schema v5
 

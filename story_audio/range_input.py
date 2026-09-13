@@ -27,6 +27,7 @@ from .speaker_review import (
     get_speaker_review_draft,
     review_speaker_assignment_row,
 )
+from .speaker_state import ANALYSIS_REQUIRED
 from .storage import ContentStore
 from .voice_eligibility import (
     EffectiveVoiceCatalog,
@@ -430,6 +431,22 @@ def get_range_input_snapshot(
                             f"character:{item.get('character_id')}:{item.get('resolved_voice_id')}"
                         )
                 continue
+
+        speaker_state = dict(chapter.get("speaker_state") or {})
+        if str(speaker_state.get("status") or "") == ANALYSIS_REQUIRED:
+            current_draft_id = chapter.get("latest_speaker_draft_id")
+            proposals.append({
+                **ref,
+                "reason": "analysis_required",
+                "draft_id": int(current_draft_id) if current_draft_id else None,
+                "unresolved_count": int(speaker_state.get("unresolved_count") or 0),
+                "current_revision_id": int(
+                    speaker_state.get("current_revision_id")
+                    or chapter.get("active_text_revision_id")
+                    or 0
+                ),
+            })
+            continue
 
         draft_id = chapter.get("latest_speaker_draft_id")
         if not draft_id:

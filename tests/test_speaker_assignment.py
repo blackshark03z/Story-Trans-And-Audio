@@ -4,6 +4,7 @@ import json
 import tempfile
 import os
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -226,6 +227,37 @@ class SpeakerAssignmentTests(unittest.TestCase):
                 for table in before
             }
             self.assertEqual(before, after)
+
+    def test_multichunk_transient_failure_falls_back_and_records_chunk_models(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config, db, store, _book, chapter, _revision, character = seed(Path(directory))
+            config = replace(config, speaker_assignment_batch_size=1)
+            calls: list[str] = []
+
+            def provider(**kwargs):
+                model = str(kwargs["model"])
+                calls.append(model)
+                if len(calls) == 2 and model == "gemini-3.8-flash":
+                    raise RuntimeError("Gemini HTTP 503: temporarily unavailable")
+                return fake_response(kwargs["request_data"], character)
+
+            with patch.object(type(config), "gemini_key", return_value="fake-key"):
+                result = generate_speaker_assignment_draft(
+                    db, store, config, chapter_id=chapter, provider=provider
+                )
+
+            self.assertEqual(
+                calls,
+                ["gemini-3.8-flash", "gemini-3.8-flash", "gemini-3.7-flash"],
+            )
+            self.assertEqual(
+                result["draft"]["models_used"],
+                ["gemini-3.8-flash", "gemini-3.7-flash"],
+            )
+            self.assertEqual(
+                [item["model_id"] for item in result["draft"]["model_provenance"]],
+                ["gemini-3.8-flash", "gemini-3.7-flash"],
+            )
 
     def test_corrupt_cache_is_safe_miss_and_repaired(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -500,6 +532,41 @@ class SpeakerReviewTests(unittest.TestCase):
             self.assertEqual(result["reviewed_count"], 2)
             self.assertEqual(result["invalid_count"], 1)
 
+    def test_dash_prefixed_dialogue_is_included_in_assignment_targets(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config, db, store, _book, chapter, revision_id, _character = seed(Path(directory))
+            dash_text = "Narration before dialogue.\n- Hold the gate.\nNarration after dialogue."
+            content_path, digest = store.put_text(dash_text)
+            with db.connect() as connection:
+                connection.execute(
+                    """UPDATE text_revisions
+                       SET content_path=?,content_sha256=?,lexical_sha256=?,char_count=?
+                       WHERE id=?""",
+                    (
+                        content_path,
+                        digest,
+                        lexical_sha256(dash_text),
+                        len(dash_text),
+                        revision_id,
+                    ),
+                )
+                connection.execute(
+                    "UPDATE chapters SET char_count=? WHERE id=?",
+                    (len(dash_text), chapter),
+                )
+            request = build_speaker_assignment_request(
+                db,
+                store,
+                config,
+                chapter_id=chapter,
+                mode="unassigned_only",
+            )
+            self.assertEqual(len(request["targets"]), 1)
+            target_context = next(
+                item for item in request["targets"][0]["context"] if item["is_target"]
+            )
+            self.assertTrue(target_context["text"].strip().startswith("- Hold the gate"))
+
     def test_zero_target_draft_only_approval_is_valid_without_casting_plan(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             config, db, store, _book, chapter, _revision, _character = seed_zero_target(Path(directory))
@@ -512,6 +579,27 @@ class SpeakerReviewTests(unittest.TestCase):
             self.assertEqual(result["target_count"], 0)
             self.assertEqual(result["remaining_unreviewed_count"], 0)
             self.assertEqual(db.fetch_one("SELECT COUNT(*) AS n FROM casting_plans")["n"], 0)
+
+    def test_zero_target_approved_draft_ignores_unrelated_character_bible_addition(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config, db, store, book, chapter, _revision, _character = seed_zero_target(Path(directory))
+            draft = generate_speaker_assignment_draft(
+                db, store, config, chapter_id=chapter,
+                provider=lambda **_kwargs: (_ for _ in ()).throw(AssertionError("provider called")),
+            )
+            approved = self.approve_draft_only(db, store, config, chapter, draft)
+            self.assertEqual(approved["target_count"], 0)
+            now = utcnow()
+            with db.connect() as connection:
+                connection.execute(
+                    "INSERT INTO characters(book_id,display_name,default_voice_id,canonical_name,canonical_name_normalized,created_at,updated_at) VALUES(?,?,?,?,?,?,?)",
+                    (book, "Later Character", "", "Later Character", "later character", now, now),
+                )
+            detail = get_speaker_review_draft(
+                db, store, config, chapter_id=chapter, draft_id=draft["id"]
+            )
+            self.assertFalse(detail["stale"])
+            self.assertNotIn("Character Bible changed", " ".join(detail["stale_reasons"]))
 
     def test_approval_without_base_creates_first_revision_and_keeps_unreviewed_unknown(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -32,6 +32,42 @@ class DailyUseV1UiTests(unittest.TestCase):
             self.assertIn(f'id="{status_id}"', self.html)
         self.assertIn("renderGlobalStatus", self.js)
 
+    def test_first_run_navigation_and_contextual_returns_are_discoverable(self) -> None:
+        self.assertIn('id="homePrimaryAction"', self.html)
+        self.assertIn('id="homeFirstRun"', self.html)
+        self.assertIn('data-home-import', self.html)
+        self.assertIn('id="appNavMore"', self.html)
+        self.assertIn('class="app-nav-group-label">Tài nguyên</span>', self.html)
+        self.assertIn('id="appNavMoreToggle"', self.html)
+        self.assertIn('id="productionContextReturn"', self.html)
+        self.assertIn("function renderHomeStartAction", self.js)
+        self.assertIn("function openBookImport", self.js)
+        self.assertIn("function renderProductionContextReturn", self.js)
+        self.assertIn("Nhập truyện trước khi gán giọng", self.js)
+        self.assertIn("Bắt đầu bằng truyện đầu tiên", self.js)
+        self.assertIn("if(!(state.books||[]).length){openBookImport();return}", self.js)
+        self.assertIn("['production','character-review','voices','books','assignment','jobs','audio']", self.js)
+        self.assertIn("['voices','books','assignment','jobs','audio']", self.js)
+
+    def test_production_first_use_is_a_real_empty_state(self) -> None:
+        self.assertIn("const hasBooks=(state.books||[]).length>0", self.js)
+        self.assertIn("key:hasBooks?'SELECT_SCOPE':'IMPORT_BOOK'", self.js)
+        self.assertIn("label:hasBooks?'Chọn sách & chương':'Nhập EPUB'", self.js)
+        self.assertIn("if(action==='IMPORT_BOOK'){openBookImport();return}", self.js)
+        self.assertIn("progressText.textContent=total?`${done} / ${total} chương hoàn tất`:'Chưa chọn phạm vi'", self.js)
+        self.assertIn("classList.toggle('production-first-use',firstUse)", self.js)
+        self.assertIn(".app-nav-more.mobile-open>.app-nav-resource-links", self.css)
+        self.assertIn("#productionView.production-first-use .production-stage-strip", self.css)
+        self.assertIn("#productionView.production-first-use .production-task-queue", self.css)
+        self.assertIn("#productionView.production-first-use .production-technical-details", self.css)
+        self.assertNotIn('<strong>Kết quả</strong><span>Phạm vi được kiểm tra', self.js)
+
+    def test_desktop_resource_group_is_a_static_heading_not_a_disclosure(self) -> None:
+        self.assertNotIn('<details id="appNavMore"', self.html)
+        self.assertNotIn("<summary>Tài nguyên</summary>", self.html)
+        self.assertIn('id="appNavResourceLinks"', self.html)
+        self.assertIn("function setupResourceNavigation", self.js)
+
     def test_voice_assignment_reuses_contextual_production_flow(self) -> None:
         self.assertIn('id="openAssignmentWorkspace"', self.html)
         self.assertIn("focusProductionTarget(currentProductionViewModel().targetPanel)", self.js)
@@ -56,7 +92,7 @@ class DailyUseV1UiTests(unittest.TestCase):
         self.assertIn("required></textarea>", self.html)
         self.assertIn("if(status==='needs_fixes'&&!notes.trim())", self.js)
         self.assertIn("window.confirm", self.js)
-        self.assertIn("/human-approval-history", self.js)
+        self.assertNotIn("/human-approval-history", self.js)
         self.assertEqual(self.js.count("const accept=$('#productionQaAccept'),needs=$('#productionQaNeedsFixes')"), 1)
         self.assertEqual(self.js.count("accept.onclick=()=>updateProductionQa('approved')"), 1)
         self.assertEqual(self.js.count("needs.onclick=()=>updateProductionQa('needs_fixes')"), 1)
@@ -89,6 +125,9 @@ class DailyUseV1UiTests(unittest.TestCase):
         self.assertIn("STORY_AUDIO_RESTART_SIGNAL", self.launcher)
         self.assertIn("/api/runtime/restart", self.js)
         self.assertIn("supervised_restart_available", self.js)
+
+    def test_home_first_run_hidden_state_wins_over_grid_layout(self) -> None:
+        self.assertIn(".home-first-run[hidden],.home-work-grid[hidden]{display:none!important}", self.css)
 
     def test_responsive_styles_cover_new_daily_use_surfaces(self) -> None:
         for selector in (

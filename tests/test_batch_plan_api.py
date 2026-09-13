@@ -164,7 +164,7 @@ class BatchPlanApiTests(IsolatedTestCase):
         api_module.store = self.store
         api_module.worker = MagicMock()
         api_module.tts_service = MagicMock()
-        api_module._load_voice_catalog = lambda: EffectiveVoiceCatalog.from_ids(
+        api_module._load_voice_catalog = lambda book_id=None: EffectiveVoiceCatalog.from_ids(
             "ngoc_lan"
         )
         from story_audio.api import app

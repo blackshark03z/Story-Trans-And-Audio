@@ -1,9 +1,36 @@
 ﻿# Trạng thái dự án
 
-**Cập nhật:** 2026-08-09 (Asia/Saigon)
-**Milestone:** Real User Media Golden Journey Certified
-**Strategic state:** `REAL_USER_MEDIA_GOLDEN_JOURNEY_PASS`
-**Trạng thái hiện tại:** The complete browser journey is certified on an isolated Book 1 Chapter 2 clone: bounded Gemini analysis, reversible review, intentional wrong-voice render and rejection, corrected replacement render, automated audio-content QA, Human QA acceptance, active-audio download, deterministic MP4 export/download, and browser playback. Canonical schema-15 production remained read-only.
+> **Historical evidence only.** The older 2026-08-25 material below is not current worker
+> authority. Read `TASK.md`, `AGENTS.md`, live Git/runtime state, and the current
+> release-candidate section immediately below before using archived evidence.
+
+## Current release candidate — 2026-09-10
+
+**Verdict before final commit:** `STABLE_E2E_ACCEPTANCE_GREEN / FINAL_POLICY_PASS`.
+
+- Candidate worktree: `D:\Youtube\_worktrees\story-audio-product-reconciliation`; canonical runtime: `http://127.0.0.1:8873`; canonical data: `D:\Youtube\Story Trans And Audio\data`.
+- Product journey is now `Sản xuất -> Duyệt audio`: Production owns preparation/render and stops at handoff; playback, Human QA, repair request and download belong to the dedicated Audio Review workspace.
+- Real Book 1 range Chapters `2-8` completed as Job `#1`: `7/7` chapters, `409/409` verified segments, `0` failed, `0` pending. Active artifacts are `3, 6, 9, 12, 15, 18, 21`.
+- Standing owner approval was exercised through the real browser UI after playback and technical validation; all seven active artifacts are Human QA `accepted`. The completed range exposes `Nghe & tải 7 chương`, ZIP readiness is green, and the downloaded archive contains exactly seven chapter M4A files.
+- Real Chromium acceptance: seven Audio Review rows, Chapters `2-8` preselected for the contiguous ZIP, master-detail player ready and advancing, all seven artifact downloads return HTTP Range `206`, no horizontal overflow at 1280×800 / 1440×900, no runtime exceptions, and no failing application network request. The only browser-default favicon 404 was removed.
+- Completion continuity: `Bắt đầu lượt sản xuất mới` clears the closed working context and opens scope selection prefilled for Chapters `9-15`; no Job/provider/TTS mutation occurs from this navigation action.
+- Command safety: malformed nested Production scopes now fail before executor construction/mutation; focused Production command service/API coverage is `25/25` PASS.
+- Canonical Deep Doctor: schema `16`, `sqlite_quick_check=ok`, active artifacts checked `7`, missing/bad hashes `0`, invalid speaker/casting links `0`, `critical_errors=0`.
+- Canonical `scripts/project_ci.py --ci`: `PROJECT_CI: PASS checks=46 source=buildos-policy` at the final candidate after the command-scope hardening, supervised restart, and no-scope Production refresh regression. One earlier raw `unittest discover` attempt was invalidated by Windows virtual-commit exhaustion while the completed VieNeu runtime still held its loaded model; supervised restart restored memory and the authoritative policy suite passed. System pagefile settings were not modified.
+- Provider routing for new Gemini work is `gemini-3.8-flash -> 3.7-flash -> 3.6-flash -> 3.5-flash`, with bounded key/model fallback and actual successful model recorded.
+- The remaining accepted-generation recovery gap is implemented on this candidate: `Duyệt audio -> Lịch sử QA -> Khôi phục làm bản hiện tại`. The state transition is atomic and fail-closed, preserves all historical data, requires exact accepted evidence plus file integrity, and cannot call PREPARE/START_RENDER/providers. Focused domain/API/UI coverage and a real Chromium fixture pass; final policy verification for this incremental commit is recorded in the handoff for the current task.
+- Accessibility reconciliation is complete: the Production stage strip now announces the four visible stages rather than the obsolete six-stage label.
+
+## Archived snapshot
+
+**Cập nhật:** 2026-08-25 (Asia/Saigon)
+**Milestone:** Story Audio Baseline Reconciled
+**Strategic state:** `OFFLINE_BASELINE_GREEN / BUILD_OS_V125_COMPATIBILITY_DECISION_PENDING`
+**Trạng thái hiện tại:** The repaired offline baseline passes all `1,970` tests
+with one expected Windows skip and the machine-readable Project CI contract.
+The canonical runtime is stopped. Read-only inspection confirms schema `16`,
+`quick_check = ok`, zero foreign-key violations, and unchanged canonical DB
+SHA-256 `4f816add7efea7cd32e5177f10fba03c998362b0d24f6d4fa224ff8873369b55`.
 
 **Repository operation:** Root README now names the sole canonical start and
 verified restart paths, Doctor, focused operational checks, and a fail-closed
@@ -11,13 +38,13 @@ storage cleanup dry-run. Canonical data, backups, source books, artifacts, and
 logs are intentionally visible in Git status; cleanup retains unknown external
 backup junctions rather than failing its read-only report.
 
-**Last verified implementation starting baseline:** `ab9aacd2ea68d555f69eb2f2e4e3f3bddded4271`
-**Last verified branch:** `main`
-**Last verified date:** 2026-07-30
+**Last verified implementation baseline:** `4c811f172e3a0e15618f7e441e57431fdaa108a7`
+**Last verified branch:** `goal/story-audio-baseline-v125`
+**Last verified date:** 2026-08-25
 **Canonical runtime:** `http://127.0.0.1:8772`
-**Runtime schema:** canonical `15`
-**Default/latest schema:** `15`
-**Runtime:** canonical schema `15`; durable UI restart validated
+**Runtime schema:** canonical `16`
+**Default/latest schema:** `16`
+**Runtime:** stopped; no listener on port `8772`
 **DAILY-PROD-5A:** complete
 **DAILY-PROD-5B:** complete and production-proven
 **DAILY-PROD-5:** complete
@@ -31,6 +58,23 @@ backup junctions rather than failing its read-only report.
 **DAILY-PROD-4:** complete
 **DAILY-PROD-3A:** complete
 **DAILY-PROD-3:** complete
+
+### Current Canonical Artifact And Human-QA Authority
+
+- Chapter `369`: `not_created`; no active Artifact and no Human QA decision.
+- Chapter `372`: completed; active Artifact `99`, Job `27`; Human QA is
+  `approved` and bound to Artifact `99`.
+- Chapter `373`: completed; active Artifact `96`, Job `26`; no current Human QA
+  record, so its current authority is `pending`.
+- Artifact `93`: stale historical evidence for Chapter `372`, previously
+  `needs_fixes`; it is superseded by active approved Artifact `99` and must not
+  be presented as a current listening or QA target.
+- Chapter `1`: active Artifact `120`, Job `34`; the recorded `needs_fixes`
+  decision is bound to stale Artifact `117` / Job `33`, so Artifact `120` is
+  active but not Human-QA accepted.
+- Current totals: `33` Jobs, `120` Artifacts, `339` audit events. These facts are
+  read-only observations and authorize no PREPARE, START_RENDER, provider,
+  render, repair, or Human QA action.
 
 ### Speaker Review Mutation Reconciliation
 

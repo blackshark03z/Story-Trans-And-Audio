@@ -589,7 +589,7 @@ def accept_segment_candidate(
         master_artifact_id = cursor.lastrowid
         
         # Insert timeline artifact
-        conn.execute(
+        cursor = conn.execute(
             """INSERT INTO artifacts(
                 chapter_id, job_chapter_id, text_revision_id, artifact_type,
                 synthesis_hash, path, sha256, size_bytes, duration_ms,
@@ -602,6 +602,7 @@ def accept_segment_candidate(
                 rebuild_result["master_duration_ms"], "verified", now, now
             )
         )
+        timeline_artifact_id = cursor.lastrowid
         
         # Insert final format artifact
         output_format = db.fetch_one("SELECT output_format FROM jobs WHERE id=?", (job_id,))["output_format"]
@@ -625,6 +626,15 @@ def accept_segment_candidate(
             )
         )
         final_artifact_id = cursor.lastrowid
+
+        conn.execute(
+            "INSERT OR IGNORE INTO artifact_dependencies(parent_artifact_id,child_artifact_id) VALUES(?,?)",
+            (master_artifact_id, final_artifact_id),
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO artifact_dependencies(parent_artifact_id,child_artifact_id) VALUES(?,?)",
+            (timeline_artifact_id, final_artifact_id),
+        )
         
         # Update chapter active artifact pointer
         conn.execute(

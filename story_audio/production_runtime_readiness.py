@@ -52,7 +52,7 @@ def production_runtime_readiness(
     legacy = public_runtime_readiness(descriptor)
     canonical_db_path_valid = bool(
         descriptor.canonical_backed
-        and descriptor.schema_version == descriptor.required_schema_version
+        and descriptor.schema_compatible
         and descriptor.quick_check == "ok"
     )
     output_root_writable = _output_root_writable(output_root)
@@ -63,7 +63,7 @@ def production_runtime_readiness(
     _append(blockers, session.blocker_code or "AUTH_BOOTSTRAP_MISSING", not authentication_verified)
     _append(blockers, "CANONICAL_DB_INVALID", not canonical_db_path_valid)
     _append(blockers, "OUTPUT_ROOT_NOT_WRITABLE", not output_root_writable)
-    _append(blockers, "SCHEMA_NOT_READY", descriptor.schema_version != descriptor.required_schema_version)
+    _append(blockers, "SCHEMA_NOT_READY", not descriptor.schema_compatible)
     _append(blockers, "KILL_SWITCH_ACTIVE", descriptor.kill_switch_active)
     _append(blockers, "PREPARE_DISABLED", not descriptor.feature_available or not descriptor.mutation_enabled)
     _append(blockers, "OPERATOR_WINDOW_CLOSED", not descriptor.operator_window_open)

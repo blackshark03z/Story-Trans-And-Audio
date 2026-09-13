@@ -18,7 +18,7 @@ USER_FACING_FILES = (
     "story_audio/pipeline.py",
     "CHANGELOG.md",
     "PROJECT_STATUS.md",
-    ".ai/STATE.md",
+    "ENGINEERING.md",
 )
 
 
@@ -30,12 +30,16 @@ class VietnameseEncodingUiTests(unittest.TestCase):
             for marker in MOJIBAKE_MARKERS:
                 self.assertNotIn(marker, text, f"{relative} contains {marker!r}")
 
+    def test_template_option_values_do_not_contain_linebreak_whitespace(self) -> None:
+        app = (ROOT / "ui" / "app.js").read_text(encoding="utf-8")
+        self.assertNotRegex(app, r'<option\s+value="[^"\n]*\n\s*"')
+
     def test_charset_precedes_text_and_assets_are_cache_versioned(self) -> None:
         html = (ROOT / "ui" / "index.html").read_text(encoding="utf-8")
         self.assertLess(html.index('<meta charset="utf-8">'), html.index("<title>"))
-        self.assertIn("styles.css?v=20260802-audio-repair-feedback-1", html)
+        self.assertIn("styles.css?v=20260913-unified-repair-2", html)
         self.assertIn("production_state.js?v=20260727-production-preflight-1", html)
-        self.assertIn("app.js?v=20260802-audio-repair-feedback-5", html)
+        self.assertIn("app.js?v=20260913-unified-repair-2", html)
 
     def test_operator_phase_copy_renders_as_unicode(self) -> None:
         script = """

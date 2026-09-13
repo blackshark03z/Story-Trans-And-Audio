@@ -120,6 +120,9 @@ class ProductionCommandServiceTests(unittest.TestCase):
         for key, scope in (
             ("short", {"chapter": {"id": 1}}),
             ("valid-key-0001", {"owner_token": "forbidden"}),
+            ("valid-key-0002", {"job": {"job_id": 25}}),
+            ("valid-key-0003", {"artifact": {"id": 0}}),
+            ("valid-key-0004", {"range": {"book_id": 1, "from_chapter": 8, "to_chapter": 2}}),
         ):
             with self.assertRaises(ProductionCommandError):
                 self.service.execute(
@@ -129,6 +132,23 @@ class ProductionCommandServiceTests(unittest.TestCase):
                     executor=lambda: called.append(True),
                 )
         self.assertEqual(called, [])
+
+    def test_scalar_identity_scope_is_normalized_before_execution(self) -> None:
+        seen = []
+        result = self.service.execute(
+            command_type="START_RENDER",
+            idempotency_key="start-job-0026",
+            scope={"job": 26},
+            executor=lambda: ProductionCommandMutation(
+                outcome="ACCEPTED",
+                submitted_count=1,
+                applied_items=({"job_id": 26},),
+                asynchronous_reference={"type": "job", "id": 26},
+            ),
+        )
+        seen.extend(self.project_calls)
+        self.assertEqual(result["scope"]["job"], {"id": 26})
+        self.assertEqual(seen[-1]["job"], {"id": 26})
 
 
 if __name__ == "__main__":

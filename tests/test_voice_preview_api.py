@@ -7,7 +7,7 @@ This module tests the /api/voice-previews endpoint's ability to:
 3. Accept custom logical references (custom:<voice_id>) and resolve to preferred revision (NEW)
 """
 
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 from fastapi.testclient import TestClient
 
@@ -19,6 +19,15 @@ from tests.base import IsolatedTestCase
 
 class VoicePreviewApiTests(IsolatedTestCase):
     """Test /api/voice-previews endpoint with logical reference resolution."""
+
+    @staticmethod
+    def _offline_unavailable_tts() -> Mock:
+        tts = Mock()
+        tts.voices.return_value = [
+            {"id": "vi-vn-wavenet-d", "label": "Offline test preset"}
+        ]
+        tts.synthesize.side_effect = RuntimeError("offline test TTS unavailable")
+        return tts
 
     def test_custom_logical_reference_resolves_to_preferred_revision(self):
         """
@@ -43,9 +52,9 @@ class VoicePreviewApiTests(IsolatedTestCase):
 
         # Create test-isolated voice preview service
         from story_audio.voice_preview import VoicePreviewService
-        from story_audio.tts import tts_service
+        offline_tts = self._offline_unavailable_tts()
         test_voice_previews = VoicePreviewService(
-            tts_service, self.config, custom_voice_repo=repo, store=store
+            offline_tts, self.config, custom_voice_repo=repo, store=store
         )
 
         # Patch API module dependencies with test instances
@@ -70,6 +79,11 @@ class VoicePreviewApiTests(IsolatedTestCase):
             # Expected in test environment without real TTS
             error = response.json()
             self.assertIn("detail", error)
+        offline_tts.synthesize.assert_called_once()
+        self.assertEqual(
+            offline_tts.synthesize.call_args.kwargs["reference_audio_path"],
+            store.absolute(rev1.audio_storage_key),
+        )
 
     def test_custom_logical_reference_without_preferred_revision_fails(self):
         """
@@ -88,9 +102,9 @@ class VoicePreviewApiTests(IsolatedTestCase):
 
         # Create test-isolated voice preview service
         from story_audio.voice_preview import VoicePreviewService
-        from story_audio.tts import tts_service
+        offline_tts = self._offline_unavailable_tts()
         test_voice_previews = VoicePreviewService(
-            tts_service, self.config, custom_voice_repo=repo, store=store
+            offline_tts, self.config, custom_voice_repo=repo, store=store
         )
 
         # Patch API module dependencies with test instances
@@ -133,9 +147,9 @@ class VoicePreviewApiTests(IsolatedTestCase):
 
         # Create test-isolated voice preview service
         from story_audio.voice_preview import VoicePreviewService
-        from story_audio.tts import tts_service
+        offline_tts = self._offline_unavailable_tts()
         test_voice_previews = VoicePreviewService(
-            tts_service, self.config, custom_voice_repo=repo, store=store
+            offline_tts, self.config, custom_voice_repo=repo, store=store
         )
 
         # Patch API module dependencies with test instances
@@ -169,9 +183,9 @@ class VoicePreviewApiTests(IsolatedTestCase):
 
         # Create test-isolated voice preview service
         from story_audio.voice_preview import VoicePreviewService
-        from story_audio.tts import tts_service
+        offline_tts = self._offline_unavailable_tts()
         test_voice_previews = VoicePreviewService(
-            tts_service, self.config, custom_voice_repo=repo, store=store
+            offline_tts, self.config, custom_voice_repo=repo, store=store
         )
 
         # Patch API module dependencies with test instances

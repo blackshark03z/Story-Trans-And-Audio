@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { join } from "node:path";
+import { boundedBrowserTimeout } from "./browser_acceptance_runtime.mjs";
 
 const baseUrl = process.argv[2];
 if (!baseUrl) throw new Error("Usage: node scripts/browser_assignment_flow_smoke.mjs <base-url>");
@@ -28,7 +29,7 @@ const child = spawn(browserExe, [
 
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function poll(callback, timeoutMs = 15000) {
-  const deadline = Date.now() + timeoutMs;
+  const deadline = Date.now() + boundedBrowserTimeout(timeoutMs);
   let lastError;
   while (Date.now() < deadline) {
     try {
@@ -147,6 +148,42 @@ try {
     voices.open = true;
     return true;
   })()`);
+  const layoutEvidence = await waitFor(`(() => {
+    const row = document.querySelector('[data-voice-library-row="character:25"]');
+    const reviewPane = row?.querySelector('.assignment-registry-review-pane');
+    const details = reviewPane?.querySelector('[data-registry-detail="character:25"]');
+    const grid = details?.querySelector('.assignment-dialogue-samples-grid');
+    const card = grid?.querySelector('.assignment-dialogue-sample');
+    const context = card?.querySelector('.assignment-dialogue-context');
+    const text = context?.querySelector('span');
+    if (!row || !reviewPane || !details || !grid || !card || !context || !text) return null;
+    const contextRect = context.getBoundingClientRect();
+    const textRect = text.getBoundingClientRect();
+    const rowRect = row.getBoundingClientRect();
+    const reviewRect = reviewPane.getBoundingClientRect();
+    return {
+      gridColumns: getComputedStyle(grid).gridTemplateColumns.trim().split(/\\s+/).filter(Boolean).length,
+      gridAlign: getComputedStyle(grid).alignItems,
+      textWidthRatio: contextRect.width ? textRect.width / contextRect.width : 0,
+      reviewWidthRatio: rowRect.width ? reviewRect.width / rowRect.width : 0,
+      contextInsideSpeakerRow: details.closest('tr') === row,
+      contextLabel: details.querySelector('summary')?.textContent || '',
+      replacementCharacter: reviewPane.innerText.includes('�'),
+    };
+  })()`);
+  await evaluate(`(() => {
+    const more = document.querySelector('[data-registry-sample-detail="character:25"]');
+    if (!more) throw new Error('Nested dialogue details missing for character:25');
+    more.open = true;
+    return true;
+  })()`);
+  await waitFor(`window.storyAudioAppState.bookVoiceRegistry.openSampleDetails?.["character:25"] === true`);
+  await evaluate(`renderAssignmentPage()`);
+  const sampleDetailPersistence = await waitFor(`(() => {
+    const more = document.querySelector('[data-registry-sample-detail="character:25"]');
+    if (!more?.open) return null;
+    return {persisted:true,label:more.querySelector('summary')?.textContent || ''};
+  })()`);
   await setSelect('[data-speaker-review-filter="confidence"]', "HIGH");
   const filterBeforeJump = await evaluate(`document.querySelector('[data-speaker-review-filter="confidence"]').value`);
   await click('[data-jump-to-speaker-review]');
@@ -197,6 +234,30 @@ try {
     loadProductionTaskProjection({ silent: true }),
   ])`);
 
+  // A prior workflow jump intentionally uses smooth scrolling, and registry /
+  // speaker-review refreshes may still have a queued animation-frame restore.
+  // Establish a genuinely quiescent UI before measuring the polling invariant;
+  // otherwise a busy full-suite run can attribute that earlier navigation to
+  // loadJobs(), or capture a node just before the queued reconciliation runs.
+  await waitFor(`(async () => {
+    document.activeElement?.blur?.();
+    applyDeferredSpeakerReviewUpdate();
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    let previous = window.scrollY;
+    let stableSamples = 0;
+    for (let index = 0; index < 20 && stableSamples < 4; index += 1) {
+      await new Promise(resolve => setTimeout(resolve, 50));
+      const current = window.scrollY;
+      stableSamples = Math.abs(current - previous) <= 1 ? stableSamples + 1 : 0;
+      previous = current;
+    }
+    const queue = window.storyAudioAppState.bookVoiceRegistry?.speakerSuggestions;
+    return stableSamples >= 4
+      && !window.storyAudioAppState.bookVoiceRegistry?.loading
+      && !queue?.loading
+      && !queue?.deferredResult;
+  })()`, 5000);
+
   const pollingStability = await evaluate(`(async () => {
     const voice = document.querySelector('[data-registry-voice-key="character:25"]');
     const scope = document.querySelector('[data-registry-scope-key="character:25"]');
@@ -205,11 +266,12 @@ try {
     scope.dispatchEvent(new Event('change', { bubbles: true }));
     voice.value = 'commander';
     voice.dispatchEvent(new Event('change', { bubbles: true }));
-    voice.focus();
+    voice.focus({ preventScroll: true });
     const node = voice;
     const scopeNode = scope;
     const scrollBefore = window.scrollY;
     for (let index = 0; index < 3; index += 1) await loadJobs();
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     return {
       sameVoiceNode: document.querySelector('[data-registry-voice-key="character:25"]') === node,
       sameScopeNode: document.querySelector('[data-registry-scope-key="character:25"]') === scopeNode,
@@ -230,6 +292,7 @@ try {
     rowError: window.storyAudioAppState.bookVoiceRegistry?.rowErrors?.['character:25'] || null,
     rowResult: window.storyAudioAppState.bookVoiceRegistry?.rowResults?.['character:25'] || null,
     preflightEnabled: !!document.querySelector('[data-open-production-preflight]:not([disabled])'),
+    voiceNextAction: document.querySelector('[data-assignment-section="voices"] [data-open-production-preflight]:not([disabled])')?.textContent || '',
     commands: null,
   })`);
   voiceSaveState.commands = await evaluate(`fetch('/api/fixture/commands').then(response => response.json())`);
@@ -252,23 +315,25 @@ try {
       {code:'SPEAKER_DRAFT_NOT_APPROVED',title:'Bản xác định người nói mới nhất chưa được duyệt',explanation:'Cần xác nhận ai đang nói trước khi tạo bản audio thay thế.',action_label:'Duyệt người nói Chương 1',target:'assignment',assignment_focus:'review',technical_reason:'Latest Speaker Draft is not approved.'},
       {code:'VOICE_MAP_NOT_READY',title:'Chương 1 chưa có bản đồ giọng cuối cùng',explanation:'Cần hoàn tất người nói và giọng hiệu lực trước khi PREPARE bản thay thế.',action_label:'Hoàn tất giọng cho Chương 1',target:'assignment',assignment_focus:'voices',technical_reason:'Final Voice Map is missing.'},
     ];
-    const phases=['Xác nhận nội dung và người nói','Hoàn tất cấu hình giọng','Chuẩn bị bản thay thế','Render bản thay thế','Nghe và duyệt bản mới'].map((label,index)=>({number:index+1,key:'repair-'+(index+1),label,current:index===0,complete:false,locked:index>0,state:index===0?'current':'locked',summary:index===0?'Đang thực hiện':'Sẽ thực hiện sau'}));
+    const phases=['Xác nhận nội dung và người nói','Hoàn tất cấu hình giọng','Chuẩn bị bản thay thế','Render bản thay thế'].map((label,index)=>({number:index+1,key:'repair-'+(index+1),label,current:index===0,complete:false,locked:index>0,state:index===0?'current':'locked',summary:index===0?'Đang thực hiện':'Sẽ thực hiện sau'}));
     const task={task_scope:'chapter',task_type:'REPAIR_REQUIRED',task_key:'chapter:1001:REPAIR_REQUIRED:artifact:39:plan:0',user_stage:5,title:'Cần sửa và tạo bản thay thế',summary:'Chương 1 có audio bị từ chối.',affected_chapter:chapter,primary_action:null,blocker:'Latest Speaker Draft is not approved.',next_task_hint:'Hoàn tất đầu vào.',technical_details:['artifact_id:39'],current_stage_key:'repair',input_summary:{},speaker:null,casting:null,range_prepare:null,render:null,qa:null,repair:{chapter_id:1001,artifact_id:39,job_id:14,duration_ms:294040,created_at:'2026-01-01T00:00:00Z',qa_note:'Đổi giọng narrator',qa_recorded_at:'2026-01-02T00:00:00Z',active_text_revision_id:3977,current_casting_plan_id:null,current_casting_plan_revision:null,current_casting_plan_status:null,prepare_ready:false,input_blockers:details.map(item=>item.technical_reason),input_blocker_details:details,effective_voice_map:[],voice_map_diff:[]}};
     window.__repairProjection={range_identity:'book:1:1-1',task_scope:'chapter',task_type:'REPAIR_REQUIRED',task_key:task.task_key,user_stage:5,title:task.title,summary:task.summary,task_title:task.title,task_summary:task.summary,affected_chapter:chapter,chapter_queue:[{chapter_id:1001,chapter_number:1,title:'Chapter 1',status:'current',state:'REPAIR_REQUIRED',user_stage:5,task_type:'REPAIR_REQUIRED',task_key:task.task_key,canonical_task:true,inspected:false}],queue:[],primary_action:null,secondary_actions:[],secondary_links:[],blocker:task.blocker,range_readiness:{scope:{book_id:1,from_chapter:1,to_chapter:1},summary:{}},next_task_hint:'',next_task_after_success:'',technical_details:task.technical_details,range_task:false,current_stage_key:'repair',conceptual_state:'REPAIR_REQUIRED',input_summary:{},phases,canonical_task:task,inspected_chapter:null,inspection_summary:null};
     state.productionRange={bookId:1,fromChapter:1,toChapter:1,skipCompleted:false};
     state.productionProjection=window.__repairProjection;
     state.productionRepair={taskKey:null,mode:null};
     setAppRoute('production');renderProductionShell();
-    return {heading:document.querySelector('#productionCurrentStepHeading')?.textContent,badge:document.querySelector('#productionStateBadge')?.textContent,blockers:[...document.querySelectorAll('[data-repair-blocker]')].map(card=>card.innerText),sequence:[...document.querySelectorAll('.production-repair-sequence li')].map(item=>item.innerText),prepareEnabled:!!document.querySelector('#repairPrepare:not([disabled])'),qaControlsHidden:document.querySelector('#productionQaActions')?.classList.contains('hidden')};
+    const result={heading:document.querySelector('#productionCurrentStepHeading')?.textContent,badge:document.querySelector('#productionStateBadge')?.textContent,blockers:[...document.querySelectorAll('[data-repair-blocker]')].map(card=>card.innerText),sequence:[...document.querySelectorAll('.production-repair-sequence li')].map(item=>item.innerText),prepareEnabled:!!document.querySelector('#repairPrepare:not([disabled])'),qaControlsHidden:document.querySelector('#productionQaActions')?.classList.contains('hidden')};
+    const button=document.querySelector('[data-repair-blocker-action="0"]');
+    if(!button)throw new Error('Speaker repair blocker action missing from injected projection');
+    button.click();
+    return result;
   })()`);
 
-  await click('[data-repair-blocker-action="0"]');
   await waitFor(`location.hash.startsWith('#/assignment?') && location.hash.includes('from=1') && location.hash.includes('to=1') && location.hash.includes('assignment_focus=review')`);
   await waitFor(`document.querySelector('[data-assignment-section="review"]')`);
   const speakerRepairNavigation = await evaluate(`({hash:location.hash,reviewOpen:document.querySelector('[data-assignment-section="review"]')?.open,returnTask:window.storyAudioAppState.productionWorkingContext?.returnTask,scope:document.querySelector('#assignmentScope')?.textContent})`);
 
-  await evaluate(`(() => { state.productionProjection=window.__repairProjection; state.productionRange={bookId:1,fromChapter:1,toChapter:1,skipCompleted:false}; setAppRoute('production'); renderProductionShell(); return true })()`);
-  await click('[data-repair-blocker-action="1"]');
+  await evaluate(`(() => { state.productionProjection=window.__repairProjection; state.productionRange={bookId:1,fromChapter:1,toChapter:1,skipCompleted:false}; setAppRoute('production'); renderProductionShell(); const button=document.querySelector('[data-repair-blocker-action="1"]'); if(!button)throw new Error('Voice repair blocker action missing from injected projection'); button.click(); return true })()`);
   await waitFor(`location.hash.startsWith('#/assignment?') && location.hash.includes('assignment_focus=voices')`);
   await waitFor(`document.querySelector('[data-assignment-section="voices"]')`);
   const voiceRepairNavigation = await evaluate(`({hash:location.hash,voicesOpen:document.querySelector('[data-assignment-section="voices"]')?.open,returnTask:window.storyAudioAppState.productionWorkingContext?.returnTask,returnLabel:document.querySelector('[data-open-production-preflight]')?.textContent,unresolvedVoiceRows:document.querySelectorAll('[data-voice-library-row^="unresolved-dialogue:"]').length})`);
@@ -277,14 +342,16 @@ try {
     const projection=JSON.parse(JSON.stringify(window.__repairProjection)),task=projection.canonical_task;
     task.repair.input_blockers=[];task.repair.input_blocker_details=[];task.repair.qa_evidence_id=312;task.repair.qa_feedback={repeated_words:true,global_speed_target:1.25,local_pacing_adjustment_required:true,operator_note:'Đổi giọng narrator'};task.repair.prepare_ready=true;task.blocker=null;projection.blocker=null;
     projection.phases=projection.phases.map((phase,index)=>({...phase,current:index===2,complete:index<2,locked:index>2,state:index<2?'complete':index===2?'current':'locked'}));
-    state.productionProjection=projection;state.productionRepair={taskKey:null,mode:null};state.productionRange={bookId:1,fromChapter:1,toChapter:1,skipCompleted:false};setAppRoute('production');renderProductionShell();
-    return {blockers:document.querySelectorAll('[data-repair-blocker]').length,nextAction:document.querySelector('#repairOpenPlan')?.textContent,applyButton:!!document.querySelector('#repairApplyPlan'),commandsBefore:0};
+    state.productionProjection=projection;state.productionRepair={taskKey:null,mode:'review',markers:[]};state.productionRange={bookId:1,fromChapter:1,toChapter:1,skipCompleted:false};setAppRoute('production');renderProductionShell();
+    const button=document.querySelector('#repairConfirmUnified');
+    const result={blockers:document.querySelectorAll('[data-repair-blocker]').length,nextAction:button?.textContent,legacyApplyButton:!!document.querySelector('#repairApplyPlan'),commandsBefore:0};
+    if(!button)throw new Error('Unified repair confirmation missing from injected ready projection');
+    return result;
   })()`);
-  await waitFor(`(() => { const button=document.querySelector('#repairOpenPlan'); if(!button)return false; button.click(); return true; })()`);
   const repairPlan = await waitFor(`(() => {
     const heading=document.querySelector('.production-repair-plan h3')?.textContent;
-    if(window.storyAudioAppState.productionRepair.mode !== "plan" || !heading)return null;
-    return {mode:window.storyAudioAppState.productionRepair.mode,heading,repeatedWords:document.querySelector('#repairPlanRepeatedWords')?.checked,speed:document.querySelector('#repairPlanSpeed')?.value,localPacing:document.querySelector('#repairPlanLocalPacing')?.checked,confirmDisabled:document.querySelector('#repairConfirmPlan')?.disabled};
+    if(window.storyAudioAppState.productionRepair.mode !== "review" || !heading)return null;
+    return {mode:window.storyAudioAppState.productionRepair.mode,heading,repeatedWords:document.querySelector('#repairPlanRepeatedWords')?.checked,speed:document.querySelector('#repairPlanSpeed')?.value,localPacing:document.querySelector('#repairPlanLocalPacing')?.checked,confirmDisabled:document.querySelector('#repairConfirmUnified')?.disabled};
   })()`);
   const commandsAfterRepairChecks = await evaluate(`fetch('/api/fixture/commands').then(response => response.json())`);
 
@@ -292,6 +359,8 @@ try {
   process.stdout.write(JSON.stringify({
     ok: true,
     initial,
+    layoutEvidence,
+    sampleDetailPersistence,
     filterBeforeJump,
     unresolvedNavigation: !!unresolvedNavigation,
     navigationState,

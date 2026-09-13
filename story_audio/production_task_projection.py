@@ -54,7 +54,7 @@ _CASTING_TASKS = {
     "RESOLVE_VOICE_EXCEPTION",
     "APPROVE_RANGE_CASTING_PLANS",
 }
-_RENDER_TASKS = {"START_RENDER_RANGE", "MONITOR_RENDER", "RECOVER_RENDER"}
+_RENDER_TASKS = {"OPEN_JOB_RANGE", "START_RENDER_RANGE", "MONITOR_RENDER", "RECOVER_RENDER"}
 
 
 def _effective_voice_summary(
@@ -238,7 +238,7 @@ def _chapter_task(item: dict[str, Any]) -> dict[str, Any] | None:
             "summary": f"{chapter} có audio bị từ chối. Hoàn tất đầu vào rồi tạo một bản thay thế mới.",
             "action": None,
             "blocker": blocker,
-            "next": "Bản audio cũ vẫn được giữ làm bằng chứng lịch sử trong khi đầu vào bản thay thế được hoàn tất.",
+            "next": "Audio hiện tại vẫn dùng được trong lúc hoàn tất đầu vào; khi bản thay thế được tạo và kiểm tra file thành công, bản cũ sẽ bị xóa vĩnh viễn.",
             "stage_key": "repair",
         }
 
@@ -456,7 +456,6 @@ def _repair_phases(repair: dict[str, Any]) -> list[dict[str, Any]]:
         "Hoàn tất cấu hình giọng",
         "Chuẩn bị bản thay thế",
         "Render bản thay thế",
-        "Nghe và duyệt bản mới",
     ]
     return [
         {
@@ -574,6 +573,10 @@ def _typed_task_sections(
         sections["render"] = {
             "job_id": source.get("id") or source.get("job_id"),
             "job_status": source.get("status"),
+            "book_id": source.get("book_id"),
+            "from_chapter": source.get("from_chapter"),
+            "to_chapter": source.get("to_chapter"),
+            "chapter_count": source.get("chapter_count"),
             "replacement_for_artifact_id": source.get(
                 "replacement_for_artifact_id"
             ),
@@ -590,7 +593,6 @@ def _typed_task_sections(
             "size_bytes": source.get("artifact_size_bytes"),
             "created_at": source.get("artifact_created_at"),
             "replacement": bool(source.get("qa_replacement")),
-            "previous_artifact": dict(source.get("qa_previous_artifact") or {}),
             "repair_goals": dict(source.get("qa_repair_goals") or {}),
         }
     elif task_type == "REPAIR_REQUIRED":
@@ -707,7 +709,11 @@ def _base_projection(
         "secondary_actions": [],
         "secondary_links": [],
         "blocker": blocker,
-        "range_readiness": {"scope": scope, "summary": range_summary},
+        "range_readiness": {
+            "scope": scope,
+            "summary": range_summary,
+            "chapters": [dict(row) for row in readiness.get("chapters") or []],
+        },
         "next_task_hint": next_hint,
         "next_task_after_success": next_hint,
         "technical_details": list(canonical_task["technical_details"]),
@@ -807,10 +813,14 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
         ))
 
     range_jobs = [dict(job) for job in state.get("range_jobs") or []]
+    job_scope_rows = [
+        row for row in rows if row.get("state") not in _COMPLETE_STATES
+    ]
+    expected_job_chapter_count = len(job_scope_rows)
     exact_jobs = [
         job
         for job in range_jobs
-        if int(job.get("chapter_count") or 0) == len(rows)
+        if int(job.get("chapter_count") or 0) == expected_job_chapter_count
         and job.get("all_chapters_match", True)
         and str(job.get("status") or "").lower()
         in ({JOB_PREPARED_STATUS} | _ACTIVE_OR_RECOVERABLE)
@@ -859,6 +869,89 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
                 ),
             }
         )
+
+    live_job_owners = {
+        (
+            int(row.get("live_job_id") or 0),
+            str(row.get("live_job_status") or "").lower(),
+            int(row.get("live_job_book_id") or 0),
+            int(row.get("live_job_from_chapter") or 0),
+            int(row.get("live_job_to_chapter") or 0),
+        )
+        for row in rows
+        if row.get("live_job_id")
+    }
+    all_selected_rows_owned_by_one_live_job = (
+        len(live_job_owners) == 1
+        and len(rows) > 0
+        and all(
+            row.get("live_job_id")
+            and row.get("state") in {"PREPARED", "RENDERING_OR_PAUSED"}
+            for row in rows
+        )
+    )
+    if all_selected_rows_owned_by_one_live_job:
+        job_id, job_status, job_book_id, job_from, job_to = next(iter(live_job_owners))
+        selected_from = int(scope.get("from_chapter") or 0)
+        selected_to = int(scope.get("to_chapter") or 0)
+        owner_scope_is_known = bool(job_id and job_book_id and job_from and job_to)
+        owner_scope_differs = (
+            owner_scope_is_known
+            and (
+                job_book_id != int(scope.get("book_id") or 0)
+                or job_from != selected_from
+                or job_to != selected_to
+            )
+        )
+        if owner_scope_differs:
+            owner_payload = {
+                "id": job_id,
+                "status": job_status,
+                "book_id": job_book_id,
+                "from_chapter": job_from,
+                "to_chapter": job_to,
+                "chapter_count": max(0, job_to - job_from + 1),
+            }
+            selected_label = (
+                f"Ch\u01b0\u01a1ng {selected_from}-{selected_to}"
+                if selected_from != selected_to
+                else f"Ch\u01b0\u01a1ng {selected_from}"
+            )
+            owner_label = (
+                f"Ch\u01b0\u01a1ng {job_from}-{job_to}"
+                if job_from != job_to
+                else f"Ch\u01b0\u01a1ng {job_from}"
+            )
+            return finish(_base_projection(
+                readiness=readiness,
+                task_scope="range",
+                task_type="OPEN_JOB_RANGE",
+                task_key=f"{scope_key}:OPEN_JOB_RANGE:job:{job_id}",
+                user_stage=4,
+                title="Ti\u1ebfp t\u1ee5c ph\u1ea1m vi \u0111\u00e3 chu\u1ea9n b\u1ecb",
+                summary=(
+                    f"{selected_label} \u0111ang thu\u1ed9c Job #{job_id} c\u1ee7a ph\u1ea1m vi {owner_label}. "
+                    "M\u1edf \u0111\u00fang ph\u1ea1m vi c\u1ee7a Job \u0111\u1ec3 ti\u1ebfp t\u1ee5c m\u00e0 kh\u00f4ng ch\u1ea1y th\u00eam ch\u01b0\u01a1ng ngo\u00e0i \u00fd mu\u1ed1n."
+                ),
+                affected=None,
+                action=_action("OPEN_JOB_RANGE", f"M\u1edf {owner_label}", "render"),
+                blocker=None,
+                next_hint=(
+                    "Sau khi m\u1edf \u0111\u00fang ph\u1ea1m vi, b\u1eaft \u0111\u1ea7u t\u1ea1o audio v\u1eabn l\u00e0 m\u1ed9t thao t\u00e1c ri\u00eang v\u00e0 c\u1ea7n b\u1ea1n x\u00e1c nh\u1eadn."
+                    if job_status == JOB_PREPARED_STATUS
+                    else "Sau khi m\u1edf \u0111\u00fang ph\u1ea1m vi, b\u1ea1n c\u00f3 th\u1ec3 theo d\u00f5i c\u00f4ng vi\u1ec7c \u0111ang ch\u1ea1y."
+                ),
+                queue=queue,
+                technical=[
+                    f"job:{job_id}",
+                    f"job_status:{job_status}",
+                    f"selected_scope:{selected_from}-{selected_to}",
+                    f"owner_scope:{job_from}-{job_to}",
+                    "range_gate:live_job_owner_scope",
+                ],
+                range_task=True,
+                task_payload=owner_payload,
+            ))
 
     def repair_projection_or_none() -> dict[str, Any] | None:
         repair_candidates = [
@@ -1220,22 +1313,35 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
                 repair_row["replacement_for_artifact_id"]
             )
         if status == JOB_PREPARED_STATUS:
-            action = _action(
-                "START_RENDER_RANGE",
-                (
-                    f"Bắt đầu render lại Chương {int(repair_row['chapter_number'])}"
+            repair_summary = exact_job.get("repair_summary") or {}
+            repair_blocked = bool(repair_summary) and not repair_summary.get(
+                "execution_ready"
+            )
+            if repair_blocked:
+                action = None
+                task_type = "RECOVER_RENDER"
+                title = "Bản sửa chưa thể chạy an toàn"
+                summary = (
+                    "Job replacement đã lưu yêu cầu nhưng còn loại sửa chưa có bộ thực thi. "
+                    "START_RENDER đang bị chặn để không tạo một bản audio không thực sự được sửa."
+                )
+            else:
+                action = _action(
+                    "START_RENDER_RANGE",
+                    (
+                        f"Bắt đầu render lại Chương {int(repair_row['chapter_number'])}"
+                        if repair_row
+                        else "B\u1eaft \u0111\u1ea7u render"
+                    ),
+                    "render",
+                )
+                task_type = "START_RENDER_RANGE"
+                title = "Bắt đầu render lại" if repair_row else "B\u1eaft \u0111\u1ea7u render"
+                summary = (
+                    "Job replacement đã ghim đúng văn bản và bản đồ giọng; audio hiện tại chỉ được thay thế sau khi bản mới tạo và kiểm tra file thành công."
                     if repair_row
-                    else "B\u1eaft \u0111\u1ea7u render"
-                ),
-                "render",
-            )
-            task_type = "START_RENDER_RANGE"
-            title = "Bắt đầu render lại" if repair_row else "B\u1eaft \u0111\u1ea7u render"
-            summary = (
-                "Job replacement đã ghim đúng văn bản và bản đồ giọng; bản audio cũ vẫn được giữ trong lịch sử."
-                if repair_row
-                else "Ph\u1ea1m vi \u0111\u00e3 \u0111\u01b0\u1ee3c chu\u1ea9n b\u1ecb; render l\u00e0 thao t\u00e1c ri\u00eang."
-            )
+                    else "Ph\u1ea1m vi \u0111\u00e3 \u0111\u01b0\u1ee3c chu\u1ea9n b\u1ecb; render l\u00e0 thao t\u00e1c ri\u00eang."
+                )
             stage = 4
         elif status in {"paused", "interrupted", "failed", "completed_with_errors"}:
             action = _action("RECOVER_RENDER", "X\u1eed l\u00fd render", "render")
@@ -1399,7 +1505,10 @@ def _exact_range_jobs(
                 instruction
                 for instruction in repair_instructions
                 if isinstance(instruction, dict)
-                and instruction.get("schema") == "story-audio-repair-instruction/v1"
+                and instruction.get("schema") in {
+                    "story-audio-repair-instruction/v1",
+                    "story-audio-repair-instruction/v2",
+                }
             ),
             None,
         )
@@ -1411,6 +1520,20 @@ def _exact_range_jobs(
                     repair_instruction.get("local_pacing_adjustment_required")
                 ),
                 "marker_count": int(repair_instruction.get("marker_count") or 0),
+                "execution_ready": repair_instruction.get("execution_ready") is True,
+                "execution_blockers": list(
+                    repair_instruction.get("execution_blockers") or []
+                ),
+                "machine_action_count": int(
+                    repair_instruction.get("machine_action_count") or 0
+                ),
+                "resynthesis_segment_count": int(
+                    repair_instruction.get("resynthesis_segment_count") or 0
+                ),
+                "provider_call_required": repair_instruction.get(
+                    "provider_call_required"
+                ) is True,
+                "execution_mode": repair_instruction.get("execution_mode"),
             }
         result.append(item)
     return result
@@ -1422,7 +1545,7 @@ def _qa_replacement_context(
     chapter_id: int,
     artifact_id: int,
 ) -> dict[str, Any]:
-    """Return immutable replacement provenance for a pending QA artifact."""
+    """Return replacement goals stored on the current pending QA artifact."""
 
     row = db.fetch_one(
         """
@@ -1443,52 +1566,12 @@ def _qa_replacement_context(
     instruction = settings.get("repair_instruction")
     if not isinstance(instruction, dict):
         return {}
-    previous_artifact_id = int(instruction.get("replacement_for_artifact_id") or 0)
-    if not previous_artifact_id:
+    if not int(instruction.get("replacement_for_artifact_id") or 0):
         return {}
-    previous = db.fetch_one(
-        """
-        SELECT id,created_at,duration_ms,size_bytes
-        FROM artifacts
-        WHERE id=? AND chapter_id=? AND artifact_type='chapter_m4a'
-        """,
-        (previous_artifact_id, chapter_id),
-    )
-    if not previous:
-        return {}
-    qa_event = db.fetch_one(
-        """
-        SELECT details_json
-        FROM audit_events
-        WHERE chapter_id=? AND event_code='human_qa_recorded'
-          AND json_extract(details_json,'$.artifact_id')=?
-          AND json_extract(details_json,'$.status')='needs_fixes'
-        ORDER BY id DESC LIMIT 1
-        """,
-        (chapter_id, previous_artifact_id),
-    )
-    try:
-        qa_details = json.loads(
-            str(qa_event["details_json"] if qa_event else "{}")
-        )
-    except (TypeError, ValueError, json.JSONDecodeError):
-        qa_details = {}
-    feedback = dict(qa_details.get("qa_feedback") or {})
-    note = str(qa_details.get("notes") or "").casefold()
     repeated_words = bool(
         instruction.get("repeated_words")
-        or feedback.get("repeated_words")
-        or "lặp chữ" in note
-        or "lặp từ" in note
     )
     return {
-        "previous_artifact": {
-            "artifact_id": int(previous["id"]),
-            "created_at": previous["created_at"],
-            "duration_ms": previous["duration_ms"],
-            "size_bytes": previous["size_bytes"],
-            "human_qa_status": "needs_fixes" if qa_event else None,
-        },
         "repair_goals": {
             "repeated_words": repeated_words,
             "global_speed_target": instruction.get("global_speed_target"),
@@ -1521,7 +1604,11 @@ def get_production_task_projection(
         voice_catalog=voice_catalog,
         store=store,
     )
-    chapter_ids = [int(item["chapter_id"]) for item in readiness["chapters"]]
+    chapter_ids = [
+        int(item["chapter_id"])
+        for item in readiness["chapters"]
+        if item.get("state") not in _COMPLETE_STATES
+    ]
     for item in readiness["chapters"]:
         draft_id = item.get("latest_speaker_draft_id")
         if draft_id:
@@ -1563,7 +1650,6 @@ def get_production_task_projection(
                 )
                 if replacement:
                     item["qa_replacement"] = True
-                    item["qa_previous_artifact"] = replacement["previous_artifact"]
                     item["qa_repair_goals"] = replacement["repair_goals"]
         if item.get("human_qa_status") == "needs_fixes":
             approval = resolve_authoritative_human_approval(

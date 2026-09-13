@@ -1,16 +1,21 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="vi">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Story Audio</title>
-  <link rel="stylesheet" href="/assets/styles.css?v=20260802-audio-repair-feedback-1">
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/styles.css?v=20260913-unified-repair-2">
+  <style>
+    .casting-journey{display:grid;gap:12px;margin:16px 0;padding:16px;border:1px solid var(--color-border);border-radius:5px;background:var(--color-surface-subtle)}.casting-journey-head{display:flex;justify-content:space-between;align-items:start;gap:12px}.casting-journey-head h3{margin:2px 0;font-size:18px}.casting-journey-head>span{padding:5px 8px;border-radius:3px;background:var(--color-primary-soft);color:var(--color-primary);font-size:12px;font-weight:800;white-space:nowrap}.casting-journey-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin:0;padding:0;list-style:none}.casting-journey-list li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;align-items:center;padding:9px 10px;border:1px solid var(--color-border);border-radius:4px;background:var(--color-surface)}.casting-journey-list li>div{display:grid;gap:2px}.casting-journey-list strong{font-size:12px}.casting-journey-list span{font-size:11px;color:var(--muted)}.casting-journey-list li.complete{border-color:#b9d8d2;background:var(--color-success-soft)}.casting-journey-list li.complete strong:before{content:'✓ ';color:var(--color-success)}.casting-journey-list li.current{border-color:#e4c48c;background:var(--color-warning-soft)}.casting-journey-list li.current strong:before{content:'→ ';color:var(--color-warning)}.casting-journey-list li.blocked{background:var(--color-surface-subtle);opacity:.75}.casting-journey-list .text-action{font-size:11px;white-space:nowrap}@media(max-width:760px){.casting-journey-head{display:grid}.casting-journey-list{grid-template-columns:1fr}}
+  </style>
 </head>
 <body>
   <header class="topbar">
     <div class="brand-lockup">
-      <p class="eyebrow">Phòng thu truyện</p>
       <h1>Story Audio</h1>
+      <span class="topbar-route-divider" aria-hidden="true"></span>
+      <strong id="topbarRouteLabel" class="topbar-route-label">Sản xuất</strong>
     </div>
     <details id="systemDiagnostics" class="system-diagnostics">
       <summary>
@@ -41,13 +46,29 @@
   </header>
 
   <nav id="appNav" class="app-nav" aria-label="Khu vực chính">
-    <a href="#/home" data-app-route="home" aria-label="Trang chủ">Trang chủ</a>
     <a href="#/production" data-app-route="production" aria-label="Sản xuất">Sản xuất</a>
     <a href="#/assignment" data-app-route="assignment" aria-label="Gán giọng">Gán giọng</a>
     <a href="#/jobs" data-app-route="jobs" aria-label="Công việc">Công việc</a>
-    <a href="#/audio" data-app-route="audio" aria-label="Audio">Audio</a>
-    <a href="#/storage" data-app-route="storage" aria-label="Dung lượng">Dung lượng</a>
+    <a href="#/audio" data-app-route="audio" aria-label="Duyệt audio">Duyệt audio</a>
+    <div id="appNavMore" class="app-nav-more">
+      <span class="app-nav-group-label">Tài nguyên</span>
+      <button id="appNavMoreToggle" class="app-nav-more-toggle" type="button" aria-expanded="false" aria-controls="appNavResourceLinks">
+        <span>Tài nguyên</span><span aria-hidden="true">⌄</span>
+      </button>
+      <div id="appNavResourceLinks" class="app-nav-resource-links" aria-label="Tài nguyên và cài đặt">
+        <a href="#/home" data-app-route="home" aria-label="Trang chủ">Trang chủ</a>
+        <a href="#/books" data-app-route="books" aria-label="Sách">Sách</a>
+        <a href="#/voices" data-app-route="voices" aria-label="Giọng">Giọng</a>
+        <a href="#/storage" data-app-route="storage" aria-label="Dung lượng">Dung lượng</a>
+        <a href="#/settings" data-app-route="settings" aria-label="Cài đặt">Cài đặt</a>
+      </div>
+    </div>
   </nav>
+
+  <aside id="productionContextReturn" class="production-context-return" hidden aria-live="polite">
+    <span id="productionContextReturnText"></span>
+    <a id="productionContextReturnLink" class="app-secondary-link" href="#/production">Quay lại Sản xuất</a>
+  </aside>
 
   <main id="appMain">
     <h2 id="appViewHeading" class="sr-only">Trang chủ</h2>
@@ -59,9 +80,9 @@
             <p class="eyebrow">Daily production</p>
             <h2 id="homeHeading">Trang chủ</h2>
           </div>
-          <a class="primary app-primary-link" href="#/production" data-home-continue>Tiếp tục sản xuất</a>
+          <a id="homePrimaryAction" class="primary app-primary-link" href="#/books">Nhập EPUB</a>
         </div>
-        <p class="section-guide">Một điểm bắt đầu gọn cho công việc hằng ngày. Các khu vực kỹ thuật đã được tách ra để mỗi lần chỉ tập trung một việc chính.</p>
+        <p id="homeGuide" class="section-guide">Nhập một EPUB để bắt đầu, sau đó Sản xuất sẽ dẫn bạn qua từng việc cần làm.</p>
         <div id="homeSummary" class="home-summary-grid">
           <div><strong>—</strong><span>Sách</span></div>
           <div><strong>—</strong><span>Công việc cần theo dõi</span></div>
@@ -69,7 +90,21 @@
         </div>
       </section>
 
-      <section class="home-work-grid">
+      <section id="homeFirstRun" class="panel home-first-run" aria-labelledby="homeFirstRunHeading">
+        <div>
+          <p class="eyebrow">Bắt đầu lần đầu</p>
+          <h2 id="homeFirstRunHeading">Đưa sách đầu tiên vào Sản xuất</h2>
+          <p class="section-guide">Bạn không cần biết các màn hình nội bộ. Bắt đầu bằng EPUB; ứng dụng sẽ mở đúng bước thiết lập và việc tiếp theo.</p>
+        </div>
+        <ol>
+          <li><strong>1. Nhập EPUB</strong><span>Chọn tệp sách để tạo không gian làm việc.</span></li>
+          <li><strong>2. Chọn sách và phạm vi</strong><span>Sản xuất lưu đúng chương bạn đang làm.</span></li>
+          <li><strong>3. Hoàn tất thiết lập cần thiết</strong><span>Gán giọng hoặc nhân vật chỉ khi bước tiếp theo yêu cầu.</span></li>
+        </ol>
+        <a class="primary app-primary-link" href="#/books" data-home-import>Nhập EPUB</a>
+      </section>
+
+      <section id="homeWorkGrid" class="home-work-grid">
         <section class="panel" aria-labelledby="homeAttentionHeading">
           <div class="section-head">
             <div><p class="eyebrow">Cần xử lý</p><h2 id="homeAttentionHeading">Việc tiếp theo</h2></div>
@@ -88,25 +123,25 @@
     <section id="productionView" class="app-view" data-app-view="production" aria-labelledby="productionHeading" hidden>
       <section class="panel production-shell-panel production-workbench-shell">
         <div id="productionRangeContext" class="production-range-context" aria-label="Phạm vi sản xuất hiện tại">
-          <div>
+          <div class="production-scope-identity">
             <p class="eyebrow">Phạm vi đang làm</p>
-            <strong id="productionScopeSummary">Chưa chọn phạm vi</strong>
+            <div class="production-scope-title-row">
+              <strong id="productionScopeSummary">Chưa chọn phạm vi</strong>
+              <button id="productionChangeScope" class="text-action hidden" type="button">Đổi sách / chương</button>
+            </div>
           </div>
           <div class="production-range-progress" aria-label="Tiến độ phạm vi">
             <span id="productionRangeProgressText">0 / 0 chương hoàn tất</span>
             <div class="progress"><span id="productionRangeProgressBar" style="width:0%"></span></div>
           </div>
           <button id="openCharacterReview" class="secondary hidden" type="button">Xem nhân vật</button>
-          <button id="productionChangeScope" class="text-action hidden" type="button">Đổi phạm vi</button>
         </div>
 
-        <ol id="productionStageShell" class="production-stage-shell production-stage-strip" aria-label="Sáu giai đoạn sản xuất">
-          <li class="current"><span>1</span><strong>Chọn phạm vi</strong><small>Chọn sách và phạm vi</small></li>
-          <li><span>2</span><strong>Kiểm tra nội dung và người nói</strong><small>Duyệt nội dung và từng người nói</small></li>
-          <li><span>3</span><strong>Kiểm tra nhân vật và giọng</strong><small>Lưu nháp rồi duyệt riêng</small></li>
-          <li><span>4</span><strong>Chuẩn bị và render</strong><small>Cố định đầu vào rồi tạo audio</small></li>
-          <li><span>5</span><strong>Nghe và duyệt</strong><small>Nghe bản cuối và ghi kết luận</small></li>
-          <li><span>6</span><strong>Hoàn tất và tải xuống</strong><small>Mở audio đã duyệt và tải xuống</small></li>
+        <ol id="productionStageShell" class="production-stage-shell production-stage-strip" aria-label="Bốn giai đoạn sản xuất">
+          <li class="current"><span>1</span><strong>Phạm vi</strong><small>Chọn sách và các chương cần sản xuất</small></li>
+          <li><span>2</span><strong>Nội dung &amp; người nói</strong><small>Kiểm tra văn bản và người nói</small></li>
+          <li><span>3</span><strong>Nhân vật &amp; giọng</strong><small>Kiểm tra nhân vật, giọng và phân vai</small></li>
+          <li><span>4</span><strong>Kiểm tra &amp; tạo audio</strong><small>Khóa đầu vào rồi mới tạo audio</small></li>
         </ol>
 
         <div id="productionWorkbench" class="production-workbench">
@@ -137,11 +172,11 @@
               </div>
               <p id="productionStateExplanation" class="production-task-summary">Hãy chọn sách và chương để xem việc cần làm tiếp theo.</p>
               <p id="productionBlockerReason" class="issue warning hidden"></p>
+              <section id="productionCommandStatus" class="production-command-status hidden" aria-live="polite"></section>
+              <section id="productionTaskContent" class="production-task-content" aria-label="Nội dung việc hiện tại"></section>
               <div id="productionPrimaryActions" class="production-primary-actions">
                 <button id="productionPrimaryAction" class="primary dominant-production-action" type="button" aria-label="Chọn chương">Chọn chương</button>
               </div>
-              <section id="productionCommandStatus" class="production-command-status hidden" aria-live="polite"></section>
-              <section id="productionTaskContent" class="production-task-content" aria-label="Nội dung việc hiện tại"></section>
               <section id="productionPhaseWorkspace" class="production-phase-workspace hidden" aria-label="Công cụ của việc hiện tại"></section>
               <div id="productionQaActions" class="production-qa-actions hidden" aria-label="Kết luận nghe duyệt">
                 <button id="productionQaNeedsFixes" class="secondary" type="button">Cần sửa</button>
@@ -166,44 +201,7 @@
         </div>
       </section>
 
-    <section id="characterReviewView" class="app-view" data-app-view="character-review" aria-labelledby="characterReviewHeading" hidden>
-      <section class="panel character-review-page">
-        <div class="section-head">
-          <div>
-            <p class="eyebrow">Phạm vi đã chọn</p>
-            <h2 id="characterReviewHeading">Nhân vật đã phát hiện</h2>
-          </div>
-          <button id="characterReviewChangeScope" class="secondary" type="button">Đổi phạm vi</button>
-        </div>
-        <p id="characterReviewScope" class="character-review-scope">Chưa chọn sách và chương.</p>
-        <p class="section-guide">Danh sách này dùng dữ liệu đã có của Sách để cho biết ai xuất hiện trong đúng các chương bạn đã chọn. Không có thay đổi nào được lưu ở đây.</p>
-        <div id="characterReviewSummary" class="character-review-summary" aria-live="polite"></div>
-        <p id="characterReviewNotice" class="character-review-notice hidden" role="status"></p>
-        <div id="characterReviewRoster" class="character-review-roster" aria-live="polite"></div>
-      </section>
-    </section>
-
       <section id="workspace" class="workspace hidden">
-        <aside class="panel chapter-panel">
-          <div class="section-head">
-            <div>
-              <p class="eyebrow">Đang chọn</p>
-              <h2 id="bookTitle">—</h2>
-            </div>
-            <span id="chapterCount" class="pill"></span>
-          </div>
-          <div class="row filter-row">
-            <input id="chapterQuery" placeholder="Tìm số hoặc tên chương">
-            <button id="searchBtn" class="ghost">Tìm</button>
-          </div>
-          <div id="chapterList" class="chapter-list"></div>
-          <div class="pager">
-            <button id="prevPage" class="ghost">← Trước</button>
-            <span id="pageInfo"></span>
-            <button id="nextPage" class="ghost">Sau →</button>
-          </div>
-        </aside>
-
         <section class="panel job-panel range-readiness-panel" id="productionLegacyJobPanel" aria-labelledby="rangeReadinessHeading">
           <div class="section-head">
             <div>
@@ -307,20 +305,38 @@
       </section>
     </section>
 
+    <section id="characterReviewView" class="app-view" data-app-view="character-review" aria-labelledby="characterReviewHeading" hidden>
+      <section class="panel character-review-page">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Phạm vi đã chọn</p>
+            <h2 id="characterReviewHeading">Nhân vật đã phát hiện</h2>
+          </div>
+          <button id="characterReviewChangeScope" class="secondary" type="button">Đổi phạm vi</button>
+        </div>
+        <p id="characterReviewScope" class="character-review-scope">Chưa chọn sách và chương.</p>
+        <p class="section-guide">Danh sách này dùng dữ liệu đã có của Sách để cho biết ai xuất hiện trong đúng các chương bạn đã chọn. Không có thay đổi nào được lưu ở đây.</p>
+        <section id="characterReviewJourney" class="casting-journey" aria-label="Quy trình hoàn tất casting" aria-live="polite"></section>
+        <div id="characterReviewSummary" class="character-review-summary" aria-live="polite"></div>
+        <p id="characterReviewNotice" class="character-review-notice hidden" role="status"></p>
+        <div id="characterReviewRoster" class="character-review-roster" aria-live="polite"></div>
+      </section>
+    </section>
+
     <section id="voicesView" class="app-view" data-app-view="voices" aria-labelledby="voicesHeading" hidden>
       <section class="panel preset-voice-preview-panel">
         <div>
-          <h2 id="voicesHeading">Thư viện giọng</h2>
-          <p class="muted">Preview preset voices and manage reusable custom reference voices. This area does not render chapters.</p>
+          <h2>Nghe thử giọng có sẵn</h2>
+          <p class="muted">Khu vực phụ để nghe thử preset. Việc thêm giọng custom nằm ở phần chính phía trên.</p>
         </div>
         <div class="form-grid">
-          <label>Preset Voice
+          <label>Giọng có sẵn
             <select id="presetVoiceSelect"><option value="">Chưa tải danh sách giọng</option></select>
           </label>
         </div>
         <div class="row">
-          <button id="loadPresetVoices" class="secondary">Load Preset Voices</button>
-          <button id="previewPresetVoice" class="secondary" disabled>▶ Preview 10–20s</button>
+          <button id="loadPresetVoices" class="secondary">Tải danh sách giọng</button>
+          <button id="previewPresetVoice" class="secondary" disabled>▶ Nghe thử 10–20 giây</button>
         </div>
         <div id="presetPreviewBox" class="voice-preview hidden">
           <audio id="presetPreviewAudio" controls preload="metadata"></audio>
@@ -330,132 +346,157 @@
 
       <section class="panel custom-voice-library-panel">
         <div>
-          <h2>Book Voice Library</h2>
-          <p class="muted">Add and manage custom reference voices for the selected BOOK.</p>
+          <h2 id="voicesHeading">Giọng custom của sách</h2>
+          <p class="muted">Thêm giọng từ audio tham chiếu và dùng lại cho nhân vật trong cùng sách. Lưu giọng không tạo audio chương.</p>
         </div>
         <div class="row">
-          <label for="libraryBookSelect">BOOK<select id="libraryBookSelect"></select></label>
-          <button id="refreshLibrary" class="secondary">Refresh Voices</button>
-          <label class="check"><input id="showInactiveVoices" type="checkbox"> Show inactive voices</label>
+          <label for="libraryBookSelect">Sách<select id="libraryBookSelect"></select></label>
+          <button id="refreshLibrary" class="secondary">Làm mới danh sách</button>
+          <label class="check"><input id="showInactiveVoices" type="checkbox"> Hiện giọng đã ngừng sử dụng</label>
         </div>
-        <div id="libraryStatus" class="muted">Choose a BOOK to load its voices.</div>
+        <p id="libraryScopeHelp" class="muted">Giọng được lưu cho toàn bộ sách đã chọn, không chỉ riêng phạm vi chương đang làm.</p>
+        <details id="libraryCreateSection" class="create-voice-section">
+          <summary><h3>Thêm giọng custom</h3><span class="muted">Tên giọng + audio tham chiếu + transcript chính xác</span></summary>
+          <div class="create-voice-form">
+            <div class="voice-form-group">
+              <label for="libraryNewName">Tên giọng</label>
+              <input id="libraryNewName" placeholder="Ví dụ: Giọng Hứa Thanh" maxlength="120">
+            </div>
+            <div class="voice-form-group">
+              <label for="libraryNewDescription">Mô tả <span class="muted">(không bắt buộc)</span></label>
+              <textarea id="libraryNewDescription" class="voice-description-input" placeholder="Đặc điểm hoặc mục đích sử dụng" rows="3"></textarea>
+            </div>
+            <div class="voice-form-group">
+              <label for="libraryNewAudioFile">Audio tham chiếu</label>
+              <input id="libraryNewAudioFile" type="file" accept="audio/wav,audio/x-wav,audio/mp3,audio/mpeg">
+              <span class="muted">WAV hoặc MP3, tối đa 50 MB.</span>
+            </div>
+            <div class="voice-form-group">
+              <label for="libraryNewTranscript">Transcript chính xác</label>
+              <textarea id="libraryNewTranscript" placeholder="Nhập đúng từng từ được đọc trong audio tham chiếu" rows="3" maxlength="10000"></textarea>
+            </div>
+          </div>
+          <button id="libraryCreate" class="primary">Lưu giọng</button>
+          <div id="libraryCreateStatus" class="voice-create-status hidden" role="status" aria-live="polite"></div>
+          <button id="libraryUseCreatedVoice" class="primary hidden" type="button">Dùng giọng này và quay lại</button>
+        </details>
+        <h3 class="voice-library-existing-title">Giọng đã lưu</h3>
+        <div id="libraryStatus" class="muted">Chọn sách để tải danh sách giọng.</div>
         <div id="libraryVoiceList" class="voice-library-list"></div>
         <div id="librarySelectedDetails" class="library-selected-details hidden">
-        <h3>Voice Details</h3>
+        <h3>Thông tin giọng</h3>
         <div id="libraryVoiceInfo" class="library-voice-info">
           <div class="voice-info-row">
-            <span class="voice-info-label">Name:</span>
+            <span class="voice-info-label">Tên:</span>
             <span id="libraryVoiceInfoName" class="voice-info-value">—</span>
           </div>
           <div class="voice-info-row">
-            <span class="voice-info-label">Status:</span>
+            <span class="voice-info-label">Trạng thái:</span>
             <span id="libraryVoiceInfoStatus" class="voice-info-badge"></span>
           </div>
           <div class="voice-info-row">
-            <span class="voice-info-label">Description:</span>
+            <span class="voice-info-label">Mô tả:</span>
             <span id="libraryVoiceInfoDescription" class="voice-info-value muted">—</span>
           </div>
         </div>
         <div class="row">
-          <button id="libraryDeactivate" class="secondary" disabled>Deactivate Voice</button>
-          <button id="libraryReactivate" class="secondary hidden" disabled>Reactivate Voice</button>
+          <button id="libraryDeactivate" class="secondary" disabled>Ngừng sử dụng giọng</button>
+          <button id="libraryReactivate" class="secondary hidden" disabled>Sử dụng lại giọng</button>
         </div>
-        <h4>Revision History</h4>
-        <div id="libraryRevisionsStatus" class="muted">Loading revisions...</div>
-        <div id="libraryRevisionsList" class="library-revisions-list"></div>
+        <section class="library-current-reference" aria-labelledby="libraryCurrentReferenceHeading">
+          <div id="libraryActiveRevisionSummary">
+            <p class="eyebrow">Bản đang dùng để tạo audio</p>
+            <h4 id="libraryCurrentReferenceHeading">Đang tải…</h4>
+          </div>
+          <button id="libraryListenActiveReference" class="secondary" type="button" disabled>Nghe audio tham chiếu</button>
+        </section>
         <audio id="libraryReferenceAudio" preload="none" class="hidden"></audio>
-        <h4>Test Synthesis with Custom Text</h4>
-        <p class="muted">Choose a revision, enter optional text, then generate a short test audio.</p>
-        <div class="test-synthesis-panel">
+        <section class="test-synthesis-panel" aria-labelledby="libraryVoiceCheckHeading">
+          <p class="eyebrow">Kiểm tra chất giọng</p>
+          <h4 id="libraryVoiceCheckHeading">Tạo bản nghe thử</h4>
+          <p class="muted">Tạo một đoạn audio mới bằng bản tham chiếu đang dùng. Thao tác này khác với nghe lại audio tham chiếu ở trên.</p>
+          <p id="libraryTestRevisionSummary" class="preview-test-status">Đang xác định bản tham chiếu…</p>
           <div class="voice-form-group">
-            <label for="libraryTestVoice">Voice</label>
-            <input id="libraryTestVoice" disabled readonly>
-          </div>
-          <div class="voice-form-group">
-            <label for="libraryTestRevisionSelect">Revision</label>
-            <select id="libraryTestRevisionSelect" disabled>
-              <option value="">Choose a revision</option>
-            </select>
-          </div>
-          <div class="voice-form-group">
-            <label for="libraryPreviewText">Preview Text (optional)</label>
-            <textarea id="libraryPreviewText" class="voice-description-input" placeholder="Leave empty to use default sample" rows="3" maxlength="500"></textarea>
+            <label for="libraryPreviewText">Văn bản thử <span class="muted">(không bắt buộc)</span></label>
+            <textarea id="libraryPreviewText" class="voice-description-input" placeholder="Để trống để dùng câu mẫu mặc định" rows="3" maxlength="500"></textarea>
             <span id="libraryPreviewTextCounter" class="char-counter muted">0 / 500</span>
           </div>
           <div class="row">
-            <button id="libraryUseDefaultPreview" class="ghost">Use Default Sample</button>
-            <button id="libraryGenerateTestAudio" class="secondary" disabled>▶ Generate Test Audio</button>
+            <button id="libraryUseDefaultPreview" class="ghost">Dùng câu mẫu mặc định</button>
+            <button id="libraryGenerateTestAudio" class="primary" disabled>▶ Tạo bản nghe thử</button>
           </div>
-          <div id="libraryPreviewBox" class="voice-preview hidden">
+          <div id="libraryPreviewBox" class="voice-preview library-generated-preview hidden" role="status" aria-live="polite">
+            <strong>Bản nghe thử vừa tạo</strong>
             <audio id="libraryPreviewAudio" controls preload="metadata"></audio>
             <div id="libraryPreviewProvenance" class="muted"></div>
           </div>
-        </div>
-        <details class="upload-revision-section">
-          <summary><h4>Upload New Revision</h4></summary>
-          <p class="muted immutable-notice">Uploading new audio or transcript creates a new immutable revision. Existing revisions are never overwritten.</p>
-          <div class="upload-target-display">
-            <span class="upload-target-label">Uploading to voice:</span>
-            <strong id="libraryUploadTargetVoice" class="upload-target-voice">—</strong>
+        </section>
+        <details id="libraryVoiceAdvanced" class="library-voice-advanced">
+          <summary>Nâng cao: phiên bản và kỹ thuật</summary>
+          <div class="library-voice-advanced-content">
+            <h4>Lịch sử phiên bản</h4>
+            <div id="libraryRevisionsStatus" class="muted">Đang tải phiên bản…</div>
+            <div id="libraryRevisionsList" class="library-revisions-list"></div>
+            <details class="upload-revision-section">
+              <summary><h4>Thêm phiên bản tham chiếu</h4></summary>
+              <p class="muted immutable-notice">Audio hoặc transcript mới sẽ tạo một phiên bản riêng. Các phiên bản cũ không bị ghi đè.</p>
+              <div class="upload-target-display">
+                <span class="upload-target-label">Thêm vào giọng:</span>
+                <strong id="libraryUploadTargetVoice" class="upload-target-voice">—</strong>
+              </div>
+              <div class="upload-revision-grid">
+                <label>Audio tham chiếu<input id="libraryAudioFile" type="file" accept="audio/wav,audio/x-wav,audio/mp3,audio/mpeg" disabled></label>
+                <label>Transcript chính xác<textarea id="libraryTranscript" placeholder="Nhập đúng từng từ được đọc trong audio tham chiếu" rows="3" maxlength="10000" disabled></textarea><span id="libraryTranscriptCounter" class="char-counter muted">0 / 10000</span></label>
+              </div>
+              <button id="libraryUploadRevision" class="primary" disabled>Thêm phiên bản</button>
+              <div id="libraryUploadStatus" class="muted"></div>
+              <div id="libraryUploadError" class="issue error hidden"></div>
+            </details>
           </div>
-          <div class="upload-revision-grid">
-            <label>Reference Audio<input id="libraryAudioFile" type="file" accept="audio/wav,audio/x-wav,audio/mp3,audio/mpeg" disabled></label>
-            <label>Exact Transcript<textarea id="libraryTranscript" placeholder="Enter the exact transcript for the reference audio" rows="3" maxlength="10000" disabled></textarea><span id="libraryTranscriptCounter" class="char-counter muted">0 / 10000</span></label>
-          </div>
-          <button id="libraryUploadRevision" class="primary" disabled>Upload Revision</button>
-          <div id="libraryUploadStatus" class="muted"></div>
-          <div id="libraryUploadError" class="issue error hidden"></div>
         </details>
       </div>
-      <details class="create-voice-section">
-        <summary><h3>Add Voice</h3></summary>
-        <div class="create-voice-form">
-          <div class="voice-form-group">
-            <label for="libraryNewName">Name</label>
-            <input id="libraryNewName" placeholder="Voice name" maxlength="120">
-          </div>
-          <div class="voice-form-group">
-            <label for="libraryNewDescription">Description (optional)</label>
-            <textarea id="libraryNewDescription" class="voice-description-input" placeholder="Optional description" rows="3"></textarea>
-          </div>
-          <div class="voice-form-group">
-            <label for="libraryNewAudioFile">Sample audio</label>
-            <input id="libraryNewAudioFile" type="file" accept="audio/wav,audio/x-wav,audio/mp3,audio/mpeg">
-          </div>
-          <div class="voice-form-group">
-            <label for="libraryNewTranscript">Exact transcript</label>
-            <textarea id="libraryNewTranscript" placeholder="Exact words spoken in the sample audio" rows="3" maxlength="10000"></textarea>
-          </div>
-        </div>
-        <button id="libraryCreate" class="primary">Save Voice</button>
-      </details>
-        <div id="libraryError" class="issue error hidden"></div>
+        <div id="libraryError" class="issue error hidden" role="alert"></div>
       </section>
     </section>
 
     <section id="booksView" class="app-view" data-app-view="books" aria-labelledby="booksHeading" hidden>
       <section class="panel import-panel">
         <div>
-          <h2 id="booksHeading">Sách và nhân vật</h2>
-          <p class="muted">Nhập EPUB, chọn sách, rồi dùng Production để mở Character Bible, Book Voice Profile và Character Manager theo ngữ cảnh chương.</p>
+          <h2 id="booksHeading">Sách</h2>
+          <p class="muted">Nhập EPUB hoặc chọn một sách để xem ngay các chương và việc có thể làm tiếp.</p>
         </div>
         <div class="row import-row">
-          <select id="epubPath"></select>
-          <button id="importBtn" class="secondary" data-runtime-mutation-control>Nhập EPUB</button>
-          <label class="check"><input id="showSmokeBooks" type="checkbox"> Show test data</label>
+          <label class="epub-upload-field"><span>Chọn EPUB từ máy</span><input id="epubUpload" type="file" accept=".epub,application/epub+zip"></label>
+          <label id="epubExistingSource" class="epub-existing-source hidden"><span>Hoặc EPUB có sẵn</span><select id="epubPath"></select></label>
+          <button id="importBtn" class="secondary" data-runtime-mutation-control disabled>Nhập EPUB</button>
+          <label class="check"><input id="showSmokeBooks" type="checkbox"> Hiện dữ liệu thử</label>
+          <small id="epubImportHint" class="muted">Chọn một file .epub từ máy để bắt đầu.</small>
         </div>
         <div id="books" class="book-grid"></div>
       </section>
 
-      <section class="panel">
+      <section id="booksChapterWorkspace" class="panel books-chapter-workspace hidden" aria-labelledby="bookTitle">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Character memory</p>
-            <h2>Nhân vật theo ngữ cảnh chương</h2>
+            <p class="eyebrow">Sách đang chọn</p>
+            <h2 id="bookTitle">—</h2>
           </div>
+          <span id="chapterCount" class="pill"></span>
         </div>
-        <p class="section-guide">Book Voice Profile, Character Bible import, alias management và character overrides hiện được giữ trong bước gán giọng của Production để không tách khỏi chapter context. DAILY-PROD-2 sẽ đóng phần selector custom voice nhất quán.</p>
-        <a class="secondary app-secondary-link" href="#/production">Mở Production</a>
+        <div class="book-context-actions">
+          <button id="openSelectedBookCharacters" class="secondary" type="button">Quản lý nhân vật</button>
+          <button id="openSelectedBookVoices" class="ghost" type="button">Quản lý giọng</button>
+        </div>
+        <div class="row filter-row">
+          <input id="chapterQuery" placeholder="Tìm số hoặc tên chương">
+          <button id="searchBtn" class="ghost">Tìm</button>
+        </div>
+        <div id="chapterList" class="chapter-list"></div>
+        <div class="pager">
+          <button id="prevPage" class="ghost">← Trước</button>
+          <span id="pageInfo"></span>
+          <button id="nextPage" class="ghost">Sau →</button>
+        </div>
       </section>
     </section>
 
@@ -471,7 +512,8 @@
             <button id="openAssignmentWorkspace" class="primary" type="button">Chọn sách và chương</button>
           </div>
         </div>
-        <p class="section-guide">Đi theo ba bước: duyệt ai đang nói, cấu hình giọng cho Character hoặc nhóm đã xác định, rồi mở kiểm tra sẵn sàng. Trang này không tự PREPARE hoặc render.</p>
+        <p class="section-guide">Đi theo ba bước: duyệt ai đang nói, cấu hình giọng cho Character hoặc nhóm đã xác định, rồi mở kiểm tra sẵn sàng. Thay đổi giọng chỉ ảnh hưởng lần PREPARE/render tiếp theo; audio đã hoàn tất luôn giữ snapshot đã dùng.</p>
+        <div id="assignmentLifecycleNotice" class="production-result-note hidden" role="status" aria-live="polite"></div>
         <div id="assignmentScope" class="assignment-scope muted">Chưa chọn sách và chương.</div>
         <div id="assignmentSummary" class="flow-summary-grid"></div>
         <div id="assignmentRows" class="flow-speaker-list"></div>
@@ -483,12 +525,12 @@
       <section class="panel jobs-page">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Production Jobs</p>
-            <h2 id="jobsHeading">Tien do va khoi phuc</h2>
+            <p class="eyebrow">Công việc sản xuất</p>
+            <h2 id="jobsHeading">Tiến độ và khôi phục</h2>
           </div>
-          <button id="refreshJobsPage" class="ghost" type="button">Lam moi</button>
+          <button id="refreshJobsPage" class="ghost" type="button">Làm mới</button>
         </div>
-        <p class="section-guide">Job lich su chi de xem. Nut bat dau, tiep tuc hoac thu lai chi xuat hien khi backend xac nhan action hop le.</p>
+        <p class="section-guide">Theo dõi render đang chạy và khôi phục khi cần. Công việc lịch sử chỉ để xem; ứng dụng chỉ hiện hành động mà trạng thái hiện tại thực sự cho phép.</p>
         <div id="jobsPageStatus" class="muted" role="status" aria-live="polite"></div>
         <div id="jobsPageList" class="jobs-page-list"></div>
       </section>
@@ -527,113 +569,220 @@
       <section class="panel audio-library-panel">
         <div class="section-head">
           <div>
-            <p class="eyebrow">Audio Library</p>
-            <h2 id="audioHeading">Thư viện audio</h2>
+            <p class="eyebrow">Thành phẩm</p>
+            <h2 id="audioHeading">Duyệt audio</h2>
           </div>
           <button id="refreshAudioLibrary" class="ghost" type="button">Làm mới</button>
         </div>
-        <p class="section-guide">Nghe và tải các chương đang có bản audio hoạt động.</p>
+        <p class="section-guide">Đây là nơi duy nhất để nghe, duyệt, yêu cầu sửa và tải thành phẩm. Sản xuất chỉ tạo audio; khi render xong, công việc được bàn giao vào hàng đợi này.</p>
         <div id="audioLibraryStatus" class="audio-library-status muted" role="status" aria-live="polite">Chưa tải thư viện audio.</div>
-        <div class="audio-library-filters" aria-label="Audio Library filters">
-          <label>Book
-            <select id="audioFilterBook"><option value="">All books</option></select>
+        <div id="audioReviewSummary" class="audio-review-summary" aria-label="Tóm tắt hàng đợi duyệt audio">
+          <div><strong id="audioPendingCount">0</strong><span>Chờ duyệt</span></div>
+          <div><strong id="audioNeedsFixesCount">0</strong><span>Cần sửa</span></div>
+          <div><strong id="audioAcceptedCount">0</strong><span>Đã duyệt</span></div>
+          <div><strong id="audioTotalCount">0</strong><span>Tổng audio</span></div>
+        </div>
+        <div class="audio-library-filters" aria-label="Bộ lọc hàng đợi audio">
+          <label>Sách
+            <select id="audioFilterBook"><option value="">Tất cả sách</option></select>
           </label>
-          <label>Chapter
-            <input id="audioFilterChapter" inputmode="numeric" placeholder="Number or title">
+          <label>Chương
+            <input id="audioFilterChapter" inputmode="numeric" placeholder="Số hoặc tên chương">
           </label>
-          <label>Human QA
+          <label>Trạng thái
             <select id="audioFilterQa">
-              <option value="">All QA states</option>
-              <option value="pending">Pending</option>
-              <option value="accepted">Accepted</option>
-              <option value="needs_fixes">Needs fixes</option>
+              <option value="">Tất cả trạng thái</option>
+              <option value="pending">Chờ duyệt</option>
+              <option value="needs_fixes">Cần sửa</option>
+              <option value="accepted">Đã duyệt</option>
             </select>
           </label>
-          <button id="clearAudioFilters" class="ghost" type="button">Clear filters</button>
+          <button id="clearAudioFilters" class="ghost" type="button">Xóa bộ lọc</button>
         </div>
-        <div id="audioLibraryPlayer" class="audio-library-player hidden" aria-live="polite">
-          <div>
-            <p class="eyebrow">Đang chọn</p>
-            <h3 id="audioLibraryPlayerTitle">—</h3>
-            <p id="audioLibraryPlayerMeta" class="muted"></p>
-          </div>
-          <audio id="audioLibraryAudio" controls preload="metadata" aria-label="Trình phát audio chương đang chọn"></audio>
-          <a id="audioLibraryDownload" class="secondary app-secondary-link" href="#" download>Tải audio</a>
+        <div class="audio-review-workspace">
+          <section class="audio-review-queue" aria-labelledby="audioQueueHeading">
+            <div class="audio-review-queue-head">
+              <div><p class="eyebrow">Hàng đợi</p><h3 id="audioQueueHeading">Audio cần xử lý</h3></div>
+              <span class="muted">Chọn một chương để mở chi tiết.</span>
+            </div>
+            <div id="audioDeleteToolbar" class="audio-delete-toolbar" aria-label="Quản lý audio">
+              <div>
+                <button id="audioDeleteMode" class="ghost" type="button">Chọn audio để xóa</button>
+                <span id="audioDeleteSelectionStatus" class="muted" role="status" aria-live="polite">Chưa chọn audio nào.</span>
+              </div>
+              <div id="audioDeleteActions" class="audio-delete-actions hidden">
+                <button id="audioDeleteSelectVisible" class="text-action" type="button">Chọn tất cả đang hiển thị</button>
+                <button id="audioDeleteClear" class="text-action" type="button">Bỏ chọn</button>
+                <button id="audioDeleteSelected" class="danger-action" type="button">Xóa mục đã chọn</button>
+                <button id="audioDeleteAllVisible" class="danger-action danger-outline" type="button">Xóa tất cả đang hiển thị</button>
+                <button id="audioDeleteExit" class="ghost" type="button">Thoát chọn</button>
+              </div>
+              <p class="audio-delete-safety muted">“Xóa” xóa vĩnh viễn file audio hiện tại và đưa chương về trạng thái có thể tạo lại. Job, văn bản, cấu hình giọng và custom voice vẫn được giữ.</p>
+            </div>
+            <div id="audioLibraryList" class="audio-library-list audio-review-table" role="table" aria-label="Danh sách audio đã tạo"></div>
+            <div id="audioLibraryEmpty" class="audio-library-empty hidden">
+              <strong>Chưa có audio phù hợp.</strong>
+              <span>Audio mới sẽ xuất hiện ở đây sau khi render hoàn tất.</span>
+              <a class="secondary app-secondary-link" href="#/production">Mở Sản xuất</a>
+            </div>
+            <div id="audioLibraryError" class="issue error hidden">
+              <span id="audioLibraryErrorText">Không tải được thư viện audio.</span>
+              <button id="retryAudioLibrary" class="ghost" type="button">Thử lại</button>
+            </div>
+          </section>
+          <aside id="audioReviewDetail" class="audio-review-detail" aria-labelledby="audioReviewDetailHeading">
+            <div id="audioReviewDetailEmpty" class="audio-review-detail-empty">
+              <p class="eyebrow">Chi tiết</p>
+              <h3 id="audioReviewDetailHeading">Chọn một chương</h3>
+              <p>Player và hành động Human QA chỉ xuất hiện tại đây, không nằm trong màn hình Sản xuất.</p>
+            </div>
+            <div id="audioLibraryPlayer" class="audio-library-player hidden" aria-live="polite">
+              <div>
+                <p class="eyebrow">Audio đang chọn</p>
+                <h3 id="audioLibraryPlayerTitle">—</h3>
+                <p id="audioLibraryPlayerMeta" class="muted"></p>
+              </div>
+              <audio id="audioLibraryAudio" controls preload="metadata" aria-label="Trình phát audio chương đang chọn"></audio>
+              <div id="audioLibraryDetailActions" class="audio-review-detail-actions">
+                <a id="audioLibraryDownload" class="secondary app-secondary-link" href="#" download>Tải audio</a>
+                <button id="audioLibraryVideoExport" class="ghost" type="button">Xuất video</button>
+                <a id="audioLibraryVideoDownload" class="secondary app-secondary-link hidden" href="#" download>Tải video</a>
+              </div>
+              <p id="audioLibraryVideoStatus" class="audio-library-video-status muted"></p>
+              <video id="audioLibraryVideoPreview" class="audio-library-video-preview hidden" controls preload="metadata" aria-label="Video xuất từ audio đang chọn"></video>
+              <details id="audioArtifactConfiguration" class="audio-artifact-configuration">
+                <summary>Cấu hình đã dùng để tạo audio này</summary>
+                <pre id="audioArtifactConfigurationBody" class="audio-artifact-configuration-body muted">Mở để xem snapshot render bất biến.</pre>
+              </details>
+            </div>
+            <section id="automatedAudioQaPanel" class="automated-audio-qa hidden" aria-labelledby="automatedAudioQaHeading" aria-live="polite">
+              <div>
+                <p class="eyebrow">Máy kiểm tra</p>
+                <h3 id="automatedAudioQaHeading">Điểm máy &amp; đoạn cần nghe</h3>
+                <p id="automatedAudioQaStatus" class="muted">Chọn audio hiện tại để kiểm tra kỹ thuật.</p>
+              </div>
+              <div id="automatedAudioQaSummary" class="automated-audio-qa-summary hidden">
+                <div><strong id="automatedAudioQaScore">—</strong><span>Điểm kỹ thuật</span></div>
+                <div><strong id="automatedAudioQaCoverage">—</strong><span>Đã kiểm tra sâu</span></div>
+                <div><strong id="automatedAudioQaConfidence">—</strong><span>Mức tin cậy</span></div>
+              </div>
+              <p id="automatedAudioQaLimit" class="automated-audio-qa-limit hidden">Hiện máy chỉ chấm kỹ thuật. Độ đúng lời đọc, độ giống giọng và độ tự nhiên chưa được chấm tự động.</p>
+              <div id="automatedAudioQaShortlist" class="automated-audio-qa-shortlist"></div>
+              <div id="automatedAudioQaRepairBar" class="automated-audio-qa-repair-bar hidden">
+                <div>
+                  <strong>Một bản sửa cho cả chương</strong>
+                  <span id="automatedAudioQaRepairSelection">Chưa có điểm nào được chọn.</span>
+                </div>
+                <button id="automatedAudioQaCreateRepairRequest" class="primary" type="button">Tạo một yêu cầu sửa</button>
+              </div>
+              <section id="automatedAudioQaCandidate" class="automated-audio-qa-candidate hidden" aria-labelledby="automatedAudioQaCandidateHeading">
+                <div>
+                  <p class="eyebrow">Bản sửa thử cho đúng đoạn</p>
+                  <h4 id="automatedAudioQaCandidateHeading">So sánh trước khi thay audio</h4>
+                  <p id="automatedAudioQaCandidateStatus" class="muted"></p>
+                </div>
+                <div id="automatedAudioQaCandidateComparison" class="automated-audio-qa-candidate-comparison"></div>
+                <div class="automated-audio-qa-ab">
+                  <label>Bản hiện tại<audio id="automatedAudioQaCurrentSegment" controls preload="metadata" aria-label="Nghe đoạn hiện tại"></audio></label>
+                  <label>Bản sửa thử<audio id="automatedAudioQaCandidateSegment" controls preload="metadata" aria-label="Nghe đoạn sửa thử"></audio></label>
+                </div>
+                <p class="automated-audio-qa-candidate-effect">Chưa thay audio chương và chưa đưa ra kết luận Human QA.</p>
+                <div class="automated-audio-qa-candidate-actions">
+                  <button id="automatedAudioQaDiscardCandidate" class="secondary" type="button">Giữ bản hiện tại</button>
+                  <button id="automatedAudioQaAcceptCandidate" class="primary" type="button" data-runtime-mutation-control>Dùng bản sửa</button>
+                </div>
+              </section>
+              <p id="automatedAudioQaNext" class="automated-audio-qa-next hidden"></p>
+            </section>
+            <section id="audioLibraryQaPanel" class="audio-library-qa-panel hidden" aria-labelledby="audioQaHeading">
+              <div class="audio-qa-heading">
+                <div>
+                  <p class="eyebrow">Human QA</p>
+                  <h3 id="audioQaHeading">Nghe và duyệt</h3>
+                  <p id="audioQaIdentity" class="muted"></p>
+                </div>
+                <label>Tốc độ nghe thử
+                  <select id="audioQaPlaybackSpeed" aria-label="Tốc độ nghe thử">
+                    <option value="0.75">0.75x</option>
+                    <option value="1" selected>1.0x</option>
+                    <option value="1.25">1.25x</option>
+                    <option value="1.5">1.5x</option>
+                  </select>
+                </label>
+              </div>
+              <div class="audio-qa-primary-actions">
+                <button id="audioQaAccept" class="primary" type="button" data-runtime-mutation-control>Chấp nhận</button>
+                <button id="audioQaOpenRepair" class="secondary" type="button">Cần sửa</button>
+              </div>
+              <details id="audioQaRepairDetails" class="audio-qa-repair-details">
+                <summary>Chi tiết yêu cầu sửa</summary>
+                <fieldset class="audio-qa-feedback-options">
+                  <legend>Vấn đề cần sửa</legend>
+                  <label><input id="audioQaRepeatedWords" type="checkbox"> Lặp chữ hoặc lặp cụm từ</label>
+                  <label><input id="audioQaSlowOverall" type="checkbox"> Tốc độ tổng thể quá chậm</label>
+                  <label><input id="audioQaLocalPacing" type="checkbox"> Có đoạn cần nhanh hoặc chậm riêng</label>
+                  <label><input id="audioQaOther" type="checkbox"> Lỗi khác</label>
+                </fieldset>
+                <label>Tốc độ mong muốn cho bản thay thế
+                  <select id="audioQaReplacementSpeed" aria-label="Tốc độ mong muốn cho bản thay thế">
+                    <option value="1">1.0x</option>
+                    <option value="1.1">1.1x</option>
+                    <option value="1.25" selected>1.25x</option>
+                    <option value="1.5">1.5x</option>
+                  </select>
+                  <small>Áp dụng làm tốc độ trung bình; từng đoạn vẫn có thể được điều chỉnh riêng.</small>
+                </label>
+                <button id="audioQaMarkPosition" class="ghost" type="button">Đánh dấu vị trí đang nghe</button>
+                <label>Ghi chú phản hồi
+                  <textarea id="audioQaNote" rows="3" maxlength="4000" placeholder="Mô tả vấn đề cần sửa" required></textarea>
+                </label>
+                <div id="audioQaMarkerList" class="muted"></div>
+                <div class="audio-qa-actions">
+                  <button id="audioQaNeedsFixes" class="primary" type="button" data-runtime-mutation-control>Gửi yêu cầu sửa</button>
+                </div>
+              </details>
+              <div id="audioQaResult" class="audio-qa-result hidden" aria-live="polite"></div>
+              <details>
+                <summary>Chi tiết kỹ thuật</summary>
+                <div id="audioQaVoiceSummary" class="muted"></div>
+              </details>
+            </section>
+          </aside>
         </div>
-        <div id="audioLibraryList" class="audio-library-list" aria-label="Danh sách audio đã tạo"></div>
-        <div id="audioLibraryEmpty" class="audio-library-empty hidden">
-          <strong>Chưa có audio hoàn thành.</strong>
-          <span>Bạn có thể quay lại Production để chọn chương và tiếp tục quy trình sản xuất.</span>
-          <a class="secondary app-secondary-link" href="#/production">Mở Production</a>
-        </div>
-        <div id="audioLibraryError" class="issue error hidden">
-          <span id="audioLibraryErrorText">Không tải được thư viện audio.</span>
-          <button id="retryAudioLibrary" class="ghost" type="button">Thử lại</button>
-        </div>
-        <section id="audioLibraryQaPanel" class="audio-library-qa-panel hidden" aria-labelledby="audioQaHeading">
-          <div>
-            <p class="eyebrow">Human QA</p>
-            <h3 id="audioQaHeading">Nghe và gửi phản hồi sửa</h3>
-            <p id="audioQaIdentity" class="muted"></p>
-            <details>
-              <summary>Chi tiết kỹ thuật</summary>
-              <div id="audioQaVoiceSummary" class="muted"></div>
-            </details>
-          </div>
-          <label>Tốc độ nghe thử
-            <select id="audioQaPlaybackSpeed" aria-label="Tốc độ nghe thử">
-              <option value="0.75">0.75x</option>
-              <option value="1" selected>1.0x</option>
-              <option value="1.25">1.25x</option>
-              <option value="1.5">1.5x</option>
-            </select>
-          </label>
-          <fieldset class="audio-qa-feedback-options">
-            <legend>Vấn đề cần sửa</legend>
-            <label><input id="audioQaRepeatedWords" type="checkbox"> Lặp chữ hoặc lặp cụm từ</label>
-            <label><input id="audioQaSlowOverall" type="checkbox"> Tốc độ tổng thể quá chậm</label>
-            <label><input id="audioQaLocalPacing" type="checkbox"> Có đoạn cần nhanh hoặc chậm riêng</label>
-            <label><input id="audioQaOther" type="checkbox"> Lỗi khác</label>
-          </fieldset>
-          <label>Tốc độ mong muốn cho bản thay thế
-            <select id="audioQaReplacementSpeed" aria-label="Tốc độ mong muốn cho bản thay thế">
-              <option value="1">1.0x</option>
-              <option value="1.1">1.1x</option>
-              <option value="1.25" selected>1.25x</option>
-              <option value="1.5">1.5x</option>
-            </select>
-            <small>Áp dụng làm tốc độ trung bình; từng đoạn vẫn có thể được điều chỉnh riêng.</small>
-          </label>
-          <button id="audioQaMarkPosition" class="ghost" type="button">Đánh dấu vị trí đang nghe</button>
-          <label>Ghi chú phản hồi
-            <textarea id="audioQaNote" rows="3" maxlength="4000" placeholder="Mô tả vấn đề cần sửa" required></textarea>
-          </label>
-          <div id="audioQaMarkerList" class="muted"></div>
-          <div class="audio-qa-actions">
-            <button id="audioQaNeedsFixes" class="primary" type="button" data-runtime-mutation-control>Gửi yêu cầu sửa</button>
-          </div>
-          <div id="audioQaResult" class="audio-qa-result hidden" aria-live="polite"></div>
-          <div>
-            <strong>Lịch sử QA</strong>
-            <div id="audioQaHistory" class="qa-history muted">Chưa tải lịch sử.</div>
-          </div>
-        </section>
 
         <section class="audio-range-download" aria-labelledby="audioRangeHeading">
           <div class="section-head">
             <div>
-              <p class="eyebrow">Range download</p>
-              <h3 id="audioRangeHeading">Tải range đã chọn thành ZIP</h3>
+              <p class="eyebrow">Tải theo phạm vi</p>
+              <h3 id="audioRangeHeading">Tải các chương đã chọn thành ZIP</h3>
             </div>
             <button id="checkAudioRange" class="ghost" type="button">Kiểm tra range</button>
           </div>
-          <p class="muted">Chọn các chapter liên tiếp của cùng một sách trong danh sách bên trên.</p>
+          <p class="muted">Chọn các chương liên tiếp của cùng một sách trong danh sách bên trên.</p>
           <div id="audioRangeSummary" class="muted">Chưa chọn chapter.</div>
           <div id="audioRangeIssues" class="issue warning hidden"></div>
           <button id="downloadAudioRange" class="secondary" type="button" disabled>Tải ZIP range</button>
         </section>
       </section>
     </section>
+
+    <dialog id="audioDeleteDialog" class="audio-delete-dialog" aria-labelledby="audioDeleteDialogTitle">
+      <div class="dialog-head">
+        <div><p class="eyebrow">Xác nhận phạm vi</p><h2 id="audioDeleteDialogTitle">Xóa audio khỏi thư viện</h2></div>
+        <button id="audioDeleteCancelTop" class="ghost" type="button">Đóng</button>
+      </div>
+      <p id="audioDeleteDialogSummary"></p>
+      <div id="audioDeleteDialogItems" class="audio-delete-preview-list"></div>
+      <div class="issue warning audio-delete-retention"><strong>Phần được giữ nguyên</strong><span>File audio, Job, lịch sử Human QA, text revision và casting plan không bị xóa.</span></div>
+      <label for="audioDeleteConfirmation">Nhập <strong id="audioDeleteConfirmationPhrase">—</strong> để xác nhận
+        <input id="audioDeleteConfirmation" autocomplete="off" spellcheck="false">
+      </label>
+      <p id="audioDeleteDialogError" class="issue error hidden" role="alert"></p>
+      <div class="audio-delete-dialog-actions">
+        <button id="audioDeleteCancel" class="ghost" type="button">Giữ lại và hủy</button>
+        <button id="audioDeleteConfirm" class="danger-action" type="button" disabled data-runtime-mutation-control>Xóa khỏi thư viện</button>
+      </div>
+    </dialog>
 
     <section id="settingsView" class="app-view" data-app-view="settings" aria-labelledby="settingsHeading" hidden>
       <section class="panel settings-panel">
@@ -643,11 +792,39 @@
             <h2 id="settingsHeading">Cài đặt</h2>
           </div>
         </div>
-        <p class="section-guide">Provider, runtime, diagnostics, encoder và maintenance sống ở đây để không chen vào luồng sản xuất thường ngày.</p>
+        <p class="section-guide">Provider và runtime được cấu hình tại đây. Dung lượng và cleanup nằm ở mục Dung lượng để các tác vụ vận hành không chen vào luồng sản xuất thường ngày.</p>
         <div class="settings-summary-grid">
           <div><strong>Runtime</strong><span id="settingsRuntimeSummary">Đang kiểm tra runtime…</span></div>
           <div><strong>Provider</strong><span id="settingsProviderSummary">Đang tải cấu hình…</span></div>
         </div>
+        <section class="settings-provider-editor" aria-labelledby="settingsGeminiHeading">
+          <div class="section-head">
+            <div>
+              <h3 id="settingsGeminiHeading">Gemini API keys</h3>
+              <p id="settingsGeminiKeyStatus" class="muted">Đang kiểm tra key đã cấu hình…</p>
+            </div>
+          </div>
+          <label for="settingsGeminiKeys">Thêm key mới · mỗi dòng một key</label>
+          <textarea id="settingsGeminiKeys" rows="5" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="AIza...&#10;AIza..."></textarea>
+          <p class="muted">Key mới được append vào <code>secrets/gemini_api_key.txt</code>. Key cũ không bị thay thế; key trùng được bỏ qua. Các key được dùng luân phiên cho các request Gemini kế tiếp và có hiệu lực ngay sau khi lưu, không cần restart. Vì lý do bảo mật, key đã lưu không bao giờ được hiển thị lại trên giao diện.</p>
+          <div class="settings-provider-actions">
+            <button id="settingsSaveGeminiKeys" class="primary" type="button">Thêm key</button>
+            <span id="settingsGeminiKeyResult" role="status" aria-live="polite"></span>
+          </div>
+        </section>
+        <section class="settings-provider-editor" aria-labelledby="settingsTtsHeading">
+          <div class="section-head">
+            <div>
+              <h3 id="settingsTtsHeading">Đọc giọng / VieNeu</h3>
+              <p id="settingsTtsStatus" class="muted">Đang kiểm tra TTS provider…</p>
+            </div>
+          </div>
+          <p class="muted">VieNeu được nạp theo kiểu lazy để app khởi động nhanh. Trạng thái “chưa nạp” không phải lỗi. Bạn có thể kiểm tra và nạp model trước khi bắt đầu render để phát hiện lỗi môi trường sớm.</p>
+          <div class="settings-provider-actions">
+            <button id="settingsProbeTts" class="secondary" type="button">Kiểm tra &amp; nạp TTS</button>
+            <span id="settingsTtsResult" role="status" aria-live="polite"></span>
+          </div>
+        </section>
       </section>
     </section>
   </main>
@@ -660,7 +837,7 @@
       </div>
       <button id="cancelProductionScopeTop" class="ghost" type="button">Hủy</button>
     </div>
-    <p class="section-guide">Nhập trực tiếp số chương để đi nhanh. Danh sách bên dưới chỉ dùng khi bạn muốn tìm theo tên hoặc duyệt sách.</p>
+    <p class="section-guide">Nhập trực tiếp số chương để đi nhanh. Danh sách bên dưới chỉ dùng khi bạn muốn tìm theo tên hoặc duyệt sách. Kiểm tra phạm vi chỉ đọc trạng thái hiện có: không chuẩn bị job, không render và không thay đổi dữ liệu production.</p>
 
     <section class="scope-primary-form" aria-label="Chọn phạm vi sản xuất">
       <div class="scope-book-combobox">
@@ -695,7 +872,7 @@
         <button class="ghost" type="button" data-scope-quick="10">10 chương</button>
       </div>
 
-      <label class="check scope-skip-completed"><input id="scopeSkipCompleted" type="checkbox"> Khi lập kế hoạch, bỏ qua chương đã có audio</label>
+      <label class="check scope-skip-completed"><input id="scopeSkipCompleted" type="checkbox"> Bỏ qua chương đã có audio khi xem phạm vi</label>
       <div id="scopeSelectionValidation" class="scope-message warning hidden" role="alert"></div>
       <div id="scopeSelectionError" class="scope-message error hidden" role="alert"></div>
       <details id="scopeTechnicalError" class="scope-technical-error hidden">
@@ -736,6 +913,21 @@
     <div id="qaIssues"></div>
     <div class="tabs"><button data-tab="reflowed" class="active">Reflowed</button><button data-tab="repaired">Gemini</button><button data-tab="raw">Raw</button><button data-tab="diff">Text Diff</button><button data-tab="casting">Quy trình sản xuất</button></div>
     <pre id="chapterText"></pre>
+    <details id="textCorrectionPanel" class="text-correction-panel">
+      <summary>Sửa đúng một đoạn trong văn bản đang dùng</summary>
+      <p class="section-guide">Thao tác này tạo một phiên bản văn bản mới, giữ nguyên phiên bản cũ và không gọi dịch vụ bên ngoài.</p>
+      <label for="textCorrectionExpected">Đoạn cần thay
+        <textarea id="textCorrectionExpected" rows="3" placeholder="Dán nguyên văn đoạn hiện tại"></textarea>
+      </label>
+      <label for="textCorrectionReplacement">Đoạn thay thế
+        <textarea id="textCorrectionReplacement" rows="3" placeholder="Nhập nội dung đã sửa"></textarea>
+      </label>
+      <label for="textCorrectionReason">Lý do sửa
+        <input id="textCorrectionReason" placeholder="Ví dụ: sửa dấu câu hoặc tên riêng">
+      </label>
+      <button id="applyTargetedTextCorrection" class="secondary" type="button" data-runtime-mutation-control>Tạo phiên bản đã sửa</button>
+      <p id="textCorrectionResult" class="muted" role="status" aria-live="polite"></p>
+    </details>
     <div id="castingPanel" class="casting-panel hidden">
       <section id="productionFlowPanel" class="production-flow-guide">
         <div class="section-head">
@@ -1062,7 +1254,7 @@
     <p id="productionPrepareDialogStatus" class="production-auth-message"></p>
     <label class="check production-confirmation">
       <input id="productionPrepareDialogConfirmation" type="checkbox" onchange="updateProductionPrepareDialog()">
-      <span id="productionPrepareConfirmationCopy">Tôi xác nhận phạm vi đã chọn. Bước này chưa tạo audio.</span>
+      <span id="productionPrepareConfirmationCopy">Tôi đã kiểm tra phạm vi, bản đồ giọng và thông số TTS hiệu lực. PREPARE chưa tạo audio.</span>
     </label>
     <div class="production-auth-actions">
       <button class="ghost" type="button" onclick="document.querySelector('#productionPrepareAuthDialog').close()">Hủy</button>
@@ -1098,8 +1290,8 @@
   </dialog>
   <div id="toast" class="toast hidden"></div>
   <script src="/assets/production_state.js?v=20260727-production-preflight-1"></script>
-  <script src="/assets/app.js?v=20260802-audio-repair-feedback-5"></script>
+  <script src="/assets/app.js?v=20260913-unified-repair-2"></script>
   <script src="/assets/casting_voice_map.js?v=20260726-vietnamese-flow-3"></script>
-  <script src="/assets/contextual_voice_detour.js?v=20260720-daily-prod-2b2"></script>
+  <script src="/assets/contextual_voice_detour.js?v=20260911-voice-detail-1"></script>
 </body>
 </html>

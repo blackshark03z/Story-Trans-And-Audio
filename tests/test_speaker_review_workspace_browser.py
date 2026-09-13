@@ -43,7 +43,7 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
     speaker_queue_request_count = 0
     last_batch_result: dict | None = None
     server_annotations: dict[str, str] = {}
-    next_analysis_delay_seconds = 10.6
+    next_analysis_delay_seconds = 11.8
 
     @classmethod
     def reset(cls) -> None:
@@ -56,7 +56,7 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
         cls.speaker_queue_request_count = 0
         cls.last_batch_result = None
         cls.server_annotations = {}
-        cls.next_analysis_delay_seconds = 10.6
+        cls.next_analysis_delay_seconds = 11.8
         cls.suggestions = cls.queue()
 
     @classmethod
@@ -417,6 +417,48 @@ class SpeakerReviewWorkspaceFixtureHandler(CharacterAssignmentFixtureHandler):
 
 
 class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
+    def test_batch_review_completion_bar_real_browser(self) -> None:
+        import subprocess
+
+        SpeakerReviewWorkspaceFixtureHandler.reset()
+        server = ThreadingHTTPServer(
+            ("127.0.0.1", 0), SpeakerReviewWorkspaceFixtureHandler
+        )
+        thread = threading.Thread(target=server.serve_forever, daemon=True)
+        thread.start()
+        try:
+            result = subprocess.run(
+                [
+                    "node",
+                    "scripts/browser_speaker_batch_review_smoke.mjs",
+                    f"http://127.0.0.1:{server.server_port}",
+                ],
+                cwd=ROOT,
+                check=False,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                timeout=45,
+            )
+        finally:
+            server.shutdown()
+            server.server_close()
+            thread.join(timeout=5)
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        evidence = json.loads(result.stdout)
+        self.assertTrue(evidence["ok"])
+        self.assertEqual(evidence["selected"]["count"], "1")
+        self.assertTrue(evidence["selected"]["outcomes"])
+        self.assertTrue(evidence["selected"]["direct"])
+        self.assertTrue(evidence["selected"]["safe"])
+        self.assertTrue(evidence["selected"]["staticPosition"])
+        self.assertTrue(evidence["selected"]["afterList"])
+        self.assertTrue(evidence["selected"]["noOpenDialog"])
+        self.assertTrue(evidence["payloadOk"])
+        self.assertTrue(evidence["noRender"])
+        self.assertEqual(evidence["afterPending"], evidence["beforePending"] - 1)
+
     def test_review_workspace_real_browser_certification(self) -> None:
         import subprocess
 
@@ -460,7 +502,11 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
         self.assertEqual(evidence["queueRequestCountAfterJobsPolling"], 2)
         for name, control in evidence["jobsPollingControlStates"].items():
             self.assertTrue(control["sameNode"])
-            self.assertTrue(control.get("focused", True), f"{name}: {control}")
+            if control.get("focusExpected", True):
+                self.assertTrue(control.get("focused", True), f"{name}: {control}")
+            else:
+                self.assertTrue(control.get("disabled", False), f"{name}: {control}")
+                self.assertFalse(control.get("focused", False), f"{name}: {control}")
             self.assertEqual(control.get("blurCount", 0), 0)
         self.assertEqual(
             evidence["jobsPollingControlStates"]["name"]["selection"],
@@ -485,7 +531,8 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
         self.assertTrue(evidence["busyVisible"])
         self.assertTrue(evidence["characterFocus"])
         self.assertTrue(evidence["newCharacterFocus"])
-        self.assertTrue(evidence["voiceFocus"])
+        self.assertTrue(evidence["voiceEditingDeferred"])
+        self.assertTrue(evidence["correctionVoiceEditingDeferred"])
         self.assertTrue(evidence["invalidDecisionBlocked"])
         self.assertTrue(evidence["discardRestored"])
         self.assertTrue(evidence["discardNoMutation"])
@@ -507,6 +554,12 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
         self.assertTrue(evidence["approvedMoved"])
         self.assertTrue(evidence["correctionHistoryVisible"])
         self.assertTrue(evidence["batchExcludedUnsafe"])
+        self.assertEqual(evidence["batchBarSelection"]["selected"], "1")
+        self.assertTrue(evidence["batchBarSelection"]["hasRules"])
+        self.assertTrue(evidence["batchBarSelection"]["safeAction"])
+        self.assertTrue(evidence["batchBarSelection"]["staticPosition"])
+        self.assertTrue(evidence["batchBarSelection"]["afterList"])
+        self.assertTrue(evidence["batchBarSelection"]["noOpenDialog"])
         self.assertTrue(evidence["batchBusyVisible"])
         self.assertTrue(evidence["batchResultVisible"], evidence["batchResultText"])
         self.assertTrue(
@@ -561,8 +614,9 @@ class SpeakerReviewWorkspaceBrowserTests(unittest.TestCase):
             == "unresolved-dialogue:1003:u0002-feedface0000"
         )
         self.assertEqual(edited["payload"]["reviewer_payload"]["existing_character_id"], 25)
-        self.assertEqual(edited["payload"]["reviewer_payload"]["suggested_voice_id"], "commander")
-        self.assertEqual(edited["payload"]["reviewer_payload"]["voice_scope"], "range")
+        self.assertEqual(edited["payload"]["reviewer_payload"]["voice_mode"], "keep")
+        self.assertNotIn("suggested_voice_id", edited["payload"]["reviewer_payload"])
+        self.assertNotIn("voice_scope", edited["payload"]["reviewer_payload"])
         self.assertEqual(edited["payload"]["reviewer_payload"]["proposed_aliases"], ["edited alias"])
 
 

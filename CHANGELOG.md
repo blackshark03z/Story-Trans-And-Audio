@@ -4,6 +4,63 @@ Ghi thay đổi hành vi người dùng, schema, artifact contract và vận hà
 
 ## Unreleased
 
+### Gemini voice batch review belongs to Step 2 — 2026-09-11
+
+- Renamed the Step 1 bulk action to `Duyệt người nói hàng loạt`; it now states explicitly that it changes speaker/Character identity only.
+- Restored the approved Gemini voice proposals as a separate Step 2 review: current versus proposed voice, apply-all-eligible, apply-selected, and durable `Giữ giọng hiện tại` paths are visible before the per-role editors.
+- Voice batches are atomic, validate against the immutable approved Gemini proposal, and apply only to effective included chapters. They never call Gemini, PREPARE, render, or mutate accepted audio.
+
+### Accepted-audio restore journey — 2026-09-10
+
+- Added the missing user-facing recovery path in `Duyệt audio`: an earlier generation appears in `Lịch sử QA` with `Khôi phục làm bản hiện tại` only when its newest Artifact-scoped Human QA evidence is accepted and exactly matches the completed, verified audio file.
+- Restore now runs through the shared `POST /api/production/commands` envelope with an exact active-Artifact compare-and-swap. It atomically switches active/stale status and the chapter pointer, preserves every file/Job/revision, records an immutable restore audit event, and is idempotent for the same completed transition.
+- The restore fails closed on stale UI state, missing or changed file/hash/size, mismatched QA evidence, invalid Job binding, or a render currently executing for the chapter. It never invokes PREPARE, START_RENDER, Gemini, TTS, repair or regeneration.
+- Added domain, API, UI-contract and real Chromium coverage for the complete transition. The 1366×768 candidate has no horizontal overflow, does not autoplay after restore, and the Production stage accessibility label now correctly says `Bốn giai đoạn sản xuất`.
+
+### Stable end-to-end owner journey closure — 2026-09-10
+
+- Converged the post-render product boundary so `Sản xuất` stops at handoff and `Duyệt audio` is the single Human QA workspace. Real browser verification on canonical port `8873` proved the Chapters 2–8 range reaches `HUMAN_QA`, shows `Đã bàn giao` with the single primary action `Mở Duyệt audio`, and exposes no playback or QA controls inside Production.
+- Recreated and certified a real canonical Book 1 Chapters 2–8 production run: Job `#1` completed `7/7` chapters and `409/409` segments with `0` failed/pending segments; active artifacts are `#3/#6/#9/#12/#15/#18/#21`. Deep Doctor reports schema `16`, SQLite `quick_check=ok`, `7/7` active artifacts hash-valid, no missing resumable segments and `critical_errors=0`.
+- Real Chromium acceptance verified all seven Audio Review rows, master-detail selection, actual media playback, HTTP Range `206` for every artifact, no horizontal overflow at 1280×800 and 1440×900, and no runtime exceptions or failing network requests. The browser-default favicon 404 was removed with an inline empty favicon.
+- Applied the standing owner approval through the actual `Duyệt audio` UI after real-browser playback and technical integrity verification. All seven artifacts moved `pending -> accepted`; the range now projects `COMPLETE`, `Nghe & tải 7 chương` is available, and the contiguous ZIP contains exactly seven M4A entries for Chapters 2–8. `Bắt đầu lượt sản xuất mới` closes the old working context and suggests Chapters 9–15 without creating a Job or calling a provider.
+- Hardened the shared Production command contract so malformed nested identity scopes such as `job.job_id` fail before the executor/mutation boundary. Focused service/API regression is `25/25` PASS, preventing the observed class where START_RENDER could begin successfully and then return HTTP 500 during post-mutation projection.
+- Fixed the no-scope Production render identity so the primary task refreshes when the asynchronous book list changes from empty to available. A real Chromium regression now locks the transition from `Nhập EPUB` / `Chưa có sách` to `Chọn sách & chương` without requiring a second navigation.
+- Canonical Project CI passed all `46` policy checks after the command-scope fix and supervised runtime restart. A prior raw full-suite run exhausted Windows virtual commit while the VieNeu runtime still retained the loaded model; after the completed render was safely restarted, virtual memory recovered and the canonical policy suite passed cleanly. No pagefile configuration was changed.
+
+### Speaker Review batch completion
+
+- Added a terminal inline batch-review completion block after the Gemini suggestion list with separate `Chấp nhận tất cả đủ điều kiện` and `Chấp nhận mục đã chọn` paths. Batch scope is chosen directly from the review queue; there is no second checkbox-selection modal. The block stays in normal document flow and only enters view after the operator reaches the end of the review list; it is not sticky or fixed to the viewport.
+- Explicitly selected batches may contain human-edited or MEDIUM/LOW-confidence decisions once each item validates; they are applied atomically across source analysis runs. Automatic `all safe` approval remains restricted to unchanged HIGH-confidence suggestions that pass server-side exclusion checks.
+- Accepted items write durable audit decisions and apply their Character/background-group/speaker mapping only; voice proposals move to the separate Step 2 review. Unaccepted, deferred, uncertain, or invalid items do not mutate Character/voice state and continue blocking Final Voice Map/PREPARE for the affected scope.
+- Batch preview now distinguishes the exact outcome of the all-eligible path versus the selected-only path, including what remains pending afterward. Batch failure preserves selection/drafts and rolls back the whole transaction. Browser acceptance locks the end-of-list static completion block, selection count, scope/outcome guidance, safe batch path, and no PREPARE/render side effects.
+
+### Provider task-completion recovery
+
+- Added in-app Gemini key management: paste 1-N keys one-per-line, append only new values to `secrets/gemini_api_key.txt`, preserve existing values, skip duplicates, never echo stored secrets back to the browser, and report only counts/status.
+- Gemini provider routing now defaults to `gemini-3.8-flash` with bounded fallback through `gemini-3.7-flash`, `gemini-3.6-flash`, then `gemini-3.5-flash`. The key pool also fails over within a request on key-specific 401/403/429 failures, so one invalid key no longer randomly breaks the operator journey. Speaker review/assignment record the actual successful model; newly prepared punctuation-repair Jobs snapshot the full model chain while older Jobs remain pinned to their original single-model contract.
+- Gemini provider calls use the configured key pool without exposing key values; presence checks use the non-consuming key list so health/readiness probes do not disturb request rotation. Newly appended keys are available immediately without restarting the runtime.
+- Safe speaker batch approval now rejects near-duplicate `NEW_CHARACTER` names within one analysis range, including token-contained variants such as a descriptive form of the same name; those items remain for human merge/review instead of creating duplicate Characters.
+- Corrected VieNeu `not_loaded` from a false failure state to lazy-ready when the provider is discoverable, added an explicit Settings probe/load action, and route `PROVIDER_NOT_READY` render blockers directly to that recovery instead of an ineffective status reload loop.
+- Audited primary user-facing empty/blocked states with the CADS user-facing workflow and UI quality review gates. Books, Jobs, Audio, Storage and Voice Library already expose actionable next steps; Settings copy no longer promises diagnostics/encoder/maintenance controls that are not present there.
+
+### UX workbench redesign
+
+- Reframed Story Audio as a complex desktop productivity application using Nielsen complex-app heuristics, Fluent 2 navigation/layout guidance, WCAG 2.2 interaction requirements, and the project frontend-design skill rather than continuing theme-only changes.
+- Replaced the horizontal application nav with a persistent desktop side rail, added explicit current-location feedback in the top bar, and kept resource destinations visible as a secondary navigation group; widths below 900px fall back to a compact horizontal nav.
+- Restructured Production into a chapter rail, primary task canvas, and contextual technical-details rail. Advanced/technical information is staged away from the dominant action while status, scope, and recovery remain visible.
+- Standardized Books, Assignment, Jobs, Audio, and Voice Library around the same master-detail/list grammar and a single semantic color system: cool neutral surfaces, indigo-cobalt interaction states, teal success, amber warning, red danger, and slate/blue informational states. Legacy green variables now resolve through the same tokens so old controls no longer drift visually.
+- Browser acceptance locks the shell itself: 820x900 uses horizontal navigation with full-width content; 1366x768 and 1920x1080 use vertical navigation with content offset from the rail and no horizontal overflow. Core real-browser journeys remain 11/11 PASS.
+
+### Owner journey and daily workspace convergence
+
+- Completed the real Book 1 `Quang Âm Chi Ngoại` Chapters 6–8 owner journey through render, Human QA, COMPLETE, Audio playback and contiguous ZIP download while preserving the exact production scope.
+- Fixed skipped-complete PREPARE ownership and command reconciliation so completed chapters do not block an owning prepared Job and chapter-scoped QA results cannot transiently replace the active range projection.
+- Redesigned the daily workspace around `Sản xuất / Gán giọng / Công việc / Audio`; resource/configuration destinations now live under `Tài nguyên` or contextual detours.
+- Bounded long Production queue, Assignment, Jobs and Audio lists with workspace-local scrolling; kept the Production queue and selected Audio player visible on supported desktop widths; added reduced-motion handling.
+- Clarified action hierarchy: listening is the primary Audio-card action, video export is tertiary, and Jobs emphasizes start/resume/retry over diagnostics/copy/cancel actions.
+- Real runtime verification at 1280×800 and 1440×900 found no horizontal overflow, no replacement-character mojibake and no browser-console errors. The Chapters 6–8 output path still returns HTTP Range `206` for all accepted artifacts and a valid three-file ZIP.
+- Golden isolated browser journey passes on the redesigned candidate. The long Speaker Review browser fixture remains timing-sensitive around its deliberate 10.6-second provider-delay plus response-loss simulation; redesign does not change that command/timer logic, and focused Speaker/Voice UI contracts remain green.
+
 ### Repository operation and hygiene
 
 - Documented one canonical root-level operator path for start, verified

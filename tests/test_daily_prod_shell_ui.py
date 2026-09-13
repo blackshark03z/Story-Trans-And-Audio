@@ -24,7 +24,7 @@ class DailyProductionShellUiTests(unittest.TestCase):
             ("production", "#/production", "Sản xuất"),
             ("assignment", "#/assignment", "Gán giọng"),
             ("jobs", "#/jobs", "Công việc"),
-            ("audio", "#/audio", "Audio"),
+            ("audio", "#/audio", "Duyệt audio"),
             ("storage", "#/storage", "Dung lượng"),
         ]
         self.assertIn('id="appNav"', self.html)
@@ -52,7 +52,7 @@ const views = ['home','production','voices','books','audio','settings'].map(rout
 const links = ['home','production','voices','books','audio','settings'].map(route => ({ dataset: { appRoute: route }, classList: { values: new Set(), toggle(k,v){ v ? this.values.add(k) : this.values.delete(k); } }, attrs: {}, setAttribute(k,v){ this.attrs[k]=v; }, removeAttribute(k){ delete this.attrs[k]; } }));
 globalThis.document = { querySelectorAll(selector){ return selector === '[data-app-view]' ? views : links; }, querySelector(selector){ return selector === '#appViewHeading' ? { textContent: '' } : null; } };
 const state = { currentRoute: 'home' };
-const APP_ROUTES={home:{hash:'#/home',label:'Trang chủ',heading:'Trang chủ'},production:{hash:'#/production',label:'Sản xuất',heading:'Sản xuất'},voices:{hash:'#/voices',label:'Thư viện giọng',heading:'Thư viện giọng'},books:{hash:'#/books',label:'Sách và nhân vật',heading:'Sách và nhân vật'},audio:{hash:'#/audio',label:'Audio đã tạo',heading:'Audio đã tạo'},settings:{hash:'#/settings',label:'Cài đặt',heading:'Cài đặt'}};
+const APP_ROUTES={home:{hash:'#/home',label:'Trang chủ',heading:'Trang chủ'},production:{hash:'#/production',label:'Sản xuất',heading:'Sản xuất'},voices:{hash:'#/voices',label:'Thư viện giọng',heading:'Thư viện giọng'},books:{hash:'#/books',label:'Sách và nhân vật',heading:'Sách và nhân vật'},audio:{hash:'#/audio',label:'Duyệt audio',heading:'Duyệt audio'},settings:{hash:'#/settings',label:'Cài đặt',heading:'Cài đặt'}};
 function routeFromHash(hash=window.location.hash){const key=String(hash||'').replace(/^#\\/?/,'').split(/[/?]/)[0]||'home';return APP_ROUTES[key]?key:'home'}
 function setAppRoute(route,{replace=false}={}){const next=APP_ROUTES[route]?route:'home';state.currentRoute=next;document.querySelectorAll('[data-app-view]').forEach(view=>{const active=view.dataset.appView===next;view.hidden=!active;view.setAttribute('aria-hidden',active?'false':'true')});document.querySelectorAll('[data-app-route]').forEach(link=>{const active=link.dataset.appRoute===next;link.classList.toggle('active',active);if(active)link.setAttribute('aria-current','page');else link.removeAttribute('aria-current')});const heading=document.querySelector('#appViewHeading');if(heading)heading.textContent=APP_ROUTES[next].heading;const desired=APP_ROUTES[next].hash;if(window.location.hash!==desired){if(replace)history.replaceState(null,'',desired);else history.pushState(null,'',desired)}}
 console.log(JSON.stringify({
@@ -79,7 +79,7 @@ console.log(JSON.stringify({
         self.assertEqual(lines[0], '{"empty":"home","production":"production","unknown":"home"}')
         self.assertEqual(lines[1], '{"route":"voices","hash":"#/voices","visible":["voices"],"active":["voices"]}')
 
-    def test_production_shell_lists_five_operator_phases(self) -> None:
+    def test_production_shell_lists_four_owner_production_phases(self) -> None:
         match = re.search(
             r'<ol id="productionStageShell".*?</ol>',
             self.html,
@@ -88,14 +88,12 @@ console.log(JSON.stringify({
         self.assertIsNotNone(match)
         stage_html = match.group(0)
         expected = [
-            "Ch\u1ecdn ph\u1ea1m vi",
-            "Ki\u1ec3m tra n\u1ed9i dung v\u00e0 ng\u01b0\u1eddi n\u00f3i",
-            "Ki\u1ec3m tra nh\u00e2n v\u1eadt v\u00e0 gi\u1ecdng",
-            "Chu\u1ea9n b\u1ecb v\u00e0 render",
-            "Nghe v\u00e0 duy\u1ec7t",
-            "Ho\u00e0n t\u1ea5t v\u00e0 t\u1ea3i xu\u1ed1ng",
+            "Ph\u1ea1m vi",
+            "N\u1ed9i dung &amp; ng\u01b0\u1eddi n\u00f3i",
+            "Nh\u00e2n v\u1eadt &amp; gi\u1ecdng",
+            "Ki\u1ec3m tra &amp; t\u1ea1o audio",
         ]
-        self.assertEqual(stage_html.count("<li"), 6)
+        self.assertEqual(stage_html.count("<li"), 4)
         for label in expected:
             self.assertIn(f"<strong>{label}</strong>", stage_html)
 
@@ -110,6 +108,25 @@ console.log(JSON.stringify({
         self.assertIn('id="productionCurrentStepHeading"', self.html)
         self.assertIn('role="status"', self.html)
         self.assertIn("primary.onclick=()=>runProductionPrimaryAction(vm)", self.js)
+
+    def test_change_scope_action_is_attached_to_the_scope_it_changes(self) -> None:
+        context = re.search(
+            r'<div id="productionRangeContext".*?</div>\s*\n\s*<ol id="productionStageShell"',
+            self.html,
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(context)
+        scope_identity = re.search(
+            r'<div class="production-scope-identity">.*?</div>\s*</div>',
+            context.group(0),
+            flags=re.DOTALL,
+        )
+        self.assertIsNotNone(scope_identity)
+        self.assertIn('id="productionScopeSummary"', scope_identity.group(0))
+        self.assertIn('id="productionChangeScope"', scope_identity.group(0))
+        self.assertIn('>Đổi sách / chương</button>', scope_identity.group(0))
+        self.assertEqual(context.group(0).count('id="productionChangeScope"'), 1)
+        self.assertIn(".production-scope-title-row{display:flex", self.css)
 
     def test_resolver_renders_completed_current_and_locked_stage_buttons(self) -> None:
         self.assertIn('aria-current="step"', self.js)
@@ -130,6 +147,21 @@ console.log(JSON.stringify({
         self.assertIn("productionScopeFromHash(window.location.hash)", self.js)
         self.assertIn("storedProductionScope()", self.js)
         self.assertIn("replaceScopeRoute", self.js)
+
+    def test_late_production_restore_cannot_overwrite_a_newer_route(self) -> None:
+        self.assertIn("appRouteEpoch:0", self.js)
+        self.assertIn("state.appRouteEpoch+=1", self.js)
+        self.assertIn("restoreProductionScopeFromRoute(routeEpoch)", self.js)
+        restore_range = self.js[
+            self.js.index("async function restoreProductionRangeScope"):
+            self.js.index("function currentProductionQaCommandTarget")
+        ]
+        self.assertIn("if(!routeRestoreIsCurrent())return", restore_range)
+        self.assertIn("routeEpoch===state.appRouteEpoch", restore_range)
+        self.assertLess(
+            restore_range.index("if(!routeRestoreIsCurrent())return;state.productionRange.readiness=result"),
+            restore_range.index("history.replaceState"),
+        )
 
     def test_production_route_restore_uses_only_read_only_requests(self) -> None:
         restore_section = self.js[

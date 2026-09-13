@@ -36,9 +36,9 @@ def main() -> int:
 
     result("INFO", "root", str(ROOT))
     result(
-        "OK" if settings.gemini_key() else "WARN",
+        "OK" if settings.gemini_keys() else "WARN",
         "gemini_key",
-        "configured" if settings.gemini_key() else "missing",
+        "configured" if settings.gemini_keys() else "missing",
     )
     for command in ("ffmpeg", "ffprobe"):
         available = command_available(command)

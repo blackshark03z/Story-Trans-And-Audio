@@ -64,7 +64,7 @@ class CastingVoiceMapUiContractTests(unittest.TestCase):
             self.assertIn(value, self.app_js + self.voice_map_js)
 
     def test_catalog_failure_has_no_legacy_voice_fallback(self) -> None:
-        marker = "async function loadVoiceCatalog()"
+        marker = "async function loadVoiceCatalog("
         start = self.app_js.index(marker)
         end = self.app_js.index("async function loadCustomVoices", start)
         loader = self.app_js[start:end]

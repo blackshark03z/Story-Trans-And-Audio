@@ -32,23 +32,23 @@ def _provenance(utterance: dict[str, Any]) -> str:
 
 
 def _artifact_qa(db: Database, *, chapter_id: int, artifact_id: int, current_approval: object) -> dict[str, Any]:
-    for event in db.fetch_all(
+    event = db.fetch_one(
         """
         SELECT id, details_json, created_at
         FROM audit_events
         WHERE chapter_id=? AND event_code='human_qa_recorded'
-        ORDER BY id DESC
+        ORDER BY id DESC LIMIT 1
         """,
         (chapter_id,),
-    ):
+    )
+    if event is not None:
         details = _object(event["details_json"])
-        if int(details.get("artifact_id") or 0) != artifact_id:
-            continue
-        return {
-            "status": str(details.get("status") or "pending"),
-            "event_id": int(event["id"]),
-            "recorded_at": event["created_at"],
-        }
+        if int(details.get("artifact_id") or 0) == artifact_id:
+            return {
+                "status": str(details.get("status") or "pending"),
+                "event_id": int(event["id"]),
+                "recorded_at": event["created_at"],
+            }
 
     approval = _object(current_approval)
     if int(approval.get("artifact_id") or 0) == artifact_id:

@@ -377,7 +377,7 @@ class AudioRepairBlockTests(IsolatedTestCase):
         chapter = self.db.fetch_one("SELECT active_audio_artifact_id FROM chapters WHERE id=?", (self.chapter_id,))
         self.assertEqual(chapter["active_audio_artifact_id"], accepted["new_artifact_id"])
         old_artifact = self.db.fetch_one("SELECT status FROM artifacts WHERE id=?", (self.artifact_id,))
-        self.assertEqual(old_artifact["status"], "stale")
+        self.assertIsNone(old_artifact)
         new_artifact = self.db.fetch_one("SELECT artifact_type,status,path FROM artifacts WHERE id=?", (accepted["new_artifact_id"],))
         self.assertEqual(new_artifact["artifact_type"], "chapter_m4a")
         self.assertEqual(new_artifact["status"], "active")

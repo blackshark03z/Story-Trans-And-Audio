@@ -125,6 +125,58 @@ class PreparedJobLifecycleTests(IsolatedTestCase):
         )
         self.assertIsNone(worker._next_job())
 
+    def test_start_blocks_uncompiled_or_unsupported_repair_instruction(self) -> None:
+        prepared = prepare_job(self.db, self.config, store=self.store, **self._payload())
+        job = self.db.fetch_one("SELECT settings_json FROM jobs WHERE id=?", (prepared["job_id"],))
+        settings = json.loads(job["settings_json"])
+        settings["repair_instruction"] = {
+            "schema": "story-audio-repair-instruction/v2",
+            "execution_mode": "blocked",
+            "execution_ready": False,
+            "execution_blockers": ["unsupported_markers_present"],
+        }
+        with self.db.connect() as connection:
+            connection.execute(
+                "UPDATE jobs SET settings_json=? WHERE id=?",
+                (json.dumps(settings), prepared["job_id"]),
+            )
+        with self.assertRaisesRegex(JobStartConflict, "unsupported_markers_present"):
+            start_prepared_job(
+                self.db,
+                self.config,
+                job_id=int(prepared["job_id"]),
+                voice_catalog=self.voice_catalog,
+                store=self.store,
+            )
+        self.assertEqual(
+            self.db.fetch_one("SELECT status FROM jobs WHERE id=?", (prepared["job_id"],))["status"],
+            JOB_PREPARED_STATUS,
+        )
+
+    def test_start_accepts_ready_hybrid_repair_instruction(self) -> None:
+        prepared = prepare_job(self.db, self.config, store=self.store, **self._payload())
+        job = self.db.fetch_one("SELECT settings_json FROM jobs WHERE id=?", (prepared["job_id"],))
+        settings = json.loads(job["settings_json"])
+        settings["repair_instruction"] = {
+            "schema": "story-audio-repair-instruction/v2",
+            "execution_mode": "hybrid_segment_batch",
+            "execution_ready": True,
+            "execution_blockers": [],
+        }
+        with self.db.connect() as connection:
+            connection.execute(
+                "UPDATE jobs SET settings_json=? WHERE id=?",
+                (json.dumps(settings), prepared["job_id"]),
+            )
+        started = start_prepared_job(
+            self.db,
+            self.config,
+            job_id=int(prepared["job_id"]),
+            voice_catalog=self.voice_catalog,
+            store=self.store,
+        )
+        self.assertEqual(started["status"], "scheduled")
+
     def test_worker_honors_pinned_single_tts_attempt_limit(self) -> None:
         prepared = prepare_job(self.db, self.config, store=self.store, **self._payload())
         job = self.db.fetch_one("SELECT * FROM jobs WHERE id=?", (prepared["job_id"],))

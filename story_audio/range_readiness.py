@@ -65,8 +65,6 @@ def _human_qa_status(raw: Any, active_artifact_id: int | None) -> str:
     matches_active = bool(stored_artifact_id and active_artifact_id and stored_artifact_id == active_artifact_id)
     if status == "approved" and matches_active:
         return "accepted"
-    if status == "approved":
-        return "approved_stale"
     if status == "needs_fixes" and matches_active:
         return "needs_fixes"
     return "pending"
@@ -468,6 +466,9 @@ def _state_item(
         "latest_casting_plan_status": latest_plan.get("status") if latest_plan else None,
         "live_job_id": int(live_jobs[0]["job_id"]) if len(live_jobs) == 1 else None,
         "live_job_status": live_jobs[0].get("job_status") if len(live_jobs) == 1 else None,
+        "live_job_book_id": int(live_jobs[0]["book_id"]) if len(live_jobs) == 1 else None,
+        "live_job_from_chapter": int(live_jobs[0]["from_chapter"]) if len(live_jobs) == 1 else None,
+        "live_job_to_chapter": int(live_jobs[0]["to_chapter"]) if len(live_jobs) == 1 else None,
         "blockers": blockers,
         "voice_issues": voice_issues,
         "text_validation_error": text_validation_error,

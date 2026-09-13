@@ -4,7 +4,7 @@
 
 Kiến trúc voice Personal Edition dùng ba voice mặc định cấp book (narrator, male dialogue, female dialogue), unknown fallback và optional character override. Core và UI casting đã có trong schema v3.
 
-Current application state: the production backend and existing browser UI are functional and have completed routine chapter production. Active product direction is a modular Daily Production UX: Home, Production, Voice Library, Books And Characters, Audio Library, and Settings, with Production guided by one sequential next-action workflow. This is the target direction and is implemented only as its `DAILY-PROD` roadmap milestones complete.
+Current application state: the production backend and browser UI are functional. Daily work uses three primary destinations: **Home**, **Production**, and **Audio**. One discoverable **Thiết lập và theo dõi** menu holds Books and Characters, Voice Library, Assignment, Jobs, Storage, and Settings. Production remains the sequential next-action workflow; contextual detours preserve the selected scope and provide a direct return to Production.
 
 Canonical target workflow: [docs/DAILY_PRODUCTION_WORKFLOW.md](docs/DAILY_PRODUCTION_WORKFLOW.md).
 
@@ -72,12 +72,12 @@ Current supported workflow:
 
 Target daily-production workflow:
 
-1. Open **Home** and continue the current production scope.
-2. Use **Production** to select chapter scope, resolve only required exceptions, review the Final Voice Map, prepare, explicitly start render, and complete Human QA.
-3. Use **Voice Library** only for reusable voice management and previews.
-4. Use **Books And Characters** only for book, Character Bible, narrator/default/fallback voice policy, and character override setup.
-5. Use **Audio Library** for completed output playback, details, download, and QA/remediation entry.
-6. Use **Settings** for provider, runtime, diagnostics, paths, and maintenance.
+1. On a first run, open **Home** and choose **Nhập EPUB**. The Books and Characters screen is opened directly; no hash route or database knowledge is required.
+2. After import, select the book and scope in **Production**. Production presents the authoritative next action and only routes to setup when that action needs it.
+3. For existing work, **Home** prioritizes the resumable scope, active work, and recent audio instead of onboarding.
+4. Use **Voice Library** only for reusable voice management and previews; use **Books And Characters** for book and Character Bible setup.
+5. Use **Assignment** for range-specific speaker and character mapping, **Jobs** for monitoring/recovery, and **Audio** for active-output playback, download, and QA/remediation entry.
+6. Use **Storage** and **Settings** only for maintenance and diagnostics. Each contextual detour keeps the current book and chapter/range and exposes **Quay lại Sản xuất**.
 
 ## API key
 
@@ -105,9 +105,8 @@ Text chương không được lưu đầy đủ trong SQLite. DB chỉ lưu revi
 
 ## Tài liệu điều hành
 
-- [Trạng thái hiện tại](PROJECT_STATUS.md)
-- [Roadmap](ROADMAP.md) - chiến lược và phase hiện tại
-- [Next Task](NEXT_TASK.md) - hành động hoặc quyết định đang được ủy quyền
+- [Mục tiêu sản phẩm hiện tại](TASK.md)
+- [Roadmap](ROADMAP.md) - chiến lược sản phẩm hiện tại
 - [Documentation source-of-truth policy](DOCUMENTATION_SOURCES.md)
 - [Daily Production workflow](docs/DAILY_PRODUCTION_WORKFLOW.md)
 - [Quyết định kiến trúc](docs/DECISIONS.md)
@@ -117,6 +116,9 @@ Text chương không được lưu đầy đủ trong SQLite. DB chỉ lưu revi
 - [Runbook vận hành và sửa lỗi](docs/RUNBOOK.md)
 - [Hướng dẫn cho phiên làm việc tiếp theo](AGENTS.md)
 - [Changelog](CHANGELOG.md)
+
+`PROJECT_STATUS.md` và `NEXT_TASK.md` là snapshot lịch sử; chúng không ủy quyền
+Build OS lifecycle hoặc công việc mới.
 
 Chẩn đoán read-only:
 

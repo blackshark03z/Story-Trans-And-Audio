@@ -1,0 +1,97 @@
+{
+  "schema": "buildos.project-policy.v1.24",
+  "context_epoch": {"enabled": true},
+  "execution_admission": {"enabled": true, "require_authority_record": true},
+  "side_effect_contract": {"enabled": false, "path": "SIDE_EFFECT_CONTRACT.json"},
+  "documentation_handoff": {
+    "accepted_ref": "goal/story-audio-baseline-v125",
+    "category_authorities": {
+      "USER_BEHAVIOR": "README.md",
+      "ARCHITECTURE_OWNERSHIP_BOUNDARY": "ARCHITECTURE.md",
+      "API_CONFIG_SCHEMA": "docs/DATA_MODEL.md",
+      "DEVELOPER_WORKFLOW": "ENGINEERING.md",
+      "FEATURE_PRESET_INVENTORY": "PROJECT_STATUS.md"
+    },
+    "continuity": {
+      "mandatory_operational_skill": "documentation-handoff-continuity",
+      "max_sidecar_bytes": 16384,
+      "field_study": "EXTERNAL_APPEND_ONLY_NON_AUTHORITATIVE"
+    }
+  },
+  "project_lifecycle": {
+    "project_profile": "production-app",
+    "project_intent": {
+      "name": "Story Audio",
+      "purpose": "Develop and validate the local Story Audio application for controlled story narration, casting, and artifact workflows.",
+      "intended_use": "Local developer and operator workflows with offline validation; production actions require separate explicit authorization.",
+      "success_definition": "A clean, authority-verified development baseline with the complete isolated offline suite passing and no unauthorized production or provider effects.",
+      "non_goals": "This adoption does not authorize canonical database or artifact mutation, PREPARE, START_RENDER, Gemini, VieNeu/TTS, Human QA decisions, push, merge, deployment, or product feature work.",
+      "constraints": "Canonical runtime 127.0.0.1:8772 and data/app.db are protected; tests use isolated paths; immutable Text Revisions, Casting Plans, Jobs, snapshots, and verified Artifacts are preserved; PREPARE and START_RENDER remain separate authorized operations; no secrets are persisted."
+    },
+    "knowledge_pack": {
+      "readme": "README.md",
+      "project_status": "PROJECT_STATUS.md",
+      "architecture": "ARCHITECTURE.md",
+      "engineering": "ENGINEERING.md",
+      "roadmap": "ROADMAP.md",
+      "changelog": "CHANGELOG.md"
+    },
+    "quality_gates": [
+      {"id": "offline-test-a", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_a*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-background", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_background*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-backup", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_backup*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-batch-plan", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_batch_plan*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-batch-clone", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_batch_prepare_clone*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-batch-contract", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_batch_prepare_contract.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-batch-execution", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_batch_prepare_execution*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-batch-isolated", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_batch_prepare_isolated*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-batch-job", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_batch_prepare_job*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-batch-migration", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_batch_prepare_migration.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-batch-operator", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_batch_prepare_operator_auth.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-batch-orchestrator", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_batch_prepare_orchestrator.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-batch-persistence", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_batch_prepare_persistence_contract.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-batch-phase", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_batch_prepare_phase*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-batch-runtime", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_batch_prepare_runtime*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-batch-store", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_batch_prepare_store.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-batch-transaction", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_batch_prepare_transaction*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-book", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_book*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-canonical-launcher", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_canonical_launcher_restart_helper.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-capture-handoff", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_capture_ai_handoff.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-casting-map-ui", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_casting_voice_map_ui.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-casting", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_casting.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-character-browser", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_character_assignment_browser.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-character-assignment", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_character_assignment.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-character-bible", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_character_bible.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-config-override", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_config_override.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-contextual-voice-detour", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_contextual_voice_detour_ui.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-current-qa-audio", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_current_qa_audio_identity_ui.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-current-speaker", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_current_speaker_state.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-custom-api-wiring", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_custom_voice_api_wiring.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-custom-api", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_custom_voice_api.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-custom-library-ui", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_custom_voice_library_ui.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-custom-voice", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_custom_voice.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-d", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_d*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-g", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_g*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-h", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_h*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-i", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_i*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-l", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_l*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-m", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_m*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-o", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_o*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-p", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_p*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-r", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_r*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-s", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_s*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-t", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_t*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-v", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_v*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"},
+      {"id": "offline-test-y", "argv": ["D:\\Youtube\\VieNeu-TTS\\.venv\\Scripts\\python.exe", "-m", "unittest", "discover", "-s", "tests", "-p", "test_y*.py", "-v"], "provenance": "PROJECT_POLICY_TRUSTED"}
+    ],
+    "testing_strategy": "Run the complete isolated unittest suite through the deterministic filename shards above. Each shard is a disjoint test_*.py family, avoiding the RC6 180-second per-command limit without omitting any product tests. Run focused affected tests first; do not invoke Gemini, VieNeu/TTS, or the canonical runtime from offline tests.",
+    "engineering_conventions": "Maintain the existing FastAPI and SQLite modular monolith. Preserve immutable text, casting, job, snapshot, and artifact history; prefer explicit state transitions and fail-closed validation over inferred or destructive recovery. Keep Story Audio and YouTube Auto boundaries separate.",
+    "safety_boundaries": {
+      "runtime": "The canonical Story Audio runtime is http://127.0.0.1:8772. Keep it stopped for ordinary development validation; tests use isolated temporary paths and must never silently select the canonical runtime.",
+      "production": "Human Audio QA is final authority. PREPARE and START_RENDER are separate explicitly authorized production operations; no provider, Gemini, VieNeu/TTS, render, QA decision, deployment, push, or merge is implied by a development task.",
+      "data": "Protect data/, backups/, experiment_b_transcript/, and runs/. Never incidentally mutate the canonical app.db, immutable Text Revisions, Casting Plans, Jobs, job snapshots, or verified Artifacts.",
+      "secrets": "Do not commit, log, return through APIs, or persist secrets. Configure credentials outside source control."
+    },
+    "modules": {"operations": false, "adr": false, "security": false, "migrations": false, "project_closure": false, "project_brief": false}
+  }
+}

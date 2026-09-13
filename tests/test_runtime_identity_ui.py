@@ -52,6 +52,15 @@ class RuntimeIdentityUiTests(IsolatedTestCase):
         ):
             self.assertIn(value, self.js)
 
+    def test_global_schema_status_uses_runtime_compatibility_contract(self) -> None:
+        self.assertIn("readiness.schema_compatible===true", self.js)
+
+    def test_runtime_resolution_refreshes_dynamic_assignment_controls(self) -> None:
+        self.assertEqual(self.js.count("function loadRuntimeIdentity("), 1)
+        self.assertIn("function refreshRuntimeBoundRoute(){if(state.currentRoute==='assignment')renderAssignmentPage()}", self.js)
+        load_runtime = self._line("async function loadRuntimeIdentity()")
+        self.assertIn("syncMutationControls();refreshRuntimeBoundRoute()", load_runtime)
+
     def test_raw_runtime_enums_are_not_primary_labels(self) -> None:
         header = self.html[
             self.html.index('<header class="topbar">'):
@@ -111,6 +120,7 @@ globalThis.document = {{
   }},
 }};
 function reviewedDecisionCount() {{ return 0; }}
+function epubImportSourceAvailable() {{ return true; }}
 {self._line('function runtimeAllowsMutation()')}
 {self._line('function syncMutationControls()')}
 state.runtimeIdentityResolved = false;

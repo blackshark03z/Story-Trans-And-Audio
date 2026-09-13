@@ -1,124 +1,111 @@
-# AGENTS — Hiến pháp vận hành
+# Story Audio operating map
 
-## 1. Thứ tự tối ưu
+Story Audio is a local EPUB-to-audio product. Its operator journey is Home →
+Production → Audio, with contextual setup and monitoring views returning to the
+same selected production scope.
 
-1. User outcome.
-2. Functional correctness.
-3. Data/security safety.
-4. Maintainability.
-5. Speed.
-6. Cost efficiency.
-7. Extensibility khi có nhu cầu thật.
+## Working model
 
-## 2. Product before architecture
+Use the Convergent AI Development System (CADS) as an event-routed advisory
+standard, not as a lifecycle engine. Keep exactly one active Product Goal and
+Critical User Journey (CUJ) in `TASK.md`; internal commits/checkpoints are
+evidence, not new phases or completion claims.
 
-Mỗi milestone phải tạo `USER_VISIBLE_BEHAVIOR` hoặc `EXECUTABLE_CAPABILITY`. Foundation task phải nêu capability nó trực tiếp mở khóa.
+This root `AGENTS.md` is the minimum CADS activation contract. On first contact
+or stale context, reconstruct current reality from `TASK.md`, `ARCHITECTURE.md`,
+the active `docs/decisions/` index, Git/source, tests and the identified runtime
+before planning. When the CADS skill library is reachable, open only the routed
+playbook needed for the current event; otherwise follow this minimum contract
+and do not claim that an unavailable playbook was executed.
 
+Route work by event:
 
-## 2A. Product Goal before execution lane
+- unclear/new owner outcome or material design uncertainty -> Product / Design
+  Framing;
+- a durable system-shape, technology, runtime, state, deployment, ownership or
+  authority decision -> Architecture Description, only to the depth justified by
+  its consequence;
+- normal bounded implementation -> Goal Execution;
+- a user-visible blocker/regression in the active journey -> Systematic Debugging,
+  remove the first real blocker, then immediately resume the same CUJ/fixture;
+- before `FIXED`, `DONE`, `READY`, or equivalent -> Product Acceptance; and
+- after Goal acceptance when residue/worktrees need closure -> Workspace Hygiene.
 
-Owner có thể giao một Product Goal rõ acceptance, nhưng **Product Goal không đồng nghĩa Goal Mode**. Orchestrator phải route `FAST / STANDARD / GOAL` trước khi materialize execution. FAST/ STANDARD dùng một Worker khi outcome bounded; chỉ dùng Goal DAG khi có dependency, uncertainty, parallel opportunity hoặc nhiều acceptance surfaces. Owner không làm message bus giữa Lead/Worker. Task/report/evidence đi qua machine state. Chỉ interrupt owner cho product decision, risk/authority escalation, unresolved blocker hoặc Goal acceptance.
+For user-facing work, conditionally apply the CADS product skills in this order:
+`user-facing-workflow.md` when journey/navigation/discoverability is changing,
+`frontend-design.md` for visible implementation or material restyling, and
+`ui-quality-review.md` before user-facing acceptance or when the Owner reports
+that the UI is hard to find, understand, operate, recover, or trust. Then apply
+`skills/product/ui-ux-review.md` only as the Story Audio adapter for runtime,
+fixture, encoding, and served-asset checks; it is not a parallel UX standard.
 
-Subagent mặc định chỉ có ba vai: Scout read-only, Worker write, Reviewer fresh-context. Spawn khi lợi ích context/parallelism/specialization lớn hơn bootstrap/duplication/merge cost. Một worktree vẫn single-writer. v1.12: obey machine-readable `goal next --json.delegation`; high-confidence Scouts are auto-inserted and runtime Reviewer requests live at `.ai/runtime/delegation_request.json`. Small explicit R0/R1 work must not gain a Scout by default. Goal acceptance must be bound/frozen before the first Writer; Scout results must flow into the Worker Packet rather than causing duplicate discovery.
+For implementation prefer `REUSE -> WIRE -> FIX -> REPLACE_AND_DELETE -> ADD`.
+Classify findings only as `BLOCKER` when they prevent the current CUJ/acceptance
+or threaten a must-preserve invariant; otherwise record them as `DEFERRED_DEBT`.
+Focused tests support a checkpoint but never replace the owner-visible journey.
+For a multi-step user-facing Goal, isolated feature/subsystem PASS results must
+never be composed into Journey PASS; representative end-to-end CUJ evidence is
+required on the supported product surface. For this user-facing product only the
+Owner can establish `PRODUCT_ACCEPTED`.
 
-## 2B. Trust boundary and field learning
+The Owner is not responsible for supplying missing engineering expertise. The AI
+Tech Lead must investigate material engineering concerns from the Goal, source,
+runtime evidence, and supported operating context; resolve ordinary engineering
+choices within established intent; and ask the Owner only for missing product
+facts, material trade-offs, or consequential choices that cannot reasonably be
+recovered or inferred. Translate technical choices into observable product
+consequences, and treat unresolved technical uncertainty as `UNVERIFIED` rather
+than asking the Owner to certify engineering facts.
 
-Repo-local rules are **A1 controls**, not a security boundary against an actor with unrestricted repository write authority. R2 review-triggered and R3 review use a fresh external reviewer session and Guardian-signed attestation by default. `ai_os.py assurance` must state the achieved level honestly; never call A1 equivalent to protected merge/isolation. Ordinary Workers should prefer `scripts/ai.py start|finish|status|next`; the broad kernel CLI is an internal/admin surface.
+Normal product development remains native: inspect current source, make the
+smallest coherent edit, run focused verification, and resume the same acceptance
+fixture. Do not reintroduce legacy Build OS lifecycle commands, generations,
+leases, adoption, recovery, or record-commit workflows. Historical Build OS
+material remains evidence only.
 
-Operational friction/failures are normalized into the Field Learning Loop. The OS may produce upgrade candidates but must **never self-edit stable kernel or policy from telemetry**. Promotion path: evidence → bounded experiment → before/after comparison → owner promotion. Assumptions and reversible auto-decisions belong in the Goal decision ledger so owner visibility does not require owner interruption.
+Accepted material direction that could change a later session's scope,
+architecture, authoritative path, acceptance or expensive line of investigation
+belongs in `docs/decisions/`. Keep the active index short and do not create
+records for routine reversible edits. `TASK.md` remains current context rather
+than historical decision authority.
 
-## 3. Vertical slice
+For Story Audio user-facing changes, preserve these project-specific interaction
+invariants:
 
-Mặc định xây `input → core behavior → persistence nếu cần → output quan sát được`. Không xây toàn bộ layer theo chiều ngang trước workflow xuyên suốt đầu tiên.
+- a mutation may show success only after the authoritative postcondition is
+  reconciled; never convert an `APPLIED` transport result into user-visible
+  success when the requested voice/scope/state did not actually persist;
+- in-place saves, polling and validation refreshes preserve scroll position,
+  focus and disclosure state unless navigation is the explicit user action;
+- polling/status UI is idempotent and bounded: replace current status in place;
+  do not append duplicate progress cards. Explicit history, when useful, lives in
+  a bounded scroll region;
+- before user-facing acceptance, inspect the rendered owner viewport for UTF-8
+  integrity, pathological wrapping, overflow, hierarchy and reachable actions in
+  addition to automated browser evidence.
 
-## 4. Task class theo risk
+These are Story Audio adapters to CADS User-Facing Workflow / Frontend Design /
+UI Quality Review, not changes to the universal CADS Standard.
 
-- R0/R1: Fast Lane/LEAN, ceremony tối thiểu nhưng giữ outcome, task-delta scope, side effect, focused verification, output/diff inspection và evidence. Negative path chỉ bắt buộc khi acceptance có failure behavior thật.
-- R2: STANDARD, thêm affected integration + frozen acceptance khi Goal-linked; rollback/recovery chỉ bắt buộc khi recovery semantics thật sự relevant; reviewer chỉ khi elevated trigger, nhưng khi đã trigger thì phải là separate Guardian-attested reviewer session theo default v1.16 policy.
-- R3: DEEP, explicit approval, rehearsal, rollback proof, critical E2E, broader suite và specialist review với `SIGNED_GUARDIAN` attestation ngoài repo authority.
+## Product safety
 
-Không dùng profile nhẹ hơn risk gate. R3 luôn DEEP.
-Risk tier là non-downgradable: runtime suy ra minimum floor từ side effect và changed surface; khai R0 không được phép bypass R2/R3 gates.
+- The canonical production runtime is `http://127.0.0.1:8772`; its DB is
+  `data/app.db` in the owner checkout. Do not touch it incidentally.
+- `data/`, `backups/`, `runs/`, and `experiment_b_transcript/` are protected.
+  Do not delete, stage, or mutate them without explicit authority.
+- Text Revisions, Casting Plans, Jobs, Job snapshots, and verified Artifacts are
+  immutable product records. PREPARE and START_RENDER are separate, explicit
+  operations. Human Audio QA remains a human decision.
+- Offline checks must not call Gemini, VieNeu inference, paid services, or the
+  canonical runtime. Never commit, log, or persist secrets.
+- Use one writer per worktree. Preserve owner work; do not reset, rebase,
+  force-push, or use destructive Git operations.
 
-## 4A. State Hazard — pay only when dynamics justify it
+## Current context
 
-State/temporal governance is risk-triggered, not a checklist for every task. S0/S1 must not gain extra proof ceremony. For S2+ the Worker declares only: authoritative source, one representative transition, one invariant. S3+ adds a competing/background-writer temporal proof. Prefer the cheapest deterministic verifier; exact state proofs are reusable until the contract or declared dependency fingerprint changes.
-
-When debugging, record the violated `state + event + expected + observed` rather than enabling global tracing. If evidence infrastructure fails twice with the same method and there is no product-failure evidence, change acceptance method; acceptance tooling is not the product.
-
-## 5. Một task, một outcome
-
-Task phải có outcome, success criterion, Delivery Delta, allowed/prohibited scope, acceptance, verification, preflight, lease và timing. Stop-loss cố định áp dụng từ file này; R2/R3 có cost efficiency plan đầy đủ.
-
-## 6. Single writer
-
-Lease status: `UNCLAIMED`, `CLAIMED`, `RELEASED`. Lifecycle task hỗ trợ `READY`, `ACTIVE`, `PAUSED`, `COMPLETED`, `ABORTED`.
-
-- Một active task chỉ có một writer.
-- Reviewer/subagent read-only.
-- Worker thay thế kiểm tra process và Git trước takeover.
-- Không chạy hai Worker cùng worktree.
-- Parallel work phải có task, branch và worktree riêng.
-- `COMPLETED` bắt buộc lease `RELEASED` và evidence/report tồn tại.
-
-## 7. Shipping circuit breaker
-
-Delivery Delta: `USER_VISIBLE_BEHAVIOR`, `EXECUTABLE_CAPABILITY`, `RISK_RETIREMENT`, `DOCUMENTATION_ONLY`, `NO_DELTA`.
-
-Counter chỉ reset bằng accepted behavior/capability. Ngưỡng lấy từ `Maximum consecutive non-shipping tasks` trong Project Contract. Khi breaker ACTIVE, `begin` non-shipping bị chặn trừ explicit override có lý do; `done/close` reject shipping delta giả khi application delta rỗng hoặc chỉ docs/tests.
-
-## 8. Architecture budget
-
-Mặc định modular monolith, một deployable, một primary database, ít dependency/process, interface tại boundary biến động thật. Không thêm framework, database, service, queue, event bus, plugin architecture hoặc abstraction nhiều tầng khi chưa có nhu cầu được chứng minh.
-
-## 8A. Codebase health ratchet
-
-Không tối ưu "clean code" bằng ceremony đồng loạt. Mỗi accepted delta phải không tạo **violation mới** của architecture/bloat hard rules; legacy violations tại health baseline được grandfathered nhưng không được làm nặng thêm. Runtime dependency tăng phải ghi structured decision: capability mua được, alternatives đã cân nhắc, và removal/exit cost. New monster file / excessive growth in large or high-pain hotspot code can be a configurable hard gate; ordinary LOC/file/dependency growth remains a ratchet warning; refactor ưu tiên hotspot có change-frequency + rework/defect cao, không ưu tiên file lớn nhưng ổn định. Replacement nên xóa obsolete path khi compatibility không phải requirement.
-
-## 9. Retry và stop-loss
-
-Một approach có initial attempt và một bounded correction. Sau lần thứ hai không đạt: smallest reproduction, root-cause review, split task hoặc đổi strategy. Không stacking heuristic vô hạn.
-
-## 10. Output thật phủ quyết PASS
-
-Với UI, media, document hoặc generated artifact: mở/xem/nghe output khi có thể, dùng fixture đại diện và ghi provenance. Unit test PASS không phủ quyết lỗi sản phẩm.
-
-## 11. Data, artifact và provider operation
-
-Side effect thuộc `READ_ONLY`, `CREATE_NEW_VERSION`, `MUTATE_IN_PLACE`, `OVERWRITE`, `DELETE`. Mặc định read-only hoặc create-new-version. Mutation/delete/overwrite cần quyền rõ ràng và authorization reference có thể truy vết. Không silent fallback từ reuse→regenerate, read→write, preview→production, local→provider hoặc test→canonical data.
-
-## 12. Deterministic lifecycle
-
-Ưu tiên `scripts/ai_os.py` cho `begin/claim/pause/resume/amend/abort/done/check`. Không bypass validator bằng chỉnh tay checkpoint. `begin` auto-claim mặc định; dùng `--ready` khi cần tách authorize/claim. Capsule là compact worker packet generated theo lifecycle event.
-
-## 13. Definition of Done
-
-Outcome quan sát được; acceptance có evidence; negative path được kiểm tra khi thuộc acceptance; task delta đúng scope; output thật được kiểm tra; side effect đúng preflight; process/temp cleanup; STATE compact; cost signal ghi nhận; lease release; next exact action rõ.
-
-# Story Audio project-safety supplement
-
-This repository uses Senior AI Build OS v1.16 as its execution kernel. Its lifecycle authority is this `AGENTS.md` plus the Build OS runtime. The Story Audio policies below extend that kernel and take precedence where stricter.
-
-## Authority order
-
-```text
-runtime/data
-> Git application snapshot + task-start baseline
-> immutable Build OS evidence
-> .ai/PROJECT.md / .ai/ACTIVE_TASK.md / .ai/STATE.md
-> chat summaries and external recovery handoffs
-```
-
-## Canonical production safety
-
-- Canonical runtime: `http://127.0.0.1:8772`; canonical DB: `D:\Youtube\Story Trans And Audio\data\app.db`.
-- The live-DB guard is fail-closed: tests use isolated temporary paths; only `run_app.ps1` opts a production child into the canonical DB.
-- Preserve immutable Text Revisions, Casting Plans, Jobs, Job snapshots, and verified Artifacts. `PREPARE` and `START_RENDER` are separate authorized operations; never escalate read-only work into provider, Gemini, VieNeu/TTS, QA, or production mutation without explicit owner authority.
-- Chapter 369, historical Jobs 23-25, Artifacts 87/90, and protected runtime data are never changed incidentally. Protected roots are `data/`, `backups/`, `experiment_b_transcript/`, and `runs/`.
-- One worktree has one writer. Do not use destructive Git operations or force-push. Do not log, commit, return through APIs, or persist secrets.
-
-## Story Audio verification defaults
-
-- Use `D:\Youtube\VieNeu-TTS\.venv\Scripts\python.exe` for project checks.
-- Offline tests must not call Gemini, VieNeu inference, or paid services. Full product validation is risk-triggered; inspect real output when relevant.
-- Future Product Contract initialization is pending owner clarification. Do not infer a new Product Goal from ROADMAP.md, NEXT_TASK.md, or history.
+`TASK.md` records the active product objective. `ARCHITECTURE.md`, the active
+`docs/decisions/` index, and `docs/DAILY_PRODUCTION_WORKFLOW.md` define durable
+architecture, accepted direction and product behavior; Git and tests are the
+truth for current implementation. `README.md` is the operator and developer
+entry point. Treat old `NEXT_TASK.md`, `PROJECT_STATUS.md`, `.ai/`, and Build OS
+package material as historical unless a current source verifies it.

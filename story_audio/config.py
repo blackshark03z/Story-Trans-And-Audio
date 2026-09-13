@@ -1,10 +1,19 @@
 ﻿from __future__ import annotations
 
 import os
+import threading
 from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+_GEMINI_KEY_LOCK = threading.RLock()
+_GEMINI_KEY_CURSOR = 0
+DEFAULT_GEMINI_MODEL_CHAIN = (
+    "gemini-3.8-flash",
+    "gemini-3.7-flash",
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+)
 
 def canonical_production_db_path() -> Path:
     """Return the canonical production database path.
@@ -49,8 +58,9 @@ class Settings:
     blobs_dir: Path = _DATA_DIR / "blobs"
     output_dir: Path = _DATA_DIR / "output"
     work_dir: Path = _DATA_DIR / "work"
+    imports_dir: Path = _DATA_DIR / "imports"
     log_dir: Path = ROOT / "logs"
-    gemini_model: str = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    gemini_model: str = os.getenv("GEMINI_MODEL", DEFAULT_GEMINI_MODEL_CHAIN[0])
     gemini_prompt_version: str = "punctuation-v1"
     speaker_assignment_prompt_version: str = "speaker-assignment-v2"
     speaker_assignment_batch_size: int = 20
@@ -90,6 +100,7 @@ class Settings:
             self.blobs_dir,
             self.output_dir,
             self.work_dir,
+            self.imports_dir,
             self.preview_cache_dir,
             self.gemini_cache_dir,
             self.youtube_export_dir,
@@ -98,21 +109,109 @@ class Settings:
         ):
             path.mkdir(parents=True, exist_ok=True)
 
-    def gemini_key(self) -> str | None:
-        value = os.getenv("GEMINI_API_KEY", "").strip()
-        if value:
-            return value
-        candidates = (
-            self.root / "secrets" / "gemini_api_key.txt",
+    def gemini_models(self) -> list[str]:
+        """Return the ordered Gemini model chain without duplicates.
+
+        The stable default is 3.8 Flash with descending Flash fallbacks.  An
+        explicit GEMINI_MODEL outside that chain stays pinned unless
+        GEMINI_FALLBACK_MODELS is also configured, preserving deterministic
+        custom/test model behavior.
+        """
+        primary = str(self.gemini_model or "").strip()
+        raw_fallbacks = os.getenv("GEMINI_FALLBACK_MODELS", "").strip()
+        if raw_fallbacks:
+            fallbacks = [
+                item.strip()
+                for item in raw_fallbacks.replace("\n", ",").split(",")
+                if item.strip()
+            ]
+        elif primary in DEFAULT_GEMINI_MODEL_CHAIN:
+            index = DEFAULT_GEMINI_MODEL_CHAIN.index(primary)
+            fallbacks = list(DEFAULT_GEMINI_MODEL_CHAIN[index + 1 :])
+        else:
+            fallbacks = []
+        result: list[str] = []
+        for value in [primary, *fallbacks]:
+            if value and value not in result:
+                result.append(value)
+        return result
+
+    @property
+    def gemini_key_file(self) -> Path:
+        return self.root / "secrets" / "gemini_api_key.txt"
+
+    def gemini_keys(self) -> list[str]:
+        """Return all configured Gemini keys without exposing duplicates.
+
+        Environment keys stay first for backward compatibility. File keys are
+        read one-per-line from the canonical secrets file and the legacy root
+        file. Blank lines and comments are ignored.
+        """
+        values: list[str] = []
+        env_value = os.getenv("GEMINI_API_KEY", "").strip()
+        if env_value:
+            values.extend(line.strip() for line in env_value.splitlines())
+        for path in (
+            self.gemini_key_file,
             self.root / "gemini_api_key.txt",  # backward-compatible local file
-        )
-        for path in candidates:
+        ):
             if not path.exists():
                 continue
-            for line in path.read_text(encoding="utf-8-sig").splitlines():
-                value = line.strip()
-                if value and not value.startswith("#"):
-                    return value
-        return None
+            values.extend(path.read_text(encoding="utf-8-sig").splitlines())
+        result: list[str] = []
+        seen: set[str] = set()
+        for raw in values:
+            value = str(raw).strip()
+            if not value or value.startswith("#") or value in seen:
+                continue
+            seen.add(value)
+            result.append(value)
+        return result
+
+    def append_gemini_keys(self, values: list[str]) -> dict[str, int]:
+        """Append new keys to the canonical secret file without replacing old ones."""
+        normalized = [str(value).strip() for value in values if str(value).strip()]
+        with _GEMINI_KEY_LOCK:
+            existing = self.gemini_keys()
+            known = set(existing)
+            additions: list[str] = []
+            duplicate_count = 0
+            for value in normalized:
+                if value in known:
+                    duplicate_count += 1
+                    continue
+                known.add(value)
+                additions.append(value)
+            if additions:
+                self.gemini_key_file.parent.mkdir(parents=True, exist_ok=True)
+                needs_newline = self.gemini_key_file.exists() and self.gemini_key_file.stat().st_size > 0
+                if needs_newline:
+                    with self.gemini_key_file.open("rb") as handle:
+                        handle.seek(-1, os.SEEK_END)
+                        needs_newline = handle.read(1) not in {b"\n", b"\r"}
+                with self.gemini_key_file.open("a", encoding="utf-8", newline="\n") as handle:
+                    if needs_newline:
+                        handle.write("\n")
+                    handle.write("\n".join(additions))
+                    handle.write("\n")
+                    handle.flush()
+                    os.fsync(handle.fileno())
+            return {
+                "submitted_count": len(normalized),
+                "added_count": len(additions),
+                "duplicate_count": duplicate_count,
+                "total_count": len(self.gemini_keys()),
+            }
+
+    def gemini_key(self) -> str | None:
+        """Return the next configured Gemini key using a process-local round robin."""
+        global _GEMINI_KEY_CURSOR
+        keys = self.gemini_keys()
+        if not keys:
+            return None
+        with _GEMINI_KEY_LOCK:
+            index = _GEMINI_KEY_CURSOR % len(keys)
+            _GEMINI_KEY_CURSOR = (_GEMINI_KEY_CURSOR + 1) % len(keys)
+            return keys[index]
 
 settings = Settings()
