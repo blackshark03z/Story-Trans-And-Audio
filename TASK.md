@@ -1287,3 +1287,15 @@ declared qualification environment. The shared correction supplies a local
 module fake through `sys.modules`; it neither installs nor loads VieNeu and does
 not change product code or provider behavior. All TTS assertions remain
 unchanged and must be rerun on the final subject.
+
+The first full local qualification run after that provider-fixture correction,
+on subject `394f2185beba0cbd476b343d1aa40cd68d53060e`, passed every group through
+the final voice-override browser check, where one immediate layout snapshot
+reported the primary action outside the viewport after changing Chromium from
+1366x768 to 1920x1080. The same rendered check had passed earlier full runs,
+and the sibling character-assignment check already waits for two animation
+frames after the identical viewport transition. The bounded correction waits
+for the same existing visible-action and no-horizontal-overflow conditions to
+converge before recording them; it does not change either assertion, the UI,
+or product behavior. The exact check must pass five consecutive focused runs
+and the complete Project CI suite on the final qualification subject.

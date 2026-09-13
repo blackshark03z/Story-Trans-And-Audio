@@ -381,7 +381,17 @@ try {
   })()`);
 
   await send("Emulation.setDeviceMetricsOverride", { width: 1920, height: 1080, deviceScaleFactor: 1, mobile: false });
-  await evaluate(`document.querySelector('[data-registry-apply="narrator"]')?.scrollIntoView({ block: "center" })`);
+  await waitFor(`(async () => {
+    const action = document.querySelector('[data-registry-apply="narrator"]');
+    if (!action) return false;
+    action.scrollIntoView({ block: "center" });
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    const rect = document.querySelector('[data-registry-apply="narrator"]')?.getBoundingClientRect();
+    return !!rect
+      && rect.top >= 0
+      && rect.bottom <= innerHeight
+      && document.documentElement.scrollWidth <= innerWidth + 1;
+  })()`, 5000);
   const layout1920 = await evaluate(`(() => {
     const action = document.querySelector('[data-registry-apply="narrator"]')?.getBoundingClientRect();
     return {
