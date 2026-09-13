@@ -1426,3 +1426,43 @@ START_RENDER_COMMANDS=0
 CANONICAL_RUNTIME_OR_DB_MUTATION=0
 OWNER_ACCEPTANCE=PENDING
 ```
+
+## 2026-09-13 — SOT amendment: đường quay lại cấu hình giọng từ bước kiểm tra
+
+```text
+STATUS=ACTIVE
+OWNER_OUTCOME=Khi đang ở bước Kiểm tra & tạo audio, người dùng có thể quay lại đúng Cấu hình giọng mà không mất sách, phạm vi chương hoặc quy tắc bỏ qua chương đã hoàn tất.
+DELIVERY_DELTA=USER_VISIBLE_BEHAVIOR
+BASE_HEAD=d2c2331835d8c03c76179e4beb2a92edaf9a4e6c
+SIDE_EFFECT=UI navigation and isolated browser fixtures only
+PROHIBITED=canonical DB; port 8772 runtime; voice mutation; PREPARE; START_RENDER; provider calls; protected runtime data; push or merge
+```
+
+### UX contract
+
+- `Kiểm tra lại môi trường` vẫn là hành động chính khi môi trường sản xuất bị chặn.
+- Hiển thị hành động phụ `Quay lại cấu hình giọng` ở bước 4 trước khi PREPARE được áp dụng.
+- Hành động phụ giữ nguyên book/from/to/skip_completed, mở trang Gán giọng với `assignment_focus=voices` và đưa tiêu điểm tới phần cấu hình giọng.
+- Điều hướng quay lại không gọi command API, không tự đổi cấu hình giọng và không thay đổi dữ liệu sản xuất.
+
+### Acceptance
+
+1. Trạng thái Stage 4 bị chặn có một primary `Kiểm tra lại môi trường` và một secondary `Quay lại cấu hình giọng`.
+2. Bấm secondary tạo đúng route Assignment theo phạm vi hiện tại và mở phần giọng.
+3. Browser oracle xác nhận không có production command hoặc voice-save request phát sinh từ hành động này.
+4. Kiểm tra desktop và narrow viewport trên candidate 18773; owner acceptance vẫn pending.
+
+### Candidate evidence
+
+```text
+STATUS=CANDIDATE_READY
+FOCUSED_TESTS=65/65 PASS
+REAL_BROWSER_RETURN=PASS
+SCOPE_PRESERVED=book 91, chapters 1-5, skip_completed=1, assignment_focus=voices
+RESPONSIVE_LAYOUT=PASS at 1366x768 and 520x900; no horizontal overflow
+LIVE_ISOLATED_PREVIEW=PASS at http://127.0.0.1:18773 with book 1, chapters 1-5
+PRODUCTION_COMMANDS_FROM_RETURN=0
+VOICE_SAVE_REQUESTS_FROM_RETURN=0
+CANONICAL_RUNTIME_OR_DB_MUTATION=0
+OWNER_ACCEPTANCE=PENDING
+```

@@ -190,6 +190,8 @@ class ProductionCommandUiTests(unittest.TestCase):
             "Kiểm tra lại môi trường",
         ):
             self.assertIn(label, self.js)
+        self.assertIn('id="productionBackToVoices"', self.html)
+        self.assertIn("assignmentFocus:'voices'", self.js)
         self.assertIn("dataset.journeyPrimary", self.js)
         self.assertIn("operator_authentication_verified", self.js)
         self.assertNotIn("productionTaskOperatorToken", self.js)

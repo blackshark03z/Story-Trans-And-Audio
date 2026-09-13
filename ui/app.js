@@ -2806,6 +2806,14 @@ loadProductionPrepareReadiness=async function(){
   return result;
 };
 function rememberPreRenderConfigurationContext(){const context=currentProductionWorkingContext()||workingContextFromRange(state.productionRange);if(!context)return null;return rememberProductionWorkingContext({...context,sourceTask:'PRE_RENDER_CONFIGURATION',returnTask:'PREPARE_RANGE'})}
+async function returnToVoiceConfiguration(){
+  const base=workingContextFromRange(state.productionRange)||currentProductionWorkingContext(),context=base?rememberProductionWorkingContext({...base,sourceTask:'PRE_RENDER_CONFIGURATION',returnTask:'PREPARE_RANGE',assignmentFocus:'voices'}):null;
+  if(!context){openProductionScopeDialog();return}
+  history.pushState(null,'',routeHashForWorkingContext('assignment',context));
+  setAppRoute('assignment',{replace:true});
+  await loadBookVoiceRegistry({force:false});
+  openAssignmentVoiceSection();
+}
 async function openPreRenderConfigurationTarget(target){
   const context=rememberPreRenderConfigurationContext();if(!context){openProductionScopeDialog();return}
   if(target==='characters'){openCharacterReview();return}
@@ -2828,7 +2836,8 @@ renderProductionShell=function(vm=currentProductionViewModel()){
   const result=renderProductionShellOwnerAcceptance(ownerVm),stage=ownerJourneyStageNumber(ownerVm),task=String(ownerVm.task_type||'');
   syncProductionRenderPolling(ownerVm);
   const badge=$('#productionStateBadge');if(badge)badge.textContent=`Giai đoạn ${stage} / 4`;
-  const heading=$('#productionCurrentStepHeading'),explanation=$('#productionStateExplanation'),primary=$('#productionPrimaryAction');
+  const heading=$('#productionCurrentStepHeading'),explanation=$('#productionStateExplanation'),primary=$('#productionPrimaryAction'),backToVoices=$('#productionBackToVoices'),canReturnToVoices=stage===4&&task==='PREPARE_RANGE'&&!!currentProductionWorkingContext();
+  if(backToVoices){backToVoices.classList.toggle('hidden',!canReturnToVoices);backToVoices.onclick=canReturnToVoices?returnToVoiceConfiguration:null}
   if(stage===3){if(heading)heading.textContent='Nhân vật & giọng';if(explanation)explanation.textContent='Kiểm tra ai nói, giọng nào đang dùng và chỉ sửa những ngoại lệ thực sự cần xử lý.'}
   if(task==='PREPARE_RANGE'&&ownerVm.journey_state==='READY_TO_PREPARE'){if(heading)heading.textContent='Kiểm tra & tạo audio';if(explanation)explanation.textContent='Xem lại phạm vi, giọng và cài đặt audio trước khi khóa đầu vào. Chuẩn bị chưa gọi TTS.';if(primary){primary.textContent='Chuẩn bị tạo audio';primary.setAttribute('aria-label','Chuẩn bị tạo audio')}}
   if(['START_RENDER_RANGE','START_RENDER'].includes(task)){if(heading)heading.textContent='Sẵn sàng tạo audio';if(explanation)explanation.textContent='Đầu vào đã được khóa. Bạn có thể chỉnh lại bằng cách hủy bản chuẩn bị, hoặc bắt đầu tạo audio.';if(primary){primary.textContent='Bắt đầu tạo audio';primary.setAttribute('aria-label','Bắt đầu tạo audio')}}
