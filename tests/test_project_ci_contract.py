@@ -74,6 +74,28 @@ class ProjectCiContractTests(unittest.TestCase):
             self.assertIn("browser_acceptance_runtime.cjs", source)
             self.assertIn("boundedBrowserTimeout(", source)
 
+    def test_range_browser_fixture_waits_for_application_initialization(self) -> None:
+        app_source = (ROOT / "ui" / "app.js").read_text(encoding="utf-8")
+        browser_source = (
+            ROOT / "scripts" / "browser_range_input_workflow_smoke.mjs"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("initializationComplete:false", app_source)
+        self.assertIn("state.initializationComplete=true", app_source)
+        self.assertIn("window.storyAudioAppState.initializationComplete", browser_source)
+
+    def test_forced_speaker_queue_refresh_does_not_reuse_a_pre_mutation_request(self) -> None:
+        app_source = (ROOT / "ui" / "app.js").read_text(encoding="utf-8")
+        browser_source = (
+            ROOT / "scripts" / "browser_character_assignment_smoke.mjs"
+        ).read_text(encoding="utf-8")
+
+        self.assertIn("if(!force)return speakerReviewQueueLoadPromise", app_source)
+        self.assertIn("await speakerReviewQueueLoadPromise", app_source)
+        self.assertIn("return loadSpeakerReviewSuggestions({force:true})", app_source)
+        self.assertIn("__delayedSpeakerQueueReady", browser_source)
+        self.assertIn("__releaseDelayedSpeakerQueue", browser_source)
+
 
 if __name__ == "__main__":
     unittest.main()

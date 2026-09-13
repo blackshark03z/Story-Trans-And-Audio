@@ -124,7 +124,10 @@ try {
   });
   await waitFor(`document.readyState === "complete"`);
   await waitFor(`window.storyAudioAppState && document.querySelector("#assignmentRows")`);
-  await waitFor(`window.storyAudioAppState.bookVoiceRegistry?.status === "ready"
+  await waitFor(`window.storyAudioAppState.initializationComplete
+    && window.storyAudioAppState.bookVoiceRegistry?.status === "ready"
+    && window.storyAudioAppState.bookVoiceRegistry?.speakerSuggestions?.status === "ready"
+    && !window.storyAudioAppState.bookVoiceRegistry?.speakerSuggestions?.loading
     && document.querySelector('[data-assignment-section="review"]')
     && document.querySelector('[data-generate-speaker-suggestions]')`);
 
@@ -158,12 +161,34 @@ try {
     return true;
   })()`);
 
+  await evaluate(`(() => {
+    const originalApiForOverlap = api;
+    let delayNextQueueResponse = true;
+    window.__delayedSpeakerQueueReady = false;
+    window.__releaseDelayedSpeakerQueue = null;
+    api = async (path, options = {}) => {
+      const response = await originalApiForOverlap(path, options);
+      if (delayNextQueueResponse
+          && String(path).startsWith('/api/production/speaker-review-suggestions?')) {
+        delayNextQueueResponse = false;
+        window.__delayedSpeakerQueueReady = true;
+        await new Promise(resolve => { window.__releaseDelayedSpeakerQueue = resolve; });
+      }
+      return response;
+    };
+    window.__overlapSpeakerQueueLoad = loadSpeakerReviewSuggestions({ force: true });
+    return true;
+  })()`);
+  await waitFor(`window.__delayedSpeakerQueueReady === true`);
+
   const generateEnabled = await evaluate(`!document.querySelector('[data-generate-speaker-suggestions]')?.disabled`);
   if (generateEnabled) {
     await click("[data-generate-speaker-suggestions]");
   } else {
     await evaluate(`generateSpeakerSuggestions(false)`);
   }
+  await waitFor(`window.storyAudioAppState.productionCommand.status === "APPLIED"`);
+  await evaluate(`window.__releaseDelayedSpeakerQueue(); true`);
   try {
     await waitFor(`document.querySelectorAll('[data-speaker-suggestion-card]').length === 3`, 30000);
   } catch (error) {
