@@ -1365,3 +1365,64 @@ one link, and two exact chapter rows, and now additionally requires exactly one
 ownership acquisition, one future-transaction call, and one replay. Both
 `APPLYING`-before-commit and `APPLIED`-after-commit observer timings remain
 valid without allowing a second writer.
+
+## 2026-09-13 — SOT: một luồng duyệt người nói rồi cấu hình giọng
+
+```text
+STATUS=ACTIVE
+OWNER_OUTCOME=Trong phạm vi đã chọn, người dùng hoàn tất danh tính người nói trước; sau đó cấu hình đủ giọng cho các vai đã được xác nhận, không gặp hai nơi cùng sửa giọng và không thấy danh sách vai bị thiếu do mở bước quá sớm.
+DELIVERY_DELTA=USER_VISIBLE_BEHAVIOR
+BASE_HEAD=fa3e222735d92534d99d64f2a8b893e813b4abd6
+WRITER_WORKTREE=D:\Youtube\_worktrees\story-audio-speaker-voice-flow
+SIDE_EFFECT=Source and isolated test fixtures only
+PROHIBITED=canonical DB; port 8772 runtime; PREPARE; START_RENDER; Gemini; VieNeu/TTS; paid providers; protected runtime data; force push
+```
+
+### UX contract
+
+- `Duyệt người nói` chỉ chốt danh tính: nhân vật có sẵn, nhân vật mới, nhóm quần chúng, bí danh hoặc giữ chưa rõ. Bước này không hiển thị và không nhận thay đổi chế độ giọng, phạm vi giọng hay giọng cụ thể.
+- Khi còn quyết định người nói chưa hoàn tất, `Cấu hình giọng` là một trạng thái khóa không tương tác. Nó nêu chính xác số quyết định còn lại và không render bảng giọng hoặc hành động lưu giọng.
+- Khi quyết định cuối cùng được lưu, cùng trang chuyển sang `Cấu hình giọng` và hiển thị Người kể chuyện cùng mọi Character/nhóm đã được duyệt có lời thoại trong phạm vi hiệu lực.
+- Khi sửa lại danh tính sau Final Voice Map, bước người nói vẫn bảo toàn giọng hiện có. Sau khi lưu, giao diện đưa người dùng sang `Cấu hình giọng` để xem và chủ động chỉnh vai bị ảnh hưởng; không đổi giọng ngầm ở bước danh tính.
+- Phạm vi người dùng yêu cầu và phạm vi hiệu lực sau quy tắc như `skip_completed=1` phải tiếp tục được giải thích rõ; không diễn giải một chương đã bị loại khỏi phạm vi hiệu lực là vai bị thiếu.
+
+### Create-flow contract
+
+```text
+entry=Production scope with unresolved speaker decisions
+review_state=review each unresolved utterance and save identity-only decisions
+blocked_state=voice assignment locked with remaining-decision count and one clear next action
+completion_transition=last identity decision refreshes the registry and opens voice assignment
+voice_state=configure narrator plus all approved speaking roles in effective scope
+readiness_state=continue to readiness only after the final voice map is complete and approved
+recovery=post-map identity correction preserves existing voice and routes to voice assignment for explicit review
+```
+
+### Acceptance
+
+1. Speaker-review cards and proposal summaries contain no voice-mode, voice-scope, or voice-picker controls.
+2. While speaker review is unresolved, the voice step exposes no editable voice rows or save actions and reports the exact remaining count.
+3. After speaker review resolves, the voice step opens and contains narrator plus every approved speaking Character/group in the effective scope.
+4. A post-map identity correction cannot silently alter a voice; its next visible action is review in Step 2.
+5. Focused static and real-browser checks pass against isolated fixture data at desktop and narrow viewport; no canonical/provider mutation occurs.
+
+Owner acceptance remains pending until the implemented journey is shown from this exact candidate.
+
+### Candidate evidence
+
+```text
+STATUS=CANDIDATE_READY
+UI_CONTRACT=40/40 PASS
+REAL_BROWSER_JOURNEY=4/4 PASS
+BACKEND_AND_API_REGRESSION=52/52 PASS
+TOTAL_FOCUSED_CHECKS=96 PASS
+VISUAL_REVIEW=PASS at 1366x1800 and 800x1400 with isolated fixture data
+NEGATIVE_PATH=Step 2 has zero voice rows and zero voice-save actions while speaker review is unresolved
+COMPLETION_PATH=Step 2 opens with narrator and approved Character after the final speaker decision
+POST_MAP_CORRECTION=voice_mode keep; remaining speaker decisions retain the Step 2 lock; resolved review opens Step 2
+PROVIDER_CALLS=0
+PREPARE_COMMANDS=0
+START_RENDER_COMMANDS=0
+CANONICAL_RUNTIME_OR_DB_MUTATION=0
+OWNER_ACCEPTANCE=PENDING
+```

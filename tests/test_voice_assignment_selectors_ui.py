@@ -189,6 +189,16 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIn("row.role==='narrator'||row.character_id", section)
         self.assertIn("Còn ${reviewCount} câu chưa xác định người nói.", section)
         self.assertIn("data-jump-to-speaker-review", section)
+        self.assertIn('class="assignment-workflow-section voice-section is-locked"', section)
+        self.assertIn('aria-disabled="true"', section)
+        self.assertIn("quyết định người nói cần hoàn tất", section)
+        locked = section[
+            section.index("const voiceSection=reviewBlocked?"):
+            section.index(":`<details class=\"assignment-workflow-section voice-section")
+        ]
+        self.assertNotIn("voiceTable", locked)
+        self.assertNotIn("voiceBatch", locked)
+        self.assertNotIn("data-registry-apply", locked)
         self.assertIn("speakerReviewInvariantModel", self.js)
         self.assertIn("renderManualSpeakerReviewRows", self.js)
         self.assertIn("data-registry-map", self.js)

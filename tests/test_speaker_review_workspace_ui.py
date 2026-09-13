@@ -31,7 +31,6 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
             "confidence",
             "resolution",
             "review",
-            "voice",
             "warning",
         ):
             self.assertIn(f'data-speaker-review-filter="{filter_name}"', self.js)
@@ -43,7 +42,6 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
             "speaker-card-decision",
             "speaker-card-actions",
             "data-speaker-suggestion-context",
-            "effective_voice_source",
             "future-render-notice",
         ):
             self.assertIn(marker, self.js)
@@ -55,11 +53,9 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
             "Bỏ chỉnh sửa",
             "Sửa người nói",
             "Chọn tạo nhân vật mới",
-            "Sửa cấu hình giọng",
             "Đánh dấu chưa chắc",
             "Để sau",
             "Chỉnh sửa người nói",
-            "Chỉnh sửa giọng",
             "Chỉnh sửa alias",
             "Để lại ghi chú",
             "Khôi phục về chưa duyệt",
@@ -69,6 +65,19 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
         self.assertIn(".speaker-suggestion-card", self.css)
         self.assertIn(".status-symbol", self.css)
         self.assertIn(".speaker-suggestion-card.is-editing", self.css)
+        active_card = self.js[
+            self.js.index("function renderSpeakerReviewCard(item)"):
+            self.js.index("function renderSpeakerReviewFilters")
+        ]
+        for forbidden in (
+            "data-speaker-suggestion-voice-mode",
+            "data-speaker-suggestion-voice-scope",
+            "data-speaker-suggestion-voice",
+            "Sửa cấu hình giọng",
+            "Chỉnh sửa giọng",
+        ):
+            self.assertNotIn(forbidden, active_card)
+        self.assertIn("Bước này chỉ chốt danh tính người nói", active_card)
 
     def test_proposal_and_human_decision_have_one_state_driven_submit(self) -> None:
         for marker in (
@@ -82,8 +91,7 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
         ):
             self.assertIn(marker, self.js)
         self.assertIn("Đang giữ nguyên đề xuất Gemini", self.js)
-        self.assertIn("approved_final_voice_map_available", self.js)
-        self.assertIn("Gán giọng ở bước Gán giọng sau khi chốt người nói", self.js)
+        self.assertIn("Voice changes belong to Step 2", self.js)
         self.assertIn("Đã chỉnh sửa ${meta.changes.length} trường", self.js)
         self.assertIn("root.querySelectorAll('[data-speaker-suggestion-submit]')", self.js)
         self.assertIn("meta.edited?'EDIT_AND_ACCEPT_SPEAKER_SUGGESTION':'ACCEPT_SPEAKER_SUGGESTION'", self.js)
@@ -107,7 +115,7 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
         self.assertIn("speakerAnalysisProgressTimer", self.js)
         self.assertIn("executeSpeakerAnalysis", self.js)
 
-    def test_background_group_decision_is_bounded_and_explains_voice_scope(self) -> None:
+    def test_background_group_decision_is_bounded_and_identity_only(self) -> None:
         for marker in (
             "BACKGROUND_GROUP",
             "data-speaker-suggestion-group",
@@ -124,9 +132,7 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
             "Quần chúng nam",
             "Quần chúng nữ",
             "Quần chúng trung tính",
-            "Toàn bộ sách",
             "nhóm tạo / tái sử dụng",
-            "nhóm chưa có giọng",
         ):
             self.assertIn(label, self.js)
         self.assertIn(".speaker-classification-summary", self.css)
@@ -198,7 +204,8 @@ class SpeakerReviewWorkspaceUiContractTests(unittest.TestCase):
         self.assertIn("ADD_SPEAKER_REVIEW_NOTE", self.js)
         self.assertIn("RESTORE_SPEAKER_SUGGESTION_PENDING", self.js)
         self.assertIn("Final Voice Map và cấu hình giọng chưa thay đổi", self.js)
-        self.assertIn("audio đã chấp nhận hiện tại không bị thay đổi", self.js)
+        self.assertIn("Giọng hiện có được giữ nguyên", self.js)
+        self.assertIn("hãy kiểm tra vai bị ảnh hưởng ở Bước 2", self.js)
         self.assertIn("downstream_stale", self.js)
 
     def test_polling_keeps_local_state_separate_from_authoritative_rows(self) -> None:

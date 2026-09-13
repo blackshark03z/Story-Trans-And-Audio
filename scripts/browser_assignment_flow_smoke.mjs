@@ -143,12 +143,19 @@ try {
     };
   })()`);
 
-  await evaluate(`(() => {
+  const lockedVoiceStep = await evaluate(`(() => {
     const voices = document.querySelector('[data-assignment-section="voices"]');
-    voices.open = true;
-    return true;
+    return {
+      locked: voices?.classList.contains('is-locked'),
+      ariaDisabled: voices?.getAttribute('aria-disabled'),
+      remaining: voices?.innerText || '',
+      voiceRows: voices?.querySelectorAll('[data-voice-library-row]').length || 0,
+      voiceActions: voices?.querySelectorAll('[data-registry-apply]').length || 0,
+    };
   })()`);
-  const layoutEvidence = await waitFor(`(() => {
+  let layoutEvidence = null;
+  let sampleDetailPersistence = null;
+  const inspectVoiceLayout = `(() => {
     const row = document.querySelector('[data-voice-library-row="character:25"]');
     const reviewPane = row?.querySelector('.assignment-registry-review-pane');
     const details = reviewPane?.querySelector('[data-registry-detail="character:25"]');
@@ -170,20 +177,7 @@ try {
       contextLabel: details.querySelector('summary')?.textContent || '',
       replacementCharacter: reviewPane.innerText.includes('�'),
     };
-  })()`);
-  await evaluate(`(() => {
-    const more = document.querySelector('[data-registry-sample-detail="character:25"]');
-    if (!more) throw new Error('Nested dialogue details missing for character:25');
-    more.open = true;
-    return true;
-  })()`);
-  await waitFor(`window.storyAudioAppState.bookVoiceRegistry.openSampleDetails?.["character:25"] === true`);
-  await evaluate(`renderAssignmentPage()`);
-  const sampleDetailPersistence = await waitFor(`(() => {
-    const more = document.querySelector('[data-registry-sample-detail="character:25"]');
-    if (!more?.open) return null;
-    return {persisted:true,label:more.querySelector('summary')?.textContent || ''};
-  })()`);
+  })()`;
   await setSelect('[data-speaker-review-filter="confidence"]', "HIGH");
   const filterBeforeJump = await evaluate(`document.querySelector('[data-speaker-review-filter="confidence"]').value`);
   await click('[data-jump-to-speaker-review]');
@@ -214,6 +208,20 @@ try {
     })`);
     throw new Error(`${error.message} ${JSON.stringify(diagnostic)}`);
   }
+  layoutEvidence = await waitFor(inspectVoiceLayout);
+  await evaluate(`(() => {
+    const more = document.querySelector('[data-registry-sample-detail="character:25"]');
+    if (!more) throw new Error('Nested dialogue details missing for character:25');
+    more.open = true;
+    return true;
+  })()`);
+  await waitFor(`window.storyAudioAppState.bookVoiceRegistry.openSampleDetails?.["character:25"] === true`);
+  await evaluate(`renderAssignmentPage()`);
+  sampleDetailPersistence = await waitFor(`(() => {
+    const more = document.querySelector('[data-registry-sample-detail="character:25"]');
+    if (!more?.open) return null;
+    return {persisted:true,label:more.querySelector('summary')?.textContent || ''};
+  })()`);
   const reviewCompletion = await evaluate(`(() => {
     const rows = [...document.querySelectorAll('[data-voice-library-row="character:25"]')];
     return {
@@ -359,6 +367,7 @@ try {
   process.stdout.write(JSON.stringify({
     ok: true,
     initial,
+    lockedVoiceStep,
     layoutEvidence,
     sampleDetailPersistence,
     filterBeforeJump,
