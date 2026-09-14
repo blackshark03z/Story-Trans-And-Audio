@@ -194,10 +194,18 @@ try {
 
   const key = await evaluate(`document.querySelector('[data-speaker-suggestion-card]')?.dataset?.speakerSuggestionCard`);
   await click(`[data-speaker-suggestion-submit="${key}"]`);
+  const speakerFinalizePending = await waitFor(`(() => {
+    const task=window.storyAudioAppState?.productionProjection?.canonical_task?.task_type;
+    const button=document.querySelector('[data-finalize-speaker-drafts]');
+    if(task!=="APPROVE_READY_SPEAKER_DRAFTS"||!button)return null;
+    return {task,label:button.textContent,step:document.querySelector('.assignment-workflow-steps > div:first-child')?.innerText||'',voiceLocked:document.querySelector('[data-assignment-section="voices"]')?.classList.contains('is-locked')};
+  })()`, 20000);
+  await click('[data-finalize-speaker-drafts]');
   try {
     await waitFor(`document.querySelector('.assignment-workflow-steps > div:first-child')?.classList.contains('complete')
       && document.querySelector('[data-assignment-section="voices"]')?.open
-      && !document.querySelector('[data-voice-library-row^="unresolved-dialogue:"]')`, 20000);
+      && !document.querySelector('[data-voice-library-row^="unresolved-dialogue:"]')
+      && window.storyAudioAppState?.bookVoiceRegistry?.result?.speaker_state?.status === 'APPROVED_CURRENT'`, 20000);
   } catch (error) {
     const diagnostic = await evaluate(`({
       steps: document.querySelector('.assignment-workflow-steps')?.innerText || '',
@@ -321,13 +329,29 @@ try {
     rowError: window.storyAudioAppState.bookVoiceRegistry?.rowErrors?.['character:25'] || null,
     rowResult: window.storyAudioAppState.bookVoiceRegistry?.rowResults?.['character:25'] || null,
     preflightEnabled: !!document.querySelector('[data-open-production-preflight]:not([disabled])'),
-    voiceNextAction: document.querySelector('[data-assignment-section="voices"] [data-open-production-preflight]:not([disabled])')?.textContent || '',
+    step3Action: document.querySelector('[data-assignment-casting-next]')?.textContent || '',
+    task: window.storyAudioAppState?.productionProjection?.canonical_task?.task_type || null,
     commands: null,
   })`);
   voiceSaveState.commands = await evaluate(`fetch('/api/fixture/commands').then(response => response.json())`);
-  if (!voiceSaveState.preflightEnabled) {
-    throw new Error(`Voice save did not unlock preflight: ${JSON.stringify(voiceSaveState)}`);
+  if (voiceSaveState.preflightEnabled || voiceSaveState.task !== 'PREPARE_RANGE_INPUTS') {
+    throw new Error(`Voice save bypassed Final Voice Map gate: ${JSON.stringify(voiceSaveState)}`);
   }
+  await waitFor(`window.storyAudioAppState?.productionProjection?.canonical_task?.task_type==="PREPARE_RANGE_INPUTS" && !!document.querySelector('[data-assignment-casting-next]')`, 20000);
+  await click('[data-assignment-casting-next]');
+  const castingDraftState = await waitFor(`(() => {
+    const task=window.storyAudioAppState?.productionProjection?.canonical_task?.task_type;
+    const button=document.querySelector('[data-assignment-casting-next]');
+    if(task!=="APPROVE_RANGE_CASTING_PLANS"||!button)return null;
+    return {task,label:button.textContent};
+  })()`, 20000);
+  await click('[data-assignment-casting-next]');
+  const castingApprovedState = await waitFor(`(() => {
+    const task=window.storyAudioAppState?.productionProjection?.canonical_task?.task_type;
+    const button=document.querySelector('[data-open-production-preflight]:not([disabled])');
+    if(task!=="PREPARE_RANGE"||!button)return null;
+    return {task,label:button.textContent};
+  })()`, 20000);
 
   const commandsBeforePreflight = await evaluate(`fetch('/api/fixture/commands').then(response => response.json())`);
   await click('[data-open-production-preflight]:not([disabled])');
@@ -365,7 +389,10 @@ try {
   await evaluate(`(() => { state.productionProjection=window.__repairProjection; state.productionRange={bookId:1,fromChapter:1,toChapter:1,skipCompleted:false}; setAppRoute('production'); renderProductionShell(); const button=document.querySelector('[data-repair-blocker-action="1"]'); if(!button)throw new Error('Voice repair blocker action missing from injected projection'); button.click(); return true })()`);
   await waitFor(`location.hash.startsWith('#/assignment?') && location.hash.includes('assignment_focus=voices')`);
   await waitFor(`document.querySelector('[data-assignment-section="voices"]')`);
-  const voiceRepairNavigation = await evaluate(`({hash:location.hash,voicesOpen:document.querySelector('[data-assignment-section="voices"]')?.open,returnTask:window.storyAudioAppState.productionWorkingContext?.returnTask,returnLabel:document.querySelector('[data-open-production-preflight]')?.textContent,unresolvedVoiceRows:document.querySelectorAll('[data-voice-library-row^="unresolved-dialogue:"]').length})`);
+  await waitFor(`!window.storyAudioAppState.bookVoiceRegistry?.loading
+    && !!window.storyAudioAppState.productionProjection?.canonical_task
+    && !!document.querySelector('[data-assignment-casting-next],[data-open-production-preflight]')`, 20000);
+  const voiceRepairNavigation = await evaluate(`({hash:location.hash,voicesOpen:document.querySelector('[data-assignment-section="voices"]')?.open,returnTask:window.storyAudioAppState.productionWorkingContext?.returnTask,step3Label:document.querySelector('[data-assignment-casting-next],[data-open-production-preflight]')?.textContent||'',task:window.storyAudioAppState.productionProjection?.canonical_task?.task_type||null,unresolvedVoiceRows:document.querySelectorAll('[data-voice-library-row^="unresolved-dialogue:"]').length})`);
 
   const repairReady = await evaluate(`(() => {
     const projection=JSON.parse(JSON.stringify(window.__repairProjection)),task=projection.canonical_task;
@@ -394,9 +421,12 @@ try {
     filterBeforeJump,
     unresolvedNavigation: !!unresolvedNavigation,
     navigationState,
+    speakerFinalizePending,
     reviewCompletion,
     pollingStability,
     voiceSaveState,
+    castingDraftState,
+    castingApprovedState,
     readyNavigation,
     commandsBeforePreflight,
     commandsAfterPreflight,
@@ -406,7 +436,7 @@ try {
     repairReady,
     repairPlan,
     repairCheckCommands: commandsAfterRepairChecks.slice(commandsAfterPreflight.length),
-    renderCommands: commandsAfterPreflight.filter(command => /PREPARE|START_RENDER/.test(command.command_type || "")),
+    renderCommands: commandsAfterPreflight.filter(command => ["PREPARE", "START_RENDER"].includes(String(command.command_type || ""))),
   }));
 } finally {
   try {

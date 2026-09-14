@@ -596,8 +596,23 @@ class CharacterAssignmentFixtureHandler(ScopeFixtureHandler):
                     else:
                         self.overrides[(chapter, speaker_key)] = voice_id
                 applied.append({"speaker_key": speaker_key, "voice_id": voice_id, "scope": item_scope})
-            if hasattr(type(self), "plan_ready"):
+            if getattr(type(self), "strict_assignment_gates", False):
+                type(self).voice_saved = True
+            elif hasattr(type(self), "plan_ready"):
                 type(self).plan_ready = True
+        elif command_type == "APPROVE_SPEAKER_DRAFTS" and getattr(type(self), "strict_assignment_gates", False):
+            type(self).speaker_drafts_approved = True
+            applied.extend({"chapter_id": int(item.get("chapter_id") or 0), "draft_id": int(item.get("draft_id") or 0)} for item in payload.get("chapters") or [])
+        elif command_type == "PREPARE_RANGE_INPUTS" and getattr(type(self), "strict_assignment_gates", False):
+            if not type(self).speaker_drafts_approved or not type(self).voice_saved:
+                return self._json({"detail": "Canonical prerequisites not complete"}, 409)
+            type(self).casting_drafts_created = True
+            applied.append({"type": "casting_draft", "chapter_id": 1002, "plan_id": 9102})
+        elif command_type == "APPROVE_CASTING_PLANS" and getattr(type(self), "strict_assignment_gates", False):
+            if not type(self).casting_drafts_created:
+                return self._json({"detail": "Casting draft missing"}, 409)
+            type(self).casting_plans_approved = True
+            applied.extend({"chapter_id": int(item.get("chapter_id") or 0), "plan_id": int(item.get("plan_id") or 0)} for item in payload.get("chapters") or [])
         elif command_type in {"SET_CHAPTER_VOICE_OVERRIDE", "SET_RANGE_VOICE_OVERRIDE"}:
             speaker_key = str(payload.get("speaker_key") or "")
             voice_id = str(payload.get("voice_id") or "")

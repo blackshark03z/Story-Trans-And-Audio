@@ -1448,6 +1448,112 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
         )
         self.assertIsNotNone(reviewed["review_audit_event_id"])
 
+    def test_queue_projects_historical_run_after_all_targets_are_accepted(self) -> None:
+        registry = self._registry()
+        unresolved_keys = [
+            row["speaker_key"]
+            for row in registry["rows"]
+            if row["status"] == "UNRESOLVED_DIALOGUE"
+        ]
+
+        def provider(**kwargs: Any) -> dict[str, Any]:
+            return {
+                "response": {
+                    "schema": "story-audio-gemini-speaker-review-suggestions/v1",
+                    "suggestions": [
+                        {
+                            "unresolved_key": str(target["unresolved_key"]),
+                            "chapter_number": int(target["chapter_number"]),
+                            "proposed_resolution": "EXISTING_CHARACTER",
+                            "existing_character_id": int(self.commander["id"]),
+                            "proposed_character_name": None,
+                            "proposed_aliases": [],
+                            "confidence": "HIGH",
+                            "confidence_score": 0.95,
+                            "evidence_summary": "Matches the known commander.",
+                            "context_evidence": [str(target["dialogue_text"])],
+                            "alternative_candidates": [],
+                            "continuity_notes": "Stable test identity.",
+                            "proposed_voice_handling": "INHERIT_EXISTING_CONFIGURATION",
+                            "suggested_voice_id": None,
+                            "voice_rationale": "Keep the existing character voice.",
+                            "warnings": [],
+                        }
+                        for target in kwargs["request_data"]["targets"]
+                    ],
+                },
+                "usage_metadata": {"promptTokenCount": 12, "candidatesTokenCount": 6},
+            }
+
+        run = generate_speaker_review_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            skip_completed=False,
+            registry=registry,
+            voice_catalog=_catalog(),
+            unresolved_keys=unresolved_keys,
+            provider=provider,
+            idempotency_key="speaker-review-all-resolved-run",
+        )
+        approved = approve_high_confidence_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            analysis_run_id=run["analysis_run_id"],
+            unresolved_keys=unresolved_keys,
+            voice_catalog=_catalog(),
+            idempotency_key="speaker-review-all-resolved-accept",
+        )
+        self.assertEqual(len(approved["applied"]), len(unresolved_keys))
+
+        refreshed_registry = self._registry()
+        self.assertFalse(
+            any(
+                row["status"] == "UNRESOLVED_DIALOGUE"
+                for row in refreshed_registry["rows"]
+            )
+        )
+        queue = get_speaker_review_queue(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            skip_completed=False,
+            registry=refreshed_registry,
+            voice_catalog=_catalog(),
+        )
+        self.assertTrue(queue["projected_from_existing_run"])
+        self.assertEqual(queue["summary"]["unresolved_total"], 0)
+        self.assertEqual(queue["summary"]["pending_review"], 0)
+        self.assertEqual(queue["summary"]["approved"], len(unresolved_keys))
+        self.assertEqual(queue["summary"]["total"], len(unresolved_keys))
+        with self.assertRaisesRegex(
+            SpeakerReviewSuggestionError,
+            "No unresolved dialogue targets in this scope",
+        ):
+            generate_speaker_review_suggestions(
+                self.db,
+                self.store,
+                self.config,
+                book_id=self.book_id,
+                from_chapter=1,
+                to_chapter=2,
+                skip_completed=False,
+                registry=refreshed_registry,
+                voice_catalog=_catalog(),
+                provider=provider,
+                idempotency_key="speaker-review-zero-target-generate",
+            )
+
     def test_queue_batches_review_history_queries_per_projection(self) -> None:
         registry = self._registry()
         keys = [

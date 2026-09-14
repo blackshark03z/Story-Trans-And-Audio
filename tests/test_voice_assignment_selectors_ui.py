@@ -185,7 +185,7 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIn("1. Duyệt người nói", section)
         self.assertIn("2. Vai có lời trong phạm vi và cấu hình giọng", section)
         self.assertIn("nhân vật trong sách", section)
-        self.assertIn("3. Kiểm tra sẵn sàng", section)
+        self.assertIn("3. Final Voice Map & sẵn sàng", section)
         self.assertIn("row.role==='unresolved_dialogue'||row.role==='unknown'", section)
         self.assertIn("row.role==='narrator'||row.character_id", section)
         self.assertIn("Còn ${reviewCount} câu chưa xác định người nói.", section)
@@ -194,7 +194,7 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIn('aria-disabled="true"', section)
         self.assertIn("quyết định người nói cần hoàn tất", section)
         locked = section[
-            section.index("const voiceSection=reviewBlocked?"):
+            section.index("voiceSection=reviewBlocked?"):
             section.index(":`<details class=\"assignment-workflow-section voice-section")
         ]
         self.assertNotIn("voiceTable", locked)
@@ -293,7 +293,9 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             self.js.index("function speakerSuggestionScopeKey")
         ]
         self.assertEqual(section.count('class="primary" data-open-production-preflight'), 1)
-        self.assertEqual(section.count('class="secondary" data-open-production-preflight ${preflightReady'), 1)
+        self.assertIn("data-assignment-casting-next", section)
+        self.assertIn("castingGenerationReady.length", section)
+        self.assertIn("castingPlansAwaitingApproval.length", section)
         self.assertNotIn("data-jump-to-assignment-preflight", section)
         self.assertIn("repairContextBlockers.length===0", section)
         self.assertIn("data-assignment-repair-focus", section)
@@ -309,10 +311,9 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
             "fromChapter:number,toChapter:number",
         ):
             self.assertIn(token, self.js)
-        self.assertIn(
-            "if(context.returnTask==='REPAIR_PREFLIGHT')await loadProductionTaskProjection({silent:true})",
-            self.js,
-        )
+        self.assertIn("if(route==='assignment'){", self.js)
+        self.assertIn("await loadProductionTaskProjection({silent:true});", self.js)
+        self.assertIn("await loadBookVoiceRegistry();", self.js)
 
     def test_exact_assignment_range_url_remains_supported_by_working_context(self) -> None:
         self.assertIn("#/assignment", self.js)

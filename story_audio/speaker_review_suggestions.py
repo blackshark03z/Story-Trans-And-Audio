@@ -400,8 +400,6 @@ def build_speaker_review_request(
         if missing:
             raise SpeakerReviewSuggestionError(f"Unresolved key not found: {missing[0]}")
     targets.sort(key=lambda item: (int(item["chapter_number"]), int(item["sequence"]), item["unresolved_key"]))
-    if not targets:
-        raise SpeakerReviewSuggestionError("No unresolved dialogue targets in this scope")
     target_keys = [item["unresolved_key"] for item in targets]
     if len(target_keys) != len(set(target_keys)):
         raise SpeakerReviewSuggestionError("Unresolved targets are not unique")
@@ -1902,6 +1900,8 @@ def generate_speaker_review_suggestions(
         voice_catalog=voice_catalog,
         unresolved_keys=unresolved_keys,
     )
+    if not request["targets"]:
+        raise SpeakerReviewSuggestionError("No unresolved dialogue targets in this scope")
     if (
         expected_input_fingerprint
         and str(expected_input_fingerprint).strip() != request["input_fingerprint"]

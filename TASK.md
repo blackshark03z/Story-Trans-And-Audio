@@ -251,10 +251,55 @@ LIVE_STALE_OVERRIDE_COUNT=0
 MAIN_INTEGRATION=PASS; release base df4dab3fd1d168fe26e2bf96f56015e76df32cba fast-forwarded to origin/main before final stable-seal documentation
 POST_MAIN_RUNTIME_SMOKE=PASS; canonical DB=true; schema=16/16; worker_available=true; supervised_restart_available=true
 OWNER_PRODUCT_ACCEPTANCE=PASS_PREVIOUSLY; release did not replay full UAT
-STABLE_STATUS=STABLE_V1
+STABLE_STATUS=REOPENED_FRESH_RUN_ASSIGNMENT_WORKFLOW_DEFECT
 ```
 
-The qualified candidate passed the canonical production release canary and was fast-forwarded to `main`. Product/User Acceptance was already proven before release qualification; release does not replay the whole Chapters 2-8 UAT journey a second time. Chapter 2 provided the release canary, and the same real canonical Job 5 then completed all Chapters 2-8 with 409/409 verified segments after supported same-job recovery of one provider-silence segment in Chapter 8. Artifact 33 passed byte-size and SHA-256 integrity checks and crossed the production boundary into the dedicated Human Audio QA workspace. Human QA remains required for accepting or repairing produced audio content, but it is an operational workflow state rather than a release gate for code already Product Accepted, fully qualified, canary-verified, integrated to `main`, and post-integration smoke-verified. This release is sealed as `STABLE_V1`.
+The qualified candidate passed the canonical production release canary and was fast-forwarded to `main`. Product/User Acceptance was already proven before release qualification; release does not replay the whole Chapters 2-8 UAT journey a second time. Chapter 2 provided the release canary, and the same real canonical Job 5 then completed all Chapters 2-8 with 409/409 verified segments after supported same-job recovery of one provider-silence segment in Chapter 8. Artifact 33 passed byte-size and SHA-256 integrity checks and crossed the production boundary into the dedicated Human Audio QA workspace. Human QA remains required for accepting or repairing produced audio content, but it is an operational workflow state rather than a release gate for code already Product Accepted, fully qualified, canary-verified, integrated to `main`, and post-integration smoke-verified. The previous stable seal is reopened by fresh-run owner evidence on 2026-09-14. The release/canary evidence above remains historically valid for that candidate, but the current product verdict is not stable until the escaped Assignment workflow defect below is repaired and requalified.
+
+### Fresh-run escaped defect — Assignment workflow orchestration / acceptance oracle
+
+`STATUS=ROOT_CAUSE_RESOLVED_REQUALIFIED_READY_FOR_DURABLE_SEAL_2026_09_14`
+
+```text
+FRESH_SCOPE=Book 1 Chapters 6-8 after complete canonical data reset and clean schema-16 bootstrap
+OWNER_VISIBLE_FAILURE=16/16 speaker suggestions accepted, UI shows 0 remaining decisions, but Step 2 stays locked and "Tiếp tục Bước 1" loops without completing Step 1
+BATCH_EVIDENCE=requested=16 approved=16 excluded=0 failed=0; all 16 review_state=ACCEPTED
+DB_DRAFT_EVIDENCE=Ch6 draft 1 review 1/1; Ch7 draft 2 review 4/4; Ch8 draft 3 review 11/11; all three remain status=generated and approved_at=NULL
+CANONICAL_NEXT_TASK=APPROVE_READY_SPEAKER_DRAFTS; action=Duyệt 3 chương
+ROOT_CAUSE_A=Assignment 3-step UI does not execute/expose the canonical Speaker Draft approval transition after all per-utterance decisions are complete
+ROOT_CAUSE_B=Assignment derives reviewCount from remaining_review_count=0 but derives reviewBlocked from speaker_state.status=CURRENT_REVIEW_REQUIRED, creating the contradictory 0-remaining-but-locked state and circular Step-1 CTA
+ROOT_CAUSE_C=generic production command lifecycle renders into #productionCommandStatus inside productionView; Assignment mutations therefore send SUBMITTING/APPLIED feedback to a hidden route surface, while durable batch result is rendered above the list and outside the user's retained bottom-of-list viewport
+ROOT_CAUSE_D=Assignment simultaneously renders legacy 11-step castingJourney plus newer 3-step workflow, so two workflow presentations own the same journey on one screen
+ROOT_CAUSE_E=Step 2 has the same hidden-gate seam: SAVE_VOICE_CONFIGURATION_BATCH does not create/approve Casting Plans, while canonical flow still requires PREPARE_RANGE_INPUTS then APPROVE_RANGE_CASTING_PLANS
+ROOT_CAUSE_F=direct/reloaded Assignment route hydrates range readiness + registry but previously loaded canonical task projection only for REPAIR_PREFLIGHT; fresh browser evidence showed productionProjection/canonical_task=NULL, so Assignment could not know the real durable next gate after reload
+ORACLE_GAP_1=Assignment browser fixture omits canonical speaker_state; frontend fallback treats disappearance of unresolved rows as NO_REVIEW_REQUIRED and therefore bypasses generated->approved Speaker Draft authority
+ORACLE_GAP_2=fixture SAVE_VOICE_CONFIGURATION_BATCH directly sets plan_ready=true, bypassing real Casting Plan generation/approval
+ORACLE_GAP_3=batch browser tests assert spinner/result existence in DOM, not visibility on the active Assignment surface/viewport, and do not assert last-review -> Speaker Draft approval -> Step-2 transition
+CANONICAL_AUTHORITY=GET /api/production/task-projection remains the source of truth for next durable workflow task; registry/suggestion views are data/review projections, not replacement workflow authority
+REPAIR_SCOPE=converge Assignment presentation/orchestration onto canonical task projection; remove duplicate workflow presentation; expose local command lifecycle; add real seam acceptance with canonical durable gates
+STABLE_STATUS=READY_FOR_DURABLE_SEAL_AFTER_FRESH_RUN_REQUALIFICATION
+```
+
+### Fresh-run resolution and requalification evidence — 2026-09-14
+
+```text
+ROOT_CAUSE_RESOLUTION=Assignment now hydrates canonical task projection on direct/reloaded entry; Step 1 absorbs Speaker Draft approval; Step 3 absorbs Final Voice Map generation/approval; duplicate legacy 11-step journey removed; command lifecycle/result feedback is visible on the active Assignment surface
+HISTORICAL_GEMINI_QUEUE_FIX=read-path can project the latest compatible immutable speaker-review run after unresolved targets reach zero; generate-path still rejects no-target Gemini generation
+MANUAL_SPEAKER_OPTION_FIX=exact byte-level removal of newline/indent whitespace from productionRangeSpeakerChoice option values; exact narrator/unknown values restored
+TARGETED_SEAM_REGRESSION=58/58 PASS before final byte fix; final browser/encoding rerun=3/3 PASS; final static/browser sanity=6/6 PASS
+FULL_REPO_REGRESSION=2149 PASS, 1 SKIPPED, 463 SUBTESTS PASS
+FULL_REPO_DURATION=420.12s
+FULL_REPO_EXIT_CODE=0
+FRESH_CANONICAL_SCOPE=Book 1 Chapters 6-8 on canonical schema-16 runtime after clean data reset
+FRESH_STEP_1=16/16 speaker decisions accepted; 3/3 Speaker Drafts approved through visible Assignment CTA; canonical task advanced to REVIEW_RANGE_VOICE_EXCEPTIONS
+FRESH_HISTORICAL_QUEUE=projected_from_existing_run=true; 16 approved; 0 pending; 0 unresolved after reload
+FRESH_STEP_2=one atomic SAVE_VOICE_CONFIGURATION_BATCH committed 3 roles; narrator=Trọng Hữu technical fallback; Hứa Thanh=Đức Trí; Gã âm dương quái khí=Bình An; all READY; no PREPARE/render side effect
+FRESH_STEP_3=3 Final Voice Map drafts created; unresolved=0; changed_mapping_warning=false; all voices available; 3/3 approved
+FRESH_ASSIGNMENT_EXIT=canonical task PREPARE_RANGE; CTA navigates to Production preflight only; preparedJobs=0; no implicit PREPARE or render
+CANONICAL_RUNTIME_PID_AFTER_SUPERVISED_RESTART=15552 at live historical-queue verification
+OWNER_SUBJECTIVE_VOICE_ACCEPTANCE=NOT_CLAIMED for technical fallback narrator; this fresh run proves workflow/state-machine convergence, not preference quality
+STABLE_STATUS=READY_FOR_DURABLE_SEAL_AFTER_FRESH_RUN_REQUALIFICATION
+```
 
 ### Superseded historical contract — per-role scoped save before Final Voice Map approval
 
