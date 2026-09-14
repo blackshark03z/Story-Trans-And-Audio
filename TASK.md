@@ -216,7 +216,7 @@ CANONICAL_DATA_ROOT=D:\Youtube\Story Trans And Audio\data
 CANONICAL_DB=D:\Youtube\Story Trans And Audio\data\app.db
 SCHEMA=16/16
 LIVE_SCOPE=Book 1 Quang Âm Chi Ngoại, Chapters 2-8
-LIVE_JOURNEY_STATUS=PRODUCTION_CANARY_PASS; JOB_5_CONTINUES_AS_NORMAL_OPERATIONAL_WORKLOAD
+LIVE_JOURNEY_STATUS=STABLE_RELEASE_PASS; JOB_5_COMPLETED_AFTER_SAME_JOB_RECOVERY
 SPEAKER_INPUT_PREPARE=APPLIED for Chapters 6-8
 GEMINI_SPEAKER_ANALYSIS=16 suggestions generated
 SPEAKER_BATCH_ACCEPTED=14 high-confidence existing-character matches, 0 failures
@@ -234,7 +234,7 @@ CASTING_APPROVAL=7/7 APPLIED
 AUDIO_PREFLIGHT=READY, blockers=0, prepare_allowed=true, conflict_free=true
 AUDIO_PREPARE=APPLIED 7/7; Job 5 created in prepared state; render not started by PREPARE
 START_RENDER=ACCEPTED for Job 5
-JOB_5_CURRENT_STATE=synthesizing; real TTS worker active; failures=0 at last checkpoint
+JOB_5_FINAL_STATE=completed; 409/409 segments verified; failed=0; Chapters 2-8 all completed
 RELEASE_CANARY_SCOPE=Book 1 Chapter 2 from the same canonical Job 5
 RELEASE_CANARY_ARTIFACT=15 active; duration_ms=366360; size_bytes=5922490
 RELEASE_CANARY_SYNTHESIS=53/53 verified segments; retry_count=0
@@ -242,11 +242,19 @@ RELEASE_CANARY_FILE_INTEGRITY=downloaded bytes size and SHA-256 match durable ar
 RELEASE_CANARY_HANDOFF=task_type HUMAN_QA; current_stage qa; artifact_id=15; job_id=5
 RELEASE_CANARY_HUMAN_QA_STATUS=pending by design; content listening remains an operational Human QA task and is not a second release/UAT gate
 RELEASE_GATE=PASS on exact candidate HEAD after prior Product Acceptance + full qualification + canonical production canary
+SAME_JOB_RECOVERY=Chapter 8 segment 595 / sequence 58 retried through supported POST /api/segments/595/retry; no duplicate Job, replacement Job, text, casting, or voice mutation
+SAME_JOB_RECOVERY_RESULT=second targeted recovery completed; Job 5 resumed from persisted verified prefix and finished 409/409 with failed=0
+CHAPTER_8_ARTIFACT=33 active; duration_ms=490690; size_bytes=7967958; sha256=900fca5d92dc0ede5c25bc0ce206a606c688e7bd9d16d8a145ee4ac748eb5166
+CHAPTER_8_SYNTHESIS=68/68 verified; retry_count=2; downloaded file size and SHA-256 match durable metadata
+CHAPTER_8_HANDOFF=task_type HUMAN_QA; current_stage qa; human_qa_status pending by design
 LIVE_STALE_OVERRIDE_COUNT=0
-MAIN_MERGE=READY_AFTER_DURABLE_SOT_COMMIT
+MAIN_INTEGRATION=PASS; release base df4dab3fd1d168fe26e2bf96f56015e76df32cba fast-forwarded to origin/main before final stable-seal documentation
+POST_MAIN_RUNTIME_SMOKE=PASS; canonical DB=true; schema=16/16; worker_available=true; supervised_restart_available=true
+OWNER_PRODUCT_ACCEPTANCE=PASS_PREVIOUSLY; release did not replay full UAT
+STABLE_STATUS=STABLE_V1
 ```
 
-The qualified candidate has passed the canonical production release canary. Product/User Acceptance was already proven before release qualification; release does not replay the whole Chapters 2-8 UAT journey a second time. Chapter 2 from the real canonical Job 5 rendered successfully, produced an integrity-verified active Artifact, and crossed the production boundary into the dedicated Human Audio QA workspace. Human QA remains required for accepting or repairing each produced audio Artifact as content, but it is an operational workflow state rather than a release gate for code already Product Accepted and fully qualified. Job 5 remains the only active render for Chapters 2-8 and continues as normal workload; do not create a duplicate Job or rerun PREPARE/START_RENDER while it is healthy.
+The qualified candidate passed the canonical production release canary and was fast-forwarded to `main`. Product/User Acceptance was already proven before release qualification; release does not replay the whole Chapters 2-8 UAT journey a second time. Chapter 2 provided the release canary, and the same real canonical Job 5 then completed all Chapters 2-8 with 409/409 verified segments after supported same-job recovery of one provider-silence segment in Chapter 8. Artifact 33 passed byte-size and SHA-256 integrity checks and crossed the production boundary into the dedicated Human Audio QA workspace. Human QA remains required for accepting or repairing produced audio content, but it is an operational workflow state rather than a release gate for code already Product Accepted, fully qualified, canary-verified, integrated to `main`, and post-integration smoke-verified. This release is sealed as `STABLE_V1`.
 
 ### Superseded historical contract — per-role scoped save before Final Voice Map approval
 
