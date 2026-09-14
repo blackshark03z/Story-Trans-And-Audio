@@ -206,6 +206,48 @@ CANONICAL_RUNTIME_OR_DB_MUTATION=0
 OWNER_ACCEPTANCE=PENDING
 ```
 
+Live canonical runtime evidence (2026-09-13):
+
+```text
+CANDIDATE_HEAD=01c77636c41cf8483574d2a35a7644829d029cda
+RUNTIME=http://127.0.0.1:8772
+RUNTIME_SOURCE_ROOT=D:\Youtube\_worktrees\story-audio-product-reconciliation
+CANONICAL_DATA_ROOT=D:\Youtube\Story Trans And Audio\data
+CANONICAL_DB=D:\Youtube\Story Trans And Audio\data\app.db
+SCHEMA=16/16
+LIVE_SCOPE=Book 1 Quang Âm Chi Ngoại, Chapters 2-8
+LIVE_JOURNEY_STATUS=PRODUCTION_CANARY_PASS; JOB_5_CONTINUES_AS_NORMAL_OPERATIONAL_WORKLOAD
+SPEAKER_INPUT_PREPARE=APPLIED for Chapters 6-8
+GEMINI_SPEAKER_ANALYSIS=16 suggestions generated
+SPEAKER_BATCH_ACCEPTED=14 high-confidence existing-character matches, 0 failures
+NEW_CHARACTER=Character 2 Kẻ âm dương; alias Kẻ âm dương quái khí
+NEW_CHARACTER_CONTINUITY=Chapter 8 utterances 66-67 mapped to the same Character 2
+SPEAKER_REVIEW=16/16 approved, pending=0
+SPEAKER_DRAFT_APPROVAL=Chapters 6-8 approved 3/3
+SPEAKER_STATE=APPROVED_CURRENT
+VOICE_NARRATOR=custom:2 ChanLee
+VOICE_CHARACTER_1=custom:1 Hứa Thanh
+VOICE_CHARACTER_2=Bình An as Book default via SAVE_VOICE_CONFIGURATION_BATCH atomic=true
+CASTING_DRAFTS_CREATED=Chapter 6 plan 24; Chapter 7 plan 25; Chapter 8 plan 26
+CASTING_REVIEW=7/7 plans unresolved=0, changed_mapping_warning=false, all voices available
+CASTING_APPROVAL=7/7 APPLIED
+AUDIO_PREFLIGHT=READY, blockers=0, prepare_allowed=true, conflict_free=true
+AUDIO_PREPARE=APPLIED 7/7; Job 5 created in prepared state; render not started by PREPARE
+START_RENDER=ACCEPTED for Job 5
+JOB_5_CURRENT_STATE=synthesizing; real TTS worker active; failures=0 at last checkpoint
+RELEASE_CANARY_SCOPE=Book 1 Chapter 2 from the same canonical Job 5
+RELEASE_CANARY_ARTIFACT=15 active; duration_ms=366360; size_bytes=5922490
+RELEASE_CANARY_SYNTHESIS=53/53 verified segments; retry_count=0
+RELEASE_CANARY_FILE_INTEGRITY=downloaded bytes size and SHA-256 match durable artifact metadata
+RELEASE_CANARY_HANDOFF=task_type HUMAN_QA; current_stage qa; artifact_id=15; job_id=5
+RELEASE_CANARY_HUMAN_QA_STATUS=pending by design; content listening remains an operational Human QA task and is not a second release/UAT gate
+RELEASE_GATE=PASS on exact candidate HEAD after prior Product Acceptance + full qualification + canonical production canary
+LIVE_STALE_OVERRIDE_COUNT=0
+MAIN_MERGE=READY_AFTER_DURABLE_SOT_COMMIT
+```
+
+The qualified candidate has passed the canonical production release canary. Product/User Acceptance was already proven before release qualification; release does not replay the whole Chapters 2-8 UAT journey a second time. Chapter 2 from the real canonical Job 5 rendered successfully, produced an integrity-verified active Artifact, and crossed the production boundary into the dedicated Human Audio QA workspace. Human QA remains required for accepting or repairing each produced audio Artifact as content, but it is an operational workflow state rather than a release gate for code already Product Accepted and fully qualified. Job 5 remains the only active render for Chapters 2-8 and continues as normal workload; do not create a duplicate Job or rerun PREPARE/START_RENDER while it is healthy.
+
 ### Superseded historical contract — per-role scoped save before Final Voice Map approval
 
 `STATUS=SUPERSEDED_BY_ATOMIC_VOICE_CONFIGURATION_COMMIT_2026_09_13`
