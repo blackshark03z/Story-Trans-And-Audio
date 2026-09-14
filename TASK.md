@@ -258,7 +258,7 @@ The qualified candidate passed the canonical production release canary and was f
 
 ### Fresh-run escaped defect — Assignment workflow orchestration / acceptance oracle
 
-`STATUS=ROOT_CAUSE_RESOLVED_REQUALIFIED_READY_FOR_DURABLE_SEAL_2026_09_14`
+`STATUS=ROOT_CAUSE_RESOLVED_STABLE_SEALED_2026_09_14`
 
 ```text
 FRESH_SCOPE=Book 1 Chapters 6-8 after complete canonical data reset and clean schema-16 bootstrap
@@ -277,7 +277,7 @@ ORACLE_GAP_2=fixture SAVE_VOICE_CONFIGURATION_BATCH directly sets plan_ready=tru
 ORACLE_GAP_3=batch browser tests assert spinner/result existence in DOM, not visibility on the active Assignment surface/viewport, and do not assert last-review -> Speaker Draft approval -> Step-2 transition
 CANONICAL_AUTHORITY=GET /api/production/task-projection remains the source of truth for next durable workflow task; registry/suggestion views are data/review projections, not replacement workflow authority
 REPAIR_SCOPE=converge Assignment presentation/orchestration onto canonical task projection; remove duplicate workflow presentation; expose local command lifecycle; add real seam acceptance with canonical durable gates
-STABLE_STATUS=READY_FOR_DURABLE_SEAL_AFTER_FRESH_RUN_REQUALIFICATION
+STABLE_STATUS=STABLE_V1_RESTORED_AFTER_FRESH_RUN_REQUALIFICATION
 ```
 
 ### Fresh-run resolution and requalification evidence — 2026-09-14
@@ -290,6 +290,8 @@ TARGETED_SEAM_REGRESSION=58/58 PASS before final byte fix; final browser/encodin
 FULL_REPO_REGRESSION=2149 PASS, 1 SKIPPED, 463 SUBTESTS PASS
 FULL_REPO_DURATION=420.12s
 FULL_REPO_EXIT_CODE=0
+DURABLE_REPAIR_HEAD=25a09b4b1a76628f67676c4635ff853c385bec7c pushed to candidate branch and origin/main
+POST_MAIN_SUPERVISED_RESTART=PASS; PID 15552 -> 31132; runtime_mode=PRODUCTION; operator_authentication_verified=true; canonical task remained PREPARE_RANGE; prepared_jobs=0; active_render_jobs=0
 FRESH_CANONICAL_SCOPE=Book 1 Chapters 6-8 on canonical schema-16 runtime after clean data reset
 FRESH_STEP_1=16/16 speaker decisions accepted; 3/3 Speaker Drafts approved through visible Assignment CTA; canonical task advanced to REVIEW_RANGE_VOICE_EXCEPTIONS
 FRESH_HISTORICAL_QUEUE=projected_from_existing_run=true; 16 approved; 0 pending; 0 unresolved after reload
@@ -298,7 +300,7 @@ FRESH_STEP_3=3 Final Voice Map drafts created; unresolved=0; changed_mapping_war
 FRESH_ASSIGNMENT_EXIT=canonical task PREPARE_RANGE; CTA navigates to Production preflight only; preparedJobs=0; no implicit PREPARE or render
 CANONICAL_RUNTIME_PID_AFTER_SUPERVISED_RESTART=15552 at live historical-queue verification
 OWNER_SUBJECTIVE_VOICE_ACCEPTANCE=NOT_CLAIMED for technical fallback narrator; this fresh run proves workflow/state-machine convergence, not preference quality
-STABLE_STATUS=READY_FOR_DURABLE_SEAL_AFTER_FRESH_RUN_REQUALIFICATION
+STABLE_STATUS=STABLE_V1_RESTORED_AFTER_FRESH_RUN_REQUALIFICATION
 ```
 
 ### Superseded historical contract — per-role scoped save before Final Voice Map approval
