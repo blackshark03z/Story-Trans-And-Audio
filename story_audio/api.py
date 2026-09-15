@@ -48,6 +48,7 @@ from .character_bible import (
 from .chapter_voice_overrides import (
     ChapterVoiceOverrideError,
     apply_chapter_voice_override,
+    apply_voice_configuration_batch,
 )
 from .character_assignment import (
     CharacterAssignmentError,
@@ -3082,6 +3083,40 @@ def _production_command_executor(
                     if is_clear
                     else "Đã lưu lựa chọn giọng vào Bản đồ giọng nháp của phạm vi. "
                     "Hãy kiểm tra và duyệt ở bước tiếp theo."
+                ),
+            )
+        if command_type == "SAVE_RANGE_VOICE_CONFIGURATION":
+            command_range = _production_command_range(scope)
+            book_id = int(payload.get("book_id") or command_range["book_id"])
+            items = list(payload.get("items") or [])
+            result = apply_voice_configuration_batch(
+                db,
+                store,
+                book_id=book_id,
+                from_chapter=int(command_range["from_chapter"]),
+                to_chapter=int(command_range["to_chapter"]),
+                items=items,
+                voice_catalog=_load_voice_catalog(book_id),
+                idempotency_key=request.idempotency_key,
+                custom_voice_context=_build_custom_voice_context(book_id),
+            )
+            applied_items = tuple(
+                {
+                    "type": "voice_configuration",
+                    "speaker_key": item["speaker_key"],
+                    "scope": item["scope"],
+                    "operation": item["operation"],
+                    "voice_id": item.get("voice_id"),
+                }
+                for item in result.get("items") or []
+            )
+            return ProductionCommandMutation(
+                outcome="APPLIED",
+                submitted_count=len(applied_items),
+                applied_items=applied_items,
+                operator_message=(
+                    f"Đã lưu toàn bộ cấu hình giọng cho {len(applied_items)} vai. "
+                    "Chưa PREPARE hoặc render."
                 ),
             )
         if command_type == "SAVE_VOICE_ASSIGNMENTS":

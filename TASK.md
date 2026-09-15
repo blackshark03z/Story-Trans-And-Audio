@@ -1427,6 +1427,64 @@ CANONICAL_RUNTIME_OR_DB_MUTATION=0
 OWNER_ACCEPTANCE=PENDING
 ```
 
+## 2026-09-13 — SOT amendment: lưu toàn bộ cấu hình giọng trong một lượt
+
+```text
+STATUS=ACTIVE
+OWNER_OUTCOME=Người dùng chỉnh giọng cho nhiều vai, xem lại toàn bộ thay đổi rồi lưu đúng một lần; không phải lưu từng vai.
+DELIVERY_DELTA=USER_VISIBLE_BEHAVIOR
+BASE_HEAD=f2e7bfd66bfb0274e38686d5b1c3eeaee8ff3c91
+WRITER_WORKTREE=D:\Youtube\_worktrees\story-audio-speaker-voice-flow
+SIDE_EFFECT=Source and isolated test fixtures only
+PROHIBITED=canonical DB; port 8772 data mutation; PREPARE; START_RENDER; provider calls; protected runtime data; force push
+STATE_HAZARD=S2
+AUTHORITATIVE_SOURCE=Registry mới nhất và một transaction cấu hình giọng nguyên khối
+REPRESENTATIVE_TRANSITION=Không có thay đổi -> nhiều thay đổi tạm theo vai -> một cấu hình đã lưu
+INVARIANT=Hoặc mọi thay đổi hợp lệ trong lượt được lưu, hoặc không thay đổi nào có hiệu lực
+```
+
+### UX contract
+
+```text
+PRIMARY_USER=Người cấu hình giọng cho phạm vi trước khi tạo audio
+PRIMARY_JOURNEY=Chỉnh nhiều vai -> xem tóm tắt thay đổi -> lưu một lần -> kiểm tra và chuẩn bị audio
+PRIMARY_SURFACE=Bước 2 Cấu hình giọng
+INFORMATION_HIERARCHY=Vai và lựa chọn giọng là nội dung chính; bản tổng hợp chưa lưu và hành động lưu toàn bộ là điểm kết thúc bước
+SCOPE_MODEL=Mỗi vai vẫn chọn phạm vi áp dụng riêng; tất cả lựa chọn được commit trong cùng một transaction
+PRIMARY_CONTROLS=Lưu cấu hình cho N vai
+SECONDARY_CONTROLS=Hoàn tác một vai; hủy toàn bộ thay đổi; dùng giọng kế thừa
+STATES=Không đổi; có thay đổi chưa lưu; đang lưu; lưu toàn bộ thành công; lỗi toàn bộ và giữ nguyên draft để sửa
+DISCOVERABILITY=Không còn nút lưu lặp lại ở từng vai; cuối danh sách luôn cho biết còn bao nhiêu thay đổi chưa lưu
+ACCESSIBILITY=Bản tổng hợp có status rõ; nút nêu số vai; lỗi gắn với vai và không làm mất lựa chọn
+OWNER_PREFERENCE=ONE_FINAL_ATOMIC_SAVE
+OWNER_UX_GATE=NOT_REQUIRED
+```
+
+### Create-flow contract
+
+```text
+ENTRY=Phạm vi đã chọn và các vai đã duyệt người nói
+REQUIRED_INPUT=Mỗi vai thay đổi có speaker key, phạm vi và voice hoặc lựa chọn kế thừa
+OPTIONAL_INPUT=Không có
+VALIDATION=Kiểm tra toàn bộ vai, voice, scope và registry freshness trước khi ghi
+REVIEW=Bản tổng hợp hiển thị vai -> giọng/kế thừa -> phạm vi
+COMMIT=Một command SAVE_RANGE_VOICE_CONFIGURATION và một DB transaction
+SUCCESS=Registry tải lại, mọi lựa chọn phản ánh đúng giọng hiệu lực và không còn draft
+FAILURE=Rollback toàn bộ, giữ draft, chỉ rõ mục lỗi; không PREPARE/render
+NEXT=Tiếp tục sang Kiểm tra & chuẩn bị audio bằng hành động riêng
+```
+
+### Acceptance
+
+1. Không còn hành động lưu riêng từng vai; mọi selector chỉ cập nhật draft cục bộ.
+2. Cuối danh sách có tổng hợp chính xác mọi thay đổi và một nút `Lưu cấu hình cho N vai`.
+3. `Dùng giọng kế thừa` là một thay đổi tạm trong cùng lượt, không gọi backend ngay.
+4. Backend nhận đúng một command và ghi atomically; một item lỗi hoặc state stale phải rollback toàn bộ.
+5. Mỗi chương chỉ tạo tối đa một Casting Plan mới cho cả lượt, dù nhiều vai thay đổi.
+6. Chọn voice trùng với mặc định được chuẩn hóa thành kế thừa và vẫn báo thành công.
+7. Lưu không gọi PREPARE, START_RENDER, Gemini hay TTS; hành động tiếp theo vẫn tách riêng.
+8. Focused backend/API/UI tests và preview desktop/narrow dùng dữ liệu fixture; owner acceptance chờ dùng candidate.
+
 ## 2026-09-13 — SOT amendment: bỏ ghi đè cũ cho cả phạm vi
 
 ```text

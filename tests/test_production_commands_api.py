@@ -387,6 +387,41 @@ class ProductionCommandApiTests(IsolatedTestCase):
         self.assertEqual(save.call_args.kwargs["idempotency_key"], "range-voice-override-0001")
         self.assertTrue(save.call_args.kwargs["skip_missing"])
 
+    def test_atomic_voice_configuration_uses_one_common_command(self) -> None:
+        command = {
+            "command_type": "SAVE_RANGE_VOICE_CONFIGURATION",
+            "idempotency_key": "voice-configuration-batch-0001",
+            "scope": {"range": {"book_id": 1, "from_chapter": 1, "to_chapter": 5}},
+            "payload": {
+                "book_id": 1,
+                "items": [
+                    {"speaker_key": "narrator", "scope": "book", "operation": "set", "voice_id": "chanlee"},
+                    {"speaker_key": "character:4", "scope": "range", "operation": "clear", "voice_id": None},
+                ],
+            },
+        }
+        applied = {
+            "items": command["payload"]["items"],
+            "item_count": 2,
+            "chapter_count": 5,
+            "plan_revision_count": 4,
+            "applied": [],
+        }
+        with (
+            patch("story_audio.api._project_production_command", self.projection),
+            patch("story_audio.api._load_voice_catalog", return_value=object()),
+            patch("story_audio.api.apply_voice_configuration_batch", return_value=applied) as save,
+        ):
+            response = self.client.post("/api/production/commands", json=command)
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result["outcome"], "APPLIED")
+        self.assertEqual(result["submitted_count"], 2)
+        self.assertEqual(result["applied_count"], 2)
+        save.assert_called_once()
+        self.assertEqual(save.call_args.kwargs["items"], command["payload"]["items"])
+        self.assertEqual(save.call_args.kwargs["idempotency_key"], command["idempotency_key"])
+
     def test_chapter_voice_override_rejects_range_with_vietnamese_guidance(self) -> None:
         with patch("story_audio.api._project_production_command", self.projection):
             response = self.client.post(

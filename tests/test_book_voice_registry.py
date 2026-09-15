@@ -4,6 +4,7 @@ from story_audio.book_voice_registry import get_book_voice_registry
 from story_audio.chapter_voice_overrides import (
     ChapterVoiceOverrideError,
     apply_chapter_voice_override,
+    apply_voice_configuration_batch,
 )
 from story_audio.casting import approve_plan, create_casting_draft, create_character, get_plan, split_utterances
 from story_audio.db import Database, utcnow
@@ -658,6 +659,79 @@ class BookVoiceRegistryTests(IsolatedTestCase):
                 idempotency_key="unavailable-voice",
             )
         self.assertEqual(self._approved_plan_count(), before)
+
+    def test_batch_saves_multiple_roles_with_one_plan_revision_per_chapter(self) -> None:
+        recurring_key = f"character:{int(self.characters['recurring']['id'])}"
+        before = self._plan_count()
+        result = apply_voice_configuration_batch(
+            self.db,
+            self.store,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            items=[
+                {"speaker_key": "narrator", "scope": "range", "operation": "set", "voice_id": "male"},
+                {"speaker_key": recurring_key, "scope": "range", "operation": "set", "voice_id": "new"},
+            ],
+            voice_catalog=_catalog("narrator", "male", "female", "recurring", "new"),
+            idempotency_key="atomic-two-role-range",
+        )
+        self.assertEqual(result["item_count"], 2)
+        self.assertEqual(result["plan_revision_count"], 2)
+        self.assertEqual(self._plan_count(), before + 2)
+        registry = self._registry(1, 2)
+        rows = {row["speaker_key"]: row for row in registry["rows"]}
+        self.assertEqual(rows["narrator"]["effective_voice"]["id"], "male")
+        self.assertEqual(rows[recurring_key]["effective_voice"]["id"], "new")
+
+    def test_batch_book_defaults_are_effective_immediately_and_not_reported_as_overrides(self) -> None:
+        recurring_id = int(self.characters["recurring"]["id"])
+        recurring_key = f"character:{recurring_id}"
+        result = apply_voice_configuration_batch(
+            self.db,
+            self.store,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=2,
+            items=[
+                {"speaker_key": "narrator", "scope": "book", "operation": "set", "voice_id": "male"},
+                {"speaker_key": recurring_key, "scope": "book", "operation": "set", "voice_id": "new"},
+            ],
+            voice_catalog=_catalog("narrator", "male", "female", "recurring", "new"),
+            idempotency_key="atomic-two-book-defaults",
+        )
+        self.assertEqual(result["plan_revision_count"], 2)
+        profile = self.db.fetch_one("SELECT narrator_voice_id FROM book_voice_profiles WHERE book_id=?", (self.book_id,))
+        character = self.db.fetch_one("SELECT voice_override_id FROM characters WHERE id=?", (recurring_id,))
+        self.assertEqual(profile["narrator_voice_id"], "male")
+        self.assertEqual(character["voice_override_id"], "new")
+        registry = self._registry(1, 2)
+        rows = {row["speaker_key"]: row for row in registry["rows"]}
+        self.assertEqual(rows["narrator"]["effective_voice"]["id"], "male")
+        self.assertIsNone(rows["narrator"]["range_override_voice"])
+        self.assertEqual(rows[recurring_key]["effective_voice"]["id"], "new")
+        self.assertIsNone(rows[recurring_key]["range_override_voice"])
+
+    def test_batch_validation_rejects_all_items_before_any_database_write(self) -> None:
+        before_plans = self._plan_count()
+        before_profile = dict(self.db.fetch_one("SELECT * FROM book_voice_profiles WHERE book_id=?", (self.book_id,)))
+        with self.assertRaises(ChapterVoiceOverrideError):
+            apply_voice_configuration_batch(
+                self.db,
+                self.store,
+                book_id=self.book_id,
+                from_chapter=1,
+                to_chapter=2,
+                items=[
+                    {"speaker_key": "narrator", "scope": "book", "operation": "set", "voice_id": "male"},
+                    {"speaker_key": "character:999999", "scope": "range", "operation": "set", "voice_id": "new"},
+                ],
+                voice_catalog=_catalog("narrator", "male", "female", "new"),
+                idempotency_key="atomic-validation-failure",
+            )
+        self.assertEqual(self._plan_count(), before_plans)
+        after_profile = dict(self.db.fetch_one("SELECT * FROM book_voice_profiles WHERE book_id=?", (self.book_id,)))
+        self.assertEqual(after_profile, before_profile)
 
 
 if __name__ == "__main__":
