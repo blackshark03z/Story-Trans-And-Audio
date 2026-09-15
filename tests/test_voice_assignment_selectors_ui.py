@@ -298,13 +298,30 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         ]
         self.assertEqual(section.count('class="primary" data-open-production-preflight'), 1)
         self.assertIn("data-assignment-casting-next", section)
+        self.assertIn("data-open-assignment-handoff", section)
+        self.assertNotIn("data-open-assignment-step3", section)
+        self.assertNotIn("Tiếp tục Bước 3: kiểm tra bản đồ giọng", section)
         self.assertIn("castingGenerationReady.length", section)
         self.assertIn("castingPlansAwaitingApproval.length", section)
         self.assertNotIn("data-jump-to-assignment-preflight", section)
         self.assertIn("repairContextBlockers.length===0", section)
+        self.assertIn("canonicalStep3Ready", section)
         self.assertIn("data-assignment-repair-focus", section)
         self.assertIn("Tiếp tục: kiểm tra & chuẩn bị audio", section)
         self.assertIn("Quay lại chuẩn bị bản thay thế", section)
+
+    def test_assignment_handoff_follows_canonical_task_after_assignment_is_done(self) -> None:
+        section = self.js[
+            self.js.index("function assignmentCanonicalTask()"):
+            self.js.index("function renderSpeakerStateHistory")
+        ]
+        self.assertIn("function assignmentCanonicalHandoff()", section)
+        self.assertIn("assignmentCanonicalTaskType()==='PREPARE_RANGE'", section)
+        for task in ("OPEN_JOB_RANGE", "START_RENDER_RANGE", "MONITOR_RENDER", "HUMAN_QA", "COMPLETE"):
+            self.assertIn(task, section)
+        self.assertIn("openAssignmentCanonicalHandoff", section)
+        self.assertIn("Mở Duyệt audio", section)
+        self.assertIn("Theo dõi render", section)
 
     def test_repair_working_context_preserves_exact_assignment_focus_and_return(self) -> None:
         for token in (

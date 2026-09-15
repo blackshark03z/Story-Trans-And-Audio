@@ -391,8 +391,8 @@ try {
   await waitFor(`document.querySelector('[data-assignment-section="voices"]')`);
   await waitFor(`!window.storyAudioAppState.bookVoiceRegistry?.loading
     && !!window.storyAudioAppState.productionProjection?.canonical_task
-    && !!document.querySelector('[data-assignment-casting-next],[data-open-production-preflight]')`, 20000);
-  const voiceRepairNavigation = await evaluate(`({hash:location.hash,voicesOpen:document.querySelector('[data-assignment-section="voices"]')?.open,returnTask:window.storyAudioAppState.productionWorkingContext?.returnTask,step3Label:document.querySelector('[data-assignment-casting-next],[data-open-production-preflight]')?.textContent||'',task:window.storyAudioAppState.productionProjection?.canonical_task?.task_type||null,unresolvedVoiceRows:document.querySelectorAll('[data-voice-library-row^="unresolved-dialogue:"]').length})`);
+    && !!document.querySelector('[data-assignment-casting-next],[data-open-production-preflight],[data-open-assignment-handoff]')`, 20000);
+  const voiceRepairNavigation = await evaluate(`({hash:location.hash,voicesOpen:document.querySelector('[data-assignment-section="voices"]')?.open,returnTask:window.storyAudioAppState.productionWorkingContext?.returnTask,step3Label:document.querySelector('[data-assignment-casting-next],[data-open-production-preflight],[data-open-assignment-handoff]')?.textContent||'',task:window.storyAudioAppState.productionProjection?.canonical_task?.task_type||null,unresolvedVoiceRows:document.querySelectorAll('[data-voice-library-row^="unresolved-dialogue:"]').length})`);
 
   const repairReady = await evaluate(`(() => {
     const projection=JSON.parse(JSON.stringify(window.__repairProjection)),task=projection.canonical_task;
