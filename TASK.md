@@ -1704,3 +1704,21 @@ VOICE_SAVE_REQUESTS_FROM_RETURN=0
 CANONICAL_RUNTIME_OR_DB_MUTATION=0
 OWNER_ACCEPTANCE=PENDING
 ```
+
+## 2026-09-16 — Worktree / branch cleanup ledger
+
+```text
+STATUS=CLEANUP_COMPLETE
+CANONICAL_WORKTREE=D:\Youtube\Story Trans And Audio
+CANONICAL_BRANCH=main
+LOCAL_WORKTREES=1 (canonical only)
+REMOVED_LOCAL_WORKTREES=story-audio-product-reconciliation; story-audio-e2e-user-journey; story-audio-real-use-production-ui-defects; story-audio-speaker-voice-flow
+REMOVED_LOCAL_BRANCHES=codex/story-audio-product-reconciliation; codex/story-audio-e2e-user-journey; codex/story-audio-real-use-production-ui-defects; codex/story-audio-speaker-voice-flow
+REMOVED_REMOTE_STALE_BRANCHES=codex/story-audio-product-reconciliation; codex/story-audio-product-reconciliation-hotfix; codex/story-audio-speaker-voice-flow
+ARCHIVE_BRANCH_1=archive/story-audio-speaker-voice-flow-20260916 @ 547c0191c37c1b9ecef6a5cd7d28aca4a944dfe9; preserves superseded atomic voice-flow prototype only
+ARCHIVE_BRANCH_2=archive/story-audio-e2e-user-journey-20260916 @ 483c99e4d679349a78a5a1eb3febd24b56fe2b85; preserves superseded owning-job-range history; equivalent behavior exists on main
+REAL_USE_DIRTY_DISPOSITION=discarded only stale asset-version edits plus safe_promotion logs after confirming branch already merged
+SOURCE_OF_TRUTH=main only
+RUNTIME_STATE=stopped intentionally for safe pause
+RESUME_RULE=resume only from canonical main and current safe-pause checkpoint; do not recreate archived worktrees unless explicitly investigating history
+```
