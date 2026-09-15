@@ -160,6 +160,7 @@ try {
     });
     window.__rangeFixture={
       phase:"proposal",
+      proposalPrepared:0,
       exceptions:[
         exception(0,1),exception(0,2),
         exception(1,1),exception(1,2),
@@ -191,7 +192,7 @@ try {
       total_chapters:10,
       ready_chapters:window.__rangeFixture.phase==="ready"?9:0,
       blocked_chapters:0,
-      proposal_required_chapters:window.__rangeFixture.phase==="proposal"?10:0,
+      proposal_required_chapters:window.__rangeFixture.phase==="proposal"?Math.max(0,10-window.__rangeFixture.proposalPrepared):0,
       speaker_exception_count:window.__rangeFixture.phase==="exceptions"?window.__rangeFixture.exceptions.length:0,
       voice_exception_count:window.__rangeFixture.phase==="voices"?window.__rangeFixture.voices.length:0,
       chapters_awaiting_speaker_approval:window.__rangeFixture.phase==="speakerApproval"?7:0,
@@ -204,7 +205,7 @@ try {
       const result={speaker:null,casting:null,range_prepare:null,render:null,qa:null};
       if(["PREPARE_RANGE_INPUTS","REVIEW_RANGE_SPEAKER_EXCEPTIONS","APPROVE_READY_SPEAKER_DRAFTS"].includes(type))result.speaker={
         summary:summary(),
-        proposal_chapters:window.__rangeFixture.phase==="proposal"?chapters:[],
+        proposal_chapters:window.__rangeFixture.phase==="proposal"?chapters.slice(window.__rangeFixture.proposalPrepared):[],
         exception_queue:window.__rangeFixture.phase==="exceptions"?window.__rangeFixture.exceptions:[],
         ready_drafts:window.__rangeFixture.phase==="speakerApproval"?window.__rangeFixture.readyDrafts:[],
         casting_generation_ready:window.__rangeFixture.phase==="castingGeneration"?window.__rangeFixture.plans.map(item=>({...item,draft_id:item.plan_id-400})):[],
@@ -241,10 +242,12 @@ try {
     const handleRangeCommand=async(requestBody)=>{
       const fixture=window.__rangeFixture;
       const type=requestBody.command_type;
-      fixture.calls.push({path:"/api/production/commands",method:"POST",commandType:type});
+      fixture.calls.push({path:"/api/production/commands",method:"POST",commandType:type,range:requestBody.scope?.range||null,message:state.productionCommand?.message||""});
       if(type==="PREPARE_RANGE_INPUTS"){
-        if(fixture.phase==="proposal")fixture.phase="exceptions";
-        else if(fixture.phase==="castingGeneration")fixture.phase="castingApproval";
+        if(fixture.phase==="proposal"){
+          fixture.proposalPrepared+=1;
+          if(fixture.proposalPrepared>=fixture.chapters.length)fixture.phase="exceptions";
+        }else if(fixture.phase==="castingGeneration")fixture.phase="castingApproval";
       }else if(type==="SAVE_SPEAKER_DECISION"){
         fixture.exceptions.shift();
         if(!fixture.exceptions.length)fixture.phase="speakerApproval";
@@ -300,6 +303,8 @@ try {
   const scenarioA = await evaluate(`({
     phase:__rangeFixture.phase,
     prepareCalls:__rangeFixture.calls.filter(item=>item.commandType==="PREPARE_RANGE_INPUTS").length,
+    prepareRanges:__rangeFixture.calls.filter(item=>item.commandType==="PREPARE_RANGE_INPUTS").map(item=>item.range),
+    prepareMessages:__rangeFixture.calls.filter(item=>item.commandType==="PREPARE_RANGE_INPUTS").map(item=>item.message),
     chapterOpenCalls:__rangeFixture.calls.filter(item=>item.path.startsWith("/api/chapters/")&&!item.path.includes("/reviews/")).length,
     next:document.querySelector("#productionPrimaryAction").textContent.trim()
   })`);
@@ -460,7 +465,11 @@ try {
 
   if (scenarioAStart !== "Chuẩn bị dữ liệu cho 10 chương"
       || scenarioA.phase !== "exceptions"
-      || scenarioA.prepareCalls !== 1
+      || scenarioA.prepareCalls !== 10
+      || scenarioA.prepareRanges.some(item=>Number(item?.from_chapter)!==Number(item?.to_chapter))
+      || Number(scenarioA.prepareRanges[0]?.from_chapter)!==101
+      || Number(scenarioA.prepareRanges.at(-1)?.from_chapter)!==110
+      || !scenarioA.prepareMessages[1]?.includes("Đã xong 1/10")
       || scenarioA.chapterOpenCalls !== 1) {
     throw new Error(`Scenario A failed: ${JSON.stringify({ scenarioAStart, scenarioA })}`);
   }

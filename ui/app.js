@@ -505,7 +505,25 @@ function focusProductionAfterAction(preferredSelector){
     ($(preferredSelector)||primary)?.focus();
   });
 }
-async function prepareRangeInputs(){if(!runtimeAllowsMutation()){toast('Runtime identity must be resolved before mutating actions.',true);return null}const payload=rangeInputScopePayload(),envelope=await runProductionCommand({commandType:'PREPARE_RANGE_INPUTS',scope:{range:payload},payload,label:'Đang chuẩn bị dữ liệu phạm vi…'});if((envelope?.outcome==='APPLIED'||envelope?.outcome==='PARTIAL')&&state.currentRoute==='assignment'){await loadBookVoiceRegistry({force:true});await loadSpeakerReviewSuggestions({force:true})}return envelope}
+async function prepareRangeInputs(){
+  if(!runtimeAllowsMutation()){toast('Runtime identity must be resolved before mutating actions.',true);return null}
+  const payload=rangeInputScopePayload(),proposals=(currentProductionViewModel()?.speaker?.proposal_chapters||[]).filter(item=>Number(item?.chapter_number)>0);
+  let envelope=null;
+  if(proposals.length){
+    const total=proposals.length;
+    for(let index=0;index<total;index+=1){
+      const chapterNumber=Number(proposals[index].chapter_number),chapterPayload={...payload,from_chapter:chapterNumber,to_chapter:chapterNumber};
+      const label=index?`Đã xong ${index}/${total} · đang tạo Speaker Draft Chương ${chapterNumber}…`:`Đang tạo Speaker Draft 1/${total} · Chương ${chapterNumber}…`;
+      envelope=await runProductionCommand({commandType:'PREPARE_RANGE_INPUTS',scope:{range:chapterPayload},payload:chapterPayload,label});
+      if(envelope?.outcome!=='APPLIED')return envelope;
+    }
+    state.productionCommand={...state.productionCommand,message:`Đã tạo Speaker Draft ${total}/${total} chương. Tiếp tục duyệt người nói.`};renderProductionCommandStatus();
+  }else{
+    envelope=await runProductionCommand({commandType:'PREPARE_RANGE_INPUTS',scope:{range:payload},payload,label:'Đang chuẩn bị dữ liệu phạm vi…'});
+  }
+  if((envelope?.outcome==='APPLIED'||envelope?.outcome==='PARTIAL')&&state.currentRoute==='assignment'){await loadBookVoiceRegistry({force:true});await loadSpeakerReviewSuggestions({force:true})}
+  return envelope
+}
 function rangeExceptionDecision(item,value){if(value==='suggestion')return{speaker_type:item.detected_speaker?.speaker_type,character_id:item.detected_speaker?.character_id};if(value==='narrator')return{speaker_type:'narrator',character_id:null};if(value==='unknown')return{speaker_type:'unknown',character_id:null};if(String(value).startsWith('character:'))return{speaker_type:'character',character_id:Number(String(value).split(':')[1])};return null}
 async function approveRangeSpeakerDrafts(items){const payload={...rangeInputScopePayload(),chapters:items.map(item=>({chapter_id:Number(item.chapter_id),draft_id:Number(item.draft_id)}))};return runProductionCommand({commandType:'APPROVE_SPEAKER_DRAFTS',scope:{range:rangeInputScopePayload()},payload,label:`Đang duyệt ${items.length} chương…`})}
 function rangeSpeakerReviewWorkingContext(vm=currentProductionViewModel()){const range=normalizeProductionRange(state.productionRange),item=vm?.speaker?.exception_queue?.[0];if(!range)return null;return normalizeProductionWorkingContext({...range,focusedChapterId:Number(item?.chapter_id||range.chapterId||0)||null,sourceTask:'REVIEW_RANGE_SPEAKER_EXCEPTIONS',returnTask:'RANGE_SPEAKER_REVIEW',assignmentFocus:'review'})}

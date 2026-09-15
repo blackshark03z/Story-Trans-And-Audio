@@ -303,6 +303,25 @@ OWNER_SUBJECTIVE_VOICE_ACCEPTANCE=NOT_CLAIMED for technical fallback narrator; t
 STABLE_STATUS=STABLE_V1_RESTORED_AFTER_FRESH_RUN_REQUALIFICATION
 ```
 
+### Fresh-run CUJ re-open — 2026-09-15
+
+`STATUS=BLOCKED_WITH_EVIDENCE`
+
+```text
+VERDICT_WITHDRAWN=SEALED/STABLE_V1
+BASELINE_HEAD=206977093f09948b33e58718706f9d64249957ec; local main == origin/main before repair
+RUNTIME_IDENTITY=canonical root/data/app.db; schema=16; served app.js/index.html hashes matched checkout; no stale assets
+FRESH_UAT_SCOPE=Book 1, Chapters 6-8 after clean schema-16 reset/bootstrap
+FIRST_BLOCKER=PREPARE_RANGE_INPUTS exposed multi-chapter provider work as one opaque synchronous UI command
+FIRST_DIVERGENCE=durable Speaker Drafts were committed chapter-by-chapter while browser productionCommand remained one client-only SUBMITTING state until the whole POST returned
+PERFORMANCE_EVIDENCE=Ch6 and Ch8 were cache misses; Ch6 persisted with gemini-3.6-flash at 21:16:07, Ch8 with gemini-3.8-flash at 21:22:22; Ch7 remained ANALYSIS_REQUIRED; focused Ch7 retry completed in 42.032s on gemini-3.6-flash
+ROOT_CAUSE_PROVEN=range executor serializes proposal chapters; each cache miss can make Gemini calls with retries/model-key fallback, while UI has no durable per-chapter command progress; exact HTTP/provider error of the original long attempt was not persisted and is NOT_CLAIMED
+ESCAPED_UI_DEFECT=productionRangeSpeakerChoice still contained newline/indent bytes inside option values despite prior seal evidence
+REPAIR_SCOPE=REUSE existing PREPARE_RANGE_INPUTS; UI submits one chapter per command, refreshes full-range canonical projection between commands, exposes chapter progress, stops on first rejected chapter; correct misleading Gemini contract; exact byte-level option repair
+FOCUSED_EVIDENCE=47 tests + 16 subtests PASS; node syntax/diff-check PASS; browser_range_input_workflow_smoke PASS with 10 one-chapter commands, visible 1/10..9/10 progress, next CTA=Mở Duyệt người nói
+STABLE_STATUS=BLOCKED_WITH_EVIDENCE until a new clean representative browser CUJ reaches the end
+```
+
 ### Superseded historical contract — per-role scoped save before Final Voice Map approval
 
 `STATUS=SUPERSEDED_BY_ATOMIC_VOICE_CONFIGURATION_COMMIT_2026_09_13`

@@ -1117,8 +1117,8 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
                 summary=f"{len(proposals)} trong {total} chương chưa có Speaker Draft hiện hành.",
                 action_label=f"Tạo Speaker Draft cho {len(proposals)} chương",
                 next_hint=(
-                    "Tạo hoặc tái sử dụng Speaker Draft. Không gọi Gemini, không duyệt người nói "
-                    "và không PREPARE/render. Sau khi hoàn tất, chuyển sang Duyệt người nói."
+                    "Tạo hoặc tái sử dụng Speaker Draft. Nếu chưa có cache hợp lệ, bước này có thể gọi Gemini; "
+                    "không tự duyệt người nói và không PREPARE/render. Sau khi hoàn tất, chuyển sang Duyệt người nói."
                 ),
             )
         if speaker_exceptions:

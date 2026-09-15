@@ -206,7 +206,11 @@ class ProductionCommandUiTests(unittest.TestCase):
             self.js,
         )
         self.assertIn("T\u1ea1o Speaker Draft cho ph\u1ea1m vi", Path("story_audio/production_task_projection.py").read_text(encoding="utf-8"))
-        self.assertIn("Kh\u00f4ng g\u1ecdi Gemini", Path("story_audio/production_task_projection.py").read_text(encoding="utf-8"))
+        projection_source = Path("story_audio/production_task_projection.py").read_text(encoding="utf-8")
+        self.assertIn("c\u00f3 th\u1ec3 g\u1ecdi Gemini", projection_source)
+        self.assertNotIn("Kh\u00f4ng g\u1ecdi Gemini", projection_source)
+        self.assertIn("Đã xong ${index}/${total} · đang tạo Speaker Draft Chương ${chapterNumber}…", self.js)
+        self.assertIn("from_chapter:chapterNumber,to_chapter:chapterNumber", self.js)
         self.assertIn("kh\u00f4ng PREPARE/render", Path("story_audio/production_task_projection.py").read_text(encoding="utf-8"))
 
     def test_complete_closes_one_cycle_and_exposes_repeat_use_reentry(self) -> None:
