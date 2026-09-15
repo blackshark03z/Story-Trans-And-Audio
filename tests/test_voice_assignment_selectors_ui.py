@@ -160,6 +160,10 @@ class VoiceAssignmentSelectorsUIContractTests(unittest.TestCase):
         self.assertIn("Không lưu riêng từng vai", section)
         self.assertIn("Lưu cấu hình cho ${pending.length} vai", self.js)
         self.assertIn("scopeChoice==='range'&&(row.conflict_voices||[]).length>1", self.js)
+        self.assertIn("['NEW_CHARACTER','CONFLICT','VOICE_UNAVAILABLE']", self.js)
+        self.assertIn("String(row?.status||'')==='NEW_CHARACTER'&&row?.actions?.can_save_book_default", self.js)
+        self.assertIn("if(String(row?.status||'')==='NEW_CHARACTER')return''", self.js)
+        self.assertIn("Nhân vật mới · cần chọn giọng", self.js)
         self.assertNotIn("data-registry-apply", section)
 
     def test_range_command_scope_prefers_exact_working_context(self) -> None:
