@@ -146,6 +146,12 @@ class TtsService:
                 raise
 
     def voices(self) -> list[dict[str, str]]:
+        # Preset metadata is immutable after publication. A cache hit must not
+        # wait behind the inference lock, otherwise read-only UI endpoints can
+        # starve for the duration of consecutive TTS calls.
+        cached = self._preset_voice_metadata
+        if cached is not None:
+            return [dict(item) for item in cached]
         with self._lock:
             if self._preset_voice_metadata is not None:
                 return [dict(item) for item in self._preset_voice_metadata]

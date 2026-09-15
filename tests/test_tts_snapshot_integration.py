@@ -8,6 +8,7 @@ No real model loading, no real synthesis, no network access.
 import json
 import sys
 import tempfile
+import threading
 import unittest
 from dataclasses import replace
 from pathlib import Path
@@ -80,6 +81,28 @@ class TestTtsSnapshotIntegration(unittest.TestCase):
             [{"label": "Metadata voice — fast catalog", "id": "Metadata voice"}],
         )
         self.assertEqual(self.service.status, "not_loaded")
+
+    def test_cached_voice_listing_does_not_wait_for_inference_lock(self):
+        self.service._preset_voice_metadata = [
+            {"label": "Cached voice", "id": "cached-voice"}
+        ]
+        self.service._lock.acquire()
+        result: list[list[dict[str, str]]] = []
+        try:
+            thread = threading.Thread(target=lambda: result.append(self.service.voices()))
+            thread.start()
+            thread.join(timeout=0.5)
+            self.assertFalse(
+                thread.is_alive(),
+                "cached voice catalog must not wait behind active inference",
+            )
+        finally:
+            self.service._lock.release()
+        thread.join(timeout=1.0)
+        self.assertEqual(
+            result,
+            [[{"label": "Cached voice", "id": "cached-voice"}]],
+        )
 
     def test_installed_lazy_provider_is_available_without_loading_the_engine(self):
         with patch("story_audio.tts.util.find_spec", return_value=object()):
