@@ -527,12 +527,17 @@ class ProductionTaskProjectionTests(unittest.TestCase):
         ), patch(
             "story_audio.production_task_projection._exact_range_jobs",
             return_value=[exact_job],
-        ) as exact_jobs:
+        ) as exact_jobs, patch(
+            "story_audio.production_task_projection.get_range_input_snapshot",
+        ) as range_inputs:
             projection = get_production_task_projection(
                 db,
                 book_id=1,
                 from_chapter=6,
                 to_chapter=8,
+                voice_catalog=object(),
+                store=object(),
+                config=object(),
             )
         exact_jobs.assert_called_once_with(
             db,
@@ -541,6 +546,7 @@ class ProductionTaskProjectionTests(unittest.TestCase):
             to_chapter=8,
             chapter_ids=[1006, 1008],
         )
+        range_inputs.assert_not_called()
         self.assertEqual(projection["task_type"], "START_RENDER_RANGE")
 
     def test_subset_of_prepared_job_routes_to_owner_scope_without_starting(self) -> None:

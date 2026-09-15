@@ -1741,7 +1741,17 @@ def get_production_task_projection(
         chapter_ids=chapter_ids,
     )
     range_inputs = None
-    if voice_catalog is not None and store is not None and config is not None:
+    job_projection_precedes_inputs = any(
+        str(job.get("status") or "").lower()
+        in ({JOB_PREPARED_STATUS} | _ACTIVE_OR_RECOVERABLE)
+        for job in range_jobs
+    )
+    if (
+        not job_projection_precedes_inputs
+        and voice_catalog is not None
+        and store is not None
+        and config is not None
+    ):
         range_inputs = get_range_input_snapshot(
             db,
             store,
@@ -1752,6 +1762,7 @@ def get_production_task_projection(
             voice_catalog=voice_catalog,
             custom_voice_context=custom_voice_context,
             skip_completed=True,
+            readiness=readiness,
         )
     projection = project_production_task(
         {

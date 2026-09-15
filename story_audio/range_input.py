@@ -370,15 +370,17 @@ def get_range_input_snapshot(
     voice_catalog: EffectiveVoiceCatalog,
     custom_voice_context: CustomVoiceContext | None = None,
     skip_completed: bool = True,
+    readiness: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    readiness = get_range_readiness(
-        db,
-        book_id=book_id,
-        from_chapter=from_chapter,
-        to_chapter=to_chapter,
-        voice_catalog=voice_catalog,
-        store=store,
-    )
+    if readiness is None:
+        readiness = get_range_readiness(
+            db,
+            book_id=book_id,
+            from_chapter=from_chapter,
+            to_chapter=to_chapter,
+            voice_catalog=voice_catalog,
+            store=store,
+        )
     _validate_scope(readiness)
 
     proposals: list[dict[str, Any]] = []
