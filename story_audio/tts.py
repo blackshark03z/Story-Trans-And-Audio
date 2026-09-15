@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import math
+import re
 import subprocess
 import threading
 from importlib import resources, util
@@ -9,6 +11,34 @@ from typing import Any
 
 from .synthesis_snapshot import SegmentSynthesisInput
 from .text_encoding import CanonicalTextValidationError, validate_canonical_text
+
+
+_V3TURBO_DEFAULT_MAX_NEW_FRAMES = 300
+_V3TURBO_MAX_FRAMES_PER_PHONE = 2.0
+_V3TURBO_FRAME_CAP_SLACK = 24
+_V3TURBO_FRAME_MARKUP_RE = re.compile(r"<\|emotion_\d+\|>|</?en>")
+
+
+def _v3turbo_frame_cap_from_phonemes(phonemes: str) -> int:
+    """Mirror the upstream VieNeu v3.2.10 short-chunk frame cap."""
+    effective_length = len(_V3TURBO_FRAME_MARKUP_RE.sub("", phonemes or ""))
+    expected = _V3TURBO_FRAME_CAP_SLACK + int(
+        math.ceil(_V3TURBO_MAX_FRAMES_PER_PHONE * effective_length)
+    )
+    return min(_V3TURBO_DEFAULT_MAX_NEW_FRAMES, expected)
+
+
+def _v3turbo_max_new_frames(text: str) -> int:
+    """Cap old VieNeu providers without requiring a provider checkout upgrade."""
+    try:
+        from vieneu_utils.phonemize_text import phonemize_text_with_emotions
+
+        phonemes = phonemize_text_with_emotions(text)
+    except Exception:
+        # Newer providers already apply their own cap; provider-less test/runtime
+        # environments must retain the legacy default rather than fail synthesis.
+        return _V3TURBO_DEFAULT_MAX_NEW_FRAMES
+    return _v3turbo_frame_cap_from_phonemes(phonemes)
 
 
 class TtsInputValidationError(ValueError):
@@ -333,6 +363,7 @@ class TtsService:
             )
 
         engine = self.ensure_loaded()
+        max_new_frames = _v3turbo_max_new_frames(synth_input.text)
 
         # Engine inference under lock
         with self._lock:
@@ -342,6 +373,7 @@ class TtsService:
                     voice=synth_input.preset_voice_id,
                     temperature=synth_input.settings.temperature,
                     top_k=synth_input.settings.top_k,
+                    max_new_frames=max_new_frames,
                     max_chars=synth_input.settings.max_chars,
                     silence_p=0.0,
                     crossfade_p=0.0,
@@ -353,6 +385,7 @@ class TtsService:
                     ref_text=synth_input.reference_transcript,
                     temperature=synth_input.settings.temperature,
                     top_k=synth_input.settings.top_k,
+                    max_new_frames=max_new_frames,
                     max_chars=synth_input.settings.max_chars,
                     silence_p=0.0,
                     crossfade_p=0.0,
@@ -409,12 +442,14 @@ class TtsService:
 
         validate_synthesis_text(text)
         engine = self.ensure_loaded()
+        max_new_frames = _v3turbo_max_new_frames(text)
         with self._lock:
             audio = engine.infer(
                 text,
                 voice=voice,
                 temperature=temperature,
                 top_k=top_k,
+                max_new_frames=max_new_frames,
                 max_chars=max_chars,
                 silence_p=0.0,
                 crossfade_p=0.0,
@@ -465,6 +500,7 @@ class TtsService:
         validate_synthesis_text(text)
         validate_synthesis_text(reference_transcript, field="reference transcript")
         engine = self.ensure_loaded()
+        max_new_frames = _v3turbo_max_new_frames(text)
         with self._lock:
             audio = engine.infer(
                 text,
@@ -472,6 +508,7 @@ class TtsService:
                 ref_text=reference_transcript,
                 temperature=temperature,
                 top_k=top_k,
+                max_new_frames=max_new_frames,
                 max_chars=max_chars,
                 silence_p=0.0,
                 crossfade_p=0.0,

@@ -20,7 +20,12 @@ import numpy as np
 from story_audio.config import Settings
 from story_audio.storage import ContentStore
 from story_audio.synthesis_snapshot import SegmentSynthesisInput, SynthesisSettings
-from story_audio.tts import TtsInputValidationError, TtsService, validate_synthesis_text
+from story_audio.tts import (
+    TtsInputValidationError,
+    TtsService,
+    _v3turbo_frame_cap_from_phonemes,
+    validate_synthesis_text,
+)
 
 
 class MockVieneu:
@@ -62,6 +67,15 @@ class TestTtsSnapshotIntegration(unittest.TestCase):
     def tearDown(self):
         self.vieneu_patcher.stop()
         self.temp_dir.cleanup()
+
+    def test_v3turbo_frame_cap_matches_upstream_short_chunk_formula(self):
+        self.assertEqual(_v3turbo_frame_cap_from_phonemes("abcdefg"), 38)
+        self.assertEqual(_v3turbo_frame_cap_from_phonemes("a" * 12), 48)
+        self.assertEqual(_v3turbo_frame_cap_from_phonemes("a" * 200), 300)
+        self.assertEqual(
+            _v3turbo_frame_cap_from_phonemes("<|emotion_1|>abcdefg</en>"),
+            38,
+        )
 
     def test_voice_listing_uses_metadata_without_loading_the_engine(self):
         class MetadataPath:
@@ -192,6 +206,7 @@ class TestTtsSnapshotIntegration(unittest.TestCase):
         self.assertEqual(self.mock_engine.last_call_kwargs["temperature"], 0.8)
         self.assertEqual(self.mock_engine.last_call_kwargs["top_k"], 25)
         self.assertEqual(self.mock_engine.last_call_kwargs["max_chars"], 256)
+        self.assertLessEqual(self.mock_engine.last_call_kwargs["max_new_frames"], 300)
         self.assertNotIn("ref_audio", self.mock_engine.last_call_kwargs)
         self.assertNotIn("ref_text", self.mock_engine.last_call_kwargs)
         self.assertTrue(output.exists())
@@ -211,6 +226,7 @@ class TestTtsSnapshotIntegration(unittest.TestCase):
             "Đây là câu mẫu."
         )
         self.assertEqual(self.mock_engine.last_call_kwargs["temperature"], 0.8)
+        self.assertLessEqual(self.mock_engine.last_call_kwargs["max_new_frames"], 300)
         self.assertNotIn("voice", self.mock_engine.last_call_kwargs)
         self.assertTrue(output.exists())
 
