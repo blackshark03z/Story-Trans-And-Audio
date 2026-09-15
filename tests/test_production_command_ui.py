@@ -196,6 +196,14 @@ class ProductionCommandUiTests(unittest.TestCase):
         self.assertIn("operator_authentication_verified", self.js)
         self.assertNotIn("productionTaskOperatorToken", self.js)
         self.assertNotIn("productionPrepareToken", self.js)
+        self.assertIn("canonicalPrimaryLabel=vm?.primary_action?.label", self.js)
+        self.assertIn(
+            "journey==='RESOLVE_BLOCKERS'&&canonicalPrimaryLabel?canonicalPrimaryLabel",
+            self.js,
+        )
+        self.assertIn("T\u1ea1o Speaker Draft cho ph\u1ea1m vi", Path("story_audio/production_task_projection.py").read_text(encoding="utf-8"))
+        self.assertIn("Kh\u00f4ng g\u1ecdi Gemini", Path("story_audio/production_task_projection.py").read_text(encoding="utf-8"))
+        self.assertIn("kh\u00f4ng PREPARE/render", Path("story_audio/production_task_projection.py").read_text(encoding="utf-8"))
 
     def test_complete_closes_one_cycle_and_exposes_repeat_use_reentry(self) -> None:
         self.assertIn("ownerStartNextProduction", self.js)

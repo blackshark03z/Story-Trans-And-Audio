@@ -61,6 +61,8 @@ def queue_view_counts(items: Iterable[Mapping[str, Any]]) -> dict[str, dict[str,
     counts = {key: 0 for key in QUEUE_VIEWS}
     for item in items:
         counts["ALL"] += 1
+        if item.get("resolved_by_current_speaker_draft"):
+            continue
         state = str(item.get("review_state") or "PENDING_REVIEW").upper()
         primary = queue_view_for(item)
         counts[primary] += 1

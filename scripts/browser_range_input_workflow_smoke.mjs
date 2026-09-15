@@ -458,13 +458,13 @@ try {
     return{primaryVisible:primary.top>=0&&primary.bottom<=innerHeight,horizontal:document.documentElement.scrollWidth>innerWidth+1};
   })()`);
 
-  if (scenarioAStart !== "Xử lý điều kiện còn thiếu"
+  if (scenarioAStart !== "Chuẩn bị dữ liệu cho 10 chương"
       || scenarioA.phase !== "exceptions"
       || scenarioA.prepareCalls !== 1
       || scenarioA.chapterOpenCalls !== 1) {
     throw new Error(`Scenario A failed: ${JSON.stringify({ scenarioAStart, scenarioA })}`);
   }
-  if (scenarioBStart !== "Xử lý điều kiện còn thiếu" || scenarioB.approvals < 1) {
+  if (scenarioBStart !== "Duyệt 7 chương" || scenarioB.approvals < 1) {
     throw new Error(`Scenario B failed: ${JSON.stringify({ scenarioBStart, scenarioB })}`);
   }
   if (scenarioDStart !== "Mở Duyệt người nói"
@@ -496,7 +496,7 @@ try {
       || scenarioGEnd.phase !== "castingGeneration") {
     throw new Error(`Scenarios F/G failed: ${JSON.stringify({ scenarioFG, scenarioGEnd })}`);
   }
-  if (scenarioHStart !== "Xử lý điều kiện còn thiếu"
+  if (scenarioHStart !== "Duyệt bản đồ giọng cho 9 chương"
       || !prepareUnavailableBeforeH
       || scenarioH.phase !== "ready"
       || scenarioH.castingApprovalCalls !== 1

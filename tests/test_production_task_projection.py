@@ -355,6 +355,11 @@ class ProductionTaskProjectionTests(unittest.TestCase):
             "range_inputs": range_inputs,
         })
         self.assertEqual(projection["task_type"], "PREPARE_RANGE_INPUTS")
+        self.assertEqual(projection["title"], "T\u1ea1o Speaker Draft cho ph\u1ea1m vi")
+        self.assertEqual(
+            projection["primary_action"]["label"],
+            "T\u1ea1o Speaker Draft cho 1 ch\u01b0\u01a1ng",
+        )
         speaker = projection["canonical_task"]["speaker"]
         self.assertEqual(speaker["proposal_chapters"][0]["chapter_number"], 1)
         self.assertEqual(len(speaker["exception_queue"]), 1)

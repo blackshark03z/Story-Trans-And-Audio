@@ -149,11 +149,10 @@ try {
   const discardNoMutation = discardCommandsBefore===discardCommandsAfter;
 
   const shortcutCommandsBefore = discardCommandsAfter;
-  await click(`${attr("data-speaker-suggestion-focus", key2)}[data-speaker-focus-target="character"]`);
-  const characterFocus = await evaluate(`document.activeElement?.matches(${JSON.stringify(attr("data-speaker-suggestion-character", key2))})`);
-  await click(`${attr("data-speaker-suggestion-focus", key2)}[data-speaker-focus-target="name"]`);
-  const newCharacterFocus = await evaluate(`document.activeElement?.matches(${JSON.stringify(attr("data-speaker-suggestion-name", key2))})`);
-  const voiceEditingDeferred = await evaluate(`(() => { const card=document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key2))}); return !card?.querySelector('[data-speaker-focus-target="voice-mode"]') && !card?.querySelector('[data-speaker-suggestion-voice-mode]') && !card?.querySelector('[data-speaker-suggestion-voice]') && !card?.querySelector('[data-speaker-suggestion-voice-scope]') && card?.innerText.includes("Bước này chỉ chốt danh tính người nói") })()`);
+  const redundantShortcutsRemoved = await evaluate(`(() => { const card=document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key2))}); return !card?.querySelector('[data-speaker-suggestion-focus]') })()`);
+  const directDecisionControlsAvailable = await evaluate(`(() => { const card=document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key2))}); return !!card?.querySelector('[data-speaker-suggestion-resolution]') && !!card?.querySelector('[data-speaker-suggestion-character]') && !!card?.querySelector('[data-speaker-suggestion-name]') })()`);
+  const voiceEditingEvidence = await evaluate(`(() => { const card=document.querySelector(${JSON.stringify(attr("data-speaker-suggestion-card", key2))}); return {cardPresent:!!card,noVoiceFocus:!card?.querySelector('[data-speaker-focus-target="voice-mode"]'),noVoiceMode:!card?.querySelector('[data-speaker-suggestion-voice-mode]'),noVoice:!card?.querySelector('[data-speaker-suggestion-voice]'),noVoiceScope:!card?.querySelector('[data-speaker-suggestion-voice-scope]'),identityNotice:!!card?.querySelector('.future-render-notice'),cardText:(card?.textContent||'').slice(0,2400)} })()`);
+  const voiceEditingDeferred = Object.values(voiceEditingEvidence).every(Boolean);
   const shortcutCommandsAfter = await evaluate(`fetch('/api/fixture/speaker-review-command-state').then(response=>response.json()).then(payload=>payload.command_count)`);
   const shortcutsNoMutation = shortcutCommandsBefore===shortcutCommandsAfter;
   await setSelect(attr("data-speaker-suggestion-resolution", key2), "EXISTING_CHARACTER");
@@ -251,9 +250,10 @@ try {
     backgroundGroupVisible,
     invalidDecisionBlocked,
     busyVisible: !!busyVisible,
-    characterFocus,
-    newCharacterFocus,
+    redundantShortcutsRemoved,
+    directDecisionControlsAvailable,
     voiceEditingDeferred,
+    voiceEditingEvidence,
     correctionVoiceEditingDeferred,
     editedDecisionSaved,
     originalProposalRetained,

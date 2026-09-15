@@ -24,6 +24,7 @@ from story_audio.speaker_assignment import generate_speaker_assignment_draft
 from story_audio.speaker_review import (
     approve_speaker_assignment_draft_only,
     get_speaker_review_draft,
+    review_speaker_assignment_row,
 )
 from story_audio.speaker_review_suggestions import (
     SpeakerReviewSuggestionError,
@@ -630,6 +631,156 @@ class SpeakerReviewSuggestionTests(IsolatedTestCase):
         }
         self.assertEqual(states[high["unresolved_key"]], "PENDING_REVIEW")
         self.assertEqual(states[low["unresolved_key"]], "PENDING_REVIEW")
+
+    def test_approved_current_speaker_draft_resolves_historical_pending_suggestions(self) -> None:
+        chapter = dict(
+            self.db.fetch_one(
+                "SELECT id FROM chapters WHERE book_id=? AND chapter_number=1",
+                (self.book_id,),
+            )
+        )
+        plan_ids = [
+            int(row["id"])
+            for row in self.db.fetch_all(
+                "SELECT id FROM casting_plans WHERE chapter_id=?",
+                (int(chapter["id"]),),
+            )
+        ]
+        with self.db.transaction() as connection:
+            for plan_id in plan_ids:
+                connection.execute(
+                    "DELETE FROM casting_plan_characters WHERE casting_plan_id=?",
+                    (plan_id,),
+                )
+            connection.execute(
+                "DELETE FROM casting_plans WHERE chapter_id=?",
+                (int(chapter["id"]),),
+            )
+
+        speaker_draft = generate_speaker_assignment_draft(
+            self.db,
+            self.store,
+            self.config,
+            chapter_id=int(chapter["id"]),
+            provider=lambda **kwargs: fake_response(kwargs["request_data"], None),
+        )
+        registry = get_book_voice_registry(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=1,
+            skip_completed=False,
+            voice_catalog=_catalog(),
+        )
+        unresolved_keys = [
+            row["speaker_key"]
+            for row in registry["rows"]
+            if row["status"] == "UNRESOLVED_DIALOGUE"
+        ]
+        run = generate_speaker_review_suggestions(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=1,
+            skip_completed=False,
+            registry=registry,
+            voice_catalog=_catalog(),
+            unresolved_keys=unresolved_keys,
+            provider=self._provider,
+            idempotency_key="resolved-by-draft-analysis",
+        )
+        detail = get_speaker_review_draft(
+            self.db,
+            self.store,
+            self.config,
+            chapter_id=int(chapter["id"]),
+            draft_id=int(speaker_draft["id"]),
+        )
+        for row in detail["review_rows"]:
+            review_speaker_assignment_row(
+                self.db,
+                self.store,
+                self.config,
+                chapter_id=int(chapter["id"]),
+                draft_id=int(speaker_draft["id"]),
+                target_id=str(row["utterance_id"]),
+                speaker_type="narrator",
+                character_id=None,
+                decision_source="narrator",
+            )
+        approved = approve_speaker_assignment_draft_only(
+            self.db,
+            self.store,
+            self.config,
+            chapter_id=int(chapter["id"]),
+            draft_id=int(speaker_draft["id"]),
+        )
+        self.assertEqual(approved["status"], "approved")
+
+        queue = get_speaker_review_queue(
+            self.db,
+            self.store,
+            self.config,
+            book_id=self.book_id,
+            from_chapter=1,
+            to_chapter=1,
+            skip_completed=False,
+            registry=registry,
+            voice_catalog=_catalog(),
+            unresolved_keys=unresolved_keys,
+        )
+        self.assertTrue(queue["suggestions"])
+        self.assertTrue(
+            all(item["resolved_by_current_speaker_draft"] for item in queue["suggestions"])
+        )
+        self.assertEqual(queue["summary"]["pending_review"], 0)
+        self.assertEqual(queue["summary"]["queue_views"]["NEEDS_REVIEW"]["count"], 0)
+        self.assertEqual(
+            queue["summary"]["queue_views"]["ALL"]["count"],
+            len(queue["suggestions"]),
+        )
+
+        review_count = int(
+            self.db.fetch_one(
+                "SELECT COUNT(*) AS count FROM speaker_assignment_reviews WHERE draft_id=?",
+                (int(speaker_draft["id"]),),
+            )["count"]
+        )
+        item = queue["suggestions"][0]
+        with self.assertRaisesRegex(SpeakerReviewSuggestionError, "no longer reviewable"):
+            accept_speaker_review_selected_batch_items(
+                self.db,
+                self.store,
+                self.config,
+                book_id=self.book_id,
+                from_chapter=1,
+                to_chapter=1,
+                items=[{
+                    "analysis_run_id": str(
+                        item.get("source_analysis_run_id") or run["analysis_run_id"]
+                    ),
+                    "unresolved_key": item["unresolved_key"],
+                    "reviewer_payload": {
+                        "proposed_resolution": "NARRATOR",
+                        "voice_mode": "keep",
+                    },
+                }],
+                voice_catalog=_catalog(),
+                idempotency_key="resolved-by-draft-selected-batch",
+            )
+        self.assertEqual(
+            int(
+                self.db.fetch_one(
+                    "SELECT COUNT(*) AS count FROM speaker_assignment_reviews WHERE draft_id=?",
+                    (int(speaker_draft["id"]),),
+                )["count"]
+            ),
+            review_count,
+        )
 
     def _background_provider(
         self,

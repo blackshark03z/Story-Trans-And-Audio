@@ -1552,18 +1552,22 @@ def _queue_summary(suggestions: list[Mapping[str, Any]]) -> dict[str, Any]:
     counts["needs_human_decision"] = sum(
         1
         for item in suggestions
-        if (
-            str(item.get("proposed_resolution") or "").upper()
-            == "NEEDS_HUMAN_DECISION"
-            and str(item.get("review_state") or "PENDING_REVIEW").upper()
-            == "PENDING_REVIEW"
+        if not item.get("resolved_by_current_speaker_draft")
+        and (
+            (
+                str(item.get("proposed_resolution") or "").upper()
+                == "NEEDS_HUMAN_DECISION"
+                and str(item.get("review_state") or "PENDING_REVIEW").upper()
+                == "PENDING_REVIEW"
+            )
+            or str(item.get("review_state") or "").upper() == "MARKED_UNCERTAIN"
         )
-        or str(item.get("review_state") or "").upper() == "MARKED_UNCERTAIN"
     )
     counts["pending_review"] = sum(
         1
         for item in suggestions
-        if str(item.get("review_state") or "PENDING_REVIEW").upper()
+        if not item.get("resolved_by_current_speaker_draft")
+        and str(item.get("review_state") or "PENDING_REVIEW").upper()
         == "PENDING_REVIEW"
     )
     counts["error"] = sum(
@@ -1648,6 +1652,38 @@ def _augment_suggestions(
         int(item.get("chapter_number") or 0): int(item.get("text_revision_id") or 0)
         for item in request.get("text_revisions") or []
     }
+    # Reconcile immutable Gemini suggestions with the current Speaker Draft authority.
+    # A historical suggestion may still be PENDING_REVIEW after the same dialogue was
+    # resolved through the canonical Speaker Draft workflow. Keep it as provenance,
+    # but never present it as actionable/batch-safe work again.
+    draft_state_by_chapter: dict[int, dict[str, Any]] = {}
+    for target_item in request.get("targets") or []:
+        chapter_id = int(target_item.get("chapter_id") or 0)
+        if not chapter_id or chapter_id in draft_state_by_chapter:
+            continue
+        row = db.fetch_one(
+            """
+            SELECT id,status,text_revision_id
+            FROM speaker_assignment_drafts
+            WHERE chapter_id=?
+            ORDER BY created_at DESC,id DESC
+            LIMIT 1
+            """,
+            (chapter_id,),
+        )
+        if not row:
+            draft_state_by_chapter[chapter_id] = {}
+            continue
+        reviewed_rows = db.fetch_all(
+            "SELECT utterance_id FROM speaker_assignment_reviews WHERE draft_id=?",
+            (int(row["id"]),),
+        )
+        draft_state_by_chapter[chapter_id] = {
+            "id": int(row["id"]),
+            "status": str(row["status"] or ""),
+            "text_revision_id": int(row["text_revision_id"] or 0),
+            "reviewed_utterance_ids": {str(item["utterance_id"]) for item in reviewed_rows},
+        }
     proposed_name_keys: dict[str, list[str]] = {}
     for item in suggestions:
         if str(item.get("proposed_resolution") or "") != "NEW_CHARACTER":
@@ -1864,8 +1900,51 @@ def _augment_suggestions(
                 in {"CORRECTED", "REPLACEMENT_DRAFT"},
             }
         )
-        proposal["approval_exclusion_reasons"] = batch_exclusion_reasons(proposal)
-        proposal["approval_eligible"] = not proposal["approval_exclusion_reasons"]
+        draft_state = draft_state_by_chapter.get(int(target.get("chapter_id") or 0), {})
+        draft_status = str(draft_state.get("status") or "")
+        expected_revision = current_revision_by_chapter.get(int(target.get("chapter_number") or 0), 0)
+        draft_revision_current = bool(
+            draft_state
+            and expected_revision
+            and int(draft_state.get("text_revision_id") or 0) == expected_revision
+        )
+        utterance_id = str(target.get("utterance_id") or "")
+        pre_final_voice_map = not bool(approved_plan)
+        resolved_by_current_speaker_draft = bool(
+            pre_final_voice_map
+            and draft_revision_current
+            and draft_status == "approved"
+            and utterance_id
+            and utterance_id in set(draft_state.get("reviewed_utterance_ids") or set())
+        )
+        speaker_draft_actionable = (
+            bool(draft_revision_current and draft_status in {"generated", "partially_invalid"})
+            if pre_final_voice_map
+            else None
+        )
+        proposal.update(
+            {
+                "speaker_draft_id": draft_state.get("id"),
+                "speaker_draft_status": draft_status or None,
+                "speaker_draft_actionable": speaker_draft_actionable,
+                "resolved_by_current_speaker_draft": resolved_by_current_speaker_draft,
+            }
+        )
+        exclusion_reasons = list(batch_exclusion_reasons(proposal))
+        if resolved_by_current_speaker_draft:
+            exclusion_reasons.append("resolved_by_current_speaker_draft")
+        elif (
+            pre_final_voice_map
+            and str(proposal.get("review_state") or "PENDING_REVIEW").upper() == "PENDING_REVIEW"
+            and speaker_draft_actionable is False
+        ):
+            exclusion_reasons.append("speaker_draft_not_reviewable")
+        proposal["approval_exclusion_reasons"] = list(dict.fromkeys(exclusion_reasons))
+        proposal["approval_eligible"] = bool(
+            str(proposal.get("review_state") or "PENDING_REVIEW").upper() == "PENDING_REVIEW"
+            and (not pre_final_voice_map or speaker_draft_actionable is True)
+            and not proposal["approval_exclusion_reasons"]
+        )
         augmented.append(proposal)
     return augmented
 
@@ -2206,7 +2285,8 @@ def get_speaker_review_queue(
                 "pending_review": sum(
                     1
                     for item in payload["suggestions"]
-                    if str(item.get("review_state")) == "PENDING_REVIEW"
+                    if not item.get("resolved_by_current_speaker_draft")
+                    and str(item.get("review_state")) == "PENDING_REVIEW"
                 ),
             }
             return payload
@@ -2271,7 +2351,8 @@ def get_speaker_review_queue(
             "pending_review": sum(
                 1
                 for item in payload["suggestions"]
-                if str(item.get("review_state")) == "PENDING_REVIEW"
+                if not item.get("resolved_by_current_speaker_draft")
+                    and str(item.get("review_state")) == "PENDING_REVIEW"
             ),
         }
 
@@ -3466,6 +3547,26 @@ def accept_speaker_review_selected_batch_items(
             raise SpeakerReviewSuggestionError(
                 "Selected batch cannot accept a suggestion from a stale text revision"
             )
+        target = suggestion.get("target") or {}
+        chapter_id = int(target.get("chapter_id") or 0)
+        utterance_id = str(target.get("utterance_id") or "").strip()
+        if not chapter_id or not utterance_id:
+            raise SpeakerReviewSuggestionError(
+                "Selected batch item no longer has a current Speaker Draft target; refresh the review queue"
+            )
+        if not _current_approved_final_voice_map(db, chapter_id=chapter_id):
+            try:
+                _reviewable_speaker_draft_for_target(
+                    db,
+                    store,
+                    config,
+                    chapter_id=chapter_id,
+                    utterance_id=utterance_id,
+                )
+            except SpeakerReviewSuggestionError as exc:
+                raise SpeakerReviewSuggestionError(
+                    "Selected batch contains an item that is no longer reviewable; refresh the queue and select current items only"
+                ) from exc
 
     applied: list[dict[str, Any]] = []
     try:

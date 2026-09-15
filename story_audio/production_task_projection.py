@@ -1113,10 +1113,13 @@ def project_production_task(state: dict[str, Any]) -> dict[str, Any]:
                 task_type="PREPARE_RANGE_INPUTS",
                 task_key=f"{scope_key}:prepare-inputs:{len(proposals)}",
                 user_stage=2,
-                title="Chuẩn bị dữ liệu đầu vào",
-                summary=f"{len(proposals)} trong {total} chương cần tạo hoặc làm mới đề xuất người nói.",
-                action_label=f"Chuẩn bị dữ liệu cho {total} chương",
-                next_hint="Sau khi phân tích, hệ thống chỉ đưa các trường hợp ngoại lệ vào hàng chờ.",
+                title="Tạo Speaker Draft cho phạm vi",
+                summary=f"{len(proposals)} trong {total} chương chưa có Speaker Draft hiện hành.",
+                action_label=f"Tạo Speaker Draft cho {len(proposals)} chương",
+                next_hint=(
+                    "Tạo hoặc tái sử dụng Speaker Draft. Không gọi Gemini, không duyệt người nói "
+                    "và không PREPARE/render. Sau khi hoàn tất, chuyển sang Duyệt người nói."
+                ),
             )
         if speaker_exceptions:
             first = speaker_exceptions[0]

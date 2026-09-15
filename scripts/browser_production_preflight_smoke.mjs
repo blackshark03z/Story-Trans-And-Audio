@@ -148,13 +148,13 @@ try {
     && scenarioG.positions.voice.top < scenarioG.positions.checklist.top
     && scenarioG.positions.checklist.top < scenarioG.positions.verdict.top
     && scenarioG.positions.verdict.bottom <= scenarioG.positions.primary.top;
-  if (scenarioA.primary !== "Xử lý điều kiện còn thiếu") throw new Error(`Scenario A failed: ${JSON.stringify(scenarioA)}`);
+  if (scenarioA.primary !== "Xử lý Chương 373") throw new Error(`Scenario A failed: ${JSON.stringify(scenarioA)}`);
   if (blockerNavigation.chapterId !== 7002 || blockerNavigation.target !== "speakers") throw new Error(`Blocker navigation failed: ${JSON.stringify(blockerNavigation)}`);
   if (!scenarioB.body.includes("Sẵn sàng khóa đầu vào") || !scenarioB.body.includes("Chanlee") || scenarioB.primary !== "Chuẩn bị tạo audio") throw new Error(`Scenario B failed: ${JSON.stringify(scenarioB)}`);
   if (!readyDialog.open || !readyDialog.confirm.includes("372–373") || !readyDialog.confirm.includes("bản đồ giọng") || !readyDialog.confirm.includes("TTS") || !readyDialog.submitDisabled || !readyDialogEnabled) throw new Error(`Ready confirmation failed: ${JSON.stringify({ readyDialog, readyDialogEnabled })}`);
   if (readyDialogInvalidated.checked || !readyDialogInvalidated.submitDisabled || !readyDialogInvalidated.status.includes("Đầu vào vừa thay đổi")) throw new Error(`Review fingerprint invalidation failed: ${JSON.stringify(readyDialogInvalidated)}`);
   if (scenarioC.primary !== "Kiểm tra lại môi trường" || authDialog.open) throw new Error(`Scenario C failed: ${JSON.stringify({ scenarioC, authDialog })}`);
-  if (scenarioD.primary !== "Xử lý điều kiện còn thiếu") throw new Error(`Scenario D failed: ${JSON.stringify(scenarioD)}`);
+  if (scenarioD.primary !== "Gán lại giọng Chương 373") throw new Error(`Scenario D failed: ${JSON.stringify(scenarioD)}`);
   if (scenarioE.primary !== "Bắt đầu tạo audio" || scenarioE.body.includes("Chuẩn bị 2 chương")) throw new Error(`Scenario E failed: ${JSON.stringify(scenarioE)}`);
   if (scenarioRunning.primary !== "Đang tạo audio…" || !scenarioRunning.body.includes("đoạn hoàn tất")) throw new Error(`Running state failed: ${JSON.stringify(scenarioRunning)}`);
   if (runningPolling.contexts !== 1 || runningPolling.panels !== 1 || !runningPolling.scrollRegion || runningPolling.ttsCards !== 4 || runningPolling.minLabelWidth < 80) throw new Error(`Running polling/layout failed: ${JSON.stringify(runningPolling)}`);

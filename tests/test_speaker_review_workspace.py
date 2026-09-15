@@ -30,6 +30,17 @@ class SpeakerReviewWorkspaceContractTests(unittest.TestCase):
         self.assertEqual(counts["DEFERRED"]["count"], 1)
         self.assertEqual(counts["ERROR"]["count"], 1)
 
+    def test_resolved_by_current_speaker_draft_is_history_only(self) -> None:
+        items = [{
+            "review_state": "PENDING_REVIEW",
+            "proposed_resolution": "EXISTING_CHARACTER",
+            "resolved_by_current_speaker_draft": True,
+        }]
+        counts = queue_view_counts(items)
+        self.assertEqual(counts["ALL"]["count"], 1)
+        self.assertEqual(counts["NEEDS_REVIEW"]["count"], 0)
+        self.assertEqual(counts["NEEDS_DECISION"]["count"], 0)
+
     def test_batch_eligibility_rejects_every_unsafe_high_confidence_condition(self) -> None:
         safe = {
             "confidence": "HIGH",

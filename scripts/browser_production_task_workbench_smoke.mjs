@@ -230,10 +230,10 @@ try {
   })()`);
   const malformedSafe = await evaluate(`(()=>{try{parseProductionProjection({canonical_task:{task_type:"HUMAN_QA",task_key:"bad",user_stage:5,technical_details:[],qa:null}});return{ok:false}}catch(error){state.productionProjection=productionProjectionFailure(error.message);renderProductionShell();return{ok:true,title:document.querySelector("#productionCurrentStepHeading").textContent,summary:document.querySelector("#productionStateExplanation").textContent,action:document.querySelector("#productionPrimaryAction").textContent,technical:document.querySelector("#productionTechnicalBody").textContent}}})()`);
   const expected = [
-    [journeyB, "Xử lý điều kiện còn thiếu"],
-    [journeyC, "Xử lý điều kiện còn thiếu"],
-    [journeyDEdit, "Xử lý điều kiện còn thiếu"],
-    [journeyDReview, "Xử lý điều kiện còn thiếu"],
+    [journeyB, "Tạo đề xuất người nói"],
+    [journeyC, "Xác nhận và tiếp tục"],
+    [journeyDEdit, "Gán giọng"],
+    [journeyDReview, "Kiểm tra bản đồ giọng"],
     [journeyEPrepare, "Chuẩn bị tạo audio"],
     [journeyEStart, "Bắt đầu tạo audio"],
     [journeyERunning, "Đang tạo audio…"],
@@ -266,7 +266,7 @@ try {
   if (!qaCommandReconcile.firstNull || qaCommandReconcile.failedStatus !== "FAILED" || qaCommandReconcile.failedActive || qaCommandReconcile.calls !== 2 || !qaCommandReconcile.sameKey || qaCommandReconcile.secondOutcome !== "APPLIED" || qaCommandReconcile.task !== "REPAIR_REQUIRED" || !qaCommandReconcile.qaHidden || !qaCommandReconcile.stayedRepair) throw new Error(`QA command reconciliation failed: ${JSON.stringify(qaCommandReconcile)}`);
   if (rangeCommandContinuity.reloads !== 1 || rangeCommandContinuity.identity !== "book:91:500-509" || rangeCommandContinuity.range.book !== 91 || rangeCommandContinuity.range.from !== 500 || rangeCommandContinuity.range.to !== 509 || rangeCommandContinuity.renderedMismatch) throw new Error(`Chapter command replaced active range: ${JSON.stringify(rangeCommandContinuity)}`);
   if (inspectionBC.inspected.taskKey !== inspectionBC.canonicalKey || !inspectionBC.inspected.qaHidden || inspectionBC.inspected.summaryHidden || !inspectionBC.inspected.labels.some(label=>label.includes("Việc tiếp theo")) || !inspectionBC.inspected.labels.some(label=>label.includes("Đang xem")) || inspectionBC.restoredKey !== inspectionBC.canonicalKey || !inspectionBC.summaryRestored) throw new Error(`Inspection changed canonical task: ${JSON.stringify(inspectionBC)}`);
-  if (!malformedSafe.ok || malformedSafe.title !== "Không thể tải việc tiếp theo" || malformedSafe.summary !== "Trạng thái sản xuất chưa đầy đủ. Hãy làm mới để hệ thống kiểm tra lại." || malformedSafe.action !== "Xử lý điều kiện còn thiếu" || !malformedSafe.technical.includes("PROJECTION_CONTRACT_INVALID")) throw new Error(`Malformed projection was not fail-closed: ${JSON.stringify(malformedSafe)}`);
+  if (!malformedSafe.ok || malformedSafe.title !== "Không thể tải việc tiếp theo" || malformedSafe.summary !== "Trạng thái sản xuất chưa đầy đủ. Hãy làm mới để hệ thống kiểm tra lại." || malformedSafe.action !== "Thử lại" || !malformedSafe.technical.includes("PROJECTION_CONTRACT_INVALID")) throw new Error(`Malformed projection was not fail-closed: ${JSON.stringify(malformedSafe)}`);
 
   const inspectScopeAction = async (width, height) => {
     await send("Emulation.setDeviceMetricsOverride", { width, height, deviceScaleFactor: 1, mobile: false });
