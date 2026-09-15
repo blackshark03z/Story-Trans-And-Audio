@@ -299,6 +299,17 @@ try {
   };
 
   const scenarioAStart = await primaryLabel();
+  const scenarioASubmittingLayout = await evaluate(`(() => {
+    const saved={...state.productionCommand};
+    window.scrollTo(0,0);
+    state.productionCommand={...state.productionCommand,status:'SUBMITTING',active:true,commandType:'PREPARE_RANGE_INPUTS',message:'Đang tạo Speaker Draft 1/2 · Chương 12…',appliedItems:[],failedItems:[]};
+    renderProductionShell();renderProductionCommandStatus();
+    const primary=document.querySelector('#productionPrimaryAction')?.getBoundingClientRect();
+    const status=document.querySelector('#productionCommandStatus')?.getBoundingClientRect();
+    const result={primaryVisible:!!primary&&primary.top>=0&&primary.bottom<=innerHeight,statusVisible:!!status&&status.top>=0&&status.bottom<=innerHeight,scrollY:window.scrollY};
+    state.productionCommand=saved;renderProductionShell();renderProductionCommandStatus();
+    return result;
+  })()`);
   await clickPrimary();
   const scenarioA = await evaluate(`({
     phase:__rangeFixture.phase,
@@ -463,6 +474,9 @@ try {
     return{primaryVisible:primary.top>=0&&primary.bottom<=innerHeight,horizontal:document.documentElement.scrollWidth>innerWidth+1};
   })()`);
 
+  if (!scenarioASubmittingLayout.primaryVisible || !scenarioASubmittingLayout.statusVisible || scenarioASubmittingLayout.scrollY !== 0) {
+    throw new Error(`Submitting layout failed: ${JSON.stringify(scenarioASubmittingLayout)}`);
+  }
   if (scenarioAStart !== "Chuẩn bị dữ liệu cho 10 chương"
       || scenarioA.phase !== "exceptions"
       || scenarioA.prepareCalls !== 10
@@ -533,6 +547,7 @@ try {
   process.stdout.write(JSON.stringify({
     ok: true,
     scenarioA,
+    scenarioASubmittingLayout,
     scenarioB,
     scenarioC,
     scenarioD,
