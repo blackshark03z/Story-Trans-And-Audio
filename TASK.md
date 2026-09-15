@@ -322,6 +322,29 @@ FOCUSED_EVIDENCE=47 tests + 16 subtests PASS; node syntax/diff-check PASS; brows
 STABLE_STATUS=BLOCKED_WITH_EVIDENCE until a new clean representative browser CUJ reaches the end
 ```
 
+### Safe pause checkpoint — 2026-09-16
+
+`STATUS=PAUSED_SAFE / BLOCKED_WITH_EVIDENCE`
+
+```text
+PRODUCT_HEAD=e248bb9be0c49a1033cf9f55c8d3a8e2ba9aa786
+REMOTE_ALIGNMENT=main == origin/main
+WORKTREE=clean before checkpoint commit
+VERDICT=BLOCKED_WITH_EVIDENCE; do not restore CUJ_PASS / PRODUCT_ACCEPTED / STABLE_V1_SEALED without a fresh representative browser CUJ to completion
+CURRENT_UAT_SCOPE=Book 1, Chapters 12-13
+CURRENT_CANONICAL_TASK=REVIEW_RANGE_SPEAKER_EXCEPTIONS
+CURRENT_TASK_SUMMARY=26 speaker exceptions require review across 2 chapters
+ACTIVE_RENDER_JOBS=0 at safe-pause inspection
+LATEST_UI_ROOT_CAUSE=primary Production CTA was placed after long task content while the right technical rail narrowed the card; acceptance test incorrectly scrolled the CTA into view before asserting visibility
+LATEST_UI_FIX=dbef3b7 Keep production primary action visible; decision-band CTA visible without scroll on desktop
+REGRESSION_HARDENING=9f5bde9 adds SUBMITTING + 1366x768 + scrollY=0 viewport proof and removes test-assisted scrolling; manual speaker option exact values restored byte-level
+CACHE_ACTIVATION=e248bb9 bumps served CSS/JS asset version so normal reload receives the fixed UI
+FOCUSED_EVIDENCE=2 real-browser Production workflow tests PASS; 1366x768 and 1920x1080 CTA visible without horizontal/nested operational scroll; SUBMITTING command status + primary CTA both visible at scrollY=0
+SAFE_RESUME_SEQUENCE=start canonical runtime 8772 -> verify HEAD/local/remote + schema16/canonical DB -> verify no active jobs -> reopen Book1 range12-13 -> continue REVIEW_RANGE_SPEAKER_EXCEPTIONS -> proceed CUJ from speaker review onward
+DO_NOT_DO_ON_RESUME=do not reset data unless owner explicitly requests; do not claim Stable from focused tests; do not bypass canonical projection with manual DB/hidden endpoints
+RUNTIME_SHUTDOWN=planned immediately after checkpoint commit/push; expected stopped state is intentional, not an incident
+```
+
 ### Superseded historical contract — per-role scoped save before Final Voice Map approval
 
 `STATUS=SUPERSEDED_BY_ATOMIC_VOICE_CONFIGURATION_COMMIT_2026_09_13`
