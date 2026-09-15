@@ -443,14 +443,14 @@ try {
     return{ok:true};
   })()`);
 
-  await evaluate(`document.querySelector("#productionPrimaryAction").scrollIntoView({block:"nearest"})`);
+  await evaluate(`window.scrollTo(0,0)`);
   const layout1366 = await evaluate(`(() => {
     const primary=document.querySelector("#productionPrimaryAction").getBoundingClientRect();
     const nested=[...document.querySelectorAll("#productionWorkbench *")].filter(element=>{
       const style=getComputedStyle(element);
       return /(auto|scroll)/.test(style.overflowY)&&element.scrollHeight>element.clientHeight+2;
     }).map(element=>element.id||element.className);
-    return{primaryVisible:primary.top>=0&&primary.bottom<=innerHeight,horizontal:document.documentElement.scrollWidth>innerWidth+1,nested};
+    return{primaryVisible:primary.top>=0&&primary.bottom<=innerHeight,horizontal:document.documentElement.scrollWidth>innerWidth+1,nested,scrollY:window.scrollY};
   })()`);
   await send("Emulation.setDeviceMetricsOverride", {
     width: 1920,
@@ -520,7 +520,7 @@ try {
     throw new Error(`Casting approval evidence is incomplete: ${scenarioCastingEvidence}`);
   }
   if (!scenarioJ.ok) throw new Error(`Scenario J failed: ${JSON.stringify(scenarioJ)}`);
-  if (!layout1366.primaryVisible || layout1366.horizontal || layout1366.nested.length) {
+  if (!layout1366.primaryVisible || layout1366.horizontal || layout1366.nested.length || layout1366.scrollY !== 0) {
     throw new Error(`1366 layout failed: ${JSON.stringify(layout1366)}`);
   }
   if (!layout1920.primaryVisible || layout1920.horizontal) {

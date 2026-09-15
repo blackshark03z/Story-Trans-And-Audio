@@ -241,7 +241,7 @@ try {
   ];
   for (const [journey, label] of expected) {
     if (journey.primary.length !== 1 || journey.primary[0] !== label) throw new Error(`Primary action mismatch for ${label}: ${JSON.stringify(journey)}`);
-    if (!journey.primaryAfterContext) throw new Error(`Primary action did not follow its decision context: ${JSON.stringify(journey)}`);
+    if (!journey.primaryViewport) throw new Error(`Primary action was not visible without scrolling: ${JSON.stringify(journey)}`);
     if (journey.nested.length) throw new Error(`Nested operational scroll found: ${JSON.stringify(journey.nested)}`);
   }
   if (prepareSkipCompleted.calls !== 1 || prepareSkipCompleted.scope?.skip_completed !== true || prepareSkipCompleted.scope?.from_chapter !== 6 || prepareSkipCompleted.scope?.to_chapter !== 8 || !prepareSkipCompleted.label?.includes('2 chương')) throw new Error(`Skip-completed PREPARE did not preserve owner scope: ${JSON.stringify(prepareSkipCompleted)}`);
